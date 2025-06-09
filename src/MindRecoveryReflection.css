@@ -1,0 +1,205 @@
+.mind-recovery-reflection {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+}
+
+.reflection-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #5865F2;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  margin-right: 16px;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: #4752c4;
+}
+
+.reflection-header h1 {
+  font-size: 24px;
+  margin: 0;
+  flex-grow: 1;
+  color: #333;
+}
+
+.reflection-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.practice-summary {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.practice-summary h2 {
+  font-size: 20px;
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.practice-duration {
+  font-size: 16px;
+  color: #666;
+}
+
+.reflection-section {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e9ecef;
+}
+
+.reflection-section h3 {
+  font-size: 18px;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.mental-state-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px; /* Increased gap for more spacing */
+  justify-content: center;
+}
+
+.mental-state-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0; /* Softer border */
+  border-radius: 8px; /* Slightly less rounded for modern look */
+  padding: 16px; /* Increased padding for larger buttons */
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 90px; /* Slightly increased min-width */
+  box-shadow: none; /* Removed box-shadow for minimalist look */
+}
+
+.mental-state-button:hover {
+  background-color: #e9ecef;
+  border-color: #c0c0c0; /* Softer hover border */
+}
+
+.mental-state-button.selected {
+  border-color: #5865F2;
+  background-color: rgba(88, 101, 242, 0.15); /* Slightly more prominent selected state */
+}
+
+.mental-state-emoji {
+  font-size: 28px; /* Slightly larger emoji */
+  margin-bottom: 8px;
+}
+
+.reflection-textarea {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.reflection-textarea:focus {
+  outline: none;
+  border-color: #5865F2;
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+}
+
+.reflection-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.skip-button {
+  background-color: transparent;
+  border: 1px solid #6c757d;
+  color: #6c757d;
+  border-radius: 24px;
+  padding: 10px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.skip-button:hover {
+  background-color: #f8f9fa;
+}
+
+.submit-button {
+  background-color: #5865F2;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 12px 32px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-button:hover {
+  background-color: #4752c4;
+}
+
+.submit-button:disabled {
+  background-color: #b1b8f2;
+  cursor: not-allowed;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .mind-recovery-reflection {
+    padding: 15px;
+  }
+  
+  .mental-state-selector {
+    flex-direction: row; /* Keep as row for better spacing on mobile */
+    justify-content: center; /* Center items */
+    gap: 10px; /* Adjust gap for mobile */
+  }
+  
+  .mental-state-button {
+    flex-direction: column; /* Keep as column for better stacking */
+    justify-content: center; /* Center content */
+    gap: 0; /* Remove gap within button for mobile */
+    padding: 10px; /* Adjust padding for mobile */
+    min-width: 60px; /* Adjust min-width for mobile */
+  }
+  
+  .mental-state-emoji {
+    margin-bottom: 4px; /* Adjust margin for mobile */
+    font-size: 24px; /* Adjust font size for mobile */
+  }
+  
+  .reflection-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .skip-button,
+  .submit-button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+

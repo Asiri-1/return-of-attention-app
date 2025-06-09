@@ -1,0 +1,275 @@
+/* PAHMExplanation.css */
+.pahm-explanation-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #F8F9FA;
+}
+
+.explanation-header {
+  background-color: #FFFFFF;
+  padding: 16px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #5865F2;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.back-button:hover {
+  background-color: rgba(88, 101, 242, 0.05);
+}
+
+.explanation-header h1 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0;
+  font-weight: 500;
+}
+
+.explanation-content {
+  flex: 1;
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.matrix-overview {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.matrix-overview h2 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0 0 16px 0;
+}
+
+.matrix-description {
+  font-size: 16px;
+  color: #6C757D;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.pahm-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.matrix-row {
+  display: flex;
+  gap: 4px;
+  height: 80px;
+}
+
+.matrix-cell {
+  flex: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.matrix-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.matrix-cell.selected {
+  box-shadow: 0 0 0 2px #5865F2;
+}
+
+.cell-content {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  padding: 8px;
+}
+
+.interaction-hint {
+  font-size: 14px;
+  color: #6C757D;
+  text-align: center;
+  margin: 0;
+}
+
+.position-details {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.position-header {
+  padding: 16px 24px;
+}
+
+.position-header h2 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0;
+}
+
+.position-content {
+  padding: 24px;
+}
+
+.position-description {
+  font-size: 16px;
+  color: #6C757D;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  font-size: 18px;
+  color: #212529;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E9ECEF;
+}
+
+.characteristics-list, .examples-list, .tips-list {
+  padding-left: 24px;
+  margin: 0;
+}
+
+.characteristics-list li, .examples-list li, .tips-list li {
+  margin-bottom: 8px;
+  color: #495057;
+}
+
+.return-tips {
+  background-color: #F1F8FF;
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid #5865F2;
+}
+
+.return-tips h3 {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 12px;
+}
+
+.matrix-practice {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.matrix-practice h2 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0 0 16px 0;
+}
+
+.practice-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.step-card {
+  background-color: #F8F9FA;
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+}
+
+.step-number {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  width: 24px;
+  height: 24px;
+  background-color: #5865F2;
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.step-card h3 {
+  font-size: 16px;
+  color: #212529;
+  margin: 8px 0 8px 0;
+}
+
+.step-card p {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.practice-note {
+  background-color: #FFF9DB;
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid #FFC107;
+}
+
+.practice-note p {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .practice-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .explanation-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .practice-steps {
+    grid-template-columns: 1fr;
+  }
+  
+  .matrix-row {
+    height: 60px;
+  }
+  
+  .cell-content {
+    font-size: 12px;
+    padding: 4px;
+  }
+}

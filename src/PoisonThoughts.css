@@ -1,0 +1,125 @@
+.poison-thoughts {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.poison-thoughts-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.back-button {
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  margin-right: 20px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #e0e0e0;
+}
+
+.poison-thoughts-header h1 {
+  font-size: 28px;
+  color: #333;
+  margin: 0;
+}
+
+.poison-thoughts-content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section h2 {
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+.poison-thought-type {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.poison-thought-type:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.poison-thought-type h3 {
+  color: #5c6bc0;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.poison-thought-type p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  color: #444;
+}
+
+.example {
+  background-color: #f8f9fa;
+  padding: 12px;
+  border-left: 3px solid #5c6bc0;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #555;
+}
+
+.practice {
+  margin-bottom: 20px;
+}
+
+.practice h3 {
+  color: #5c6bc0;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.practice p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  color: #444;
+}
+
+.section ol {
+  padding-left: 20px;
+}
+
+.section ol li {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  color: #444;
+}
+
+@media (max-width: 768px) {
+  .poison-thoughts {
+    padding: 15px;
+  }
+  
+  .poison-thoughts-header h1 {
+    font-size: 24px;
+  }
+  
+  .section {
+    padding: 15px;
+  }
+}

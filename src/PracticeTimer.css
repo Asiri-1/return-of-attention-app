@@ -1,0 +1,273 @@
+.practice-timer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #F8F9FA;
+}
+
+.timer-header {
+  background-color: #FFFFFF;
+  padding: 16px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back-button, .skip-button {
+  background: none;
+  border: none;
+  color: #5865F2;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.back-button:hover, .skip-button:hover {
+  background-color: rgba(88, 101, 242, 0.05);
+}
+
+.timer-header h1 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0;
+  font-weight: 500;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.timer-content {
+  flex: 1;
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.timer-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.time-remaining {
+  font-size: 72px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 16px;
+}
+
+.timer-instruction {
+  font-size: 18px;
+  color: #6C757D;
+  margin-bottom: 32px;
+  text-align: center;
+  width: 100%;
+}
+
+.timer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  max-width: 300px;
+}
+
+.start-button, .pause-button, .resume-button {
+  background-color: #5865F2;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.start-button:hover, .pause-button:hover, .resume-button:hover {
+  background-color: #4752c4;
+}
+
+.skip-button {
+  background: none;
+  border: 1px solid #CED4DA;
+  color: #6C757D;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.skip-button:hover {
+  background-color: #F8F9FA;
+}
+
+/* PAHM Timer specific styles */
+.pahm-timer {
+  background-color: #F0F2F5;
+}
+
+.pahm-matrix-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto 32px auto;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.pahm-matrix-container h3 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0 0 12px 0;
+  text-align: center;
+}
+
+.matrix-instruction {
+  font-size: 14px;
+  color: #6C757D;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.custom-duration-container {
+  width: 100%;
+  max-width: 500px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.custom-duration-container h2 {
+  font-size: 24px;
+  color: #212529;
+  margin: 0 0 16px 0;
+}
+
+.duration-instruction {
+  font-size: 16px;
+  color: #6C757D;
+  margin-bottom: 24px;
+}
+
+.duration-input-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.duration-input {
+  width: 100px;
+  padding: 10px;
+  border: 1px solid #CED4DA;
+  border-radius: 4px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.duration-unit {
+  font-size: 16px;
+  color: #6C757D;
+}
+
+.confirmation-dialog {
+  width: 100%;
+  max-width: 400px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.confirmation-dialog h2 {
+  font-size: 24px;
+  color: #212529;
+  margin: 0 0 16px 0;
+}
+
+.confirmation-dialog p {
+  font-size: 16px;
+  color: #6C757D;
+  margin-bottom: 24px;
+}
+
+.confirmation-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.cancel-button {
+  background-color: #F8F9FA;
+  color: #212529;
+  border: 1px solid #CED4DA;
+  border-radius: 24px;
+  padding: 10px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-button:hover {
+  background-color: #e2e6ea;
+}
+
+.confirm-button {
+  background-color: #5865F2;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 10px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.confirm-button:hover {
+  background-color: #4752c4;
+}
+
+@media (max-width: 768px) {
+  .timer-content {
+    padding: 16px;
+  }
+  
+  .time-remaining {
+    font-size: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .timer-header h1 {
+    font-size: 18px;
+  }
+  
+  .time-remaining {
+    font-size: 48px;
+  }
+  
+  .timer-instruction {
+    font-size: 16px;
+  }
+}

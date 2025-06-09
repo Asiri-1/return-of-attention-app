@@ -1,0 +1,227 @@
+/* WhatIsPAHM.css */
+.what-is-pahm {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #333;
+  font-family: 'Roboto', sans-serif;
+}
+
+.what-is-pahm .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.what-is-pahm .back-button {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.what-is-pahm .back-button:hover {
+  background-color: #f5f5f5;
+}
+
+.what-is-pahm .placeholder {
+  width: 80px;
+}
+
+.what-is-pahm .content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0 20px 40px;
+}
+
+.what-is-pahm h1 {
+  font-size: 32px;
+  margin-bottom: 30px;
+  color: #4a6fa5;
+  text-align: center;
+}
+
+.what-is-pahm h2 {
+  font-size: 24px;
+  margin: 30px 0 15px;
+  color: #4a6fa5;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.what-is-pahm h3 {
+  font-size: 20px;
+  margin: 25px 0 15px;
+  color: #5d7ebc;
+}
+
+.what-is-pahm h4 {
+  font-size: 18px;
+  margin: 20px 0 10px;
+  color: #6c8cc9;
+}
+
+.what-is-pahm p {
+  line-height: 1.6;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.what-is-pahm section {
+  margin-bottom: 40px;
+}
+
+.what-is-pahm .introduction {
+  font-size: 18px;
+  line-height: 1.7;
+  margin-bottom: 30px;
+}
+
+.what-is-pahm .pahm-matrix-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.what-is-pahm .matrix-demo {
+  margin: 30px 0;
+  max-width: 500px;
+  width: 100%;
+}
+
+.what-is-pahm .matrix-caption {
+  font-style: italic;
+  color: #666;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.what-is-pahm ul, 
+.what-is-pahm ol {
+  margin: 15px 0;
+  padding-left: 25px;
+}
+
+.what-is-pahm li {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.what-is-pahm .position-group {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.what-is-pahm .position-item {
+  margin-bottom: 20px;
+  padding-left: 15px;
+  border-left: 3px solid #4a6fa5;
+}
+
+.what-is-pahm .position-item:last-child {
+  margin-bottom: 0;
+}
+
+.what-is-pahm .benefits-section ul {
+  columns: 2;
+  column-gap: 30px;
+}
+
+.what-is-pahm .practice-section ol {
+  counter-reset: item;
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.what-is-pahm .practice-section ol li {
+  counter-increment: item;
+  margin-bottom: 15px;
+  padding-left: 30px;
+  position: relative;
+}
+
+.what-is-pahm .practice-section ol li:before {
+  content: counter(item);
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-color: #4a6fa5;
+  color: white;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 22px;
+  font-size: 14px;
+}
+
+.what-is-pahm .action-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.what-is-pahm .start-practice-button {
+  padding: 15px 30px;
+  background-color: #4a6fa5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.what-is-pahm .start-practice-button:hover {
+  background-color: #3a5a8c;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .what-is-pahm h1 {
+    font-size: 28px;
+  }
+  
+  .what-is-pahm h2 {
+    font-size: 22px;
+  }
+  
+  .what-is-pahm .benefits-section ul {
+    columns: 1;
+  }
+  
+  .what-is-pahm .content {
+    padding: 0 10px 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .what-is-pahm h1 {
+    font-size: 24px;
+  }
+  
+  .what-is-pahm h2 {
+    font-size: 20px;
+  }
+  
+  .what-is-pahm .introduction {
+    font-size: 16px;
+  }
+  
+  .what-is-pahm .start-practice-button {
+    padding: 12px 24px;
+    font-size: 16px;
+  }
+}

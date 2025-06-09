@@ -1,0 +1,164 @@
+/* AIAssistant.css */
+.ai-assistant {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 2rem;
+  background-color: #f8f9fa;
+}
+
+.assistant-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.assistant-header h1 {
+  font-size: 1.8rem;
+  margin: 0;
+  color: #2c3e50;
+}
+
+.back-button {
+  margin-right: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #ecf0f1;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #2c3e50;
+}
+
+.assistant-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.processing-screen,
+.recommendations-screen {
+  max-width: 600px;
+  width: 100%;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
+
+.processing-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.processing-header h2 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.processing-steps {
+  margin-bottom: 2rem;
+}
+
+.processing-step {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.step-number {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #3498db;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+}
+
+.step-text {
+  flex: 1;
+}
+
+.progress-container {
+  margin-top: 2rem;
+}
+
+.progress-bars {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.progress-bar {
+  height: 4px;
+  flex: 1;
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  transition: background-color 0.3s;
+}
+
+.progress-bar.active {
+  background-color: #3498db;
+}
+
+.recommendation-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.recommendation-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-card {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.recommendation-card h3 {
+  margin-top: 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #3498db;
+  margin-bottom: 0.5rem;
+}
+
+.focus-areas-list {
+  padding-left: 1.5rem;
+}
+
+.focus-areas-list li {
+  margin-bottom: 0.5rem;
+}
+
+.recommendation-message {
+  margin-bottom: 2rem;
+}
+
+.primary-button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.primary-button:hover {
+  background-color: #2980b9;
+}

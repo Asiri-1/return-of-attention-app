@@ -1,0 +1,132 @@
+.pahm-matrix-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.pahm-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.matrix-row {
+  display: flex;
+  gap: 4px;
+  height: 120px;
+}
+
+.matrix-quadrant {
+  flex: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px;
+}
+
+.matrix-quadrant:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.matrix-quadrant.selected {
+  box-shadow: 0 0 0 3px #4A90E2;
+}
+
+.present-happy {
+  background-color: #FFEB3B; /* Yellow from logo */
+}
+
+.present-unhappy {
+  background-color: #FFCDD2; /* Pink from logo */
+}
+
+.not-present-happy {
+  background-color: #E3F2FD; /* Light blue from logo */
+}
+
+.not-present-unhappy {
+  background-color: #D1C4E9; /* Purple from logo */
+}
+
+.quadrant-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+
+.quadrant-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #212529;
+}
+
+.quadrant-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.count-number {
+  font-size: 24px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.count-percentage {
+  font-size: 14px;
+  color: #6C757D;
+}
+
+.matrix-instructions {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.matrix-instructions p {
+  font-size: 14px;
+  color: #6C757D;
+  margin-bottom: 8px;
+}
+
+.total-count {
+  font-size: 16px;
+  font-weight: 500;
+  color: #212529;
+}
+
+.total-count span {
+  font-weight: 600;
+  color: #4A90E2;
+}
+
+@media (max-width: 480px) {
+  .matrix-row {
+    height: 100px;
+  }
+  
+  .quadrant-title {
+    font-size: 14px;
+  }
+  
+  .count-number {
+    font-size: 20px;
+  }
+  
+  .count-percentage {
+    font-size: 12px;
+  }
+}

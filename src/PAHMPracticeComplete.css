@@ -1,0 +1,273 @@
+.pahm-practice-complete {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #F8F9FA;
+}
+
+.practice-complete-header {
+  background-color: #FFFFFF;
+  padding: 16px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #5865F2;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.back-button:hover {
+  background-color: rgba(88, 101, 242, 0.05);
+}
+
+.practice-complete-header h1 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0;
+  font-weight: 500;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.practice-complete-content {
+  flex: 1;
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.app-logo {
+  margin-bottom: 16px;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.session-info {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.session-detail {
+  font-size: 16px;
+  color: #495057;
+  margin-bottom: 8px;
+}
+
+.session-detail:last-child {
+  margin-bottom: 0;
+}
+
+.pahm-distribution {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.pahm-distribution h2 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.distribution-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.distribution-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #6C757D;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.stat-bar {
+  height: 8px;
+  background-color: #E9ECEF;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.present-fill {
+  background-color: #4A90E2;
+}
+
+.past-fill {
+  background-color: #4CAF50;
+}
+
+.future-fill {
+  background-color: #FF9800;
+}
+
+.other-fill {
+  background-color: #9E9E9E;
+}
+
+.total-positions {
+  font-size: 14px;
+  color: #6C757D;
+  text-align: center;
+}
+
+.reflection-section {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.reflection-section h3 {
+  font-size: 18px;
+  color: #212529;
+  margin: 0 0 16px 0;
+}
+
+.reflection-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid #CED4DA;
+  border-radius: 4px;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.challenges-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.challenge-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.challenge-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.challenge-option label {
+  font-size: 16px;
+  color: #495057;
+}
+
+.practice-rating {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.practice-rating h2 {
+  font-size: 20px;
+  color: #212529;
+  margin: 0 0 16px 0;
+}
+
+.star-rating {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.star-button {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #CED4DA;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.star-button.active {
+  color: #FFC107;
+}
+
+.save-continue-button {
+  background-color: #5865F2;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+  max-width: 300px;
+  margin-bottom: 24px;
+}
+
+.save-continue-button:hover {
+  background-color: #4752c4;
+}
+
+.home-indicator {
+  width: 40px;
+  height: 5px;
+  background-color: #CED4DA;
+  border-radius: 2.5px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+  .practice-complete-content {
+    padding: 16px;
+  }
+  
+  .challenges-options {
+    grid-template-columns: 1fr;
+  }
+}
