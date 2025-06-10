@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import './PostureGuide.css';
 
 interface PostureGuideProps {
-  onBack: () => void;
   onContinue?: () => void;
 }
 
-const PostureGuide: React.FC<PostureGuideProps> = ({ onBack, onContinue = () => {} }) => {
+const PostureGuide: React.FC<PostureGuideProps> = ({ onContinue = () => {} }) => {
   const [currentSection, setCurrentSection] = useState<string>('overview');
 
   // Define postures to match those in PostureSelection.tsx
@@ -247,7 +246,6 @@ const PostureGuide: React.FC<PostureGuideProps> = ({ onBack, onContinue = () => 
   return (
     <div className="posture-guide">
       <div className="posture-guide-header">
-        <button className="back-button" onClick={onBack}>Back</button>
         <h1>Posture Guide</h1>
       </div>
       
@@ -321,3 +319,5 @@ const PostureGuide: React.FC<PostureGuideProps> = ({ onBack, onContinue = () => 
 };
 
 export default PostureGuide;
+
+

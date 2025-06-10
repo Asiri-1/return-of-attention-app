@@ -25,6 +25,13 @@ import SeekerPracticeCompleteWrapper from './SeekerPracticeCompleteWrapper';
 import SignIn from './SignIn'; // Assuming SignIn component exists
 import SignUp from './SignUp'; // Assuming SignUp component exists
 
+// Import Introduction and SelfAssessment components
+import Introduction from './Introduction';
+import SelfAssessment from './SelfAssessment';
+import SelfAssessmentCompletion from './SelfAssessmentCompletion';
+import ForgotPassword from './ForgotPassword'; // Import ForgotPassword component
+import PostureGuide from './PostureGuide'; // Import PostureGuide component
+
 // Define types
 interface PracticeData {
   sessions: Array<{
@@ -137,13 +144,10 @@ const AppContent: React.FC = () => {
   const handleViewLearning = () => {
     console.log('Viewing learning resources');
     // Will be implemented in future
-  };
-  
-  // Handle showing posture guide
+  }  // Handle showing posture guide
   const handleShowPostureGuide = () => {
-    console.log('Showing posture guide');
-    // Use window.location for navigation without useNavigate hook
-    window.location.href = '/posture-guide';
+    console.log("Showing posture guide");
+    navigate("/posture-guide");
   };
   
   // Handle showing PAHM explanation
@@ -204,13 +208,114 @@ const AppContent: React.FC = () => {
     window.location.href = '/';
   };
 
+  // Handle sign-up with proper flow to introduction
+  const handleSignUp = async (email: string, password: string, name: string) => {
+    // Check if email is already registered
+    const existingUser = localStorage.getItem('currentUser');
+    if (existingUser) {
+      const userData = JSON.parse(existingUser);
+      if (userData.email === email) {
+        alert('This email is already registered. Please sign in instead.');
+        navigate('/signin');
+        return;
+      }
+    }
+    
+    // Check if there are multiple users stored (if you plan to support multiple users)
+    const allUsers = localStorage.getItem('allUsers');
+    if (allUsers) {
+      const users = JSON.parse(allUsers);
+      const emailExists = users.some((user: any) => user.email === email);
+      if (emailExists) {
+        alert('This email is already registered. Please sign in instead.');
+        navigate('/signin');
+        return;
+      }
+    }
+    
+    // Create user data for new user
+    const userData = {
+      email,
+      name,
+      experienceLevel: 'beginner',
+      goals: ['stress-reduction', 'focus'],
+      practiceTime: 10,
+      frequency: 'daily',
+      assessmentCompleted: false,
+      currentStage: 1,
+      isFirstTimeUser: true
+    };
+    
+    // Store user data in localStorage
+    localStorage.setItem('currentUser', JSON.stringify(userData));
+    
+    // Also store in allUsers array for future email checking
+    const existingUsers = localStorage.getItem('allUsers');
+    const users = existingUsers ? JSON.parse(existingUsers) : [];
+    users.push(userData);
+    localStorage.setItem('allUsers', JSON.stringify(users));
+    
+    // Login the user
+    await login(email, password);
+    
+    // Navigate to introduction instead of home
+    navigate('/introduction');
+  };
+
   return (
     <div className="app-container">
       <DevPanelToggle />
       <Routes>
         {/* Authentication Routes - always accessible */}
-        <Route path="/signin" element={<SignIn onSignIn={async () => { await login('demo@example.com', 'password'); navigate('/home'); }} onGoogleSignIn={async () => { await login('google@example.com', 'password'); navigate('/home'); }} onAppleSignIn={async () => { await login('apple@example.com', 'password'); navigate('/home'); }} onSignUp={() => navigate('/signup')} />} />
-        <Route path="/signup" element={<SignUp onSignUp={async (email, password) => { await login(email, password); navigate('/home'); }} onGoogleSignUp={async () => { await login('google@example.com', 'password'); navigate('/home'); }} onAppleSignUp={async () => { await login('apple@example.com', 'password'); navigate('/home'); }} onSignIn={() => navigate('/signin')} />} />
+        <Route path="/signin" element={<SignIn onSignIn={async (email, password) => { await login(email, password); navigate('/home'); }} onGoogleSignIn={async () => { await login('google@example.com', 'password'); navigate('/home'); }} onAppleSignIn={async () => { await login('apple@example.com', 'password'); navigate('/home'); }} onSignUp={() => navigate('/signup')} onForgotPassword={() => navigate('/forgot-password')} />} />
+        <Route path="/signup" element={<SignUp onSignUp={handleSignUp} onGoogleSignUp={async () => { await login('google@example.com', 'password'); navigate('/introduction'); }} onAppleSignUp={async () => { await login('apple@example.com', 'password'); navigate('/introduction'); }} onSignIn={() => navigate('/signin')} />} />
+
+        {/* Introduction Route - accessible to new users */}
+        <Route 
+          path="/introduction" 
+          element={
+            <Introduction 
+              onComplete={() => navigate('/self-assessment')} 
+              onSkip={() => navigate('/home')} 
+            />
+          }
+        />
+        
+        {/* Self-Assessment Route - accessible to new users */}
+        <Route 
+          path="/self-assessment" 
+          element={
+            <SelfAssessment 
+              onComplete={() => navigate('/self-assessment-completion')} 
+              onBack={() => navigate('/introduction')} 
+            />
+          }
+        />
+
+        {/* Self-Assessment Completion Route - accessible after self-assessment */}
+        <Route 
+          path="/self-assessment-completion" 
+          element={
+            <SelfAssessmentCompletion 
+              onGetStarted={() => navigate('/stage1')} 
+              onBack={() => navigate('/self-assessment')} 
+            />
+          }
+        />
+
+        {/* Forgot Password Route */}
+        <Route 
+          path="/forgot-password" 
+          element={
+            <ForgotPassword 
+              onResetPassword={(email: string) => { // Added string type to email parameter
+                alert(`Password reset link sent to ${email}`);
+                navigate('/signin');
+              }}
+              onBackToSignIn={() => navigate('/signin')} 
+            />
+          }
+        />
 
         {/* Authenticated Routes - conditionally rendered based on authentication */}
         <Route
@@ -261,6 +366,7 @@ const AppContent: React.FC = () => {
                 <Route path="/analytics" element={<AnalyticsBoardWrapper />} />
                 <Route path="/mind-recovery" element={<MindRecoverySelectionWrapper />} />
                 <Route path="/mind-recovery/:practiceType" element={<MindRecoveryTimerWrapper />} />
+                <Route path="/posture-guide" element={<PostureGuide onContinue={() => navigate("/home")} />} />
                 
                 {/* Redirect any unknown routes to home */}
                 <Route path="*" element={<Navigate to="/home" replace />} />

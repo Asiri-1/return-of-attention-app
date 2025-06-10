@@ -1,39 +1,38 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import '../src/SignIn.css'; // Make sure this path is correct
-import Logo from './Logo'; // Assuming Logo component exists
-import GoogleIcon from './icons/GoogleIcon'; // Assuming GoogleIcon component exists
+import './SignIn.css';
+import Logo from './Logo';
+import GoogleIcon from './icons/GoogleIcon';
+import AppleIcon from './icons/AppleIcon';
 
 interface SignInProps {
   onSignIn: (email: string, password: string) => void;
   onGoogleSignIn: () => void;
   onAppleSignIn: () => void;
   onSignUp: () => void;
+  onForgotPassword: () => void; // New prop for forgot password
 }
 
-const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppleSignIn, onSignUp }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+const SignIn: React.FC<SignInProps> = ({
+  onSignIn,
+  onGoogleSignIn,
+  onAppleSignIn,
+  onSignUp,
+  onForgotPassword, // Destructure new prop
+}) => {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (email === 'user@example.com' && password === 'password') {
-        onSignIn(email, password);
-      } else {
-        setError('Invalid email or password.');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setLoading(false);
+
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
     }
+
+    setError('');
+    onSignIn(email, password);
   };
 
   return (
@@ -41,9 +40,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppleSignIn
       <div className="sign-in-card">
         <div className="logo-container">
           <Logo />
-          <h1>Return of Attention</h1>
+          <h1>Welcome Back</h1>
         </div>
-        <h2>Sign In</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -53,8 +51,8 @@ const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppleSignIn
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
               required
-              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -64,24 +62,32 @@ const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppleSignIn
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
               required
-              disabled={loading}
             />
+            <button type="button" className="forgot-password-link" onClick={onForgotPassword}>
+              Forgot Password?
+            </button>
           </div>
-          <button type="submit" className="sign-in-button" disabled={loading}>
-            {loading ? 'Signing In...' : 'Sign In'}
+          <button type="submit" className="sign-in-button" disabled={!email || !password}>
+            Sign In
           </button>
         </form>
-
         <div className="sign-up-prompt">
           <p>Don't have an account?</p>
-          <button onClick={onSignUp} className="sign-up-link" disabled={loading}>
-            Sign Up
-          </button>
+          <button className="sign-up-link" onClick={onSignUp}>Sign Up</button>
         </div>
-
+        <div className="separator">
+          <span>or</span>
+        </div>
+        <button className="sign-in-button google" onClick={onGoogleSignIn}>
+          <GoogleIcon /> Continue with Google
+        </button>
+        <button className="sign-in-button apple" onClick={onAppleSignIn}>
+          <AppleIcon /> Continue with Apple
+        </button>
         <div className="demo-mode-notice">
-          <p>Demo Mode: Use email "user@example.com" and password "password" to sign in.</p>
+          <p>Demo Mode: Use any email and password to sign in.</p>
         </div>
       </div>
     </div>
@@ -89,3 +95,5 @@ const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppleSignIn
 };
 
 export default SignIn;
+
+

@@ -146,4 +146,3 @@ const SignUp: React.FC<SignUpProps> = ({
 
 export default SignUp;
 
-
