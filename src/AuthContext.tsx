@@ -10,6 +10,8 @@ interface User {
   frequency: string;
   assessmentCompleted: boolean;
   currentStage: number;
+  questionnaireCompleted: boolean; // New field
+  questionnaireAnswers?: any; // New field to store questionnaire answers
 }
 
 interface AuthContextType {
@@ -58,7 +60,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       practiceTime: 10,
       frequency: 'daily',
       assessmentCompleted: false,
-      currentStage: 1
+      currentStage: 1,
+      questionnaireCompleted: false, // Default to false for new users
     };
     
     localStorage.setItem('currentUser', JSON.stringify(user));
@@ -92,3 +95,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 };
 
 export default AuthContext;
+
+

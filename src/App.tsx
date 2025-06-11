@@ -7,7 +7,7 @@ import MainNavigation from './MainNavigation';
 import DailyEmotionalNotesWrapper from './DailyEmotionalNotesWrapper';
 import AnalyticsBoardWrapper from './AnalyticsBoardWrapper';
 import MindRecoverySelectionWrapper from './MindRecoverySelectionWrapper';
-import MindRecoveryTimerWrapper from './MindRecoveryTimerWrapper'; // Import MindRecoveryTimerWrapper
+import MindRecoveryTimerWrapper from './MindRecoveryTimerWrapper';
 
 // Import components
 import HomeDashboard from './HomeDashboard';
@@ -22,15 +22,18 @@ import SeekerPracticeTimerWrapper from './SeekerPracticeTimerWrapper';
 import SeekerPracticeCompleteWrapper from './SeekerPracticeCompleteWrapper';
 
 // Assuming you have SignIn and SignUp components
-import SignIn from './SignIn'; // Assuming SignIn component exists
-import SignUp from './SignUp'; // Assuming SignUp component exists
+import SignIn from './SignIn';
+import SignUp from './SignUp';
 
 // Import Introduction and SelfAssessment components
 import Introduction from './Introduction';
 import SelfAssessment from './SelfAssessment';
 import SelfAssessmentCompletion from './SelfAssessmentCompletion';
-import ForgotPassword from './ForgotPassword'; // Import ForgotPassword component
-import PostureGuide from './PostureGuide'; // Import PostureGuide component
+import PostureGuide from './PostureGuide';
+import UserProfile from './UserProfile';
+
+// Import the new Questionnaire component
+import Questionnaire from './Questionnaire';
 
 // Define types
 interface PracticeData {
@@ -51,7 +54,7 @@ interface PracticeData {
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, currentUser, updateUser } = useAuth();
 
   // State for practice data
   const [practiceData, setPracticeData] = useState<PracticeData>({
@@ -243,7 +246,8 @@ const AppContent: React.FC = () => {
       frequency: 'daily',
       assessmentCompleted: false,
       currentStage: 1,
-      isFirstTimeUser: true
+      isFirstTimeUser: true,
+      questionnaireCompleted: false // New field to track questionnaire completion
     };
     
     // Store user data in localStorage
@@ -258,8 +262,28 @@ const AppContent: React.FC = () => {
     // Login the user
     await login(email, password);
     
-    // Navigate to introduction instead of home
+    // Navigate to questionnaire instead of introduction
+    navigate('/questionnaire');
+  };
+
+  // Handle questionnaire completion
+  const handleQuestionnaireComplete = (answers: any) => {
+    updateUser({ questionnaireAnswers: answers, questionnaireCompleted: true });
     navigate('/introduction');
+  };
+
+  // Check if user should see introduction flow
+  const shouldShowIntroductionFlow = () => {
+    if (!isAuthenticated || !currentUser) return false;
+    
+    // Show introduction flow if user hasn't completed assessment and is first time user
+    return !currentUser.assessmentCompleted;
+  };
+
+  // Check if user should see questionnaire flow
+  const shouldShowQuestionnaireFlow = () => {
+    if (!isAuthenticated || !currentUser) return false;
+    return !currentUser.questionnaireCompleted;
   };
 
   return (
@@ -267,28 +291,51 @@ const AppContent: React.FC = () => {
       <DevPanelToggle />
       <Routes>
         {/* Authentication Routes - always accessible */}
-        <Route path="/signin" element={<SignIn onSignIn={async (email, password) => { await login(email, password); navigate('/home'); }} onGoogleSignIn={async () => { await login('google@example.com', 'password'); navigate('/home'); }} onAppleSignIn={async () => { await login('apple@example.com', 'password'); navigate('/home'); }} onSignUp={() => navigate('/signup')} onForgotPassword={() => navigate('/forgot-password')} />} />
-        <Route path="/signup" element={<SignUp onSignUp={handleSignUp} onGoogleSignUp={async () => { await login('google@example.com', 'password'); navigate('/introduction'); }} onAppleSignUp={async () => { await login('apple@example.com', 'password'); navigate('/introduction'); }} onSignIn={() => navigate('/signin')} />} />
+        <Route path="/signin" element={<SignIn onSignIn={async (email, password) => { await login(email, password); navigate('/home'); }} onGoogleSignIn={async () => { await login('google@example.com', 'password'); navigate('/home'); }} onAppleSignIn={async () => { await login('apple@example.com', 'password'); navigate('/home'); }} onSignUp={() => navigate('/signup')} onForgotPassword={() => { /* handle forgot password */ }} />} />
+        <Route path="/signup" element={<SignUp onSignUp={handleSignUp} onGoogleSignUp={async () => { await login('google@example.com', 'password'); navigate('/questionnaire'); }} onAppleSignUp={async () => { await login('apple@example.com', 'password'); navigate('/questionnaire'); }} onSignIn={() => navigate('/signin')} />} />
 
-        {/* Introduction Route - accessible to new users */}
+        {/* Questionnaire Route - accessible to authenticated users who haven't completed the questionnaire */}
+        <Route 
+          path="/questionnaire" 
+          element={
+            isAuthenticated ? (
+              <Questionnaire 
+                onComplete={handleQuestionnaireComplete} 
+                onSkip={() => navigate('/introduction')} // Skip questionnaire to introduction
+              />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
+          }
+        />
+
+        {/* Introduction Flow Routes - accessible to authenticated users who haven't completed assessment */}
         <Route 
           path="/introduction" 
           element={
-            <Introduction 
-              onComplete={() => navigate('/self-assessment')} 
-              onSkip={() => navigate('/home')} 
-            />
+            isAuthenticated ? (
+              <Introduction 
+                onComplete={() => navigate('/self-assessment')} 
+                onSkip={() => navigate('/home')} 
+              />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
           }
         />
         
-        {/* Self-Assessment Route - accessible to new users */}
+        {/* Self-Assessment Route - accessible to authenticated users */}
         <Route 
           path="/self-assessment" 
           element={
-            <SelfAssessment 
-              onComplete={() => navigate('/self-assessment-completion')} 
-              onBack={() => navigate('/introduction')} 
-            />
+            isAuthenticated ? (
+              <SelfAssessment 
+                onComplete={() => navigate('/self-assessment-completion')} 
+                onBack={() => navigate('/introduction')} 
+              />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
           }
         />
 
@@ -296,24 +343,14 @@ const AppContent: React.FC = () => {
         <Route 
           path="/self-assessment-completion" 
           element={
-            <SelfAssessmentCompletion 
-              onGetStarted={() => navigate('/stage1')} 
-              onBack={() => navigate('/self-assessment')} 
-            />
-          }
-        />
-
-        {/* Forgot Password Route */}
-        <Route 
-          path="/forgot-password" 
-          element={
-            <ForgotPassword 
-              onResetPassword={(email: string) => { // Added string type to email parameter
-                alert(`Password reset link sent to ${email}`);
-                navigate('/signin');
-              }}
-              onBackToSignIn={() => navigate('/signin')} 
-            />
+            isAuthenticated ? (
+              <SelfAssessmentCompletion 
+                onGetStarted={() => navigate('/stage1')} 
+                onBack={() => navigate('/self-assessment')} 
+              />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
           }
         />
 
@@ -327,8 +364,17 @@ const AppContent: React.FC = () => {
               onLearnClick={handleViewLearning}
             >
               <Routes>
-                {/* Conditional redirect based on authentication status */}
-                <Route path="/" element={<Navigate to="/home" replace />} />
+                {/* Conditional redirect based on authentication status and assessment completion */}
+                <Route 
+                  path="/" 
+                  element={
+                    shouldShowQuestionnaireFlow() ?
+                      <Navigate to="/questionnaire" replace /> :
+                    shouldShowIntroductionFlow() ? 
+                      <Navigate to="/introduction" replace /> : 
+                      <Navigate to="/home" replace />
+                  } 
+                />
                 <Route path="/home" element={
                   <HomeDashboard 
                     onStartPractice={handleStartPracticeWrapper}
@@ -367,6 +413,7 @@ const AppContent: React.FC = () => {
                 <Route path="/mind-recovery" element={<MindRecoverySelectionWrapper />} />
                 <Route path="/mind-recovery/:practiceType" element={<MindRecoveryTimerWrapper />} />
                 <Route path="/posture-guide" element={<PostureGuide onContinue={() => navigate("/home")} />} />
+                <Route path="/profile" element={<UserProfile onBack={() => navigate("/home")} onLogout={handleLogout} />} />
                 
                 {/* Redirect any unknown routes to home */}
                 <Route path="*" element={<Navigate to="/home" replace />} />
