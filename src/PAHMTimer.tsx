@@ -10,11 +10,11 @@ interface PAHMTimerProps {
   onBack: () => void;
 }
 
-const PAHMTimer: React.FC<PAHMTimerProps> = ({ 
-  initialMinutes, 
-  stageLevel, 
-  onComplete, 
-  onBack 
+const PAHMTimer: React.FC<PAHMTimerProps> = ({
+  initialMinutes,
+  stageLevel,
+  onComplete,
+  onBack
 }) => {
   // Timer states
   const [minutes, setMinutes] = useState<number>(initialMinutes);

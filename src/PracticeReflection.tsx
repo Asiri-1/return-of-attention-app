@@ -13,9 +13,9 @@ export interface ReflectionData {
   insights: string;
 }
 
-const PracticeReflection: React.FC<PracticeReflectionProps> = ({ 
-  onBack, 
-  onSaveReflection 
+const PracticeReflection: React.FC<PracticeReflectionProps> = ({
+  onBack,
+  onSaveReflection
 }) => {
   const [reflectionText, setReflectionText] = useState<string>('');
   const [challenges, setChallenges] = useState<string[]>([]);

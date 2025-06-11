@@ -1,0 +1,184 @@
+.practice-reflection {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  font-family: Arial, sans-serif;
+}
+
+.practice-reflection-header {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.practice-reflection-header h1 {
+  flex-grow: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.practice-reflection-content {
+  flex: 1;
+  padding: 20px;
+  max-width: 800px;
+  margin: 20px auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.practice-reflection-content h2 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.reflection-section {
+  margin-bottom: 30px;
+}
+
+.reflection-section h3 {
+  font-size: 18px;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+.reflection-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.challenges-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.challenge-option {
+  display: flex;
+  align-items: center;
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.challenge-option:hover {
+  background-color: #f0f0f0;
+}
+
+.challenge-option input[type="checkbox"] {
+  margin-right: 10px;
+  transform: scale(1.2);
+}
+
+.challenge-option label {
+  font-size: 15px;
+  color: #333;
+  cursor: pointer;
+}
+
+.save-reflection-button {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  background-color: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 20px;
+}
+
+.save-reflection-button:hover {
+  background-color: #5a52d5;
+}
+
+.back-button {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  background-color: #ccc;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 10px;
+}
+
+.back-button:hover {
+  background-color: #bbb;
+}
+
+@media (max-width: 768px) {
+  .practice-reflection-header {
+    padding: 10px 15px;
+  }
+
+  .practice-reflection-header h1 {
+    font-size: 18px;
+  }
+
+  .practice-reflection-content {
+    margin: 10px auto;
+    padding: 15px;
+  }
+
+  .practice-reflection-content h2 {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+
+  .reflection-section {
+    margin-bottom: 20px;
+  }
+
+  .reflection-section h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+
+  .reflection-textarea {
+    font-size: 14px;
+    min-height: 100px;
+  }
+
+  .challenges-options {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .challenge-option {
+    padding: 8px;
+  }
+
+  .challenge-option label {
+    font-size: 14px;
+  }
+
+  .save-reflection-button,
+  .back-button {
+    padding: 12px;
+    font-size: 16px;
+  }
+}

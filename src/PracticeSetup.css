@@ -219,8 +219,168 @@
   background-color: rgba(74, 144, 226, 0.05);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .practice-setup {
+    padding: 15px;
+  }
+
+  .practice-setup-header {
+    margin-bottom: 20px;
+  }
+
+  .practice-setup-header h1 {
+    font-size: 16px;
+  }
+
+  .practice-setup-content h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+
+  .setup-section {
+    margin-bottom: 25px;
+  }
+
+  .setup-section h3 {
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+
+  .duration-value {
+    font-size: 20px;
+  }
+
+  .duration-button {
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
+  }
+
+  .posture-option {
+    padding: 12px;
+  }
+
+  .posture-icon {
+    font-size: 20px;
+    width: 35px;
+    height: 35px;
+    margin-right: 10px;
+  }
+
+  .posture-name {
+    font-size: 14px;
+  }
+
+  .posture-description {
+    font-size: 12px;
+  }
+
+  .radio-circle {
+    width: 18px;
+    height: 18px;
+  }
+
+  .radio-dot {
+    width: 8px;
+    height: 8px;
+  }
+
   .environment-options {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .environment-option label {
+    font-size: 13px;
+  }
+
+  .begin-practice-button {
+    padding: 12px;
+    font-size: 15px;
+  }
+
+  .back-button {
+    padding: 10px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .practice-setup {
+    padding: 10px;
+  }
+
+  .practice-setup-header {
+    margin-bottom: 15px;
+  }
+
+  .practice-setup-header h1 {
+    font-size: 14px;
+  }
+
+  .practice-setup-content h2 {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
+
+  .setup-section {
+    margin-bottom: 20px;
+  }
+
+  .setup-section h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .duration-value {
+    font-size: 18px;
+  }
+
+  .duration-button {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .posture-option {
+    padding: 10px;
+  }
+
+  .posture-icon {
+    font-size: 18px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .posture-name {
+    font-size: 13px;
+  }
+
+  .posture-description {
+    font-size: 11px;
+  }
+
+  .radio-circle {
+    width: 16px;
+    height: 16px;
+  }
+
+  .radio-dot {
+    width: 7px;
+    height: 7px;
+  }
+
+  .environment-option label {
+    font-size: 12px;
+  }
+
+  .begin-practice-button {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .back-button {
+    padding: 8px;
+    font-size: 14px;
   }
 }

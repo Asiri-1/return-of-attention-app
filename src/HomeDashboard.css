@@ -289,28 +289,171 @@
   .dashboard-header {
     flex-direction: column;
     text-align: center;
+    padding: 15px;
   }
 
   .dashboard-header h1 {
     margin-top: 10px;
+    font-size: 20px;
+  }
+
+  .dashboard-content {
+    padding: 15px;
+  }
+
+  /* Journey Progress Mobile Optimization */
+  .stage-indicator {
+    padding: 15px;
+  }
+
+  .stage-indicator h2 {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
+
+  .journey-progress-bar {
+    height: 6px;
+    margin-bottom: 15px;
+  }
+
+  .stages-list {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: visible !important;
+    gap: 15px !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 15px !important;
+  }
+
+  .stage-item {
+    flex-shrink: 1 !important;
+    width: 100% !important;
+    margin-right: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    background-color: #f8f9fa;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+  }
+
+  .stage-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .stage-number {
+    width: 35px !important;
+    height: 35px !important;
+    font-size: 14px !important;
+    margin-right: 15px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .stage-number.current {
+    background-color: #007bff;
+    color: white;
+    border: 2px solid #007bff;
+  }
+
+  .stage-number.completed {
+    background-color: #28a745;
+    color: white;
+    border: 2px solid #28a745;
+  }
+
+  .stage-number.locked {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+    cursor: not-allowed;
+  }
+
+  .practitioner-level {
+    font-size: 16px !important;
+    font-weight: 500;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    max-width: none !important;
+    flex-grow: 1;
+    color: #333;
+  }
+
+  .practitioner-level.current {
+    color: #007bff;
+    font-weight: 600;
+  }
+
+  .practitioner-level.locked {
+    color: #6c757d;
+  }
+
+  .completion-status {
+    display: inline-block !important;
+    font-size: 12px;
+    color: #28a745;
+    font-weight: 500;
+    margin-left: 8px;
+  }
+
+  .stage-connector {
+    display: none !important;
   }
 
   .resource-cards {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .resource-card {
+    padding: 12px;
+  }
+
+  .resource-title {
+    font-size: 16px;
+  }
+
+  .resource-description {
+    font-size: 13px;
   }
 
   .practice-stats {
     flex-direction: column;
+    gap: 10px;
   }
 
   .stat-card {
     border-right: none;
     border-bottom: 1px solid #e9ecef;
-    margin-bottom: 10px;
+    margin-bottom: 0;
+    padding: 15px 10px;
   }
 
   .stat-card:last-child {
     border-bottom: none;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .learning-resources,
+  .practice-summary,
+  .recent-sessions {
+    padding: 15px;
+  }
+
+  .section-header h2 {
+    font-size: 18px;
   }
 }
 
