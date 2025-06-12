@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import './SignUp.css';
-import Logo from './Logo';
-import GoogleIcon from './icons/GoogleIcon';
-import AppleIcon from './icons/AppleIcon';
+import Logo from './Logo'; // Adjust path if needed
+import GoogleIcon from './icons/GoogleIcon'; // Adjust path if needed
+import AppleIcon from './icons/AppleIcon'; // Adjust path if needed
 
 interface SignUpProps {
-  onSignUp: (email: string, password: string, name: string) => void;
-  onGoogleSignUp: () => void;
-  onAppleSignUp: () => void;
+  onSignUp: (email: string, password: string, name: string) => Promise<void>;
+  onGoogleSignUp: () => Promise<void>;
+  onAppleSignUp: () => Promise<void>;
   onSignIn: () => void;
 }
 
@@ -15,129 +15,96 @@ const SignUp: React.FC<SignUpProps> = ({
   onSignUp,
   onGoogleSignUp,
   onAppleSignUp,
-  onSignIn
+  onSignIn,
 }) => {
-  const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Basic validation
-    if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    // Clear any previous errors
     setError('');
+    setIsLoading(true);
 
-    // Call the sign up function passed from parent
-    onSignUp(email, password, name);
+    try {
+      await onSignUp(email, password, name);
+    } catch (err) {
+      setError('Sign up failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="signup-container">
       <div className="signup-card">
-        <div className="signup-header">
-          <Logo />
-          <h1>Create Your Account</h1>
-          <p>Begin your journey to Happiness That Stays</p>
-        </div>
-
         <div className="signup-content">
-          <button
-            className="primary-button create-account-button"
-            onClick={() => document.getElementById('signup-form')?.scrollIntoView({ behavior: 'smooth' })}
-          >
-            Create Account
-          </button>
-
-          <div className="separator">
-            <span>or</span>
+          <div className="logo-section">
+            <div className="matrix-logo">
+              <Logo />
+            </div>
           </div>
 
-          <div className="social-buttons">
-            <button className="social-button google" onClick={onGoogleSignUp}>
-              <GoogleIcon /> <span className="social-button-text">Continue with Google</span>
+          <div className="signup-header">
+            <h1>Create Account</h1>
+            <p>Sign up to start your journey to lasting happiness</p>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <form onSubmit={handleSubmit} className="signup-form">
+            <div className="form-group">
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className={error ? 'error' : ''}
+              />
+            </div>
+            <div className="form-group">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className={error ? 'error' : ''}
+              />
+            </div>
+            <div className="form-group">
+              <input
+                type="password"
+                placeholder="Create a password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className={error ? 'error' : ''}
+              />
+            </div>
+
+            <button type="submit" className="primary-button" disabled={isLoading}>
+              {isLoading && <div className="loading-spinner"></div>}
+              Sign Up
             </button>
-            <button className="social-button apple" onClick={onAppleSignUp}>
-              <AppleIcon /> <span className="social-button-text">Continue with Apple</span>
+          </form>
+
+          <div className="social-signup-options">
+            <p>Or sign up with</p>
+            <button onClick={onGoogleSignUp} className="social-button google-button">
+              <GoogleIcon /> Continue with Google
+            </button>
+            <button onClick={onAppleSignUp} className="social-button apple-button">
+              <AppleIcon /> Continue with Apple
             </button>
           </div>
 
           <p className="signin-link">
-            Already have an account? <button className="text-button" onClick={onSignIn}>Sign in</button>
+            Already have an account? <span onClick={onSignIn}>Sign In</span>
           </p>
-
-          <form id="signup-form" className="signup-form" onSubmit={handleSubmit}>
-            <h2>Create your account</h2>
-            {error && <div className="error-message">{error}</div>}
-
-            <div className="form-group">
-              <label htmlFor="name">Full Name</label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="confirm-password">Confirm Password</label>
-              <input
-                type="password"
-                id="confirm-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={!name || !email || !password || !confirmPassword}
-            >
-              Sign Up
-            </button>
-          </form>
         </div>
       </div>
     </div>
@@ -145,4 +112,5 @@ const SignUp: React.FC<SignUpProps> = ({
 };
 
 export default SignUp;
+
 

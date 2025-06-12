@@ -12,12 +12,13 @@ interface User {
   currentStage: number;
   questionnaireCompleted: boolean; // New field
   questionnaireAnswers?: any; // New field to store questionnaire answers
+  selfAssessmentData?: any; // New field to store self-assessment answers
 }
 
 interface AuthContextType {
   currentUser: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -49,37 +50,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, name?: string) => {
     // For development, create a demo user
+    // In a real application, you would send these credentials to a backend for authentication
     const user: User = {
       id: `user-${Date.now()}`,
-      email,
-      name: 'Demo User',
+      email: email,
+      name: name || 'Demo User', // Use provided name, or default to 'Demo User'
       experienceLevel: 'beginner',
       goals: ['stress-reduction', 'focus'],
       practiceTime: 10,
       frequency: 'daily',
       assessmentCompleted: false,
       currentStage: 1,
-      questionnaireCompleted: false, // Default to false for new users
+      questionnaireCompleted: false,
+      questionnaireAnswers: {} // Initialize with empty object
     };
-    
-    localStorage.setItem('currentUser', JSON.stringify(user));
+
     setCurrentUser(user);
     setIsAuthenticated(true);
+    localStorage.setItem('currentUser', JSON.stringify(user));
   };
 
   const logout = () => {
-    localStorage.removeItem('currentUser');
     setCurrentUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('currentUser');
   };
 
   const updateUser = (userData: Partial<User>) => {
     if (currentUser) {
       const updatedUser = { ...currentUser, ...userData };
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
     }
   };
 
@@ -88,12 +91,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     login,
     logout,
-    updateUser
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
-export default AuthContext;
-
-

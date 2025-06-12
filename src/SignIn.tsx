@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import './SignIn.css';
-import Logo from './Logo';
-import GoogleIcon from './icons/GoogleIcon';
-import AppleIcon from './icons/AppleIcon';
+import Logo from './Logo'; // Adjust path if needed
+import GoogleIcon from './icons/GoogleIcon'; // Adjust path if needed
+import AppleIcon from './icons/AppleIcon'; // Adjust path if needed
 
 interface SignInProps {
   onSignIn: (email: string, password: string) => void;
   onGoogleSignIn: () => void;
   onAppleSignIn: () => void;
   onSignUp: () => void;
-  onForgotPassword: () => void; // New prop for forgot password
+  onForgotPassword: () => void; // Added this line
 }
 
 const SignIn: React.FC<SignInProps> = ({
@@ -17,77 +17,104 @@ const SignIn: React.FC<SignInProps> = ({
   onGoogleSignIn,
   onAppleSignIn,
   onSignUp,
-  onForgotPassword, // Destructure new prop
+  onForgotPassword, // Added this line
 }) => {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
-
     setError('');
-    onSignIn(email, password);
+    setIsLoading(true);
+
+    try {
+      await onSignIn(email, password);
+    } catch (err) {
+      setError('Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="sign-in-container">
-      <div className="sign-in-card">
-        <div className="logo-container">
-          <Logo />
-          <h1>Welcome Back</h1>
-        </div>
-        {error && <div className="error-message">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-            />
+    <div className="signin-container">
+      <div className="signin-card">
+        <div className="signin-content">
+          <div className="logo-section">
+            <div className="matrix-logo">
+              <Logo />
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-            />
-            <button type="button" className="forgot-password-link" onClick={onForgotPassword}>
-              Forgot Password?
+
+          <div className="signin-header">
+            <h1>Welcome Back</h1>
+            <p>Sign in to continue your journey to lasting happiness</p>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <form onSubmit={handleSubmit} className="signin-form">
+            <div className="form-group">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className={error ? 'error' : ''}
+              />
+            </div>
+            <div className="form-group">
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className={error ? 'error' : ''}
+              />
+            </div>
+
+            <div className="remember-me">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <label htmlFor="rememberMe">Remember me</label>
+            </div>
+
+            <div className="forgot-password">
+              <a href="#" onClick={onForgotPassword}>Forgot Password?</a>
+            </div>
+
+            <button type="submit" className="primary-button" disabled={isLoading}>
+              {isLoading && <div className="loading-spinner"></div>}
+              Sign In
+            </button>
+          </form>
+
+          <div className="social-signin-options">
+            <p>Or sign in with</p>
+            <button onClick={onGoogleSignIn} className="social-button google-button">
+              <GoogleIcon /> Continue with Google
+            </button>
+            <button onClick={onAppleSignIn} className="social-button apple-button">
+              <AppleIcon /> Continue with Apple
             </button>
           </div>
-          <button type="submit" className="sign-in-button" disabled={!email || !password}>
-            Sign In
-          </button>
-        </form>
-        <div className="sign-up-prompt">
-          <p>Don't have an account?</p>
-          <button className="sign-up-link" onClick={onSignUp}>Sign Up</button>
-        </div>
-        <div className="separator">
-          <span>or</span>
-        </div>
-        <button className="sign-in-button google" onClick={onGoogleSignIn}>
-          <GoogleIcon /> Continue with Google
-        </button>
-        <button className="sign-in-button apple" onClick={onAppleSignIn}>
-          <AppleIcon /> Continue with Apple
-        </button>
-        <div className="demo-mode-notice">
-          <p>Demo Mode: Use any email and password to sign in.</p>
+
+          <p className="signup-link">
+            Don't have an account? <span onClick={onSignUp}>Sign Up</span>
+          </p>
+
+          <div className="demo-notice">
+            <p>Demo Mode: Use any email and password to sign in.</p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,503 +1,119 @@
-/* PAHMTimer.css - Shared styling for all PAHM timer components */
-
+/* PAHM Timer.css - Shared styling for all PAHM timer components */
 .pahm-timer {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: #f5f7fa;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f5f7fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 5px 10px; /* Reduced padding */
 }
 
 .timer-header {
-  display: flex;
-  align-items: center;
-  padding: 8px 16px; /* Reduced padding */
-  background-color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    padding: 5px 8px; /* Reduced padding */
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px; /* Reduced margin */
 }
 
 .timer-header h1 {
-  flex: 1;
-  margin: 0;
-  font-size: 20px;
-  text-align: center;
-  color: #333;
+    flex: 1;
+    margin: 0;
+    font-size: 20px;
+    text-align: center;
+    color: #333;
 }
 
 .back-button {
-  background: none;
-  border: none;
-  color: #4a90e2;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 8px;
+    background: none;
+    border: none;
+    color: #4a90e2;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px;
 }
 
 .timer-content {
-  flex: 1;
-  padding: 10px; /* Reduced padding */
-  overflow-y: hidden; /* Prevent scrolling */
-  max-width: 100%; /* Use full width */
-  margin: 0 auto;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between; /* Distribute space */
+    flex: 1;
+    padding: 5px; /* Reduced padding */
+    overflow-y: hidden; /* Prevent scrolling */
+    max-width: 100%; /* Use full width */
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Distribute space */
 }
 
 /* Timer Setup Screen */
-.pahm-timer.setup-mode .timer-display {
-  font-size: 40px; /* Smaller font size */
-  margin-bottom: 10px;
+.pahm-timer-setup-mode .timer-display {
+    font-size: 30px; /* Smaller font size */
+    margin-bottom: 5px; /* Reduced margin */
 }
 
-.pahm-timer.setup-mode .timer-instruction {
-  font-size: 14px;
-  margin-bottom: 15px;
+.pahm-timer-setup-mode .timer-instruction {
+    font-size: 14px;
+    margin-bottom: 5px; /* Reduced margin */
 }
 
 .duration-selector {
-  margin-bottom: 15px;
+    margin-bottom: 5px; /* Reduced margin */
 }
 
 .duration-selector p {
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-.duration-selector .duration-buttons {
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 5px;
-}
-
-.duration-selector .duration-buttons button {
-  flex: 1 1 auto;
-  min-width: 60px;
-  padding: 8px;
-  font-size: 12px;
-}
-
-.custom-duration {
-  margin-top: 10px;
-}
-
-.custom-duration label {
-  font-size: 13px;
-}
-
-.custom-duration input {
-  padding: 8px;
-  font-size: 13px;
-}
-
-.start-button {
-  padding: 12px;
-  font-size: 15px;
-  margin-top: 15px;
-}
-
-/* Timer Running Screen */
-.timer-running {
-  padding-top: 10px;
-  max-height: none; /* Allow full height */
-  justify-content: space-between; /* Distribute space */
-}
-
-.timer-running .timer-display {
-  font-size: 40px;
-  margin-bottom: 10px;
-}
-
-.timer-running .timer-instruction {
-  font-size: 14px;
-  margin-bottom: 15px;
-}
-
-.pahm-tracking {
-  margin-bottom: 15px;
-}
-
-.pahm-tracking h2 {
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-
-.pahm-tracking p {
-  font-size: 12px;
-  margin-bottom: 10px;
-}
-
-.pahm-matrix-container {
-  max-width: 100%;
-}
-
-.pause-resume-button,
-.skip-button {
-  padding: 10px;
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-.timer-controls {
-  margin-top: 15px;
-}
-
-/* Original styles for reference */
-.timer-setup {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto;
-  padding-bottom: 80px; /* Add padding to ensure button is visible */
-}
-
-.timer-setup h2 {
-  font-size: 24px;
-  color: #333;
-  margin-bottom: 16px;
-  text-align: center;
-}
-
-.timer-setup p {
-  color: #666;
-  margin-bottom: 24px;
-  font-size: 16px;
-  line-height: 1.5;
-  text-align: center;
-}
-
-.duration-input {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin: 20px auto 30px;
-  width: 100%;
-  max-width: 300px;
-  text-align: center;
-}
-
-.duration-input input {
-  width: 80%;
-  padding: 12px;
-  font-size: 16px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.duration-input span {
-  font-size: 16px;
-  color: #666;
-  margin-top: 5px;
-}
-
-.posture-display {
-  width: 100%;
-  margin: 20px 0;
-  padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  text-align: center;
-}
-
-.posture-display h3 {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 10px;
-}
-
-.posture-display p {
-  font-size: 16px;
-  color: #666;
-  margin: 0;
-}
-
-.dot-tracking-instructions,
-.tool-free-instructions,
-.master-instructions,
-.illuminator-instructions {
-  width: 100%;
-  margin: 20px 0;
-  padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  text-align: center;
-}
-
-.dot-tracking-instructions h3,
-.tool-free-instructions h3,
-.master-instructions h3,
-.illuminator-instructions h3 {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 10px;
-}
-
-.dot-tracking-instructions p,
-.tool-free-instructions p,
-.master-instructions p,
-.illuminator-instructions p {
-  font-size: 16px;
-  color: #666;
-  margin: 0;
-  line-height: 1.6;
-}
-
-.start-button {
-  display: block;
-  width: 100%;
-  max-width: 300px;
-  margin: 30px auto 0;
-  padding: 16px;
-  background-color: #4a90e2;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  text-align: center;
-  position: relative;
-  z-index: 10; /* Ensure button is above other elements */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.start-button:hover {
-  background-color: #3a7bc8;
-}
-
-/* Timer Running Screen */
-.timer-running {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 20px;
-  overflow-y: auto;
-  max-height: calc(100vh - 100px);
-}
-
-.pahm-matrix-container {
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-}
-
-.pahm-matrix-container h3 {
-  font-size: 20px;
-  color: #333;
-  margin-bottom: 16px;
-}
-
-.time-display {
-  margin: 20px 0;
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
-  text-align: center;
-}
-
-.timer-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 400px;
-  margin: 30px auto 0;
-}
-
-.pause-button,
-.resume-button,
-.complete-button {
-  width: 100%;
-  padding: 14px;
-  border-radius: 25px;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
-  text-align: center;
-  transition: background-color 0.2s;
-  border: none;
-}
-
-.pause-button,
-.resume-button {
-  background-color: #f0f0f0;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.pause-button:hover,
-.resume-button:hover {
-  background-color: #e0e0e0;
-}
-
-.complete-button {
-  background-color: #4a90e2;
-  color: white;
-}
-
-.complete-button:hover {
-  background-color: #3a7bc8;
-}
-
-@media (max-width: 768px) {
-  .timer-header {
-    padding: 12px 16px;
-  }
-
-  .timer-header h1 {
-    font-size: 18px;
-  }
-
-  .back-button {
     font-size: 14px;
-    padding: 6px;
-  }
+    margin-bottom: 5px; /* Reduced margin */
+}
 
-  .timer-content {
-    padding: 16px;
-  }
+.duration-selector input[type="range"] {
+    width: 100%;
+}
 
-  /* Timer Setup Screen */
-  .pahm-timer.setup-mode .timer-display {
-    font-size: 48px;
-  }
+.start-button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px; /* Reduced margin */
+}
 
-  .pahm-timer.setup-mode .timer-instruction {
-    font-size: 15px;
-  }
+/* Timer Running Screen */
+.pahm-timer-running-mode .timer-display {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
 
-  .duration-selector p {
-    font-size: 15px;
-  }
+.pahm-timer-running-mode .timer-instruction {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
 
-  .duration-selector .duration-buttons {
-    flex-wrap: wrap;
+.pahm-matrix-container {
+    flex-grow: 1;
+    display: flex;
     justify-content: center;
-    gap: 8px;
-  }
-
-  .duration-selector .duration-buttons button {
-    flex: 1 1 auto;
-    min-width: 80px;
-    padding: 10px;
-    font-size: 14px;
-  }
-
-  .custom-duration label {
-    font-size: 14px;
-  }
-
-  .custom-duration input {
-    padding: 10px;
-    font-size: 14px;
-  }
-
-  .start-button {
-    padding: 14px;
-    font-size: 16px;
-  }
-
-  /* Timer Running Screen */
-  .timer-running .timer-display {
-    font-size: 48px;
-  }
-
-  .timer-running .timer-instruction {
-    font-size: 15px;
-  }
-
-  .pahm-tracking h2 {
-    font-size: 18px;
-  }
-
-  .pahm-tracking p {
-    font-size: 14px;
-  }
-
-  .pause-resume-button,
-  .skip-button {
-    padding: 12px;
-    font-size: 15px;
-  }
+    align-items: center;
+    margin-bottom: 10px; /* Reduced margin */
 }
 
-@media (max-width: 480px) {
-  .timer-header {
-    padding: 10px 12px;
-  }
-
-  .timer-header h1 {
-    font-size: 16px;
-  }
-
-  .back-button {
-    font-size: 12px;
-    padding: 4px;
-  }
-
-  .timer-content {
-    padding: 12px;
-  }
-
-  /* Timer Setup Screen */
-  .pahm-timer.setup-mode .timer-display {
-    font-size: 40px;
-  }
-
-  .pahm-timer.setup-mode .timer-instruction {
-    font-size: 14px;
-  }
-
-  .duration-selector .duration-buttons button {
-    min-width: 70px;
-    padding: 8px;
-    font-size: 12px;
-  }
-
-  .custom-duration input {
-    padding: 8px;
-    font-size: 12px;
-  }
-
-  .start-button {
-    padding: 12px;
-    font-size: 14px;
-  }
-
-  /* Timer Running Screen */
-  .timer-running .timer-display {
-    font-size: 40px;
-  }
-
-  .timer-running .timer-instruction {
-    font-size: 14px;
-  }
-
-  .pahm-tracking h2 {
-    font-size: 16px;
-  }
-
-  .pahm-tracking p {
-    font-size: 12px;
-  }
-
-  .pause-resume-button,
-  .skip-button {
+.pahm-controls {
+    display: flex;
+    justify-content: space-around;
     padding: 10px;
-    font-size: 14px;
-  }
 }
 
+.pahm-controls button {
+    background-color: #008CBA;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
 
+.pahm-controls button:last-child {
+    background-color: #f44336;
+}

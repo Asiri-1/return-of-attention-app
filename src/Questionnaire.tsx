@@ -250,7 +250,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete, onSkip }) => 
     },
     {
       id: 'q0_country_residence',
-      title: 'Which country do you currently live in?',
+      title: 'Which country are you currently residing in?',
       type: 'dropdown' as const,
       required: true,
       options: countries,
@@ -405,333 +405,302 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete, onSkip }) => 
         { value: 'better_sleep', label: '😴 Better sleep quality' },
         { value: 'build_resilience', label: '💪 Build mental resilience' },
         { value: 'personal_growth', label: '🌱 Personal growth and self-awareness' },
-        { value: 'support_mental_health', label: '🏥 Support mental health treatment' },
-        { value: 'explore_consciousness', label: '📚 Explore consciousness and attention training' },
-        { value: 'lasting_happiness', label: '✨ To cultivate lasting inner peace and happiness' },
-        { value: 'learn_meditation', label: '🧘 Learn meditation and mindfulness' },
+        { value: 'emotional_regulation', label: '🧘‍♀️ Better emotional regulation' },
+        { value: 'productivity', label: '⚡ Increased productivity' },
+        { value: 'relationships', label: '❤️ Improve relationships' },
+        { value: 'spiritual_growth', label: '🕯️ Spiritual development' },
+        { value: 'habit_formation', label: '🔄 Build healthy habits' },
+        { value: 'curiosity', label: '🤔 Just curious about mindfulness' },
+        { value: 'other', label: '🌟 Other reasons' },
       ],
     },
     {
-      id: 'q2_experience_level',
+      id: 'q2_experience',
       title: 'How would you describe your experience with meditation or mindfulness practices?',
       type: 'slider' as const,
       required: true,
       min: 1,
-      max: 10,
+      max: 5,
       labels: {
         1: 'Complete beginner, never tried',
-        3: 'Curious but minimal experience',
-        5: 'Some experience, inconsistent practice',
-        7: 'Regular practitioner, established routine',
-        9: 'Advanced practitioner, deep experience',
+        2: 'Curious but minimal experience',
+        3: 'Some experience, inconsistent practice',
+        4: 'Regular practitioner, established routine',
+        5: 'Advanced practitioner, deep experience',
       },
     },
     {
-      id: 'q3_time_commitment',
+      id: 'q3_frequency',
+      title: 'How often do you currently practice mindfulness or meditation?',
+      type: 'single-select' as const,
+      required: true,
+      options: [
+        { value: 'never', label: '🚫 Never' },
+        { value: 'rarely', label: '🌙 Rarely (few times a year)' },
+        { value: 'occasionally', label: '🌱 Occasionally (monthly)' },
+        { value: 'weekly', label: '📅 Weekly' },
+        { value: 'few-times-week', label: '🔄 A few times a week' },
+        { value: 'daily', label: '☀️ Daily' },
+        { value: 'multiple-daily', label: '🌟 Multiple times daily' },
+      ],
+    },
+    {
+      id: 'q4_primary_goal',
+      title: 'What is your primary goal for practicing mindfulness?',
+      type: 'single-select' as const,
+      required: true,
+      options: [
+        { value: 'stress_reduction', label: '😌 Stress reduction and relaxation' },
+        { value: 'focus_concentration', label: '🎯 Improved focus and concentration' },
+        { value: 'emotional_wellbeing', label: '💚 Better emotional well-being' },
+        { value: 'sleep_improvement', label: '😴 Better sleep quality' },
+        { value: 'self_awareness', label: '🪞 Increased self-awareness' },
+        { value: 'spiritual_growth', label: '🕯️ Spiritual development' },
+        { value: 'habit_building', label: '🏗️ Building a consistent practice' },
+        { value: 'pain_management', label: '🩹 Managing chronic pain or illness' },
+        { value: 'performance', label: '🏆 Enhanced performance (work/sports)' },
+        { value: 'relationships', label: '❤️ Better relationships' },
+        { value: 'general_wellness', label: '🌈 Overall wellness and balance' },
+      ],
+    },
+    {
+      id: 'q5_practices',
+      title: 'What kind of mindfulness practices are you most interested in exploring? (Select all that apply)',
+      type: 'multi-select' as const,
+      required: true,
+      options: [
+        { value: 'breathing', label: '🌬️ Breathing exercises' },
+        { value: 'body_scan', label: '🧘‍♀️ Body scan meditation' },
+        { value: 'walking', label: '🚶‍♂️ Walking meditation' },
+        { value: 'loving_kindness', label: '💝 Loving-kindness meditation' },
+        { value: 'visualization', label: '🌅 Visualization techniques' },
+        { value: 'mindful_eating', label: '🍎 Mindful eating' },
+        { value: 'movement', label: '🤸‍♀️ Mindful movement/yoga' },
+        { value: 'journaling', label: '📝 Mindful journaling' },
+        { value: 'nature', label: '🌳 Nature-based practices' },
+        { value: 'sound', label: '🔔 Sound meditation (bells, singing bowls)' },
+        { value: 'mantra', label: '🕉️ Mantra repetition' },
+        { value: 'open_awareness', label: '🌌 Open awareness meditation' },
+        { value: 'daily_activities', label: '☕ Mindfulness in daily activities' },
+      ],
+    },
+    {
+      id: 'q6_time_commitment',
       title: 'Realistically, how much time can you dedicate to Return of Attention practice on most days?',
       type: 'single-select' as const,
       required: true,
       options: [
-        { value: '5-10_min', label: '5-10 minutes (Beginner friendly)' },
-        { value: '10-20_min', label: '10-20 minutes (Building consistency)' },
-        { value: '20-30_min', label: '20-30 minutes (Committed practice)' },
-        { value: '30+_min', label: '30+ minutes (Intensive development)' },
-        { value: 'varies', label: 'Varies day to day (Flexible approach)' },
+        { value: '5-10-min', label: '⏰ 5-10 minutes (Beginner friendly)' },
+        { value: '10-20-min', label: '📅 10-20 minutes (Building consistency)' },
+        { value: '20-30-min', label: '🧘‍♀️ 20-30 minutes (Committed practice)' },
+        { value: '30-plus-min', label: '🌟 30+ minutes (Intensive development)' },
+        { value: 'varies', label: '🔄 Varies day to day (Flexible approach)' },
       ],
     },
     {
-      id: 'q4_learning_style',
-      title: 'How do you prefer to learn new skills?',
-      type: 'multi-select' as const,
+      id: 'q7_progress_tracking',
+      title: 'How important is it for you to track your progress and see your mindfulness journey visually?',
+      type: 'single-select' as const,
       required: true,
       options: [
-        { value: 'reading', label: '📖 Reading detailed instructions' },
-        { value: 'listening', label: '🎧 Listening to guided audio' },
-        { value: 'watching', label: '👀 Watching demonstrations' },
-        { value: 'hands_on', label: '🤲 Hands-on practice and experimentation' },
-        { value: 'community', label: '👥 Learning with others/community' },
-        { value: 'tracking', label: '📊 Tracking progress with data' },
-        { value: 'creative', label: '🎨 Creative and visual approaches' },
-      ],
-    },
-    {
-      id: 'q5_motivation_patterns',
-      title: 'What typically motivates you to stick with new habits? Rank these from most to least important:',
-      type: 'ranking' as const,
-      required: true,
-      options: [
-        { value: 'measurable_progress', label: 'Seeing measurable progress' },
-        { value: 'immediate_benefits', label: 'Feeling immediate benefits' },
-        { value: 'social_support', label: 'Social support and community' },
-        { value: 'personal_challenges', label: 'Personal challenges and goals' },
-        { value: 'routine_consistency', label: 'Routine and consistency' },
-        { value: 'variety_new_experiences', label: 'Variety and new experiences' },
-        { value: 'understanding_science', label: 'Understanding the science behind it' },
-      ],
-    },
-    {
-      id: 'q6_coping_mechanisms',
-      title: 'When faced with daily challenges or setbacks, what strategies do you typically use to maintain your emotional balance?',
-      type: 'multi-select' as const,
-      required: true,
-      options: [
-        { value: 'mindfulness_meditation', label: '🧘 Mindfulness/meditation' },
-        { value: 'talking_friends_family', label: '🗣️ Talking to friends/family' },
-        { value: 'exercise', label: '🏃 Exercise' },
-        { value: 'distraction', label: '📺 Distraction (e.g., TV, games)' },
-        { value: 'journaling', label: '✍️ Journaling' },
-      ],
-    },
-    {
-      id: 'q7_lasting_happiness_definition',
-      title: 'When you think of \'happiness that stays,\' what does that mean to you?',
-      type: 'multi-select' as const,
-      required: true,
-      options: [
-        { value: 'consistent_inner_peace', label: '☮️ Consistent inner peace' },
-        { value: 'resilience_ups_downs', label: '💪 Resilience to life\'s ups and downs' },
-        { value: 'deep_contentment', label: '😌 A deep sense of contentment' },
-        { value: 'bounce_back_negativity', label: '⬆️ Ability to bounce back from negativity' },
-        { value: 'emotional_stability', label: '⚖️ Emotional stability' },
+        { value: 'very-important', label: '⭐ Very important - I love seeing my progress' },
+        { value: 'somewhat-important', label: '📊 Somewhat important - helpful for motivation' },
+        { value: 'neutral', label: '🤷‍♀️ Neutral - I can take it or leave it' },
+        { value: 'not-important', label: '🎯 Not important - I prefer to focus on the practice itself' },
+        { value: 'prefer-simple', label: '🌱 I prefer simple, minimal tracking' },
       ],
     },
   ];
 
-  const handleAnswerChange = (questionId: string, value: any) => {
-    setAnswers((prevAnswers) => ({
-      ...prevAnswers,
-      [questionId]: value,
+  const currentQuestion = questions[currentQuestionIndex];
+  const totalQuestions = questions.length;
+  const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
+
+  // Determine section info
+  const getSectionInfo = () => {
+    if (currentQuestionIndex <= 12) {
+      return {
+        section: 'Personal Information',
+        questionNumber: currentQuestionIndex + 1,
+        totalInSection: 13,
+      };
+    } else {
+      return {
+        section: 'About Your Mind and Happiness',
+        questionNumber: currentQuestionIndex - 12,
+        totalInSection: 7,
+      };
+    }
+  };
+
+  const sectionInfo = getSectionInfo();
+
+  const handleAnswer = (value: any) => {
+    setAnswers(prev => ({
+      ...prev,
+      [currentQuestion.id]: value
     }));
   };
 
-  // Function to check if current question is answered
-  const isCurrentQuestionAnswered = () => {
-    const currentQuestion = questions[currentQuestionIndex];
-    const currentAnswer = answers[currentQuestion.id];
-
-    switch (currentQuestion.type) {
-      case 'dropdown':
-      case 'single-select':
-        return currentAnswer && currentAnswer !== '';
-      case 'multi-select':
-        return currentAnswer && Array.isArray(currentAnswer) && currentAnswer.length > 0;
-      case 'slider':
-        return currentAnswer !== undefined && currentAnswer !== null;
-      case 'ranking':
-        return currentAnswer && Array.isArray(currentAnswer) && currentAnswer.length > 0;
-      default:
-        return false;
-    }
-  };
-
   const handleNext = () => {
-    if (!isCurrentQuestionAnswered()) {
+    if (!isAnswered()) {
       return; // Don't proceed if question is not answered
     }
 
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
+    if (isLastQuestion) {
       onComplete(answers);
+    } else {
+      setCurrentQuestionIndex(prev => prev + 1);
     }
   };
 
   const handleBack = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setCurrentQuestionIndex(prev => prev - 1);
     }
   };
 
-  const currentQuestion = questions[currentQuestionIndex];
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
-    e.preventDefault();
-    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    const currentRanking = answers[currentQuestion.id] ? [...answers[currentQuestion.id]] : [...(currentQuestion.options || [])];
-
-    const [draggedItem] = currentRanking.splice(dragIndex, 1);
-    currentRanking.splice(dropIndex, 0, draggedItem);
-
-    handleAnswerChange(currentQuestion.id, currentRanking);
+  const isAnswered = () => {
+    const answer = answers[currentQuestion.id];
+    if (currentQuestion.type === 'multi-select') {
+      return answer && Array.isArray(answer) && answer.length > 0;
+    }
+    return answer !== undefined && answer !== null && answer !== '';
   };
 
   const renderQuestion = () => {
+    const answer = answers[currentQuestion.id];
+
     switch (currentQuestion.type) {
+      case 'single-select':
+        return (
+          <div className="options-container">
+            {currentQuestion.options?.map((option, index) => (
+              <label key={option.value} className="option-item">
+                <input
+                  type="radio"
+                  name={currentQuestion.id}
+                  value={option.value}
+                  checked={answer === option.value}
+                  onChange={(e) => handleAnswer(e.target.value)}
+                />
+                <span className="option-label">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+
+      case 'multi-select':
+        return (
+          <div className="options-container">
+            {currentQuestion.options?.map((option, index) => (
+              <label key={option.value} className="option-item">
+                <input
+                  type="checkbox"
+                  value={option.value}
+                  checked={answer && Array.isArray(answer) && answer.includes(option.value)}
+                  onChange={(e) => {
+                    const currentAnswers = answer && Array.isArray(answer) ? answer : [];
+                    if (e.target.checked) {
+                      handleAnswer([...currentAnswers, option.value]);
+                    } else {
+                      handleAnswer(currentAnswers.filter(v => v !== option.value));
+                    }
+                  }}
+                />
+                <span className="option-label">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+
       case 'dropdown':
         return (
           <div className="dropdown-container">
             <select
-              value={answers[currentQuestion.id] || ''}
-              onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-              className="country-dropdown"
+              value={answer || ''}
+              onChange={(e) => handleAnswer(e.target.value)}
+              className="dropdown-select"
             >
-              <option value="">Select a country...</option>
-              {currentQuestion.options.map((option) => (
+              <option value="">Select your country</option>
+              {currentQuestion.options?.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
-            {currentQuestion.required && !isCurrentQuestionAnswered() && (
-              <p className="required-message">Please select an option to continue</p>
-            )}
           </div>
         );
-      case 'multi-select':
-        return (
-          <div className="multi-select-options">
-            {currentQuestion.options.map((option) => (
-              <label key={option.value} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  value={option.value}
-                  checked={answers[currentQuestion.id]?.includes(option.value) || false}
-                  onChange={(e) => {
-                    const currentSelection = answers[currentQuestion.id] || [];
-                    if (e.target.checked) {
-                      handleAnswerChange(currentQuestion.id, [...currentSelection, option.value]);
-                    } else {
-                      handleAnswerChange(
-                        currentQuestion.id,
-                        currentSelection.filter((item: string) => item !== option.value)
-                      );
-                    }
-                  }}
-                />
-                <span className="checkbox-text">{option.label}</span>
-              </label>
-            ))}
-            {currentQuestion.required && !isCurrentQuestionAnswered() && (
-              <p className="required-message">Please select at least one option to continue</p>
-            )}
-          </div>
-        );
+
       case 'slider':
-        const sliderValue = answers[currentQuestion.id] || (currentQuestion.min || 1);
+        const sliderValue = answer || currentQuestion.min || 1;
         return (
-          <div>
+          <div className="slider-container">
             <input
               type="range"
-              min={currentQuestion.min || 1}
-              max={currentQuestion.max || 10}
+              min={currentQuestion.min}
+              max={currentQuestion.max}
               value={sliderValue}
-              onChange={(e) => handleAnswerChange(currentQuestion.id, parseInt(e.target.value))}
+              onChange={(e) => handleAnswer(parseInt(e.target.value))}
+              className="slider"
             />
-            <div className="slider-labels-container">
+            <div className="slider-labels">
               {Object.entries(currentQuestion.labels || {}).map(([value, label]) => (
-                <span key={value} className="slider-label-item">
+                <div key={value} className="slider-label-item">
                   {label}
-                </span>
-              ))}
-            </div>
-            <p className="current-value">Current value: {sliderValue}</p>
-          </div>
-        );
-      case 'single-select':
-        return (
-          <div className="single-select-options">
-            {(currentQuestion.options || []).map((option) => (
-              <label key={option.value} className="radio-label">
-                <input
-                  type="radio"
-                  value={option.value}
-                  checked={answers[currentQuestion.id] === option.value}
-                  onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                />
-                <span className="radio-text">{option.label}</span>
-              </label>
-            ))}
-            {currentQuestion.required && !isCurrentQuestionAnswered() && (
-              <p className="required-message">Please select an option to continue</p>
-            )}
-          </div>
-        );
-      case 'ranking':
-        const rankingOptions = answers[currentQuestion.id] || [...(currentQuestion.options || [])];
-        return (
-          <div>
-            <div className="ranking-list">
-              {rankingOptions.map((option: { value: string; label: string }, index: number) => (
-                <div
-                  key={option.value}
-                  className="ranking-item"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, index)}
-                >
-                  {index + 1}. {option.label}
                 </div>
               ))}
             </div>
-            <p className="ranking-instruction">Drag and drop to reorder by importance</p>
-            {currentQuestion.required && !isCurrentQuestionAnswered() && (
-              <p className="required-message">Please arrange the items to continue</p>
-            )}
+            <div className="slider-value">
+              Current value: {sliderValue}
+            </div>
           </div>
         );
+
       default:
-        return <p>Unknown question type.</p>;
-    }
-  };
-
-  // Helper function to get section title
-  const getSectionTitle = () => {
-    if (currentQuestionIndex <= 12) {
-      return "Personal Information";
-    } else {
-      return "About Your Mind and Happiness";
-    }
-  };
-
-  // Helper function to get progress within section
-  const getSectionProgress = () => {
-    if (currentQuestionIndex <= 12) {
-      return `${currentQuestionIndex + 1} of 13`;
-    } else {
-      return `${currentQuestionIndex - 12} of ${questions.length - 13}`;
+        return null;
     }
   };
 
   return (
     <div className="questionnaire-container">
-      <div className="questionnaire-card">
-        <div className="questionnaire-header">
-          <Logo />
-          <div className="section-info">
-            <span className="section-title">{getSectionTitle()}</span>
-            <span className="section-progress">{getSectionProgress()}</span>
+      <div className="questionnaire-header">
+        <Logo />
+        <div className="progress-info">
+          <div className="section-title">{sectionInfo.section}</div>
+          <div className="question-counter">
+            {sectionInfo.questionNumber} of {sectionInfo.totalInSection}
           </div>
-          <h1>{currentQuestion.title}</h1>
         </div>
+      </div>
 
-        <div className="questionnaire-content">
-          {renderQuestion()}
-        </div>
+      <div className="question-content">
+        <h2 className="question-title">{currentQuestion.title}</h2>
+        {renderQuestion()}
+        
+        {currentQuestion.required && !isAnswered() && (
+          <div className="required-message">
+            Please select an option to continue
+          </div>
+        )}
+      </div>
 
-        <div className="navigation-buttons">
-          {currentQuestionIndex > 0 && (
-            <button className="nav-button back" onClick={handleBack}>
-              Back
-            </button>
-          )}
-          
-          <button 
-            className={`nav-button next ${!isCurrentQuestionAnswered() ? 'disabled' : ''}`}
-            onClick={handleNext}
-            disabled={!isCurrentQuestionAnswered()}
-          >
-            {currentQuestionIndex === questions.length - 1 ? 'Complete' : 'Next'}
-          </button>
-        </div>
+      <div className="navigation-buttons">
+        <button
+          onClick={handleBack}
+          disabled={currentQuestionIndex === 0}
+          className="nav-button back-button"
+        >
+          Back
+        </button>
+        
+        <button
+          onClick={handleNext}
+          disabled={currentQuestion.required && !isAnswered()}
+          className="nav-button next-button"
+        >
+          {isLastQuestion ? 'Complete' : 'Next'}
+        </button>
       </div>
     </div>
   );
