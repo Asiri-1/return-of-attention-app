@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import PageViewTracker from './components/PageViewTracker';
 import './App.css';
 import { AuthProvider, useAuth } from './AuthContext';
 import DevPanelToggle from './DevPanelToggle';
@@ -289,6 +290,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="app-container">
       <DevPanelToggle />
+      <PageViewTracker />
       <Routes>
         {/* Authentication Routes - always accessible */}
         <Route path="/signin" element={<SignIn onSignIn={async (email, password) => { await login(email, password); navigate('/home'); }} onGoogleSignIn={async () => { await login('google@example.com', 'password'); navigate('/home'); }} onAppleSignIn={async () => { await login('apple@example.com', 'password'); navigate('/home'); }} onSignUp={() => navigate('/signup')} onForgotPassword={() => { /* handle forgot password */ }} />} />
@@ -412,8 +414,8 @@ const AppContent: React.FC = () => {
                 <Route path="/analytics" element={<AnalyticsBoardWrapper />} />
                 <Route path="/mind-recovery" element={<MindRecoverySelectionWrapper />} />
                 <Route path="/mind-recovery/:practiceType" element={<MindRecoveryTimerWrapper />} />
-                <Route path="/posture-guide" element={<PostureGuide onContinue={() => navigate("/home")} />} />
-                <Route path="/profile" element={<UserProfile onBack={() => navigate("/home")} onLogout={handleLogout} />} />
+                <Route path="/posture-guide" element={<PostureGuide onContinue={() => navigate('/home')} />} />
+                <Route path="/profile" element={<UserProfile onBack={() => navigate('/home')} onLogout={handleLogout} />} />
                 
                 {/* Redirect any unknown routes to home */}
                 <Route path="*" element={<Navigate to="/home" replace />} />
@@ -437,5 +439,3 @@ const App: React.FC = () => (
 );
 
 export default App;
-
-
