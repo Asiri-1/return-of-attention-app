@@ -143,7 +143,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
       posture,
       duration, // Use dynamic duration
       completedAt: new Date().toISOString(),
-      userId: currentUser?.id || 'anonymous',
+      uuserId: currentUser?.uid || 'anonymous',
       pahmCounts: pahmCounts // Save PAHM counts with the practice data
     };
 

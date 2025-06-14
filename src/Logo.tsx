@@ -2,7 +2,7 @@ import React from 'react';
 import './Logo.css';
 
 const Logo: React.FC = () => {
-  // Matrix positions with their colors and arrows
+  // Matrix positions with their colors and arrows - updated with inward arrows
   const matrixPositions = [
     { id: 'nostalgia', color: '#FFF0B0', row: 0, col: 0 },
     { id: 'likes', color: '#E8FFF2', arrowColor: '#4AE38B', row: 0, col: 1, hasArrow: true, arrowDirection: 'down', arrowPosition: 'bottom' },
@@ -26,10 +26,10 @@ const Logo: React.FC = () => {
           >
             {position.isCenter && (
               <div className="logo-center-content">
-                <div className="logo-text-top">Return of</div>
+                <div className="logo-text-top">THE</div>
                 {/* Using the center-dot class for consistency */}
                 <div className="center-dot"></div>
-                <div className="logo-text-bottom">Attention</div>
+                <div className="logo-text-bottom">RETURN</div>
               </div>
             )}
             
@@ -40,23 +40,24 @@ const Logo: React.FC = () => {
               >
                 <svg 
                   className={`arrow-svg arrow-${position.arrowDirection}-svg`} 
-                  width="12" 
-                  height="12" 
+                  width="6" 
+                  height="6" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  {/* Updated arrow paths to point inward toward center */}
                   {position.arrowDirection === 'up' && (
-                    <path d="M12 4L4 16H20L12 4Z" fill={position.arrowColor} />
+                    <path d="M12 8L18 16H6L12 8Z" fill={position.arrowColor} />
                   )}
                   {position.arrowDirection === 'down' && (
-                    <path d="M12 20L4 8H20L12 20Z" fill={position.arrowColor} />
+                    <path d="M12 16L18 8H6L12 16Z" fill={position.arrowColor} />
                   )}
                   {position.arrowDirection === 'left' && (
-                    <path d="M4 12L16 4V20L4 12Z" fill={position.arrowColor} />
+                    <path d="M8 12L16 18V6L8 12Z" fill={position.arrowColor} />
                   )}
                   {position.arrowDirection === 'right' && (
-                    <path d="M20 12L8 4V20L20 12Z" fill={position.arrowColor} />
+                    <path d="M16 12L8 18V6L16 12Z" fill={position.arrowColor} />
                   )}
                 </svg>
               </div>
@@ -69,5 +70,3 @@ const Logo: React.FC = () => {
 };
 
 export default Logo;
-
-

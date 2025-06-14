@@ -1,30 +1,27 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { trackEvent } from '../utils/analytics'; // Import your trackEvent utility
+import { trackEvent } from '../utils/analytics';
+import { useAuth } from '../AuthContext'; // Import useAuth
 
 const PageViewTracker: React.FC = () => {
   const location = useLocation();
+  const { currentUser } = useAuth(); // Get currentUser from AuthContext
 
   useEffect(() => {
-    // This effect runs every time the 'location' object changes (i.e., route changes)
-    const pagePath = location.pathname + location.search; // Get full path including query params
-    const pageTitle = document.title; // Get the current document title
+    const pagePath = location.pathname + location.search;
+    const pageTitle = document.title;
 
     trackEvent({
       event_name: 'page_view',
       page_path: pagePath,
       page_title: pageTitle,
-      // Add other common properties here later, like user_id, session_id, etc.
-      // For now, we'll just send page_path and page_title
-    });
+    }, currentUser?.email || undefined); // Pass user ID or email, ensure it's string or undefined
 
-    // Optional: Log to console for debugging
     console.log(`Page view tracked: ${pagePath}`);
 
-  }, [location]); // Re-run effect whenever location changes
+  }, [location, currentUser]); // Re-run effect when location or currentUser changes
 
-  return null; // This component doesn't render anything visible
+  return null;
 };
 
 export default PageViewTracker;
-

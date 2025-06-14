@@ -128,7 +128,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => { // A
             <div className="info-grid">
               <div className="info-item">
                 <label>Name:</label>
-                <span>{currentUser.name}</span>
+                <span>{currentUser.displayName}</span>
               </div>
               <div className="info-item">
                 <label>Email:</label>
@@ -147,7 +147,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => { // A
             <div className="info-grid">
               <div className="info-item">
                 <label>Goals:</label>
-                <span>{formatGoals(currentUser.goals)}</span>
+                <span>{formatGoals(currentUser.goals || [])}</span>
               </div>
               <div className="info-item">
                 <label>Practice Time:</label>
@@ -228,7 +228,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => { // A
               </div>
               <div className="info-item">
                 <label>Member Since:</label>
-                <span>{new Date(parseInt(currentUser.id.split('-')[1])).toLocaleDateString()}</span>
+                <span>{new Date(parseInt(currentUser.uid.split('-')[1])).toLocaleDateString()}</span>
               </div>
             </div>
           </div>

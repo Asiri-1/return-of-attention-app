@@ -292,7 +292,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         <div className="logo-container">
           <Logo />
         </div>
-        <h1>Welcome{currentUser?.name ? `, ${currentUser.name}` : ''}</h1>
+        <h1>Welcome{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}</h1>
       </header>
 
       <main className="dashboard-content">

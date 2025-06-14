@@ -31,6 +31,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
     if (path.includes('/notes')) return 'notes';
     if (path.includes('/learn')) return 'learn';
     if (path.includes('/profile')) return 'profile';
+    if (path.includes('/chatwithguru')) return 'chatwithguru'; // Added for Chat with Guru
     return 'home'; // Default to home
   };
 
@@ -160,6 +161,15 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
             <div className="tab-icon">📚</div>
             <div className="tab-label">Learn</div>
           </div>
+          
+          {/* New Chat with Guru tab */}
+          <div 
+            className={`nav-tab ${activeTab === 'chatwithguru' ? 'active' : ''}`}
+            onClick={() => navigate('/chatwithguru')}
+          >
+            <div className="tab-icon">💬</div>
+            <div className="tab-label">Wisdom Guide</div>
+          </div>
         </div>
         
         {/* Desktop profile dropdown */}
@@ -169,7 +179,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
             onClick={toggleProfileDropdown}
           >
             <div className="profile-icon">
-              {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'D'}
+              {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'D'}
             </div>
           </div>
           {showProfileDropdown && (
@@ -228,6 +238,15 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
             <div className="mobile-nav-label">Learn</div>
           </div>
           
+          {/* New Chat with Guru mobile menu item */}
+          <div 
+            className={`mobile-nav-item ${activeTab === 'chatwithguru' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/chatwithguru')}
+          >
+            <div className="mobile-nav-icon">💬</div>
+            <div className="mobile-nav-label">Wisdom Guide</div>
+          </div>
+          
           <div 
             className={`mobile-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => handleNavigation('/profile')}
@@ -256,4 +275,3 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
 };
 
 export default MainNavigation;
-

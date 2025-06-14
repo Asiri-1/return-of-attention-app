@@ -93,9 +93,10 @@
 }
 
 .arrow-svg {
-  width: 10px;
-  height: 10px;
+  width: 6px; /* Reduced to 6px to exactly match reference */
+  height: 6px; /* Reduced to 6px to exactly match reference */
   filter: none;
+  opacity: 0.7; /* Added to match the subtle appearance in reference */
 }
 
 /* Inner edge positioning */
