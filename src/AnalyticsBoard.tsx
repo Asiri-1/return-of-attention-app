@@ -69,24 +69,114 @@ const AnalyticsBoard: React.FC = () => {
       }
     }
     
-    // Calculate app usage statistics
+    // Calculate app usage statistics from real data
     calculateAppUsageStats();
-  }, []);
+  }, [practiceData, emotionalNotes]);
   
-  // Calculate app usage statistics
+  // Calculate app usage statistics from actual practice data
   const calculateAppUsageStats = () => {
-    // This would normally come from a backend API
-    // For now, we'll generate some mock data
-    const mockUsage: AppUsageData = {
-      lastLogin: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-      totalSessions: 24,
-      totalPracticeTime: 720, // minutes
-      averageSessionLength: 30, // minutes
-      longestStreak: 7,
-      currentStreak: 3
-    };
+    if (practiceData.length === 0) {
+      // For new users with no practice data, show zeros
+      setAppUsage({
+        lastLogin: new Date().toISOString(),
+        totalSessions: 0,
+        totalPracticeTime: 0,
+        averageSessionLength: 0,
+        longestStreak: 0,
+        currentStreak: 0
+      });
+      return;
+    }
+
+    // Calculate real statistics from practice data
+    const totalSessions = practiceData.length;
+    const totalPracticeTime = practiceData.reduce((sum, session) => sum + session.duration, 0);
+    const averageSessionLength = totalSessions > 0 ? Math.round(totalPracticeTime / totalSessions) : 0;
     
-    setAppUsage(mockUsage);
+    // Calculate streaks
+    const { currentStreak, longestStreak } = calculateStreaks(practiceData);
+    
+    // Get last login from localStorage or use current time
+    const savedLastLogin = localStorage.getItem('lastLogin');
+    const lastLogin = savedLastLogin || new Date().toISOString();
+    
+    // Update last login
+    localStorage.setItem('lastLogin', new Date().toISOString());
+    
+    setAppUsage({
+      lastLogin,
+      totalSessions,
+      totalPracticeTime,
+      averageSessionLength,
+      longestStreak,
+      currentStreak
+    });
+  };
+  
+  // Calculate current and longest streaks from practice data
+  const calculateStreaks = (sessions: PracticeSession[]) => {
+    if (sessions.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+    
+    // Sort sessions by date
+    const sortedSessions = [...sessions].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    // Get unique practice dates
+    const practiceDates = [...new Set(sortedSessions.map(session => 
+      new Date(session.date).toDateString()
+    ))].sort();
+    
+    if (practiceDates.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+    
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 1;
+    
+    // Calculate streaks
+    for (let i = 1; i < practiceDates.length; i++) {
+      const prevDate = new Date(practiceDates[i - 1]);
+      const currentDate = new Date(practiceDates[i]);
+      const dayDifference = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (dayDifference === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    
+    longestStreak = Math.max(longestStreak, tempStreak);
+    
+    // Calculate current streak (from most recent date)
+    const today = new Date();
+    const mostRecentDate = new Date(practiceDates[practiceDates.length - 1]);
+    const daysSinceLastPractice = Math.floor((today.getTime() - mostRecentDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceLastPractice <= 1) {
+      // Find current streak from the end
+      currentStreak = 1;
+      for (let i = practiceDates.length - 2; i >= 0; i--) {
+        const prevDate = new Date(practiceDates[i]);
+        const nextDate = new Date(practiceDates[i + 1]);
+        const dayDifference = Math.floor((nextDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (dayDifference === 1) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    } else {
+      currentStreak = 0;
+    }
+    
+    return { currentStreak, longestStreak };
   };
   
   // Filter data based on selected time range
@@ -157,6 +247,10 @@ const AnalyticsBoard: React.FC = () => {
   const getPracticeDurationData = () => {
     const { practice } = getFilteredData();
     
+    if (practice.length === 0) {
+      return [];
+    }
+    
     // Group by date and calculate total duration per day
     const durationByDate: {[key: string]: number} = {};
     practice.forEach(session => {
@@ -179,6 +273,10 @@ const AnalyticsBoard: React.FC = () => {
   const getPracticeDistribution = () => {
     const { practice } = getFilteredData();
     
+    if (practice.length === 0) {
+      return [];
+    }
+    
     // Count sessions by stage level
     const countByStage: {[key: string]: number} = {};
     practice.forEach(session => {
@@ -199,6 +297,10 @@ const AnalyticsBoard: React.FC = () => {
     labelKey: string,
     colorKey?: string
   }) => {
+    if (data.length === 0) {
+      return <div className="empty-chart">No data available</div>;
+    }
+    
     const maxValue = Math.max(...data.map(item => item[valueKey]));
     
     return (
@@ -399,29 +501,41 @@ const AnalyticsBoard: React.FC = () => {
             <div className="insights-section">
               <h3>Key Insights</h3>
               <div className="insights-list">
-                <div className="insight-card">
-                  <div className="insight-icon">⬆️</div>
-                  <div className="insight-content">
-                    <h4>Practice Consistency</h4>
-                    <p>Your practice consistency has improved by 15% compared to last month.</p>
+                {appUsage.totalSessions === 0 ? (
+                  <div className="insight-card">
+                    <div className="insight-icon">🌟</div>
+                    <div className="insight-content">
+                      <h4>Welcome!</h4>
+                      <p>Start your first practice session to begin tracking your mindfulness journey.</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="insight-card">
-                  <div className="insight-icon">📊</div>
-                  <div className="insight-content">
-                    <h4>Emotional Balance</h4>
-                    <p>Your emotional wellbeing score has been trending upward over the past 2 weeks.</p>
-                  </div>
-                </div>
-                
-                <div className="insight-card">
-                  <div className="insight-icon">🎯</div>
-                  <div className="insight-content">
-                    <h4>Next Goal</h4>
-                    <p>Try to maintain a 5-day practice streak to unlock the next achievement.</p>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="insight-card">
+                      <div className="insight-icon">⬆️</div>
+                      <div className="insight-content">
+                        <h4>Practice Consistency</h4>
+                        <p>You have completed {appUsage.totalSessions} practice sessions so far.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="insight-card">
+                      <div className="insight-icon">📊</div>
+                      <div className="insight-content">
+                        <h4>Total Practice Time</h4>
+                        <p>You've practiced for {Math.round(appUsage.totalPracticeTime / 60)} hours total.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="insight-card">
+                      <div className="insight-icon">🎯</div>
+                      <div className="insight-content">
+                        <h4>Current Streak</h4>
+                        <p>Your current practice streak is {appUsage.currentStreak} days. Keep it up!</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -487,31 +601,19 @@ const AnalyticsBoard: React.FC = () => {
               </div>
             </div>
             
-            <div className="emotional-notes-summary">
+            <div className="emotional-notes">
               <h3>Recent Emotional Notes</h3>
               <div className="notes-list">
                 {getFilteredData().notes.length === 0 ? (
                   <div className="empty-state">No emotional notes in the selected time range.</div>
                 ) : (
                   getFilteredData().notes.slice(0, 5).map(note => (
-                    <div key={note.id} className="note-summary-card">
-                      <div className="note-emotion-indicator" style={{
-                        backgroundColor: note.emotion === 'joy' ? '#FFD700' :
-                                        note.emotion === 'sadness' ? '#6495ED' :
-                                        note.emotion === 'anger' ? '#FF6347' :
-                                        note.emotion === 'fear' ? '#9370DB' :
-                                        note.emotion === 'disgust' ? '#8FBC8F' :
-                                        note.emotion === 'surprise' ? '#FF69B4' : '#A9A9A9'
-                      }}></div>
-                      <div className="note-summary-content">
-                        <div className="note-summary-header">
-                          <div className="note-emotion-name">
-                            {note.emotion ? note.emotion.charAt(0).toUpperCase() + note.emotion.slice(1) : 'Neutral'}
-                          </div>
-                          <div className="note-date">{formatDate(note.timestamp)}</div>
-                        </div>
-                        <div className="note-text">{note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content}</div>
-                      </div>
+                    <div key={note.id} className="note-card">
+                      <div className="note-date">{formatDate(note.timestamp)}</div>
+                      <div className="note-content">{note.content}</div>
+                      {note.emotion && (
+                        <div className="note-emotion">Emotion: {note.emotion}</div>
+                      )}
                     </div>
                   ))
                 )}
@@ -524,75 +626,39 @@ const AnalyticsBoard: React.FC = () => {
         {activeTab === 'usage' && (
           <div className="usage-tab">
             <div className="usage-stats">
-              <div className="stat-card large">
-                <div className="stat-value">{appUsage.totalSessions}</div>
-                <div className="stat-label">Total Sessions</div>
-              </div>
-              
-              <div className="stat-card large">
-                <div className="stat-value">{Math.round(appUsage.totalPracticeTime / 60)}</div>
-                <div className="stat-label">Practice Hours</div>
-              </div>
-              
-              <div className="stat-card large">
-                <div className="stat-value">{appUsage.averageSessionLength}</div>
-                <div className="stat-label">Avg. Session (min)</div>
-              </div>
-              
-              <div className="stat-card large">
-                <div className="stat-value">{appUsage.longestStreak}</div>
-                <div className="stat-label">Longest Streak</div>
-              </div>
-            </div>
-            
-            <div className="usage-details">
-              <h3>App Usage Details</h3>
-              <div className="usage-detail-card">
-                <div className="detail-label">Current Streak</div>
-                <div className="detail-value">{appUsage.currentStreak} days</div>
-              </div>
-              
-              <div className="usage-detail-card">
-                <div className="detail-label">Last Login</div>
-                <div className="detail-value">{formatDate(appUsage.lastLogin)}</div>
-              </div>
-              
-              <div className="usage-detail-card">
-                <div className="detail-label">Notes Created</div>
-                <div className="detail-value">{emotionalNotes.length}</div>
-              </div>
-              
-              <div className="usage-detail-card">
-                <div className="detail-label">Practice Completion Rate</div>
-                <div className="detail-value">87%</div>
-              </div>
-            </div>
-            
-            <div className="achievements-section">
-              <h3>Achievements</h3>
-              <div className="achievements-grid">
-                <div className="achievement-card unlocked">
-                  <div className="achievement-icon">🏆</div>
-                  <div className="achievement-name">First Steps</div>
-                  <div className="achievement-description">Complete your first practice session</div>
+              <div className="usage-card">
+                <h3>Session Statistics</h3>
+                <div className="usage-details">
+                  <div className="usage-item">
+                    <span className="usage-label">Total Sessions:</span>
+                    <span className="usage-value">{appUsage.totalSessions}</span>
+                  </div>
+                  <div className="usage-item">
+                    <span className="usage-label">Average Session Length:</span>
+                    <span className="usage-value">{appUsage.averageSessionLength} min</span>
+                  </div>
+                  <div className="usage-item">
+                    <span className="usage-label">Total Practice Time:</span>
+                    <span className="usage-value">{Math.round(appUsage.totalPracticeTime / 60)} hours</span>
+                  </div>
                 </div>
-                
-                <div className="achievement-card unlocked">
-                  <div className="achievement-icon">📝</div>
-                  <div className="achievement-name">Reflective Mind</div>
-                  <div className="achievement-description">Create 5 emotional notes</div>
-                </div>
-                
-                <div className="achievement-card">
-                  <div className="achievement-icon">🔄</div>
-                  <div className="achievement-name">Consistency Master</div>
-                  <div className="achievement-description">Maintain a 7-day practice streak</div>
-                </div>
-                
-                <div className="achievement-card">
-                  <div className="achievement-icon">⏱️</div>
-                  <div className="achievement-name">Time Dedicated</div>
-                  <div className="achievement-description">Practice for a total of 10 hours</div>
+              </div>
+              
+              <div className="usage-card">
+                <h3>Streak Information</h3>
+                <div className="usage-details">
+                  <div className="usage-item">
+                    <span className="usage-label">Current Streak:</span>
+                    <span className="usage-value">{appUsage.currentStreak} days</span>
+                  </div>
+                  <div className="usage-item">
+                    <span className="usage-label">Longest Streak:</span>
+                    <span className="usage-value">{appUsage.longestStreak} days</span>
+                  </div>
+                  <div className="usage-item">
+                    <span className="usage-label">Last Login:</span>
+                    <span className="usage-value">{formatDate(appUsage.lastLogin)}</span>
+                  </div>
                 </div>
               </div>
             </div>
