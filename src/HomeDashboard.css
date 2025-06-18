@@ -1,8 +1,8 @@
 .home-dashboard {
     display: flex;
     flex-direction: column;
-    height: 100vh; /* You might also need to adjust this if content exceeds viewport height */
-    overflow: auto; /* Changed from hidden to auto to allow scrolling */
+    height: 100vh;
+    overflow: auto;
 }
 
 .dashboard-header {
@@ -151,4 +151,80 @@
 
 .resource-list a:hover {
     text-decoration: underline;
+}
+
+/* -------------------------------
+   📱 Mobile Responsive Styles
+--------------------------------- */
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 15px;
+    }
+
+    .dashboard-header h1 {
+        font-size: 18px;
+        margin-top: 10px;
+    }
+
+    .logo-container {
+        margin-right: 0;
+    }
+
+    .dashboard-content {
+        padding: 15px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .section-header h2 {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+
+    .text-button {
+        font-size: 14px;
+        padding: 4px 8px;
+    }
+
+    .stage-progress {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .stage-line {
+        display: none;
+    }
+
+    .stage-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .stage-details {
+        font-size: 12px;
+    }
+
+    .begin-practice-button {
+        width: 100%;
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .learning-resources {
+        padding: 15px;
+    }
+
+    .learning-resources h3 {
+        font-size: 16px;
+    }
+
+    .resource-list a {
+        font-size: 14px;
+    }
 }

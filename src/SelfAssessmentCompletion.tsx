@@ -1,6 +1,5 @@
 import React from 'react';
 import './SelfAssessmentCompletion.css';
-import Logo from './Logo';
 
 interface SelfAssessmentCompletionProps {
   onGetStarted: () => void;
@@ -14,7 +13,6 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
   return (
     <div className="self-assessment-completion">
       <div className="completion-header">
-        <Logo />
         <h1>The Return of Attention</h1>
       </div>
       
@@ -98,6 +96,3 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
 };
 
 export default SelfAssessmentCompletion;
-
-// This empty export ensures the file is treated as a module
-export {};

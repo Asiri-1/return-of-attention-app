@@ -27,7 +27,7 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
   onViewSessionHistory = () => {},
   onViewAnalytics = () => {}
 }) => {
-  const { currentUser } = useAuth(); // Changed from user to currentUser
+  const { currentUser } = useAuth();
   const [practiceData, setPracticeData] = useState<PracticeData | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -35,39 +35,36 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
   // Fetch user progress data
   useEffect(() => {
     // In a real app, this would fetch data from an API
-    // For now, we'll use mock data
+    // For now, we'll initialize with zeros for new users
     
     // Simulate API delay
     const timer = setTimeout(() => {
-      // Mock practice data
+      // Initialize practice data to zeros
       setPracticeData({
-        totalSessions: 24,
-        totalMinutes: 390, // 6.5 hours
-        currentStreak: 5
+        totalSessions: 0,
+        totalMinutes: 0,
+        currentStreak: 0
       });
       
-      // Mock achievements
+      // Mock achievements (these can remain as they are, or be dynamically loaded)
       setAchievements([
         {
           id: 'first-session',
           title: 'First Step',
           description: 'Complete your first practice session',
-          earned: true,
-          date: new Date(Date.now() - 86400000 * 14)
+          earned: false, // Set to false initially
         },
         {
           id: 'three-day-streak',
           title: 'Momentum Builder',
           description: 'Practice for 3 consecutive days',
-          earned: true,
-          date: new Date(Date.now() - 86400000 * 7)
+          earned: false,
         },
         {
           id: 'present-50',
           title: 'Present Mind',
           description: 'Achieve 50% present awareness in a session',
-          earned: true,
-          date: new Date(Date.now() - 86400000 * 2)
+          earned: false,
         },
         {
           id: 'seven-day-streak',

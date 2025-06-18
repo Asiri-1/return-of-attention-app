@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './Introduction.css';
-import Logo from './Logo';
+// import Logo from './Logo'; // Remove this line
 
 interface IntroductionProps {
   onComplete: () => void;
@@ -54,9 +54,10 @@ const Introduction: React.FC<IntroductionProps> = ({ onComplete, onSkip }) => {
   
   return (
     <div className="introduction-container">
-      <div className="logo-container">
+      {/* Removed Logo */}
+      {/* <div className="logo-container">
         <Logo />
-      </div>
+      </div> */}
       
       <div className="introduction-content">
         <div className="slide">

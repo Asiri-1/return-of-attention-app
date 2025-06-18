@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './Questionnaire.css';
-import Logo from './Logo';
 
 interface QuestionnaireProps {
   onComplete: (answers: any) => void;
@@ -405,152 +404,238 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete, onSkip }) => 
         { value: 'better_sleep', label: '😴 Better sleep quality' },
         { value: 'build_resilience', label: '💪 Build mental resilience' },
         { value: 'personal_growth', label: '🌱 Personal growth and self-awareness' },
-        { value: 'emotional_regulation', label: '🧘‍♀️ Better emotional regulation' },
-        { value: 'productivity', label: '⚡ Increased productivity' },
-        { value: 'relationships', label: '❤️ Improve relationships' },
-        { value: 'spiritual_growth', label: '🕯️ Spiritual development' },
-        { value: 'habit_formation', label: '🔄 Build healthy habits' },
-        { value: 'curiosity', label: '🤔 Just curious about mindfulness' },
-        { value: 'other', label: '🌟 Other reasons' },
+        { value: 'emotional_regulation', label: '❤️‍🩹 Emotional regulation' },
+        { value: 'increase_happiness', label: '😊 Increase overall happiness' },
+        { value: 'manage_addiction', label: '🔗 Manage addictive behaviors' },
+        { value: 'spiritual_growth', label: '✨ Spiritual growth' },
+        { value: 'curiosity', label: '🧐 Curiosity' },
+        { value: 'other', label: '💡 Other' },
       ],
     },
     {
-      id: 'q2_experience',
-      title: 'How would you describe your experience with meditation or mindfulness practices?',
+      id: 'q1_mindfulness_experience',
+      title: 'What is your current level of experience with mindfulness or meditation?',
+      type: 'single-select' as const,
+      required: true,
+      options: [
+        { value: 'beginner', label: '👶 Beginner (new to mindfulness)' },
+        { value: 'some_experience', label: '📚 Some experience (tried a few times)' },
+        { value: 'regular_practitioner', label: '🧘 Regular practitioner (daily/weekly)' },
+        { value: 'advanced', label: '🌟 Advanced practitioner (years of practice)' },
+      ],
+    },
+    {
+      id: 'q1_practice_goals',
+      title: 'What do you hope to achieve through mindfulness practice? (Select all that apply)',
+      type: 'multi-select' as const,
+      required: true,
+      options: [
+        { value: 'daily_calm', label: '🧘 Find daily calm and peace' },
+        { value: 'stress_reduction', label: '📉 Reduce stress and anxiety' },
+        { value: 'improved_focus', label: '🧠 Improve focus and concentration' },
+        { value: 'emotional_balance', label: '⚖️ Achieve emotional balance' },
+        { value: 'better_relationships', label: '🤝 Foster better relationships' },
+        { value: 'self_compassion', label: '💖 Cultivate self-compassion' },
+        { value: 'spiritual_connection', label: '✨ Deepen spiritual connection' },
+        { value: 'habit_breaking', label: '🔗 Break unhelpful habits' },
+        { value: 'increased_joy', label: '😊 Experience more joy' },
+        { value: 'sleep_improvement', label: '😴 Improve sleep' },
+        { value: 'pain_management', label: '🤕 Manage chronic pain' },
+        { value: 'other', label: '💡 Other personal goals' },
+      ],
+    },
+    {
+      id: 'q1_daily_mindfulness_time',
+      title: 'How much time are you willing to dedicate to mindfulness practice daily?',
+      type: 'single-select' as const,
+      required: true,
+      options: [
+        { value: '5_min', label: '⏱️ 5 minutes' },
+        { value: '10_min', label: '⏰ 10 minutes' },
+        { value: '15_min', label: '🗓️ 15 minutes' },
+        { value: '20_min', label: '⏳ 20 minutes' },
+        { value: '30_min_plus', label: '🚀 30+ minutes' },
+      ],
+    },
+    {
+      id: 'q1_preferred_practice_time',
+      title: 'When are you most likely to practice mindfulness?',
+      type: 'multi-select' as const,
+      required: true,
+      options: [
+        { value: 'morning', label: '☀️ Morning (e.g., after waking up)' },
+        { value: 'midday', label: ' lunchtime)' },
+        { value: 'afternoon', label: '🌆 Afternoon (e.g., after work)' },
+        { value: 'evening', label: '🌙 Evening (e.g., before bed)' },
+        { value: 'anytime', label: '🔄 Anytime I find a moment' },
+      ],
+    },
+    {
+      id: 'q1_distraction_level',
+      title: 'How easily are you distracted during daily tasks or activities?',
       type: 'slider' as const,
       required: true,
       min: 1,
-      max: 5,
+      max: 10,
       labels: {
-        1: 'Complete beginner, never tried',
-        2: 'Curious but minimal experience',
-        3: 'Some experience, inconsistent practice',
-        4: 'Regular practitioner, established routine',
-        5: 'Advanced practitioner, deep experience',
+        1: 'Rarely distracted',
+        3: 'Occasionally distracted',
+        5: 'Moderately distracted',
+        7: 'Often distracted',
+        10: 'Extremely distracted',
       },
     },
     {
-      id: 'q3_frequency',
-      title: 'How often do you currently practice mindfulness or meditation?',
+      id: 'q1_stress_response',
+      title: 'When faced with stress, how do you typically react?',
+      type: 'multi-select' as const,
+      required: true,
+      options: [
+        { value: 'calm', label: '🧘 Remain calm and composed' },
+        { value: 'anxious', label: '😥 Feel anxious or overwhelmed' },
+        { value: 'irritable', label: '😠 Become irritable or angry' },
+        { value: 'withdrawn', label: '😔 Withdraw from others' },
+        { value: 'proactive', label: '💪 Become proactive and problem-solve' },
+        { value: 'distracted', label: ' distractions' },
+        { value: 'physical_symptoms', label: '🤢 Experience physical symptoms (e.g., headaches, stomach issues)' },
+        { value: 'overeat', label: '🍔 Overeat or under-eat' },
+        { value: 'sleep_issues', label: '😴 Have trouble sleeping' },
+        { value: 'other', label: '🤷 Other reaction' },
+      ],
+    },
+    {
+      id: 'q1_emotional_awareness',
+      title: 'How aware are you of your emotions throughout the day?',
+      type: 'slider' as const,
+      required: true,
+      min: 1,
+      max: 10,
+      labels: {
+        1: 'Not at all aware',
+        3: 'Slightly aware',
+        5: 'Moderately aware',
+        7: 'Very aware',
+        10: 'Extremely aware',
+      },
+    },
+    {
+      id: 'q1_self_compassion',
+      title: 'How often do you practice self-compassion (being kind to yourself)?',
+      type: 'single-select' as const,
+      required: true,
+      options: [
+        { value: 'never', label: '💔 Never' },
+        { value: 'rarely', label: '😔 Rarely' },
+        { value: 'sometimes', label: '😐 Sometimes' },
+        { value: 'often', label: '😊 Often' },
+        { value: 'always', label: '💖 Always' },
+      ],
+    },
+    {
+      id: 'q1_gratitude_practice',
+      title: 'How often do you intentionally practice gratitude?',
       type: 'single-select' as const,
       required: true,
       options: [
         { value: 'never', label: '🚫 Never' },
-        { value: 'rarely', label: '🌙 Rarely (few times a year)' },
-        { value: 'occasionally', label: '🌱 Occasionally (monthly)' },
-        { value: 'weekly', label: '📅 Weekly' },
-        { value: 'few-times-week', label: '🔄 A few times a week' },
-        { value: 'daily', label: '☀️ Daily' },
-        { value: 'multiple-daily', label: '🌟 Multiple times daily' },
+        { value: 'rarely', label: '🤔 Rarely' },
+        { value: 'sometimes', label: '🙂 Sometimes' },
+        { value: 'often', label: '😊 Often' },
+        { value: 'daily', label: '🌟 Daily' },
       ],
     },
     {
-      id: 'q4_primary_goal',
-      title: 'What is your primary goal for practicing mindfulness?',
+      id: 'q1_tech_usage',
+      title: 'How many hours per day do you typically spend on digital devices (phone, computer, tablet) for non-work related activities?',
       type: 'single-select' as const,
       required: true,
       options: [
-        { value: 'stress_reduction', label: '😌 Stress reduction and relaxation' },
-        { value: 'focus_concentration', label: '🎯 Improved focus and concentration' },
-        { value: 'emotional_wellbeing', label: '💚 Better emotional well-being' },
-        { value: 'sleep_improvement', label: '😴 Better sleep quality' },
-        { value: 'self_awareness', label: '🪞 Increased self-awareness' },
-        { value: 'spiritual_growth', label: '🕯️ Spiritual development' },
-        { value: 'habit_building', label: '🏗️ Building a consistent practice' },
-        { value: 'pain_management', label: '🩹 Managing chronic pain or illness' },
-        { value: 'performance', label: '🏆 Enhanced performance (work/sports)' },
-        { value: 'relationships', label: '❤️ Better relationships' },
-        { value: 'general_wellness', label: '🌈 Overall wellness and balance' },
+        { value: 'less_1', label: 'Less than 1 hour' },
+        { value: '1_3', label: '1-3 hours' },
+        { value: '3_5', label: '3-5 hours' },
+        { value: '5_8', label: '5-8 hours' },
+        { value: '8_plus', label: '8+ hours' },
       ],
     },
     {
-      id: 'q5_practices',
-      title: 'What kind of mindfulness practices are you most interested in exploring? (Select all that apply)',
+      id: 'q1_social_media_impact',
+      title: 'How does social media typically make you feel?',
       type: 'multi-select' as const,
       required: true,
       options: [
-        { value: 'breathing', label: '🌬️ Breathing exercises' },
-        { value: 'body_scan', label: '🧘‍♀️ Body scan meditation' },
-        { value: 'walking', label: '🚶‍♂️ Walking meditation' },
-        { value: 'loving_kindness', label: '💝 Loving-kindness meditation' },
-        { value: 'visualization', label: '🌅 Visualization techniques' },
-        { value: 'mindful_eating', label: '🍎 Mindful eating' },
-        { value: 'movement', label: '🤸‍♀️ Mindful movement/yoga' },
-        { value: 'journaling', label: '📝 Mindful journaling' },
-        { value: 'nature', label: '🌳 Nature-based practices' },
-        { value: 'sound', label: '🔔 Sound meditation (bells, singing bowls)' },
-        { value: 'mantra', label: '🕉️ Mantra repetition' },
-        { value: 'open_awareness', label: '🌌 Open awareness meditation' },
-        { value: 'daily_activities', label: '☕ Mindfulness in daily activities' },
+        { value: 'inspired', label: '✨ Inspired and connected' },
+        { value: 'anxious', label: '😥 Anxious or stressed' },
+        { value: 'jealous', label: '😒 Jealous or inadequate' },
+        { value: 'informed', label: '📰 Informed and entertained' },
+        { value: 'distracted', label: '😵 Distracted and unproductive' },
+        { value: 'neutral', label: '😐 Neutral' },
+        { value: 'other', label: '🤷 Other' },
       ],
     },
     {
-      id: 'q6_time_commitment',
-      title: 'Realistically, how much time can you dedicate to Return of Attention practice on most days?',
+      id: 'q1_nature_connection',
+      title: 'How often do you spend time in nature or green spaces?',
       type: 'single-select' as const,
       required: true,
       options: [
-        { value: '5-10-min', label: '⏰ 5-10 minutes (Beginner friendly)' },
-        { value: '10-20-min', label: '📅 10-20 minutes (Building consistency)' },
-        { value: '20-30-min', label: '🧘‍♀️ 20-30 minutes (Committed practice)' },
-        { value: '30-plus-min', label: '🌟 30+ minutes (Intensive development)' },
-        { value: 'varies', label: '🔄 Varies day to day (Flexible approach)' },
+        { value: 'daily', label: '🌳 Daily' },
+        { value: 'several_times_week', label: '🌿 Several times a week' },
+        { value: 'once_week', label: '🏞️ Once a week' },
+        { value: 'rarely', label: '🍂 Rarely' },
+        { value: 'never', label: '🚫 Never' },
       ],
     },
     {
-      id: 'q7_progress_tracking',
-      title: 'How important is it for you to track your progress and see your mindfulness journey visually?',
-      type: 'single-select' as const,
+      id: 'q1_learning_style',
+      title: 'What is your preferred way to learn new mindfulness techniques?',
+      type: 'multi-select' as const,
       required: true,
       options: [
-        { value: 'very-important', label: '⭐ Very important - I love seeing my progress' },
-        { value: 'somewhat-important', label: '📊 Somewhat important - helpful for motivation' },
-        { value: 'neutral', label: '🤷‍♀️ Neutral - I can take it or leave it' },
-        { value: 'not-important', label: '🎯 Not important - I prefer to focus on the practice itself' },
-        { value: 'prefer-simple', label: '🌱 I prefer simple, minimal tracking' },
+        { value: 'guided_meditations', label: '🎧 Guided audio meditations' },
+        { value: 'reading', label: '📚 Reading articles/books' },
+        { value: 'videos', label: '📺 Watching videos/lectures' },
+        { value: 'workshops', label: '👥 Attending workshops/classes' },
+        { value: 'one_on_one', label: '🤝 One-on-one coaching' },
+        { value: 'self_guided', label: '🚶 Self-guided practice' },
+        { value: 'community', label: '🏘️ Community discussions' },
+        { value: 'other', label: '💡 Other' },
+      ],
+    },
+    {
+      id: 'q1_support_needed',
+      title: 'What kind of support would be most helpful for your mindfulness journey?',
+      type: 'multi-select' as const,
+      required: true,
+      options: [
+        { value: 'reminders', label: '🔔 Gentle reminders to practice' },
+        { value: 'personalized_content', label: '🎯 Personalized content/exercises' },
+        { value: 'community_support', label: '🤝 Community support/group sessions' },
+        { value: 'expert_guidance', label: '🧠 Expert guidance/coaching' },
+        { value: 'progress_tracking', label: '📈 Progress tracking and insights' },
+        { value: 'motivation', label: '✨ Motivation and encouragement' },
+        { value: 'no_support', label: '🚫 I prefer to practice independently' },
+        { value: 'other', label: '💡 Other' },
       ],
     },
   ];
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const totalQuestions = questions.length;
-  const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
-
-  // Determine section info
-  const getSectionInfo = () => {
-    if (currentQuestionIndex <= 12) {
-      return {
-        section: 'Personal Information',
-        questionNumber: currentQuestionIndex + 1,
-        totalInSection: 13,
-      };
-    } else {
-      return {
-        section: 'About Your Mind and Happiness',
-        questionNumber: currentQuestionIndex - 12,
-        totalInSection: 7,
-      };
-    }
-  };
-
-  const sectionInfo = getSectionInfo();
-
-  const handleAnswer = (value: any) => {
+  const handleAnswer = (questionId: string, value: any) => {
     setAnswers(prev => ({
       ...prev,
-      [currentQuestion.id]: value
+      [questionId]: value,
     }));
   };
 
   const handleNext = () => {
-    if (!isAnswered()) {
-      return; // Don't proceed if question is not answered
+    const currentQuestion = questions[currentQuestionIndex];
+    if (currentQuestion.required && !answers[currentQuestion.id]) {
+      alert('Please answer the current question before proceeding.');
+      return;
     }
-
-    if (isLastQuestion) {
-      onComplete(answers);
-    } else {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      onComplete(answers);
     }
   };
 
@@ -560,151 +645,121 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete, onSkip }) => 
     }
   };
 
-  const isAnswered = () => {
-    const answer = answers[currentQuestion.id];
-    if (currentQuestion.type === 'multi-select') {
-      return answer && Array.isArray(answer) && answer.length > 0;
-    }
-    return answer !== undefined && answer !== null && answer !== '';
-  };
+  const currentQuestion = questions[currentQuestionIndex];
 
   const renderQuestion = () => {
-    const answer = answers[currentQuestion.id];
-
     switch (currentQuestion.type) {
       case 'single-select':
         return (
-          <div className="options-container">
-            {currentQuestion.options?.map((option, index) => (
-              <label key={option.value} className="option-item">
-                <input
-                  type="radio"
-                  name={currentQuestion.id}
-                  value={option.value}
-                  checked={answer === option.value}
-                  onChange={(e) => handleAnswer(e.target.value)}
-                />
-                <span className="option-label">{option.label}</span>
-              </label>
+          <div className="options-grid">
+            {currentQuestion.options?.map(option => (
+              <button
+                key={option.value}
+                className={`option-button ${answers[currentQuestion.id] === option.value ? 'selected' : ''}`}
+                onClick={() => handleAnswer(currentQuestion.id, option.value)}
+              >
+                {option.label}
+              </button>
             ))}
           </div>
         );
-
       case 'multi-select':
         return (
-          <div className="options-container">
-            {currentQuestion.options?.map((option, index) => (
-              <label key={option.value} className="option-item">
-                <input
-                  type="checkbox"
-                  value={option.value}
-                  checked={answer && Array.isArray(answer) && answer.includes(option.value)}
-                  onChange={(e) => {
-                    const currentAnswers = answer && Array.isArray(answer) ? answer : [];
-                    if (e.target.checked) {
-                      handleAnswer([...currentAnswers, option.value]);
-                    } else {
-                      handleAnswer(currentAnswers.filter(v => v !== option.value));
-                    }
-                  }}
-                />
-                <span className="option-label">{option.label}</span>
-              </label>
+          <div className="options-grid">
+            {currentQuestion.options?.map(option => (
+              <button
+                key={option.value}
+                className={`option-button ${answers[currentQuestion.id]?.includes(option.value) ? 'selected' : ''}`}
+                onClick={() => {
+                  const currentSelection = answers[currentQuestion.id] || [];
+                  if (currentSelection.includes(option.value)) {
+                    handleAnswer(
+                      currentQuestion.id,
+                      currentSelection.filter((item: string) => item !== option.value)
+                    );
+                  } else {
+                    handleAnswer(
+                      currentQuestion.id,
+                      [...currentSelection, option.value]
+                    );
+                  }
+                }}
+              >
+                {option.label}
+              </button>
             ))}
           </div>
         );
-
       case 'dropdown':
         return (
-          <div className="dropdown-container">
-            <select
-              value={answer || ''}
-              onChange={(e) => handleAnswer(e.target.value)}
-              className="dropdown-select"
-            >
-              <option value="">Select your country</option>
-              {currentQuestion.options?.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            className="dropdown-select"
+            value={answers[currentQuestion.id] || ''}
+            onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
+          >
+            <option value="" disabled>Select an option</option>
+            {currentQuestion.options?.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         );
-
       case 'slider':
-        const sliderValue = answer || currentQuestion.min || 1;
         return (
           <div className="slider-container">
             <input
               type="range"
               min={currentQuestion.min}
               max={currentQuestion.max}
-              value={sliderValue}
-              onChange={(e) => handleAnswer(parseInt(e.target.value))}
-              className="slider"
+              value={answers[currentQuestion.id] || currentQuestion.min}
+              onChange={(e) => handleAnswer(currentQuestion.id, parseInt(e.target.value))}
+              className="range-slider"
             />
             <div className="slider-labels">
               {Object.entries(currentQuestion.labels || {}).map(([value, label]) => (
-                <div key={value} className="slider-label-item">
+                <span
+                  key={value}
+                  style={{ left: `${((parseInt(value) - (currentQuestion.min || 0)) / ((currentQuestion.max || 10) - (currentQuestion.min || 0))) * 100}%` }}
+                >
                   {label}
-                </div>
+                </span>
               ))}
             </div>
             <div className="slider-value">
-              Current value: {sliderValue}
+              Current Value: {answers[currentQuestion.id] || currentQuestion.min}
             </div>
           </div>
         );
-
       default:
-        return null;
+        return <p>Unknown question type</p>;
     }
   };
 
   return (
     <div className="questionnaire-container">
       <div className="questionnaire-header">
-        <Logo />
-        <div className="progress-info">
-          <div className="section-title">{sectionInfo.section}</div>
-          <div className="question-counter">
-            {sectionInfo.questionNumber} of {sectionInfo.totalInSection}
-          </div>
-        </div>
+        <h2>{currentQuestion.title}</h2>
       </div>
-
-      <div className="question-content">
-        <h2 className="question-title">{currentQuestion.title}</h2>
+      <div className="questionnaire-body">
         {renderQuestion()}
-        
-        {currentQuestion.required && !isAnswered() && (
-          <div className="required-message">
-            Please select an option to continue
-          </div>
-        )}
       </div>
-
-      <div className="navigation-buttons">
-        <button
-          onClick={handleBack}
-          disabled={currentQuestionIndex === 0}
-          className="nav-button back-button"
-        >
-          Back
+      <div className="questionnaire-navigation">
+        {currentQuestionIndex > 0 && (
+          <button onClick={handleBack} className="back-button">Back</button>
+        )}
+        <button onClick={handleNext} className="next-button">
+          {currentQuestionIndex === questions.length - 1 ? 'Complete' : 'Next'}
         </button>
-        
-        <button
-          onClick={handleNext}
-          disabled={currentQuestion.required && !isAnswered()}
-          className="nav-button next-button"
-        >
-          {isLastQuestion ? 'Complete' : 'Next'}
-        </button>
+        <button onClick={onSkip} className="skip-button">Skip Questionnaire</button>
+      </div>
+      <div className="progress-indicator">
+        Question {currentQuestionIndex + 1} of {questions.length}
       </div>
     </div>
   );
 };
 
 export default Questionnaire;
+
 
