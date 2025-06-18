@@ -14,7 +14,7 @@ import MindRecoveryTimerWrapper from './MindRecoveryTimerWrapper';
 import HomeDashboard from './HomeDashboard';
 import Stage1Wrapper from './Stage1Wrapper';
 import Stage2Wrapper from './Stage2Wrapper';
-import Stage3Wrapper from './Stage3Wrapper'; // Corrected import
+import Stage3Wrapper from './Stage3Wrapper';
 import Stage4Wrapper from './Stage4Wrapper';
 import Stage5Wrapper from './Stage5Wrapper';
 import Stage6Wrapper from './Stage6Wrapper';
@@ -24,6 +24,9 @@ import SeekerPracticeCompleteWrapper from './SeekerPracticeCompleteWrapper';
 
 // Import Chat with Guru components
 import ChatInterface from './components/Chatwithguru/ChatInterface';
+
+// Import Landing Page
+import LandingPage from './LandingPage';
 
 // Assuming you have SignIn and SignUp components
 import SignIn from './SignIn';
@@ -58,7 +61,7 @@ interface PracticeData {
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, signup, isAuthenticated, currentUser, updateUserProfileInContext, logout } = useAuth(); // Changed updateUser to updateUserProfileInContext
+  const { login, signup, isAuthenticated, currentUser, updateUserProfileInContext, logout } = useAuth();
 
   // State for practice data - CONSIDER MOVING THIS TO FIRESTORE LATER
   const [practiceData, setPracticeData] = useState<PracticeData>({
@@ -151,7 +154,9 @@ const AppContent: React.FC = () => {
   const handleViewLearning = () => {
     console.log('Viewing learning resources');
     // Will be implemented in future
-  }  // Handle showing posture guide
+  };
+  
+  // Handle showing posture guide
   const handleShowPostureGuide = () => {
     console.log("Showing posture guide");
     navigate("/posture-guide");
@@ -160,65 +165,62 @@ const AppContent: React.FC = () => {
   // Handle showing PAHM explanation
   const handleShowPAHMExplanation = () => {
     console.log('Showing PAHM explanation');
-    navigate('/learning/pahm'); // Changed from window.location.href
+    navigate('/learning/pahm');
   };
   
   // Handle showing What is PAHM
   const handleShowWhatIsPAHM = () => {
     console.log('Showing What is PAHM');
-    navigate('/learning/pahm'); // Changed from window.location.href
+    navigate('/learning/pahm');
   };
   
   // Handle starting stage 2
   const handleStartStage2 = () => {
     console.log('Starting stage 2');
-    navigate('/stage2'); // Changed from window.location.href
+    navigate('/stage2');
   };
   
   // Handle starting stage 3
   const handleStartStage3 = () => {
     console.log('Starting stage 3');
-    navigate('/stage3'); // Changed from window.location.href
+    navigate('/stage3');
   };
   
   // Handle starting stage 4
   const handleStartStage4 = () => {
     console.log('Starting stage 4');
-    navigate('/stage4'); // Changed from window.location.href
+    navigate('/stage4');
   };
   
   // Handle starting stage 5
   const handleStartStage5 = () => {
     console.log('Starting stage 5');
-    navigate('/stage5'); // Changed from window.location.href
+    navigate('/stage5');
   };
   
   // Handle starting stage 6
   const handleStartStage6 = () => {
     console.log('Starting stage 6');
-    navigate('/stage6'); // Changed from window.location.href
+    navigate('/stage6');
   };
   
   // Handle logout from dashboard - UPDATED TO USE FIREBASE AUTH
   const handleLogout = async () => {
     try {
-      await logout(); // Use the logout function from useAuth
-      navigate('/'); // Navigate to home/signin page after logout
+      await logout();
+      navigate('/');
     } catch (error) {
       console.error("Error during logout:", error);
-      // Handle error, e.g., show a message to the user
     }
   };
 
   // Handle sign-up with proper flow to introduction - UPDATED TO USE FIREBASE AUTH
   const handleSignUp = async (email: string, password: string, name: string) => {
     try {
-      await signup(email, password, name); // Use the signup function from useAuth
-      // The AuthContext's signup function will also create the Firestore profile
-      navigate('/questionnaire'); // Navigate to questionnaire after successful signup
+      await signup(email, password, name);
+      navigate('/questionnaire');
     } catch (error: any) {
       console.error('Signup error:', error);
-      // Handle specific Firebase errors, e.g., email-already-in-use
       if (error.code === 'auth/email-already-in-use') {
         alert('This email is already registered. Please sign in instead.');
         navigate('/signin');
@@ -230,15 +232,13 @@ const AppContent: React.FC = () => {
 
   // Handle questionnaire completion
   const handleQuestionnaireComplete = (answers: any) => {
-    updateUserProfileInContext({ questionnaireAnswers: answers, questionnaireCompleted: true }); // Changed updateUser to updateUserProfileInContext
+    updateUserProfileInContext({ questionnaireAnswers: answers, questionnaireCompleted: true });
     navigate('/introduction');
   };
 
   // Check if user should see introduction flow
   const shouldShowIntroductionFlow = () => {
     if (!isAuthenticated || !currentUser) return false;
-    
-    // Show introduction flow if user hasn't completed assessment and is first time user
     return !currentUser.assessmentCompleted;
   };
 
@@ -253,6 +253,9 @@ const AppContent: React.FC = () => {
       <DevPanelToggle />
       <PageViewTracker />
       <Routes>
+        {/* Landing Page Route - NEW: This is now the default route */}
+        <Route path="/" element={<LandingPage />} />
+
         {/* Authentication Routes - always accessible */}
         <Route 
           path="/signin" 
@@ -268,11 +271,9 @@ const AppContent: React.FC = () => {
                 }
               }}
               onGoogleSignIn={async () => { 
-                // Implement Google Sign-In with Firebase here
                 alert("Google Sign-In not yet implemented with Firebase.");
               }}
               onAppleSignIn={async () => { 
-                // Implement Apple Sign-In with Firebase here
                 alert("Apple Sign-In not yet implemented with Firebase.");
               }}
               onSignUp={() => navigate('/signup')} 
@@ -284,13 +285,11 @@ const AppContent: React.FC = () => {
           path="/signup" 
           element={
             <SignUp 
-              onSignUp={handleSignUp} // This now calls the Firebase-integrated handleSignUp
+              onSignUp={handleSignUp}
               onGoogleSignUp={async () => { 
-                // Implement Google Sign-Up with Firebase here
                 alert("Google Sign-Up not yet implemented with Firebase.");
               }}
               onAppleSignUp={async () => { 
-                // Implement Apple Sign-Up with Firebase here
                 alert("Apple Sign-Up not yet implemented with Firebase.");
               }}
               onSignIn={() => navigate('/signin')} 
@@ -305,7 +304,7 @@ const AppContent: React.FC = () => {
             isAuthenticated ? (
               <Questionnaire 
                 onComplete={handleQuestionnaireComplete} 
-                onSkip={() => navigate('/introduction')} // Skip questionnaire to introduction
+                onSkip={() => navigate('/introduction')}
               />
             ) : (
               <Navigate to="/signin" replace />
@@ -360,7 +359,7 @@ const AppContent: React.FC = () => {
 
         {/* Authenticated Routes - conditionally rendered based on authentication */}
         <Route
-          path="/*" // Catch all other paths
+          path="/*"
           element={isAuthenticated ? (
             <MainNavigation
               onPracticeClick={handleStartPracticeWrapper}
@@ -370,31 +369,28 @@ const AppContent: React.FC = () => {
               <Routes>
                 {/* Conditional redirect based on authentication status and assessment completion */}
                 <Route 
-                  path="/" 
+                  path="/home" 
                   element={
                     shouldShowQuestionnaireFlow() ?
                       <Navigate to="/questionnaire" replace /> :
                     shouldShowIntroductionFlow() ? 
                       <Navigate to="/introduction" replace /> : 
-                      <Navigate to="/home" replace />
+                      <HomeDashboard 
+                        onStartPractice={handleStartPracticeWrapper}
+                        onStartStage2={handleStartStage2}
+                        onStartStage3={handleStartStage3}
+                        onStartStage4={handleStartStage4}
+                        onStartStage5={handleStartStage5}
+                        onStartStage6={handleStartStage6}
+                        onViewProgress={handleViewProgress}
+                        onViewLearning={handleViewLearning}
+                        onShowPostureGuide={handleShowPostureGuide}
+                        onShowPAHMExplanation={handleShowPAHMExplanation}
+                        onShowWhatIsPAHM={handleShowWhatIsPAHM}
+                        onLogout={handleLogout}
+                      />
                   } 
                 />
-                <Route path="/home" element={
-                  <HomeDashboard 
-                    onStartPractice={handleStartPracticeWrapper}
-                    onStartStage2={handleStartStage2}
-                    onStartStage3={handleStartStage3}
-                    onStartStage4={handleStartStage4}
-                    onStartStage5={handleStartStage5}
-                    onStartStage6={handleStartStage6}
-                    onViewProgress={handleViewProgress}
-                    onViewLearning={handleViewLearning}
-                    onShowPostureGuide={handleShowPostureGuide}
-                    onShowPAHMExplanation={handleShowPAHMExplanation}
-                    onShowWhatIsPAHM={handleShowWhatIsPAHM}
-                    onLogout={handleLogout}
-                  />
-                } />
                 
                 {/* Stage Routes */}
                 <Route path="/stage1" element={<Stage1Wrapper />} />
@@ -427,7 +423,7 @@ const AppContent: React.FC = () => {
               </Routes>
             </MainNavigation>
           ) : (
-            <Navigate to="/signin" replace /> // Redirect unauthenticated users to signin
+            <Navigate to="/signin" replace />
           )}
         />
       </Routes>
@@ -435,11 +431,14 @@ const AppContent: React.FC = () => {
   );
 };
 
-const App: React.FC = () => (
-  // AuthProvider is now in index.tsx, so remove it from here
-  <BrowserRouter>
-    <AppContent />
-  </BrowserRouter>
-);
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AuthProvider>
+  );
+};
 
 export default App;
