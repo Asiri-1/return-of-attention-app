@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'; // BrowserRouter added back here
 import PageViewTracker from './components/PageViewTracker';
 import './App.css';
 import { AuthProvider, useAuth } from './AuthContext';
@@ -28,7 +28,7 @@ import ChatInterface from './components/Chatwithguru/ChatInterface';
 // Import Landing Page
 import LandingPage from './LandingPage';
 
-// Assuming you have SignIn and SignUp components
+// Authentication components
 import SignIn from './SignIn';
 import SignUp from './SignUp';
 
@@ -39,121 +39,101 @@ import SelfAssessmentCompletion from './SelfAssessmentCompletion';
 import PostureGuide from './PostureGuide';
 import UserProfile from './UserProfile';
 
-// Import the new Questionnaire component
+// Import the Questionnaire component
 import Questionnaire from './Questionnaire';
 
-// Define types
-interface PracticeData {
-  sessions: Array<{
-    id: string;
-    date: string;
-    duration: number;
-    stageLevel: string;
-    position: string;
-    rating?: number;
-    notes?: string;
-  }>;
-  lastPosition: string;
-  lastStageLevel: string;
-  lastDuration: number;
-}
+// Import Knowledge Base Components
+import { LocalDataProvider } from './contexts/LocalDataContext';
+import { EnhancedLocalStorageManager } from './services/EnhancedLocalStorageManager';
+import { apiService } from './services/api'; // For backend persistence
+
+// Helper component to wrap authenticated pages with navigation
+const AuthenticatedPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  const handleStartPracticeWrapper = () => {
+    console.log('Starting practice from dashboard');
+    navigate('/stage1');
+  };
+  
+  const handleViewProgress = () => {
+    console.log('Viewing progress');
+    navigate('/analytics');
+  };
+  
+  const handleViewLearning = () => {
+    console.log('Viewing learning resources');
+    navigate('/learning/pahm');
+  };
+
+  return (
+    <MainNavigation
+      onPracticeClick={handleStartPracticeWrapper}
+      onProgressClick={handleViewProgress}
+      onLearnClick={handleViewLearning}
+    >
+      {children}
+    </MainNavigation>
+  );
+};
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login, signup, isAuthenticated, currentUser, updateUserProfileInContext, logout } = useAuth();
+  const { login, signup, isAuthenticated, currentUser, updateUserProfileInContext, logout, isLoading } = useAuth();
 
-  // State for practice data - CONSIDER MOVING THIS TO FIRESTORE LATER
-  const [practiceData, setPracticeData] = useState<PracticeData>({
-    sessions: [],
-    lastPosition: 'chair',
-    lastStageLevel: 'T1: Physical Stillness for 10 minutes',
-    lastDuration: 10
-  });
-  
-  // Load practice data from localStorage on component mount
+  // Knowledge Base Initialization
+  const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(false);
+
+  // Initialize knowledge base when app loads
   useEffect(() => {
-    const savedData = localStorage.getItem('practiceData');
-    if (savedData) {
-      try {
-        setPracticeData(JSON.parse(savedData));
-      } catch (e) {
-        console.error('Error parsing practice data:', e);
-      }
-    }
-  }, []);
-  
-  // Save practice data to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('practiceData', JSON.stringify(practiceData));
-  }, [practiceData]);
-  
-  // Add a new practice session
-  const addSession = (session: any) => {
-    setPracticeData((prev: PracticeData) => {
-      const newSessions = [...prev.sessions, {
-        ...session,
-        id: `session-${Date.now()}`,
-        date: new Date().toISOString()
-      }];
-      
-      return {
-        ...prev,
-        sessions: newSessions,
-        lastPosition: session.position || prev.lastPosition,
-        lastStageLevel: session.stageLevel || prev.lastStageLevel,
-        lastDuration: session.duration || prev.lastDuration
-      };
-    });
-  };
-  
-  // Update session with reflection data
-  const updateSessionReflection = (sessionId: string, reflectionData: any) => {
-    setPracticeData(prev => {
-      const updatedSessions = prev.sessions.map(session => {
-        if (session.id === sessionId) {
-          return { ...session, ...reflectionData };
+    const initializeKnowledgeBase = () => {
+      const bookContent = localStorage.getItem('roa_book_content');
+      if (!bookContent) {
+        const success = EnhancedLocalStorageManager.initializeBookContent();
+        if (success) {
+          console.log('✅ Knowledge base initialized successfully');
+          setKnowledgeBaseReady(true);
+        } else {
+          console.error('❌ Failed to initialize knowledge base');
+          setKnowledgeBaseReady(false);
         }
-        return session;
-      });
-      
-      return {
-        ...prev,
-        sessions: updatedSessions
-      };
-    });
-  };
-  
-  // Update position during practice
-  const updatePosition = (position: string) => {
-    setPracticeData((prev: PracticeData) => ({
-      ...prev,
-      lastPosition: position
-    }));
-  };
-  
-  // Handle starting practice from dashboard
-  const handleStartPractice = (stageLevel: string) => {
-    console.log(`Starting practice: ${stageLevel}`);
-    // Navigation will be handled by the router
-  };
+      } else {
+        setKnowledgeBaseReady(true);
+        console.log('✅ Knowledge base already available');
+      }
+    };
+
+    initializeKnowledgeBase();
+  }, []);
   
   // Wrapper function for HomeDashboard that matches the expected signature
   const handleStartPracticeWrapper = () => {
+    // Check assessment completion before navigating
+    if (!currentUser?.assessmentCompleted) {
+      alert('Please complete your self-assessment first before starting practice sessions.');
+      navigate('/self-assessment');
+      return;
+    }
+    
     console.log('Starting practice from dashboard');
-    // This wrapper function has no parameters to match HomeDashboard's expected prop type
+    navigate('/stage1');
   };
   
   // Handle viewing progress from dashboard
   const handleViewProgress = () => {
     console.log('Viewing progress');
-    // Will be implemented in future
+    navigate('/analytics');
   };
   
   // Handle viewing learning resources from dashboard
   const handleViewLearning = () => {
     console.log('Viewing learning resources');
-    // Will be implemented in future
+    navigate('/learning/pahm');
   };
   
   // Handle showing posture guide
@@ -174,31 +154,27 @@ const AppContent: React.FC = () => {
     navigate('/learning/pahm');
   };
   
-  // Handle starting stage 2
+  // Stage navigation handlers
   const handleStartStage2 = () => {
     console.log('Starting stage 2');
     navigate('/stage2');
   };
   
-  // Handle starting stage 3
   const handleStartStage3 = () => {
     console.log('Starting stage 3');
     navigate('/stage3');
   };
   
-  // Handle starting stage 4
   const handleStartStage4 = () => {
     console.log('Starting stage 4');
     navigate('/stage4');
   };
   
-  // Handle starting stage 5
   const handleStartStage5 = () => {
     console.log('Starting stage 5');
     navigate('/stage5');
   };
   
-  // Handle starting stage 6
   const handleStartStage6 = () => {
     console.log('Starting stage 6');
     navigate('/stage6');
@@ -211,6 +187,8 @@ const AppContent: React.FC = () => {
       navigate('/');
     } catch (error) {
       console.error("Error during logout:", error);
+      // Even if logout fails, redirect to landing page
+      navigate('/');
     }
   };
 
@@ -225,208 +203,262 @@ const AppContent: React.FC = () => {
         alert('This email is already registered. Please sign in instead.');
         navigate('/signin');
       } else {
-        alert(`Signup failed: ${error.message}`);
+        alert(`Signup failed: ${error.message || 'Unknown error'}`);
       }
+    }
+  };
+
+  // Handle sign-in
+  const handleSignIn = async (email: string, password: string) => {
+    try {
+      await login(email, password);
+      navigate('/home');
+    } catch (error: any) {
+      console.error("Sign-in error:", error);
+      alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
     }
   };
 
   // Handle questionnaire completion
   const handleQuestionnaireComplete = (answers: any) => {
-    updateUserProfileInContext({ questionnaireAnswers: answers, questionnaireCompleted: true });
+    updateUserProfileInContext({ 
+      questionnaireAnswers: answers, 
+      questionnaireCompleted: true 
+    });
     navigate('/introduction');
   };
 
   // Check if user should see introduction flow
-  const shouldShowIntroductionFlow = () => {
+  const shouldShowIntroductionFlow = (): boolean => {
     if (!isAuthenticated || !currentUser) return false;
     return !currentUser.assessmentCompleted;
   };
 
   // Check if user should see questionnaire flow
-  const shouldShowQuestionnaireFlow = () => {
+  const shouldShowQuestionnaireFlow = (): boolean => {
     if (!isAuthenticated || !currentUser) return false;
     return !currentUser.questionnaireCompleted;
+  };
+
+  // Handle placeholder functions for future implementation
+  const handleGoogleAuth = async () => {
+    alert("Google authentication not yet implemented with Firebase.");
+  };
+
+  const handleAppleAuth = async () => {
+    alert("Apple authentication not yet implemented with Firebase.");
+  };
+
+  const handleForgotPassword = () => {
+    alert("Forgot password functionality will be implemented soon.");
   };
 
   return (
     <div className="app-container">
       <DevPanelToggle />
       <PageViewTracker />
-      <Routes>
-        {/* Landing Page Route - NEW: This is now the default route */}
-        <Route path="/" element={<LandingPage />} />
+      
+      {/* Show loading spinner while authentication state is being determined */}
+      {isLoading ? (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          fontSize: '18px'
+        }}>
+          Loading...
+        </div>
+      ) : (
+        <Routes>
+          {/* Landing Page Route */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Authentication Routes - always accessible */}
-        <Route 
-          path="/signin" 
-          element={
-            <SignIn 
-              onSignIn={async (email, password) => { 
-                try {
-                  await login(email, password); 
-                  navigate('/home'); 
-                } catch (error) {
-                  console.error("Sign-in error:", error);
-                  alert("Failed to sign in. Please check your credentials.");
-                }
-              }}
-              onGoogleSignIn={async () => { 
-                alert("Google Sign-In not yet implemented with Firebase.");
-              }}
-              onAppleSignIn={async () => { 
-                alert("Apple Sign-In not yet implemented with Firebase.");
-              }}
-              onSignUp={() => navigate('/signup')} 
-              onForgotPassword={() => { /* handle forgot password */ }} 
-            />
-          }
-        />
-        <Route 
-          path="/signup" 
-          element={
-            <SignUp 
-              onSignUp={handleSignUp}
-              onGoogleSignUp={async () => { 
-                alert("Google Sign-Up not yet implemented with Firebase.");
-              }}
-              onAppleSignUp={async () => { 
-                alert("Apple Sign-Up not yet implemented with Firebase.");
-              }}
-              onSignIn={() => navigate('/signin')} 
-            />
-          }
-        />
-
-        {/* Questionnaire Route - accessible to authenticated users who haven't completed the questionnaire */}
-        <Route 
-          path="/questionnaire" 
-          element={
-            isAuthenticated ? (
-              <Questionnaire 
-                onComplete={handleQuestionnaireComplete} 
-                onSkip={() => navigate('/introduction')}
-              />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-
-        {/* Introduction Flow Routes - accessible to authenticated users who haven't completed assessment */}
-        <Route 
-          path="/introduction" 
-          element={
-            isAuthenticated ? (
-              <Introduction 
-                onComplete={() => navigate('/self-assessment')} 
-                onSkip={() => navigate('/home')} 
-              />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-        
-        {/* Self-Assessment Route - accessible to authenticated users */}
-        <Route 
-          path="/self-assessment" 
-          element={
-            isAuthenticated ? (
-              <SelfAssessment 
-                onComplete={() => navigate('/self-assessment-completion')} 
-                onBack={() => navigate('/introduction')} 
-              />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-
-        {/* Self-Assessment Completion Route - accessible after self-assessment */}
-        <Route 
-          path="/self-assessment-completion" 
-          element={
-            isAuthenticated ? (
-              <SelfAssessmentCompletion 
-                onGetStarted={() => navigate('/stage1')} 
-                onBack={() => navigate('/self-assessment')} 
-              />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-
-        {/* Authenticated Routes - conditionally rendered based on authentication */}
-        <Route
-          path="/*"
-          element={isAuthenticated ? (
-            <MainNavigation
-              onPracticeClick={handleStartPracticeWrapper}
-              onProgressClick={handleViewProgress}
-              onLearnClick={handleViewLearning}
-            >
-              <Routes>
-                {/* Conditional redirect based on authentication status and assessment completion */}
-                <Route 
-                  path="/home" 
-                  element={
-                    shouldShowQuestionnaireFlow() ?
-                      <Navigate to="/questionnaire" replace /> :
-                    shouldShowIntroductionFlow() ? 
-                      <Navigate to="/introduction" replace /> : 
-                      <HomeDashboard 
-                        onStartPractice={handleStartPracticeWrapper}
-                        onStartStage2={handleStartStage2}
-                        onStartStage3={handleStartStage3}
-                        onStartStage4={handleStartStage4}
-                        onStartStage5={handleStartStage5}
-                        onStartStage6={handleStartStage6}
-                        onViewProgress={handleViewProgress}
-                        onViewLearning={handleViewLearning}
-                        onShowPostureGuide={handleShowPostureGuide}
-                        onShowPAHMExplanation={handleShowPAHMExplanation}
-                        onShowWhatIsPAHM={handleShowWhatIsPAHM}
-                        onLogout={handleLogout}
-                      />
-                  } 
+          {/* Authentication Routes */}
+          <Route 
+            path="/signin" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/home" replace />
+              ) : (
+                <SignIn 
+                  onSignIn={handleSignIn}
+                  onGoogleSignIn={handleGoogleAuth}
+                  onAppleSignIn={handleAppleAuth}
+                  onSignUp={() => navigate('/signup')} 
+                  onForgotPassword={handleForgotPassword} 
                 />
-                
-                {/* Stage Routes */}
-                <Route path="/stage1" element={<Stage1Wrapper />} />
-                <Route path="/stage2" element={<Stage2Wrapper />} />
-                <Route path="/stage3" element={<Stage3Wrapper />} />
-                <Route path="/stage4" element={<Stage4Wrapper />} />
-                <Route path="/stage5" element={<Stage5Wrapper />} />
-                <Route path="/stage6" element={<Stage6Wrapper />} />
-                
-                {/* Learning Routes */}
-                <Route path="/learning/pahm" element={<WhatIsPAHMWrapper />} />
-                
-                {/* Practice Timer Routes */}
-                <Route path="/seeker-practice-timer" element={<SeekerPracticeTimerWrapper />} />
-                <Route path="/seeker-practice-complete" element={<SeekerPracticeCompleteWrapper />} />
-                
-                {/* New Feature Routes */}
-                <Route path="/notes" element={<DailyEmotionalNotesWrapper />} />
-                <Route path="/analytics" element={<AnalyticsBoardWrapper />} />
-                <Route path="/mind-recovery" element={<MindRecoverySelectionWrapper />} />
-                <Route path="/mind-recovery/:practiceType" element={<MindRecoveryTimerWrapper />} />
-                <Route path="/posture-guide" element={<PostureGuide onContinue={() => navigate('/home')} />} />
-                <Route path="/profile" element={<UserProfile onBack={() => navigate('/home')} onLogout={handleLogout} />} />
-                
-                {/* Chat with Guru Route */}
-                <Route path="/chatwithguru" element={<ChatInterface />} />
-                
-                {/* Redirect any unknown routes to home */}
-                <Route path="*" element={<Navigate to="/home" replace />} />
-              </Routes>
-            </MainNavigation>
-          ) : (
-            <Navigate to="/signin" replace />
-          )}
-        />
-      </Routes>
+              )
+            }
+          />
+          <Route 
+            path="/signup" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/home" replace />
+              ) : (
+                <SignUp 
+                  onSignUp={handleSignUp}
+                  onGoogleSignUp={handleGoogleAuth}
+                  onAppleSignUp={handleAppleAuth}
+                  onSignIn={() => navigate('/signin')} 
+                />
+              )
+            }
+          />
+
+          {/* Questionnaire Route */}
+          <Route 
+            path="/questionnaire" 
+            element={
+              isAuthenticated ? (
+                <Questionnaire 
+                  onComplete={handleQuestionnaireComplete} 
+                  onSkip={() => navigate('/introduction')}
+                />
+              ) : (
+                <Navigate to="/signin" replace />
+              )
+            }
+          />
+
+          {/* Introduction Flow Routes */}
+          <Route 
+            path="/introduction" 
+            element={
+              isAuthenticated ? (
+                <Introduction 
+                  onComplete={() => navigate('/self-assessment')} 
+                  onSkip={() => navigate('/home')} 
+                />
+              ) : (
+                <Navigate to="/signin" replace />
+              )
+            }
+          />
+          
+          <Route 
+            path="/self-assessment" 
+            element={
+              isAuthenticated ? (
+                <SelfAssessment 
+                  onComplete={() => navigate('/self-assessment-completion')} 
+                  onBack={() => navigate('/introduction')} 
+                />
+              ) : (
+                <Navigate to="/signin" replace />
+              )
+            }
+          />
+
+          <Route 
+            path="/self-assessment-completion" 
+            element={
+              isAuthenticated ? (
+                <SelfAssessmentCompletion 
+                  onGetStarted={() => navigate('/stage1')} 
+                  onBack={() => navigate('/self-assessment')} 
+                />
+              ) : (
+                <Navigate to="/signin" replace />
+              )
+            }
+          />
+
+          {/* Authenticated Routes */}
+          <Route
+            path="/*"
+            element={isAuthenticated ? (
+              <MainNavigation
+                onPracticeClick={handleStartPracticeWrapper}
+                onProgressClick={handleViewProgress}
+                onLearnClick={handleViewLearning}
+              >
+                <Routes>
+                  {/* Home Dashboard with conditional redirects */}
+                  <Route 
+                    path="/home" 
+                    element={
+                      shouldShowQuestionnaireFlow() ? (
+                        <Navigate to="/questionnaire" replace />
+                      ) : shouldShowIntroductionFlow() ? (
+                        <Navigate to="/introduction" replace />
+                      ) : (
+                        <HomeDashboard 
+                          onStartPractice={handleStartPracticeWrapper}
+                          onStartStage2={handleStartStage2}
+                          onStartStage3={handleStartStage3}
+                          onStartStage4={handleStartStage4}
+                          onStartStage5={handleStartStage5}
+                          onStartStage6={handleStartStage6}
+                          onViewProgress={handleViewProgress}
+                          onViewLearning={handleViewLearning}
+                          onShowPostureGuide={handleShowPostureGuide}
+                          onShowPAHMExplanation={handleShowPAHMExplanation}
+                          onShowWhatIsPAHM={handleShowWhatIsPAHM}
+                          onLogout={handleLogout}
+                        />
+                      )
+                    } 
+                  />
+                  
+                  {/* Stage Routes */}
+                  <Route path="/stage1" element={<Stage1Wrapper />} />
+                  <Route path="/stage2" element={<Stage2Wrapper />} />
+                  <Route path="/stage3" element={<Stage3Wrapper />} />
+                  <Route path="/stage4" element={<Stage4Wrapper />} />
+                  <Route path="/stage5" element={<Stage5Wrapper />} />
+                  <Route path="/stage6" element={<Stage6Wrapper />} />
+                  
+                  {/* Learning Routes */}
+                  <Route path="/learning/pahm" element={<WhatIsPAHMWrapper />} />
+                  
+                  {/* Practice Timer Routes */}
+                  <Route path="/seeker-practice-timer" element={<SeekerPracticeTimerWrapper />} />
+                  <Route path="/seeker-practice-complete" element={<SeekerPracticeCompleteWrapper />} />
+                  
+                  {/* Feature Routes */}
+                  <Route path="/notes" element={<DailyEmotionalNotesWrapper />} />
+                  <Route path="/analytics" element={<AnalyticsBoardWrapper />} />
+                  <Route path="/mind-recovery" element={<MindRecoverySelectionWrapper />} />
+                  <Route path="/mind-recovery/:practiceType" element={<MindRecoveryTimerWrapper />} />
+                  <Route 
+                    path="/posture-guide" 
+                    element={
+                      <PostureGuide onContinue={() => navigate('/home')} />
+                    } 
+                  />
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <UserProfile 
+                        onBack={() => navigate('/home')} 
+                        onLogout={handleLogout} 
+                      />
+                    } 
+                  />
+                  
+                  {/* Enhanced Chat with Guru Route */}
+                  <Route 
+                    path="/chatwithguru" 
+                    element={
+                      <ChatInterface 
+                        knowledgeBaseReady={knowledgeBaseReady}
+                        currentUser={currentUser}
+                      />
+                    } 
+                  />
+                  
+                  {/* Redirect any unknown routes to home */}
+                  <Route path="*" element={<Navigate to="/home" replace />} />
+                </Routes>
+              </MainNavigation>
+            ) : (
+              <Navigate to="/signin" replace />
+            )}
+          />
+        </Routes>
+      )}
     </div>
   );
 };
@@ -434,9 +466,11 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <LocalDataProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </LocalDataProvider>
     </AuthProvider>
   );
 };

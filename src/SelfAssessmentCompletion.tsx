@@ -2,14 +2,24 @@ import React from 'react';
 import './SelfAssessmentCompletion.css';
 
 interface SelfAssessmentCompletionProps {
-  onGetStarted: () => void;
+  onGetStarted: (data?: any) => void; // Changed to accept optional data parameter
   onBack: () => void;
 }
 
 const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({ 
   onGetStarted,
-  onBack
+  onBack 
 }) => {
+  
+  const handleGetStarted = () => {
+    // Pass some completion data when getting started
+    const completionData = {
+      completedAt: new Date().toISOString(),
+      readyForStageOne: true
+    };
+    onGetStarted(completionData);
+  };
+
   return (
     <div className="self-assessment-completion">
       <div className="completion-header">
@@ -83,7 +93,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
         </div>
         
         <div className="action-buttons">
-          <button className="get-started-button" onClick={onGetStarted}>
+          <button className="get-started-button" onClick={handleGetStarted}>
             Get Started
           </button>
           <button className="back-button" onClick={onBack}>

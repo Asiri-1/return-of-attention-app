@@ -1,9 +1,11 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
-import { getFunctions } from "firebase/functions"; // Import getFunctions
 
-// Your web app's Firebase configuration
+console.log('🔥 Using HARDCODED Firebase config for testing');
+
+// HARDCODED Firebase configuration - YOUR ACTUAL VALUES
 const firebaseConfig = {
   apiKey: "AIzaSyAV_Kc1LFBt-v3fhYNL2N7oIuzFUfpv_a0",
   authDomain: "return-of-attention-app.firebaseapp.com",
@@ -14,13 +16,14 @@ const firebaseConfig = {
   measurementId: "G-VTZYEBN7RY"
 };
 
+console.log('🔧 Hardcoded Firebase Config:', firebaseConfig);
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Analytics and get a reference to the service
-export const analytics = getAnalytics(app, {
-  debug_mode: process.env.NODE_ENV === 'development' // Enable debug mode only in development
-});
+// Initialize Firebase services
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const analytics = getAnalytics(app);
 
-// Initialize Cloud Functions and get a reference to the service
-export const functions = getFunctions(app); // Export the functions object
+export default app;
