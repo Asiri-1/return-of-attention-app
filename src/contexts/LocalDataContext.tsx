@@ -277,37 +277,37 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return currentUser?.uid ? `comprehensiveUserData_${currentUser.uid}` : 'comprehensiveUserData';
   };
 
-  // 🔥 ENHANCED SAMPLE DATA WITH 9-CATEGORY PAHM SYSTEM
+  // 🔥 ENHANCED SAMPLE DATA WITH 9-CATEGORY PAHM SYSTEM + STAGE 5-6
   const populateSampleData = () => {
     const sampleData: ComprehensiveUserData = {
       profile: {
         userId: currentUser?.uid || 'sample_user',
         displayName: currentUser?.displayName || 'Mindful Practitioner',
         email: currentUser?.email || 'user@example.com',
-        totalSessions: 25, // 19 meditation + 6 mind recovery
-        totalMinutes: 578, // Increased total
+        totalSessions: 31, // Updated: 25 + 6 new sessions
+        totalMinutes: 953, // Updated: 578 + 375 new minutes
         currentStreak: 12,
         longestStreak: 18,
-        averageQuality: 8.4,
-        averagePresentPercentage: 82,
+        averageQuality: 8.6, // Updated: slightly higher due to advanced stages
+        averagePresentPercentage: 84, // Updated: higher due to Stage 5-6 sessions
         // Mind recovery stats
         totalMindRecoverySessions: 6,
         totalMindRecoveryMinutes: 23,
         averageMindRecoveryRating: 8.5,
         currentProgress: {
-          currentStage: 3,
-          currentTLevel: "Intermediate",
-          totalSessions: 25,
-          totalMinutes: 578,
+          currentStage: 6, // Updated: now showing Stage 6 progress
+          currentTLevel: "Advanced",
+          totalSessions: 31,
+          totalMinutes: 953,
           longestStreak: 18,
           currentStreak: 12,
-          averageQuality: 8.4,
-          averagePresentPercentage: 82
+          averageQuality: 8.6,
+          averagePresentPercentage: 84
         },
         preferences: {
           defaultSessionDuration: 25,
           reminderEnabled: true,
-          favoriteStages: [2, 3, 4],
+          favoriteStages: [2, 3, 4, 5, 6], // Updated: includes advanced stages
           optimalPracticeTime: "morning",
           notifications: {
             dailyReminder: true,
@@ -317,7 +317,175 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       },
       practiceSessions: [
-        // MEDITATION SESSIONS WITH 9-CATEGORY PAHM (19 sessions)
+        // MEDITATION SESSIONS WITH 9-CATEGORY PAHM (25 sessions: 19 original + 6 new Stage 5-6)
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-25T06:45:00.000Z',
+          duration: 90,
+          sessionType: 'meditation',
+          stageLevel: 6,
+          stageLabel: 'Stage 6: Subduing Subtle Distractions',
+          rating: 10.0,
+          notes: 'Perfect Stage 6 session! Achieved sustained jhana states with complete stability. Single-pointed attention was effortless and unshakeable. This represents the pinnacle of concentration practice - pure, luminous awareness.',
+          presentPercentage: 99,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'natural',
+            sounds: 'profound silence'
+          },
+          pahmCounts: {
+            present_attachment: 38,
+            present_neutral: 45,
+            present_aversion: 1,
+            past_attachment: 0,
+            past_neutral: 0,
+            past_aversion: 0,
+            future_attachment: 0,
+            future_neutral: 1,
+            future_aversion: 0
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-24T07:00:00.000Z',
+          duration: 75,
+          sessionType: 'meditation',
+          stageLevel: 6,
+          stageLabel: 'Stage 6: Subduing Subtle Distractions',
+          rating: 9.4,
+          notes: 'Stage 6 mastery developing beautifully. Effortless concentration maintained throughout with minimal mental movements. The 9-category PAHM tracking shows the refined quality of single-pointed attention.',
+          presentPercentage: 97,
+          environment: {
+            posture: 'sitting',
+            location: 'outdoor',
+            lighting: 'sunrise',
+            sounds: 'gentle breeze'
+          },
+          pahmCounts: {
+            present_attachment: 33,
+            present_neutral: 40,
+            present_aversion: 2,
+            past_attachment: 0,
+            past_neutral: 1,
+            past_aversion: 0,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-23T06:30:00.000Z',
+          duration: 80,
+          sessionType: 'meditation',
+          stageLevel: 6,
+          stageLabel: 'Stage 6: Subduing Subtle Distractions',
+          rating: 9.7,
+          notes: 'Extraordinary Stage 6 session achieving single-pointed attention for extended periods. Subtle distractions were effortlessly subdued. Approaching jhana-like states with remarkable stability and clarity.',
+          presentPercentage: 98,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'pre-dawn',
+            sounds: 'complete silence'
+          },
+          pahmCounts: {
+            present_attachment: 35,
+            present_neutral: 42,
+            present_aversion: 1,
+            past_attachment: 0,
+            past_neutral: 1,
+            past_aversion: 0,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 0
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-22T19:30:00.000Z',
+          duration: 75,
+          sessionType: 'meditation',
+          stageLevel: 5,
+          stageLabel: 'Stage 5: Overcoming Subtle Dullness',
+          rating: 9.5,
+          notes: 'Breakthrough Stage 5 evening session! Maintained crystal clear awareness for the full 75 minutes. Introspective awareness now functions automatically. The PAHM matrix shows remarkable stability.',
+          presentPercentage: 95,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'candle',
+            sounds: 'soft ambient'
+          },
+          pahmCounts: {
+            present_attachment: 32,
+            present_neutral: 38,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 0,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-21T07:15:00.000Z',
+          duration: 60,
+          sessionType: 'meditation',
+          stageLevel: 5,
+          stageLabel: 'Stage 5: Overcoming Subtle Dullness',
+          rating: 8.8,
+          notes: 'Morning Stage 5 practice with excellent introspective awareness. Caught subtle dullness before it could take hold. The extended duration reveals the power of sustained practice at this level.',
+          presentPercentage: 91,
+          environment: {
+            posture: 'sitting',
+            location: 'outdoor',
+            lighting: 'morning sun',
+            sounds: 'nature'
+          },
+          pahmCounts: {
+            present_attachment: 25,
+            present_neutral: 32,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 1
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-20T06:00:00.000Z',
+          duration: 65,
+          sessionType: 'meditation',
+          stageLevel: 5,
+          stageLabel: 'Stage 5: Overcoming Subtle Dullness',
+          rating: 9.2,
+          notes: 'Extended Stage 5 session focused on maintaining mental clarity throughout. Successfully detected and overcame several episodes of subtle dullness. The 9-category PAHM system perfectly captures the refined awareness at this level.',
+          presentPercentage: 94,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'dawn',
+            sounds: 'silence'
+          },
+          pahmCounts: {
+            present_attachment: 28,
+            present_neutral: 35,
+            present_aversion: 3,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 2,
+            future_aversion: 2
+          }
+        },
         {
           sessionId: generateId('session'),
           timestamp: '2025-06-19T07:30:00.000Z',
@@ -1060,6 +1228,42 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       emotionalNotes: [
         {
           noteId: generateId('note'),
+          timestamp: '2025-06-25T07:45:00.000Z',
+          content: 'Perfect Stage 6 session! Achieved sustained jhana states with complete effortlessness. This is the pinnacle of concentration practice - pure awareness, luminous and unshakeable. Profound gratitude for this path.',
+          emotion: 'bliss',
+          energyLevel: 10,
+          tags: ['stage-6', 'jhana', 'perfect-session', 'pinnacle'],
+          gratitude: ['jhana states', 'perfect concentration', 'luminous awareness', 'meditation mastery']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-23T07:30:00.000Z',
+          content: 'Entering Stage 6 territory! Single-pointed attention is emerging with remarkable stability. The mind feels like a still, clear lake - perfectly undisturbed and reflective.',
+          emotion: 'transcendence',
+          energyLevel: 10,
+          tags: ['stage-6', 'single-pointed', 'stability', 'jhana-approach'],
+          gratitude: ['single-pointed attention', 'mental stability', 'transcendent states']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-22T20:30:00.000Z',
+          content: 'Breakthrough in Stage 5! The 75-minute session felt effortless and luminous. Introspective awareness now operates automatically, catching the slightest hint of dullness before it can take hold.',
+          emotion: 'euphoria',
+          energyLevel: 10,
+          tags: ['stage-5', 'breakthrough', 'effortless', 'luminous'],
+          gratitude: ['sustained clarity', 'effortless concentration', 'advanced practice']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-20T07:05:00.000Z',
+          content: 'Stage 5 is revealing new depths of awareness! The ability to detect and overcome subtle dullness is developing beautifully. Each session brings greater clarity and mental brightness.',
+          emotion: 'clarity',
+          energyLevel: 9,
+          tags: ['stage-5', 'subtle-dullness', 'introspective-awareness', 'clarity'],
+          gratitude: ['mental clarity', 'introspective awareness', 'sustained practice']
+        },
+        {
+          noteId: generateId('note'),
           timestamp: '2025-06-19T08:00:00.000Z',
           content: 'Feeling incredibly grateful for this practice. The 9-category PAHM system is revealing patterns I never noticed before. Present-moment awareness is becoming more natural and effortless.',
           emotion: 'gratitude',
@@ -1152,6 +1356,39 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       reflections: [
         {
           reflectionId: generateId('reflection'),
+          timestamp: '2025-06-25T22:00:00.000Z',
+          type: 'evening',
+          mood: 10,
+          energy: 9,
+          stress: 1,
+          gratitude: ['perfect Stage 6 session', 'jhana states', 'meditation mastery'],
+          intention: 'Continue developing jhana mastery',
+          insights: 'Stage 6 represents the pinnacle of concentration practice. Single-pointed attention is now effortless and stable. The 9-category PAHM system beautifully maps these advanced states.'
+        },
+        {
+          reflectionId: generateId('reflection'),
+          timestamp: '2025-06-22T22:00:00.000Z',
+          type: 'evening',
+          mood: 9,
+          energy: 9,
+          stress: 1,
+          gratitude: ['Stage 5 breakthrough', 'introspective awareness', 'sustained clarity'],
+          intention: 'Transition to Stage 6 practice',
+          insights: 'Stage 5 mastery is developing beautifully. Introspective awareness now functions automatically. Ready to begin Stage 6 training.'
+        },
+        {
+          reflectionId: generateId('reflection'),
+          timestamp: '2025-06-20T22:00:00.000Z',
+          type: 'evening',
+          mood: 9,
+          energy: 8,
+          stress: 2,
+          gratitude: ['Stage 5 development', 'extended sessions', 'mental clarity'],
+          intention: 'Continue Stage 5 refinement',
+          insights: 'Stage 5 practice is revealing new depths of awareness. The ability to detect and overcome subtle dullness is a game-changer for sustained practice.'
+        },
+        {
+          reflectionId: generateId('reflection'),
           timestamp: '2025-06-19T22:00:00.000Z',
           type: 'evening',
           mood: 9,
@@ -1185,9 +1422,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       ],
       analytics: {
-        totalPracticeTime: 578,
-        averageSessionLength: 23.1,
-        consistencyScore: 85,
+        totalPracticeTime: 953, // Updated: 578 + 375 new minutes
+        averageSessionLength: 30.7, // Updated: 953 / 31 sessions
+        consistencyScore: 87, // Updated: slightly higher due to advanced practice
         progressTrend: 'improving',
         lastUpdated: new Date().toISOString()
       }
@@ -1195,7 +1432,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(sampleData);
     saveDataToStorage(sampleData);
-    console.log('🎯 Sample data populated with 9-category PAHM system!');
+    console.log('🎯 Sample data populated with complete 9-category PAHM system including Stage 5-6!');
   };
 
   // 🔥 CLEAR ALL DATA
@@ -1674,4 +1911,3 @@ export const useLocalData = (): LocalDataContextType => {
 };
 
 export default LocalDataContext;
-
