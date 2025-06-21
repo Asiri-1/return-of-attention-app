@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import './PAHMTimer.css';
-=======
-import React, { useState, useEffect, useRef } from 'react';
 import './PracticeTimer.css';
 import { PAHMCounts } from './types/PAHMTypes';
 import T1PracticeRecorder from './T1PracticeRecorder';
@@ -10,7 +6,6 @@ import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
->>>>>>> c8a8507c732dd21189951563fc9bd1415c160a63
 import { useLocalData } from './contexts/LocalDataContext';
 
 interface PracticeTimerProps {
@@ -24,27 +19,48 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   onComplete, 
   onBack, 
   stageLevel = 'Stage 1: Stillness Practice',
-  initialMinutes: propInitialMinutes 
+  initialMinutes: propInitialMinutes
 }) => {
   const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
   const [initialMinutes, setInitialMinutes] = useState<number>(propInitialMinutes || 10);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-<<<<<<< HEAD
+  const [isActive, setIsActive] = useState<boolean>(false);
   const [mindWanderingCount, setMindWanderingCount] = useState<number>(0);
-
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
+  
+  // Enhanced analytics integration
   const { addPracticeSession, addEmotionalNote } = useLocalData();
+  
+  // Refs for recorder components
+  const t1RecorderRef = useRef<any>(null);
+  const t2RecorderRef = useRef<any>(null);
+  const t3RecorderRef = useRef<any>(null);
+  const t4RecorderRef = useRef<any>(null);
+  const t5RecorderRef = useRef<any>(null);
+  
+  // Ref for interval
+  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Skip setup if initialMinutes prop is provided
-  useEffect(() => {
-    if (propInitialMinutes && propInitialMinutes >= 5) {
-      setTimeRemaining(propInitialMinutes * 60);
-      setCurrentStage('practice');
-      setIsRunning(true);
-    }
-  }, [propInitialMinutes]);
+  // Extract T-level from stageLevel (e.g., "T1: Physical Stillness for 10 minutes")
+  const getTLevel = (): string => {
+    const tLevelMatch = stageLevel.match(/^(T[1-5])/i);
+    return tLevelMatch ? tLevelMatch[1].toLowerCase() : 't1';
+  };
+  
+  // Convert T-level to number for analytics
+  const getTLevelNumber = (tLevel: string): number => {
+    const levelMap: { [key: string]: number } = {
+      't1': 1,
+      't2': 2, 
+      't3': 3,
+      't4': 4,
+      't5': 5
+    };
+    return levelMap[tLevel] || 1;
+  };
 
   // Calculate session quality for basic stillness practice
   const calculateSessionQuality = (duration: number, wanderingCount: number, completed: boolean) => {
@@ -64,6 +80,128 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     quality = quality * (0.8 + 0.2 * durationFactor);
     
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
+  };
+
+  // Start timer
+  const startTimer = () => {
+    setIsActive(true);
+    setIsPaused(false);
+    setIsRunning(true);
+    
+    // Store start time
+    const now = new Date().toISOString();
+    setSessionStartTime(now);
+    sessionStorage.setItem('practiceStartTime', now);
+    
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+    }
+    
+    timerInterval.current = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timerInterval.current as NodeJS.Timeout);
+          // Session completed naturally - mark as fully completed
+          recordSession(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  
+  // Pause timer
+  const pauseTimer = () => {
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+    }
+    setIsPaused(true);
+  };
+  
+  // Resume timer
+  const resumeTimer = () => {
+    setIsPaused(false);
+    startTimer();
+  };
+  
+  // Handle back button
+  const handleBack = () => {
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+    }
+    onBack();
+  };
+
+  // Record session data using the appropriate recorder
+  const recordSession = (isFullyCompleted: boolean) => {
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+    }
+    
+    // Calculate time spent
+    const startTime = sessionStartTime || new Date().toISOString();
+    const endTime = new Date().toISOString();
+    sessionStorage.setItem('practiceEndTime', endTime);
+    
+    // Calculate time spent in minutes (or use initialMinutes if session wasn't started)
+    const timeSpentMs = sessionStartTime 
+      ? new Date(endTime).getTime() - new Date(startTime).getTime() 
+      : 0;
+    const timeSpentMinutes = Math.round(timeSpentMs / (1000 * 60));
+    
+    const tLevel = getTLevel();
+    
+    // 🔗 ENHANCED: Add to unified analytics system
+    const enhancedSessionData = {
+      timestamp: endTime,
+      duration: timeSpentMinutes || initialMinutes,
+      sessionType: 'meditation' as const,
+      stageLevel: getTLevelNumber(tLevel), // Convert to number
+      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
+      rating: isFullyCompleted ? 8 : 6,
+      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
+      presentPercentage: isFullyCompleted ? 85 : 70,
+      environment: {
+        posture: 'sitting',
+        location: 'indoor',
+        lighting: 'natural',
+        sounds: 'quiet'
+      }
+    };
+    
+    // Add to unified analytics (enhances your existing dashboard!)
+    addPracticeSession(enhancedSessionData);
+    
+    // Add achievement note for motivation
+    if (isFullyCompleted) {
+      addEmotionalNote({
+        timestamp: endTime,
+        content: `Successfully completed ${tLevel.toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
+        emotion: 'accomplished',
+        energyLevel: 8,
+        tags: ['achievement', 'physical_training', tLevel]
+      });
+    }
+    
+    // 🔒 PRESERVE: Keep all existing functionality exactly as is
+    const sessionData = {
+      level: tLevel,
+      targetDuration: initialMinutes,
+      timeSpent: timeSpentMinutes || 0,
+      isCompleted: isFullyCompleted,
+      completedAt: endTime
+    };
+    
+    // Store in sessionStorage for reflection component
+    sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
+    
+    // Only mark as complete for progression if fully completed
+    if (isFullyCompleted) {
+      localStorage.setItem(`${tLevel}Complete`, 'true');
+    }
+    
+    // Call onComplete to navigate to reflection
+    onComplete();
   };
 
   const handleTimerComplete = useCallback(() => {
@@ -162,6 +300,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setCurrentStage('practice');
     setIsRunning(true);
     setMindWanderingCount(0);
+    setSessionStartTime(new Date().toISOString());
   };
 
   const handlePause = () => {
@@ -178,30 +317,64 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-=======
-  const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
-  
-  // Enhanced analytics integration
-  const { addPracticeSession, addEmotionalNote } = useLocalData();
-  
-  // Refs for recorder components
-  const t1RecorderRef = useRef<any>(null);
-  const t2RecorderRef = useRef<any>(null);
-  const t3RecorderRef = useRef<any>(null);
-  const t4RecorderRef = useRef<any>(null);
-  const t5RecorderRef = useRef<any>(null);
-  
-  // Ref for interval
-  const timerInterval = useRef<NodeJS.Timeout | null>(null);
-  
-  // Format time as MM:SS
->>>>>>> c8a8507c732dd21189951563fc9bd1415c160a63
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // Handle skip (early completion)
+  const handleSkip = () => {
+    // Record session but mark as not fully completed
+    recordSession(false);
   };
-<<<<<<< HEAD
+  
+  // Fast forward for development purposes
+  const handleFastForward = () => {
+    // Record session and mark as fully completed for development
+    const tLevel = getTLevel();
+    
+    // Store start and end time
+    const now = new Date().toISOString();
+    sessionStorage.setItem('practiceStartTime', now);
+    sessionStorage.setItem('practiceEndTime', now);
+    
+    // Mark this T-level as complete in localStorage for progression
+    localStorage.setItem(`${tLevel}Complete`, 'true');
+    
+    // Store practice data with fastForwarded flag
+    const sessionData = {
+      level: tLevel,
+      targetDuration: initialMinutes,
+      timeSpent: initialMinutes, // Assume full time for development
+      isCompleted: true,
+      completedAt: now,
+      fastForwarded: true
+    };
+    
+    // Store in sessionStorage for reflection component
+    sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
+    
+    // 🔗 ENHANCED: Also add to analytics system for development
+    const enhancedSessionData = {
+      timestamp: now,
+      duration: initialMinutes,
+      sessionType: 'meditation' as const,
+      stageLevel: getTLevelNumber(tLevel),
+      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training - DEV`,
+      rating: 8,
+      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - DEV FAST-FORWARD`,
+      presentPercentage: 80,
+      environment: {
+        posture: 'sitting',
+        location: 'indoor',
+        lighting: 'natural',
+        sounds: 'quiet'
+      }
+    };
+    
+    addPracticeSession(enhancedSessionData);
+    
+    // Log for development purposes
+    console.log(`DEV: Fast-forwarded ${tLevel} practice session`);
+    
+    // Call onComplete to navigate to reflection
+    onComplete();
+  };
 
   // Development fast-forward
   const fastForwardMinutes = (minutes: number) => {
@@ -216,6 +389,39 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       
       console.log(`DEV: Fast-forwarded ${minutes} minutes`);
     }
+  };
+  
+  // Handle session recording via appropriate recorder component
+  const handleRecordSession = (sessionData: any) => {
+    // This function will be called by the recorder component
+    console.log('Session recorded:', sessionData);
+  };
+  
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (timerInterval.current) {
+        clearInterval(timerInterval.current);
+      }
+    };
+  }, []);
+
+  // Skip setup if initialMinutes prop is provided
+  useEffect(() => {
+    if (propInitialMinutes && propInitialMinutes >= 5) {
+      setTimeRemaining(propInitialMinutes * 60);
+      setCurrentStage('practice');
+      setIsRunning(true);
+      setIsActive(true);
+      setSessionStartTime(new Date().toISOString());
+    }
+  }, [propInitialMinutes]);
+
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (currentStage === 'setup') {
@@ -313,221 +519,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             <li>Gently return attention to your breath</li>
             <li>The goal is developing stillness and stability</li>
           </ul>
-=======
-  
-  // Extract T-level from stageLevel (e.g., "T1: Physical Stillness for 10 minutes")
-  const getTLevel = (): string => {
-    const tLevelMatch = stageLevel.match(/^(T[1-5])/i);
-    return tLevelMatch ? tLevelMatch[1].toLowerCase() : 't1';
-  };
-  
-  // Convert T-level to number for analytics
-  const getTLevelNumber = (tLevel: string): number => {
-    const levelMap: { [key: string]: number } = {
-      't1': 1,
-      't2': 2, 
-      't3': 3,
-      't4': 4,
-      't5': 5
-    };
-    return levelMap[tLevel] || 1;
-  };
-  
-  // Start timer
-  const startTimer = () => {
-    setIsActive(true);
-    setIsPaused(false);
-    
-    // Store start time
-    const now = new Date().toISOString();
-    setSessionStartTime(now);
-    sessionStorage.setItem('practiceStartTime', now);
-    
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
-    
-    timerInterval.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timerInterval.current as NodeJS.Timeout);
-          // Session completed naturally - mark as fully completed
-          recordSession(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-  
-  // Pause timer
-  const pauseTimer = () => {
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
-    setIsPaused(true);
-  };
-  
-  // Resume timer
-  const resumeTimer = () => {
-    setIsPaused(false);
-    startTimer();
-  };
-  
-  // Handle back button
-  const handleBack = () => {
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
-    onBack();
-  };
-  
-  // Record session data using the appropriate recorder
-  const recordSession = (isFullyCompleted: boolean) => {
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
-    
-    // Calculate time spent
-    const startTime = sessionStartTime || new Date().toISOString();
-    const endTime = new Date().toISOString();
-    sessionStorage.setItem('practiceEndTime', endTime);
-    
-    // Calculate time spent in minutes (or use initialMinutes if session wasn't started)
-    const timeSpentMs = sessionStartTime 
-      ? new Date(endTime).getTime() - new Date(startTime).getTime() 
-      : 0;
-    const timeSpentMinutes = Math.round(timeSpentMs / (1000 * 60));
-    
-    const tLevel = getTLevel();
-    
-    // 🔗 ENHANCED: Add to unified analytics system
-    const enhancedSessionData = {
-      timestamp: endTime,
-      duration: timeSpentMinutes || initialMinutes,
-      sessionType: 'meditation' as const,
-      stageLevel: getTLevelNumber(tLevel), // Convert to number
-      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
-      rating: isFullyCompleted ? 8 : 6,
-      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
-      presentPercentage: isFullyCompleted ? 85 : 70,
-      environment: {
-        posture: 'sitting',
-        location: 'indoor',
-        lighting: 'natural',
-        sounds: 'quiet'
-      }
-    };
-    
-    // Add to unified analytics (enhances your existing dashboard!)
-    addPracticeSession(enhancedSessionData);
-    
-    // Add achievement note for motivation
-    if (isFullyCompleted) {
-      addEmotionalNote({
-        timestamp: endTime,
-        content: `Successfully completed ${tLevel.toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
-        emotion: 'accomplished',
-        energyLevel: 8,
-        tags: ['achievement', 'physical_training', tLevel]
-      });
-    }
-    
-    // 🔒 PRESERVE: Keep all existing functionality exactly as is
-    const sessionData = {
-      level: tLevel,
-      targetDuration: initialMinutes,
-      timeSpent: timeSpentMinutes || 0,
-      isCompleted: isFullyCompleted,
-      completedAt: endTime
-    };
-    
-    // Store in sessionStorage for reflection component
-    sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
-    
-    // Only mark as complete for progression if fully completed
-    if (isFullyCompleted) {
-      localStorage.setItem(`${tLevel}Complete`, 'true');
-    }
-    
-    // Call onComplete to navigate to reflection
-    onComplete();
-  };
-  
-  // Handle skip (early completion)
-  const handleSkip = () => {
-    // Record session but mark as not fully completed
-    recordSession(false);
-  };
-  
-  // Fast forward for development purposes
-  const handleFastForward = () => {
-    // Record session and mark as fully completed for development
-    const tLevel = getTLevel();
-    
-    // Store start and end time
-    const now = new Date().toISOString();
-    sessionStorage.setItem('practiceStartTime', now);
-    sessionStorage.setItem('practiceEndTime', now);
-    
-    // Mark this T-level as complete in localStorage for progression
-    localStorage.setItem(`${tLevel}Complete`, 'true');
-    
-    // Store practice data with fastForwarded flag
-    const sessionData = {
-      level: tLevel,
-      targetDuration: initialMinutes,
-      timeSpent: initialMinutes, // Assume full time for development
-      isCompleted: true,
-      completedAt: now,
-      fastForwarded: true
-    };
-    
-    // Store in sessionStorage for reflection component
-    sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
-    
-    // 🔗 ENHANCED: Also add to analytics system for development
-    const enhancedSessionData = {
-      timestamp: now,
-      duration: initialMinutes,
-      sessionType: 'meditation' as const,
-      stageLevel: getTLevelNumber(tLevel),
-      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training - DEV`,
-      rating: 8,
-      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - DEV FAST-FORWARD`,
-      presentPercentage: 80,
-      environment: {
-        posture: 'sitting',
-        location: 'indoor',
-        lighting: 'natural',
-        sounds: 'quiet'
-      }
-    };
-    
-    addPracticeSession(enhancedSessionData);
-    
-    // Log for development purposes
-    console.log(`DEV: Fast-forwarded ${tLevel} practice session`);
-    
-    // Call onComplete to navigate to reflection
-    onComplete();
-  };
-  
-  // Handle session recording via appropriate recorder component
-  const handleRecordSession = (sessionData: any) => {
-    // This function will be called by the recorder component
-    console.log('Session recorded:', sessionData);
-  };
-  
-  // Clean up interval on unmount
-  useEffect(() => {
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-      }
-    };
-  }, []);
-  
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="practice-timer" style={{ 
       height: '100vh', 
@@ -665,173 +661,101 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               Complete Practice
             </button>
           )}
->>>>>>> c8a8507c732dd21189951563fc9bd1415c160a63
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      padding: '20px',
-      background: 'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
-      color: 'white'
-    }}>
-      {/* Timer Display */}
-      <div style={{
-        fontSize: '48px',
-        fontWeight: 'bold',
-        marginBottom: '20px',
-        background: 'rgba(255, 255, 255, 0.1)',
-        padding: '20px 40px',
-        borderRadius: '15px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
-      }}>
-        {formatTime(timeRemaining)}
-      </div>
-
-      {/* Session Stats */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        padding: '15px',
-        borderRadius: '10px',
-        marginBottom: '30px',
-        textAlign: 'center'
-      }}>
-        <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>
-          Mind Wandering: {mindWanderingCount} times
-        </div>
-        <div style={{ fontSize: '14px', opacity: 0.8 }}>
-          Developing stillness and stability
-        </div>
-      </div>
-
-      {/* Mind Wandering Button */}
-      <button
-        onClick={handleMindWandering}
-        style={{
-          background: 'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)',
-          color: 'white',
-          border: 'none',
-          borderRadius: '20px',
-          padding: '20px 40px',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          marginBottom: '30px',
-          boxShadow: '0 4px 15px rgba(253, 121, 168, 0.3)',
-          transition: 'transform 0.2s'
-        }}
-        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-      >
-        Mind Wandering
-      </button>
-
-      {/* Control Buttons */}
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-        <button
-          onClick={handlePause}
-          style={{
-            background: isPaused 
-              ? 'linear-gradient(135deg, #00b894 0%, #00a085 100%)'
-              : 'linear-gradient(135deg, #fdcb6e 0%, #e17055 100%)',
-            color: 'white',
-            padding: '12px 24px',
-            border: 'none',
-            borderRadius: '25px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-          }}
-        >
-          {isPaused ? 'Resume' : 'Pause'}
-        </button>
-
-        <button
-          onClick={handleCompleteEarly}
-          style={{
-            background: 'linear-gradient(135deg, #e17055 0%, #d63031 100%)',
-            color: 'white',
-            padding: '12px 24px',
-            border: 'none',
-            borderRadius: '25px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(225, 112, 85, 0.3)'
-          }}
-        >
-          Complete Early
-        </button>
-      </div>
-
-      {/* Development Controls */}
-      {process.env.NODE_ENV !== 'production' && (
+        {/* Session Stats */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.1)',
           padding: '15px',
           borderRadius: '10px',
-          marginTop: '20px'
+          marginTop: '20px',
+          width: '100%',
+          maxWidth: '280px',
+          textAlign: 'center'
         }}>
-          <div style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.8 }}>
-            Development Controls:
+          <div style={{ fontSize: '14px', marginBottom: '5px' }}>
+            Mind Wandering: {mindWanderingCount} times
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() => fastForwardMinutes(2)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                padding: '8px 16px',
-                border: '1px solid white',
-                borderRadius: '15px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              +2min
-            </button>
-            <button
-              onClick={() => fastForwardMinutes(5)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                padding: '8px 16px',
-                border: '1px solid white',
-                borderRadius: '15px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              +5min
-            </button>
-            <button
-              onClick={() => fastForwardMinutes(8)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                padding: '8px 16px',
-                border: '1px solid white',
-                borderRadius: '15px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              +8min
-            </button>
-          </div>
+          <button
+            onClick={handleMindWandering}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              padding: '8px 16px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '15px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              marginTop: '5px'
+            }}
+          >
+            Mind Wandered
+          </button>
         </div>
-      )}
+
+        {/* Development Controls */}
+        {process.env.NODE_ENV !== 'production' && (
+          <div style={{
+            marginTop: '20px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            padding: '15px',
+            borderRadius: '10px',
+            width: '100%',
+            maxWidth: '280px'
+          }}>
+            <div style={{ fontSize: '12px', marginBottom: '10px', color: '#ccc' }}>
+              Development Controls:
+            </div>
+            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => fastForwardMinutes(1)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  padding: '5px 10px',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                +1min
+              </button>
+              <button
+                onClick={() => fastForwardMinutes(5)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  padding: '5px 10px',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                +5min
+              </button>
+              <button
+                onClick={handleFastForward}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  padding: '5px 10px',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                Complete
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default PracticeTimer;
+
