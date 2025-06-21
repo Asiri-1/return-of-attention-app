@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './PAHMMatrix.css';
 import './PAHMTimer.css';
 import PAHMMatrix from './PAHMMatrix';
+import { useLocalData } from './contexts/LocalDataContext';
 
 interface PAHMTimer2Props {
   onComplete: () => void;
@@ -9,22 +10,12 @@ interface PAHMTimer2Props {
   posture: string;
 }
 
-const PAHMTimer2: React.FC<PAHMTimer2Props> = ({
-  onComplete,
-  onBack,
-  posture
-}) => {
-  const [duration, setDuration] = useState<number>(30); // Default 30 minutes for PAHM stages
+const PAHMTimer2: React.FC<PAHMTimer2Props> = ({ onComplete, onBack, posture }) => {
+  const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
+  const [initialMinutes, setInitialMinutes] = useState<number>(30);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [timeRemaining, setTimeRemaining] = useState<number>(30 * 60); // In seconds
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [showTapIndicator, setShowTapIndicator] = useState<boolean>(false);
-  
-  // Reference to interval timer
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const tapIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // PAHM Matrix tracking state
   const [pahmCounts, setPahmCounts] = useState({
     nostalgia: 0,
     likes: 0,
@@ -36,356 +27,381 @@ const PAHMTimer2: React.FC<PAHMTimer2Props> = ({
     dislikes: 0,
     worry: 0
   });
-  
-  // Timer effect to count down
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { addPracticeSession, addEmotionalNote } = useLocalData();
+
+  // Convert 9-quadrant PAHM to 4-quadrant format for LocalDataContext
+  const convertPAHMCounts = (counts: typeof pahmCounts) => {
+    return {
+      present_happy: counts.likes,
+      present_unhappy: counts.dislikes,
+      absent_happy: counts.anticipation,
+      absent_unhappy: counts.regret
+    };
+  };
+
+  const handleTimerComplete = useCallback(() => {
+    const endTime = new Date().toISOString();
+    const actualDuration = (initialMinutes * 60) - timeRemaining;
+    const isFullyCompleted = timeRemaining === 0;
+
+    // Enhanced session data for analytics
+    const enhancedSessionData = {
+      timestamp: endTime,
+      duration: actualDuration,
+      sessionType: 'meditation' as const,
+      stageLevel: 2,
+      posture,
+      environment: {
+        posture,
+        location: 'indoor',
+        lighting: 'natural',
+        sounds: 'quiet'
+      },
+      completed: isFullyCompleted,
+      pahmData: convertPAHMCounts(pahmCounts),
+      qualityMetrics: {
+        attentionQuality: Math.min(9, Math.max(1, 
+          8 - (Object.values(pahmCounts).reduce((a, b) => a + b, 0) / 10)
+        )),
+        presentMomentAwareness: pahmCounts.present > 0 ? 
+          Math.min(10, (pahmCounts.present / Math.max(1, Object.values(pahmCounts).reduce((a, b) => a + b, 0))) * 10) : 5,
+        mindfulnessDepth: Math.min(10, Math.max(1, 
+          (actualDuration / 60) / initialMinutes * 10
+        ))
+      },
+      pahmMatrix: {
+        totalInteractions: Object.values(pahmCounts).reduce((a, b) => a + b, 0),
+        attentionPattern: {
+          past: pahmCounts.nostalgia + pahmCounts.past + pahmCounts.regret,
+          present: pahmCounts.present + pahmCounts.likes + pahmCounts.dislikes,
+          future: pahmCounts.anticipation + pahmCounts.future + pahmCounts.worry
+        },
+        emotionalBalance: {
+          positive: pahmCounts.likes + pahmCounts.anticipation,
+          negative: pahmCounts.dislikes + pahmCounts.regret + pahmCounts.worry,
+          neutral: pahmCounts.present + pahmCounts.past + pahmCounts.nostalgia
+        }
+      }
+    };
+
+    // Add to unified analytics
+    addPracticeSession(enhancedSessionData);
+
+    // Add achievement note for motivation
+    if (isFullyCompleted) {
+      addEmotionalNote({
+        timestamp: endTime,
+        content: `Completed ${initialMinutes}-minute PAHM training session! 🎯 Enhanced present-moment awareness through ${Object.values(pahmCounts).reduce((a, b) => a + b, 0)} attention observations.`,
+        emotion: 'accomplished',
+        tags: ['pahm-training', 'stage-2', 'completed', posture]
+      });
+    }
+
+    onComplete();
+  }, [initialMinutes, timeRemaining, posture, pahmCounts, addPracticeSession, addEmotionalNote, onComplete]);
+
   useEffect(() => {
-    if (isRunning && !isPaused) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining(prev => {
+    if (isRunning && !isPaused && timeRemaining > 0) {
+      timerRef.current = setTimeout(() => {
+        setTimeRemaining((prev) => {
           if (prev <= 1) {
-            // Timer complete
-            clearInterval(timerRef.current as NodeJS.Timeout);
+            setIsRunning(false);
+            handleTimerComplete();
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-    } else if (isPaused && timerRef.current) {
-      clearInterval(timerRef.current);
     }
-    
+
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        clearTimeout(timerRef.current);
       }
     };
-  }, [isRunning, isPaused]);
-  
-  // Handle duration change
-  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDuration = parseInt(e.target.value);
-    if (newDuration >= 30) { // Minimum 30 minutes for PAHM stages
-      setDuration(newDuration);
-      setTimeRemaining(newDuration * 60);
+  }, [isRunning, isPaused, timeRemaining, handleTimerComplete]);
+
+  const handleStart = () => {
+    if (initialMinutes < 30) {
+      alert('PAHM practice requires a minimum of 30 minutes to be effective.');
+      return;
     }
-  };
-  
-  // Start timer
-  const startTimer = () => {
+    
+    setTimeRemaining(initialMinutes * 60);
+    setCurrentStage('practice');
     setIsRunning(true);
-    setIsPaused(false);
-    // Store start time in session storage
-    sessionStorage.setItem('practiceStartTime', new Date().toISOString());
-    // Store posture in session storage
-    sessionStorage.setItem('currentPosture', posture);
+    setPahmCounts({
+      nostalgia: 0,
+      likes: 0,
+      anticipation: 0,
+      past: 0,
+      present: 0,
+      future: 0,
+      regret: 0,
+      dislikes: 0,
+      worry: 0
+    });
   };
-  
-  // Pause timer
-  const pauseTimer = () => {
-    setIsPaused(true);
+
+  const handlePause = () => {
+    setIsPaused(!isPaused);
   };
-  
-  // Resume timer
-  const resumeTimer = () => {
-    setIsPaused(false);
+
+  const handleQuadrantClick = (quadrant: keyof typeof pahmCounts) => {
+    setPahmCounts(prev => {
+      const newCounts = { ...prev };
+      newCounts[quadrant] = newCounts[quadrant] + 1;
+      return newCounts;
+    });
   };
-  
-  // Handle matrix position click
-  const handleMatrixPositionClick = (position: string, count: number) => {
-    // Update the counts state
-    setPahmCounts(prev => ({
-      ...prev,
-      [position]: count
-    }));
-    
-    // Store updated counts in session storage
-    sessionStorage.setItem('pahmTracking', JSON.stringify({
-      ...pahmCounts,
-      [position]: count
-    }));
-    
-    // Show tap indicator
-    setShowTapIndicator(true);
-    
-    // Clear previous timeout if exists
-    if (tapIndicatorTimeoutRef.current) {
-      clearTimeout(tapIndicatorTimeoutRef.current);
+
+  const handleCompleteEarly = () => {
+    if (window.confirm('Complete this session early? Note: PAHM practice is most effective with full duration.')) {
+      handleTimerComplete();
     }
-    
-    // Hide indicator after 1 second
-    tapIndicatorTimeoutRef.current = setTimeout(() => {
-      setShowTapIndicator(false);
-    }, 1000);
   };
-  
-  // Format time as MM:SS
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-  
-  // Complete practice
-  const completePractice = () => {
-    // Stop the timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
-    // Clear tap indicator timeout if exists
-    if (tapIndicatorTimeoutRef.current) {
-      clearTimeout(tapIndicatorTimeoutRef.current);
-      tapIndicatorTimeoutRef.current = null;
-    }
-    
-    // Store end time and PAHM tracking data
-    const endTime = new Date().toISOString();
-    sessionStorage.setItem('practiceEndTime', endTime);
-    sessionStorage.setItem('pahmTracking', JSON.stringify(pahmCounts));
-    
-    // Record session data for hour tracking
-    recordSessionCompletion(duration);
-    
-    // Navigate to reflection using the onComplete callback
-    // This ensures we use the proper navigation defined in Stage2Wrapper
-    onComplete();
-  };
-  
-  // Record session completion for hour tracking
-  const recordSessionCompletion = (sessionDuration: number) => {
-    // Get existing sessions for stage 2
-    const existingSessions = JSON.parse(localStorage.getItem('stage2Sessions') || '[]');
-    
-    // Create new session data
-    const newSession = {
-      duration: sessionDuration,
-      completedAt: new Date().toISOString(),
-      pahmCounts: { ...pahmCounts }
-    };
-    
-    // Add new session to the list
-    existingSessions.push(newSession);
-    
-    // Save updated sessions list
-    localStorage.setItem('stage2Sessions', JSON.stringify(existingSessions));
-    
-    // Calculate total hours completed
-    const totalMinutes = existingSessions.reduce((total: number, session: any) => {
-      return total + (session.duration || 0);
-    }, 0);
-    
-    const totalHours = totalMinutes / 60;
-    
-    // Store total hours for stage 2
-    localStorage.setItem('stage2Hours', totalHours.toString());
-    
-    // Check if stage is complete (15+ hours)
-    if (totalHours >= 15) {
-      localStorage.setItem('stage2Complete', 'true');
-      sessionStorage.setItem('stageProgress', '2');
-    }
-  };
-  
-  // Fast-forward a single session (development only)
-  const handleFastForwardSession = () => {
-    // Set start and end time for the session
-    const startTime = new Date();
-    startTime.setMinutes(startTime.getMinutes() - duration); // Set start time in the past
-    const endTime = new Date();
-    
-    sessionStorage.setItem('practiceStartTime', startTime.toISOString());
-    sessionStorage.setItem('practiceEndTime', endTime.toISOString());
-    sessionStorage.setItem('currentPosture', posture);
-    
-    // Create mock PAHM tracking data with some realistic values
-    const mockPahmData = {
-      nostalgia: Math.floor(Math.random() * 5) + 1,
-      likes: Math.floor(Math.random() * 5) + 1,
-      anticipation: Math.floor(Math.random() * 5) + 1,
-      past: Math.floor(Math.random() * 5) + 1,
-      present: Math.floor(Math.random() * 8) + 1,
-      future: Math.floor(Math.random() * 5) + 1,
-      regret: Math.floor(Math.random() * 5) + 1,
-      dislikes: Math.floor(Math.random() * 5) + 1,
-      worry: Math.floor(Math.random() * 5) + 1
-    };
-    
-    // Store PAHM tracking data in sessionStorage for reflection screen
-    sessionStorage.setItem('pahmTracking', JSON.stringify(mockPahmData));
-    
-    // Record a session with the current duration
-    recordSessionCompletion(duration);
-    
-    // Log for development
-    console.log(`DEV: Fast-forwarded a ${duration}-minute session for Stage 2`);
-    console.log('DEV: Mock PAHM data:', mockPahmData);
-    
-    // Update localStorage to trigger UI refresh
-    const event = new Event('storage');
-    window.dispatchEvent(event);
-    
-    // Navigate to reflection
-    onComplete();
-  };
-  
-  // Fast-forward entire stage completion (development only)
-  const handleFastForwardStage = () => {
-    // Set start and end time for the session
-    const startTime = new Date();
-    startTime.setMinutes(startTime.getMinutes() - 30); // Set start time 30 minutes in the past
-    const endTime = new Date();
-    
-    sessionStorage.setItem('practiceStartTime', startTime.toISOString());
-    sessionStorage.setItem('practiceEndTime', endTime.toISOString());
-    sessionStorage.setItem('currentPosture', posture);
-    
-    // Create mock PAHM tracking data with some realistic values
-    const mockPahmData = {
-      nostalgia: Math.floor(Math.random() * 5) + 1,
-      likes: Math.floor(Math.random() * 5) + 1,
-      anticipation: Math.floor(Math.random() * 5) + 1,
-      past: Math.floor(Math.random() * 5) + 1,
-      present: Math.floor(Math.random() * 8) + 1,
-      future: Math.floor(Math.random() * 5) + 1,
-      regret: Math.floor(Math.random() * 5) + 1,
-      dislikes: Math.floor(Math.random() * 5) + 1,
-      worry: Math.floor(Math.random() * 5) + 1
-    };
-    
-    // Store PAHM tracking data in sessionStorage for reflection screen
-    sessionStorage.setItem('pahmTracking', JSON.stringify(mockPahmData));
-    
-    // Calculate how many 30-minute sessions needed to reach 15 hours
-    const sessionsNeeded = Math.ceil((15 * 60) / 30);
-    
-    // Create array of session data
-    const sessions = Array(sessionsNeeded).fill(null).map(() => ({
-      duration: 30,
-      completedAt: new Date().toISOString(),
-      pahmCounts: mockPahmData,
-      fastForwarded: true
-    }));
-    
-    // Save all sessions
-    localStorage.setItem('stage2Sessions', JSON.stringify(sessions));
-    
-    // Set total hours to 15
-    localStorage.setItem('stage2Hours', '15');
-    
-    // Mark stage as complete
-    localStorage.setItem('stage2Complete', 'true');
-    sessionStorage.setItem('stageProgress', '2');
-    
-    // Log for development
-    console.log('DEV: Fast-forwarded entire Stage 2 (15 hours)');
-    console.log('DEV: Mock PAHM data:', mockPahmData);
-    
-    // Dispatch custom event to notify components of stage progression update
-    window.dispatchEvent(new Event('stageProgressionUpdate'));
-    
-    // Update localStorage to trigger UI refresh for other tabs/windows
-    const event = new Event('storage');
-    window.dispatchEvent(event);
-    
-    // Navigate to reflection
-    onComplete();
-  };
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (tapIndicatorTimeoutRef.current) {
-        clearTimeout(tapIndicatorTimeoutRef.current);
-      }
-    };
-  }, []);
-  
-  return (
-    <div className="pahm-timer">
-      <div className="timer-header">
-        <button className="back-button" onClick={onBack}>Back</button>
-        <h1>PAHM Trainee Practice</h1>
-      </div>
+
+  // Development fast-forward functions
+  const fastForwardMinutes = (minutes: number) => {
+    if (process.env.NODE_ENV !== 'production') {
+      const secondsToReduce = minutes * 60;
+      setTimeRemaining(prev => Math.max(0, prev - secondsToReduce));
       
-      <div className="timer-content">
-        {!isRunning ? (
-          <div className="timer-setup">
-            <h2>Set Practice Duration</h2>
-            <p>Minimum duration for PAHM practice is 30 minutes.</p>
-            
-            <div className="duration-input">
-              <input 
-                type="number" 
-                min="30"
-                value={duration}
-                onChange={handleDurationChange}
-              />
-              <span>minutes</span>
-            </div>
-            
-            <div className="posture-display">
-              <h3>Selected Posture</h3>
-              <p>{posture}</p>
-            </div>
-            
-            <button 
-              className="start-button"
-              onClick={startTimer}
+      // Log enhanced session data for development
+      const endTime = new Date().toISOString();
+      const actualDuration = (initialMinutes * 60) - (timeRemaining - secondsToReduce);
+      
+      const enhancedSessionData = {
+        timestamp: endTime,
+        duration: actualDuration,
+        sessionType: 'meditation' as const,
+        stageLevel: 2,
+        posture,
+        environment: {
+          posture,
+          location: 'development',
+          lighting: 'artificial',
+          sounds: 'mixed'
+        },
+        completed: false,
+        pahmData: convertPAHMCounts(pahmCounts),
+        qualityMetrics: {
+          attentionQuality: 7,
+          presentMomentAwareness: 6,
+          mindfulnessDepth: 5
+        },
+        pahmMatrix: {
+          totalInteractions: Object.values(pahmCounts).reduce((a, b) => a + b, 0),
+          attentionPattern: {
+            past: pahmCounts.nostalgia + pahmCounts.past + pahmCounts.regret,
+            present: pahmCounts.present + pahmCounts.likes + pahmCounts.dislikes,
+            future: pahmCounts.anticipation + pahmCounts.future + pahmCounts.worry
+          },
+          emotionalBalance: {
+            positive: pahmCounts.likes + pahmCounts.anticipation,
+            negative: pahmCounts.dislikes + pahmCounts.regret + pahmCounts.worry,
+            neutral: pahmCounts.present + pahmCounts.past + pahmCounts.nostalgia
+          }
+        },
+        fastForwarded: true
+      };
+
+      addPracticeSession(enhancedSessionData);
+      console.log('DEV: Fast-forwarded PAHM practice session');
+    }
+  };
+
+  if (currentStage === 'setup') {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        padding: '20px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white'
+      }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '30px', textAlign: 'center' }}>
+          PAHM Trainee Practice
+        </h1>
+        
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          padding: '30px',
+          borderRadius: '15px',
+          maxWidth: '400px',
+          width: '100%',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ marginBottom: '20px' }}>Duration (minimum 30 minutes)</h3>
+          <input
+            type="number"
+            min="30"
+            max="120"
+            value={initialMinutes}
+            onChange={(e) => setInitialMinutes(parseInt(e.target.value) || 30)}
+            style={{
+              fontSize: '24px',
+              padding: '15px',
+              width: '100px',
+              textAlign: 'center',
+              borderRadius: '10px',
+              border: 'none',
+              marginBottom: '20px'
+            }}
+          />
+          <p style={{ fontSize: '14px', marginBottom: '20px', opacity: 0.8 }}>
+            Posture: {posture}
+          </p>
+          <button
+            onClick={handleStart}
+            style={{
+              fontSize: '18px',
+              padding: '15px 40px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '25px',
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
+            Start PAHM Practice
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh',
+      padding: '10px',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: 'white'
+    }}>
+      {/* Header */}
+      <div style={{
+        textAlign: 'center',
+        marginBottom: '15px'
+      }}>
+        <h1 style={{ 
+          fontSize: '20px', 
+          margin: '10px 0',
+          fontWeight: '600'
+        }}>
+          PAHM Trainee Practice
+        </h1>
+      </div>
+
+      {/* Main content */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {/* Timer and Matrix Section */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          padding: '20px',
+          borderRadius: '15px',
+          width: '100%',
+          maxWidth: '400px',
+          textAlign: 'center'
+        }}>
+          {/* PAHM Heading */}
+          <h2 style={{ 
+            fontSize: '18px', 
+            margin: '10px 0 8px 0',
+            fontWeight: '500'
+          }}>
+            PAHM Matrix
+          </h2>
+          
+          {/* Description */}
+          <p style={{ 
+            fontSize: '14px', 
+            margin: '0 0 15px 0',
+            lineHeight: '1.3',
+            opacity: 0.9
+          }}>
+            Notice your attention. Tap quadrants when you recognize thoughts.
+          </p>
+          
+          {/* Timer */}
+          <div style={{ 
+            fontSize: '28px', 
+            fontWeight: 'bold',
+            margin: '5px 0 15px 0',
+            color: '#FFD700'
+          }}>
+            {formatTime(timeRemaining)}
+          </div>
+          
+          {/* PAHM Matrix */}
+          <div style={{
+            border: 'none',
+            outline: 'none',
+            margin: '0 auto'
+          }}>
+            <PAHMMatrix />
+          </div>
+          
+          {/* Control Buttons - Positioned closer to matrix */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'center',
+            padding: '20px 0 10px 0'
+          }}>
+            <button
+              onClick={handlePause}
+              style={{
+                fontSize: '16px',
+                padding: '12px 24px',
+                backgroundColor: isPaused ? '#FF9800' : '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                cursor: 'pointer',
+                minWidth: '100px'
+              }}
             >
-              Begin Practice
+              {isPaused ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              onClick={handleCompleteEarly}
+              style={{
+                fontSize: '16px',
+                padding: '12px 24px',
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                cursor: 'pointer',
+                minWidth: '100px'
+              }}
+            >
+              Complete
             </button>
           </div>
-        ) : (
-          <div className="timer-running">
-            <div className="pahm-matrix-container">
-              <h3>PAHM Matrix</h3>
-              
-              <p className="matrix-instruction">
-                Notice where your attention goes during practice.
-                Tap the appropriate quadrant when you recognize a thought.
-              </p>
-              
-              <div className="time-display-container" style={{margin: '15px 0', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                <div className="time-display" style={{fontSize: '36px', fontWeight: 'bold'}}>
-                  {formatTime(timeRemaining)}
-                </div>
-                {showTapIndicator && (
-                  <div className="tap-indicator" style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: '#FF5252',
-                    marginLeft: '10px'
-                  }}></div>
-                )}
-              </div>
-              
-              <PAHMMatrix 
-                isInteractive={true} 
-                onCountUpdate={handleMatrixPositionClick}
-                initialCounts={pahmCounts}
-              />
-            </div>
-            
-            <div className="timer-controls">
-              {isPaused ? (
-                <button className="resume-button" onClick={resumeTimer}>Resume</button>
-              ) : (
-                <button className="pause-button" onClick={pauseTimer}>Pause</button>
-              )}
-              
-              <button className="complete-button" onClick={completePractice}>
-                Complete Practice
-              </button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
-      
+
       {/* Development-only fast-forward buttons */}
       {process.env.NODE_ENV !== 'production' && (
         <div style={{
@@ -393,39 +409,65 @@ const PAHMTimer2: React.FC<PAHMTimer2Props> = ({
           bottom: '10px',
           right: '10px',
           display: 'flex',
-          flexDirection: 'column',
           gap: '5px',
-          zIndex: 1000
+          flexWrap: 'wrap',
+          maxWidth: '200px'
         }}>
-          <button 
-            onClick={handleFastForwardSession}
+          <button
+            onClick={() => fastForwardMinutes(5)}
             style={{
-              backgroundColor: '#FF5252',
-              color: 'white',
-              padding: '5px 10px',
-              borderRadius: '5px',
-              border: 'none',
               fontSize: '12px',
-              cursor: 'pointer',
-              opacity: 0.8
+              padding: '8px 12px',
+              backgroundColor: '#FF5722',
+              color: 'white',
+              border: 'none',
+              borderRadius: '15px',
+              cursor: 'pointer'
             }}
           >
-            DEV: Fast-Forward Session
+            -5m
           </button>
-          <button 
-            onClick={handleFastForwardStage}
+          <button
+            onClick={() => fastForwardMinutes(10)}
             style={{
-              backgroundColor: '#9C27B0',
-              color: 'white',
-              padding: '5px 10px',
-              borderRadius: '5px',
-              border: 'none',
               fontSize: '12px',
-              cursor: 'pointer',
-              opacity: 0.8
+              padding: '8px 12px',
+              backgroundColor: '#FF5722',
+              color: 'white',
+              border: 'none',
+              borderRadius: '15px',
+              cursor: 'pointer'
             }}
           >
-            DEV: Complete Stage (15h)
+            -10m
+          </button>
+          <button
+            onClick={() => fastForwardMinutes(15)}
+            style={{
+              fontSize: '12px',
+              padding: '8px 12px',
+              backgroundColor: '#FF5722',
+              color: 'white',
+              border: 'none',
+              borderRadius: '15px',
+              cursor: 'pointer'
+            }}
+          >
+            -15m
+          </button>
+          <button
+            onClick={() => setTimeRemaining(5)}
+            style={{
+              fontSize: '12px',
+              padding: '8px 12px',
+              backgroundColor: '#FF1744',
+              color: 'white',
+              border: 'none',
+              borderRadius: '15px',
+              cursor: 'pointer'
+            }}
+          >
+            End
           </button>
         </div>
       )}

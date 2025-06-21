@@ -6,6 +6,7 @@ import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
+import { useLocalData } from './contexts/LocalDataContext';
 
 interface PracticeTimerProps {
   initialMinutes: number;
@@ -25,6 +26,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
+  
+  // Enhanced analytics integration
+  const { addPracticeSession, addEmotionalNote } = useLocalData();
   
   // Refs for recorder components
   const t1RecorderRef = useRef<any>(null);
@@ -47,6 +51,18 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const getTLevel = (): string => {
     const tLevelMatch = stageLevel.match(/^(T[1-5])/i);
     return tLevelMatch ? tLevelMatch[1].toLowerCase() : 't1';
+  };
+  
+  // Convert T-level to number for analytics
+  const getTLevelNumber = (tLevel: string): number => {
+    const levelMap: { [key: string]: number } = {
+      't1': 1,
+      't2': 2, 
+      't3': 3,
+      't4': 4,
+      't5': 5
+    };
+    return levelMap[tLevel] || 1;
   };
   
   // Start timer
@@ -115,8 +131,41 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       : 0;
     const timeSpentMinutes = Math.round(timeSpentMs / (1000 * 60));
     
-    // Store basic session data
     const tLevel = getTLevel();
+    
+    // 🔗 ENHANCED: Add to unified analytics system
+    const enhancedSessionData = {
+      timestamp: endTime,
+      duration: timeSpentMinutes || initialMinutes,
+      sessionType: 'meditation' as const,
+      stageLevel: getTLevelNumber(tLevel), // Convert to number
+      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
+      rating: isFullyCompleted ? 8 : 6,
+      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
+      presentPercentage: isFullyCompleted ? 85 : 70,
+      environment: {
+        posture: 'sitting',
+        location: 'indoor',
+        lighting: 'natural',
+        sounds: 'quiet'
+      }
+    };
+    
+    // Add to unified analytics (enhances your existing dashboard!)
+    addPracticeSession(enhancedSessionData);
+    
+    // Add achievement note for motivation
+    if (isFullyCompleted) {
+      addEmotionalNote({
+        timestamp: endTime,
+        content: `Successfully completed ${tLevel.toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
+        emotion: 'accomplished',
+        energyLevel: 8,
+        tags: ['achievement', 'physical_training', tLevel]
+      });
+    }
+    
+    // 🔒 PRESERVE: Keep all existing functionality exactly as is
     const sessionData = {
       level: tLevel,
       targetDuration: initialMinutes,
@@ -169,6 +218,26 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     // Store in sessionStorage for reflection component
     sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
     
+    // 🔗 ENHANCED: Also add to analytics system for development
+    const enhancedSessionData = {
+      timestamp: now,
+      duration: initialMinutes,
+      sessionType: 'meditation' as const,
+      stageLevel: getTLevelNumber(tLevel),
+      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training - DEV`,
+      rating: 8,
+      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - DEV FAST-FORWARD`,
+      presentPercentage: 80,
+      environment: {
+        posture: 'sitting',
+        location: 'indoor',
+        lighting: 'natural',
+        sounds: 'quiet'
+      }
+    };
+    
+    addPracticeSession(enhancedSessionData);
+    
     // Log for development purposes
     console.log(`DEV: Fast-forwarded ${tLevel} practice session`);
     
@@ -192,7 +261,13 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   }, []);
   
   return (
-    <div className="practice-timer">
+    <div className="practice-timer" style={{ 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      padding: '10px',
+      boxSizing: 'border-box'
+    }}>
       {/* Include all recorder components but hide them */}
       <div style={{ display: 'none' }}>
         <T1PracticeRecorder onRecordSession={handleRecordSession} ref={t1RecorderRef} />
@@ -202,35 +277,107 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         <T5PracticeRecorder onRecordSession={handleRecordSession} ref={t5RecorderRef} />
       </div>
       
-      <div className="timer-header">
-        <button className="back-button" onClick={handleBack}>Back</button>
-        <h1>{stageLevel}</h1>
-        <div style={{ width: '40px' }}></div> {/* Empty div for balanced spacing */}
+      <div className="timer-header" style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: '15px',
+        minHeight: '50px'
+      }}>
+        <button className="back-button" onClick={handleBack} style={{
+          padding: '8px 16px',
+          fontSize: '14px',
+          borderRadius: '8px',
+          border: 'none',
+          backgroundColor: '#f0f0f0',
+          cursor: 'pointer'
+        }}>Back</button>
+        <h1 style={{ 
+          fontSize: '18px', 
+          margin: '0',
+          textAlign: 'center',
+          flex: 1,
+          padding: '0 10px'
+        }}>{stageLevel}</h1>
+        <div style={{ width: '65px' }}></div> {/* Balance for back button */}
       </div>
       
-      <div className="timer-content">
-        <div className="timer-display">
-          <div className="time-remaining">{formatTime(timeRemaining)}</div>
-          <div className="timer-instruction">
+      <div className="timer-content" style={{ 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center'
+      }}>
+        <div className="timer-display" style={{ marginBottom: '30px' }}>
+          <div className="time-remaining" style={{ 
+            fontSize: '64px', 
+            fontWeight: 'bold',
+            margin: '20px 0',
+            color: '#2c3e50'
+          }}>{formatTime(timeRemaining)}</div>
+          <div className="timer-instruction" style={{
+            fontSize: '16px',
+            color: '#666',
+            margin: '10px 0',
+            lineHeight: '1.4'
+          }}>
             {!isActive 
-              ? "Press Start when you're ready to begin" 
+              ? "Press Start when ready" 
               : isPaused 
                 ? "Practice paused" 
                 : "Maintain physical stillness"}
           </div>
         </div>
         
-        <div className="timer-controls">
+        <div className="timer-controls" style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '15px',
+          width: '100%',
+          maxWidth: '280px'
+        }}>
           {!isActive ? (
-            <button className="start-button" onClick={startTimer}>
+            <button className="start-button" onClick={startTimer} style={{
+              padding: '16px 24px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              borderRadius: '30px',
+              border: 'none',
+              backgroundColor: '#27ae60',
+              color: 'white',
+              cursor: 'pointer',
+              width: '100%'
+            }}>
               Start Practice
             </button>
           ) : isPaused ? (
-            <button className="resume-button" onClick={resumeTimer}>
+            <button className="resume-button" onClick={resumeTimer} style={{
+              padding: '16px 24px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              borderRadius: '30px',
+              border: 'none',
+              backgroundColor: '#27ae60',
+              color: 'white',
+              cursor: 'pointer',
+              width: '100%'
+            }}>
               Resume
             </button>
           ) : (
-            <button className="pause-button" onClick={pauseTimer}>
+            <button className="pause-button" onClick={pauseTimer} style={{
+              padding: '16px 24px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              borderRadius: '30px',
+              border: 'none',
+              backgroundColor: '#f39c12',
+              color: 'white',
+              cursor: 'pointer',
+              width: '100%'
+            }}>
               Pause
             </button>
           )}
@@ -239,11 +386,13 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             <button className="complete-button" onClick={handleSkip} style={{
               backgroundColor: '#4A67E3', 
               color: 'white',
-              padding: '10px 20px',
-              borderRadius: '25px',
+              padding: '14px 20px',
+              borderRadius: '30px',
               border: 'none',
               fontWeight: 'bold',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '16px',
+              width: '100%'
             }}>
               Complete Practice
             </button>
