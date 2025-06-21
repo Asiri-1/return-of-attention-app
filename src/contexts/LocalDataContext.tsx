@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
 
-// 🏗️ ENHANCED DATA TYPES WITH MIND RECOVERY AS PAHM CONTEXTS
+// 🏗️ ENHANCED DATA TYPES WITH 9-CATEGORY PAHM SYSTEM
 interface PracticeSessionData {
   sessionId: string;
   timestamp: string;
@@ -10,9 +10,9 @@ interface PracticeSessionData {
   stageLevel?: number; // Optional for mind recovery
   stageLabel?: string; // Optional for mind recovery
   // Mind recovery contexts - all are PAHM practices with different purposes
-  mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'midday-reset' | 'work-home-transition' | 'evening-window';
+  mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'midday-reset' | 'work-home-transition' | 'evening-window' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
   // Mind recovery purpose categories
-  mindRecoveryPurpose?: 'energy-boost' | 'stress-relief' | 'mental-refresh' | 'transition-support' | 'sleep-preparation';
+  mindRecoveryPurpose?: 'energy-boost' | 'stress-relief' | 'mental-refresh' | 'transition-support' | 'sleep-preparation' | 'emotional-balance' | 'quick-reset' | 'awareness-anchor';
   rating?: number;
   notes?: string;
   presentPercentage?: number;
@@ -22,11 +22,17 @@ interface PracticeSessionData {
     lighting: string;
     sounds: string;
   };
+  // 🧠 UPGRADED TO 9-CATEGORY PAHM MATRIX
   pahmCounts?: {
-    present_happy: number;
-    present_unhappy: number;
-    absent_happy: number;
-    absent_unhappy: number;
+    present_attachment: number;
+    present_neutral: number;
+    present_aversion: number;
+    past_attachment: number;
+    past_neutral: number;
+    past_aversion: number;
+    future_attachment: number;
+    future_neutral: number;
+    future_aversion: number;
   };
   // Mind recovery specific metrics
   recoveryMetrics?: {
@@ -57,6 +63,109 @@ interface ReflectionData {
   gratitude: string[];
   intention?: string;
   insights?: string;
+}
+
+// 🧠 9-CATEGORY PAHM ANALYTICS INTERFACE
+interface PAHMAnalytics {
+  totalPAHM: {
+    present_attachment: number;
+    present_neutral: number;
+    present_aversion: number;
+    past_attachment: number;
+    past_neutral: number;
+    past_aversion: number;
+    future_attachment: number;
+    future_neutral: number;
+    future_aversion: number;
+  };
+  totalCounts: number;
+  timeDistribution: {
+    present: number;
+    past: number;
+    future: number;
+  };
+  emotionalDistribution: {
+    attachment: number;
+    neutral: number;
+    aversion: number;
+  };
+  presentPercentage: number;
+  neutralPercentage: number;
+  sessionsAnalyzed: number;
+  totalObservations: number;
+}
+
+// 🌿 ENVIRONMENT ANALYTICS INTERFACE
+interface EnvironmentAnalytics {
+  posture: Array<{
+    name: string;
+    count: number;
+    avgRating: number;
+    avgPresent: number;
+  }>;
+  location: Array<{
+    name: string;
+    count: number;
+    avgRating: number;
+    avgPresent: number;
+  }>;
+  lighting: Array<{
+    name: string;
+    count: number;
+    avgRating: number;
+    avgPresent: number;
+  }>;
+  sounds: Array<{
+    name: string;
+    count: number;
+    avgRating: number;
+    avgPresent: number;
+  }>;
+}
+
+// 🕐 MIND RECOVERY ANALYTICS INTERFACE
+interface MindRecoveryAnalytics {
+  totalMindRecoverySessions: number;
+  totalMindRecoveryMinutes: number;
+  avgMindRecoveryRating: number;
+  avgMindRecoveryDuration: number;
+  contextStats: Array<{
+    context: string;
+    count: number;
+    avgRating: number;
+    avgDuration: number;
+  }>;
+  purposeStats: Array<{
+    purpose: string;
+    count: number;
+    avgRating: number;
+    avgDuration: number;
+  }>;
+  highestRatedContext?: {
+    name: string;
+    rating: number;
+  };
+  mostUsedContext?: {
+    name: string;
+    count: number;
+  };
+}
+
+// 📊 COMPREHENSIVE ANALYTICS INTERFACE
+interface ComprehensiveAnalytics {
+  totalSessions: number;
+  totalMeditationSessions: number;
+  totalMindRecoverySessions: number;
+  totalPracticeTime: number;
+  averageSessionLength: number;
+  averageQuality: number;
+  averagePresentPercentage: number;
+  currentStreak: number;
+  longestStreak: number;
+  emotionalNotesCount: number;
+  consistencyScore: number;
+  progressTrend: 'improving' | 'stable' | 'declining';
+  lastUpdated: string;
 }
 
 interface ComprehensiveUserData {
@@ -108,7 +217,7 @@ interface ComprehensiveUserData {
   };
 }
 
-// 🎯 ENHANCED CONTEXT INTERFACE
+// 🎯 ENHANCED CONTEXT INTERFACE WITH 9-CATEGORY PAHM
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
@@ -121,12 +230,20 @@ interface LocalDataContextType {
   getPracticeSessions: () => PracticeSessionData[];
   getDailyEmotionalNotes: () => EmotionalNoteData[];
   getReflections: () => ReflectionData[];
-  getAnalyticsData: () => any;
+  getAnalyticsData: () => ComprehensiveAnalytics;
   
   // Mind recovery specific getters
   getMindRecoverySessions: () => PracticeSessionData[];
   getMeditationSessions: () => PracticeSessionData[];
-  getMindRecoveryAnalytics: () => any;
+  getMindRecoveryAnalytics: () => MindRecoveryAnalytics;
+  
+  // 🧠 9-CATEGORY PAHM ANALYTICS
+  getPAHMData: () => PAHMAnalytics | null;
+  getEnvironmentData: () => EnvironmentAnalytics;
+  getProgressTrends: () => any;
+  getComprehensiveAnalytics: () => any;
+  getPredictiveInsights: () => any;
+  exportDataForAnalysis: () => any;
   
   // Auth integration methods
   syncWithAuthContext: () => void;
@@ -139,21 +256,16 @@ interface LocalDataContextType {
   
   // Mind recovery session addition
   addMindRecoverySession: (session: Omit<PracticeSessionData, 'sessionId'>) => void;
-  
-  // Advanced analytics
-  getPAHMData: () => any;
-  getEnvironmentData: () => any;
-  getProgressTrends: () => any;
 }
 
 // 🔧 CREATE CONTEXT
 const LocalDataContext = createContext<LocalDataContextType | undefined>(undefined);
 
-// 🚀 ENHANCED PROVIDER WITH MIND RECOVERY AS PAHM CONTEXTS
+// 🚀 ENHANCED PROVIDER WITH 9-CATEGORY PAHM SYSTEM
 export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, syncWithLocalData, getUserStorageKey } = useAuth();
+  const { currentUser, syncWithLocalData } = useAuth(); // ✅ REMOVED unused getUserStorageKey
   const [userData, setUserData] = useState<ComprehensiveUserData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false); // ✅ REMOVED unused setIsLoading
 
   // 🔥 GENERATE UNIQUE IDS
   const generateId = (prefix: string): string => {
@@ -165,19 +277,19 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return currentUser?.uid ? `comprehensiveUserData_${currentUser.uid}` : 'comprehensiveUserData';
   };
 
-  // 🔥 ENHANCED SAMPLE DATA WITH MIND RECOVERY AS PAHM CONTEXTS
+  // 🔥 ENHANCED SAMPLE DATA WITH 9-CATEGORY PAHM SYSTEM
   const populateSampleData = () => {
     const sampleData: ComprehensiveUserData = {
       profile: {
         userId: currentUser?.uid || 'sample_user',
         displayName: currentUser?.displayName || 'Mindful Practitioner',
         email: currentUser?.email || 'user@example.com',
-        totalSessions: 21, // 15 meditation + 6 mind recovery
-        totalMinutes: 508, // Increased total
-        currentStreak: 8,
-        longestStreak: 15,
-        averageQuality: 8.3,
-        averagePresentPercentage: 80,
+        totalSessions: 25, // 19 meditation + 6 mind recovery
+        totalMinutes: 578, // Increased total
+        currentStreak: 12,
+        longestStreak: 18,
+        averageQuality: 8.4,
+        averagePresentPercentage: 82,
         // Mind recovery stats
         totalMindRecoverySessions: 6,
         totalMindRecoveryMinutes: 23,
@@ -185,17 +297,17 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentProgress: {
           currentStage: 3,
           currentTLevel: "Intermediate",
-          totalSessions: 21,
-          totalMinutes: 508,
-          longestStreak: 15,
-          currentStreak: 8,
-          averageQuality: 8.3,
-          averagePresentPercentage: 80
+          totalSessions: 25,
+          totalMinutes: 578,
+          longestStreak: 18,
+          currentStreak: 12,
+          averageQuality: 8.4,
+          averagePresentPercentage: 82
         },
         preferences: {
           defaultSessionDuration: 25,
           reminderEnabled: true,
-          favoriteStages: [2, 3],
+          favoriteStages: [2, 3, 4],
           optimalPracticeTime: "morning",
           notifications: {
             dailyReminder: true,
@@ -205,7 +317,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       },
       practiceSessions: [
-        // MEDITATION SESSIONS (15 sessions)
+        // MEDITATION SESSIONS WITH 9-CATEGORY PAHM (19 sessions)
         {
           sessionId: generateId('session'),
           timestamp: '2025-06-19T07:30:00.000Z',
@@ -214,7 +326,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 9,
-          notes: 'Excellent awareness today. Mind feels very clear and stable. Natural lighting enhanced focus.',
+          notes: 'Excellent awareness today. Mind feels very clear and stable. Natural lighting enhanced focus. The 9-category PAHM tracking reveals predominantly present-moment awareness with neutral emotional tone.',
           presentPercentage: 86,
           environment: {
             posture: 'sitting',
@@ -223,10 +335,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'quiet'
           },
           pahmCounts: {
-            present_happy: 35,
-            present_unhappy: 8,
-            absent_happy: 4,
-            absent_unhappy: 3
+            present_attachment: 15,
+            present_neutral: 18,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
@@ -237,7 +354,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 2,
           stageLabel: 'Stage 2: Sustained Attention',
           rating: 8,
-          notes: 'Evening practice really helps with sleep quality. Felt deeply relaxed.',
+          notes: 'Evening practice really helps with sleep quality. Felt deeply relaxed. The PAHM matrix shows good present-moment stability with minimal future anxiety.',
           presentPercentage: 82,
           environment: {
             posture: 'lying',
@@ -246,10 +363,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'meditation music'
           },
           pahmCounts: {
-            present_happy: 28,
-            present_unhappy: 7,
-            absent_happy: 3,
-            absent_unhappy: 2
+            present_attachment: 12,
+            present_neutral: 14,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 0,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
           }
         },
         {
@@ -260,7 +382,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 10,
-          notes: 'Outdoor practice brings incredible clarity. Nature sounds enhance focus beautifully.',
+          notes: 'Outdoor practice brings incredible clarity. Nature sounds enhance focus beautifully. Perfect balance across all 9 PAHM categories with strong present-moment dominance.',
           presentPercentage: 87,
           environment: {
             posture: 'sitting',
@@ -269,10 +391,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'nature'
           },
           pahmCounts: {
-            present_happy: 42,
-            present_unhappy: 6,
-            absent_happy: 2,
-            absent_unhappy: 5
+            present_attachment: 18,
+            present_neutral: 22,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
@@ -283,7 +410,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 1,
           stageLabel: 'Stage 1: Establishing a Practice',
           rating: 7,
-          notes: 'Short lunch break meditation helped reset my afternoon focus.',
+          notes: 'Short lunch break meditation helped reset my afternoon focus. PAHM tracking shows more scattered attention but still beneficial.',
           presentPercentage: 73,
           environment: {
             posture: 'sitting',
@@ -292,10 +419,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'silent'
           },
           pahmCounts: {
-            present_happy: 18,
-            present_unhappy: 5,
-            absent_happy: 4,
-            absent_unhappy: 3
+            present_attachment: 8,
+            present_neutral: 10,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
@@ -306,7 +438,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 4,
           stageLabel: 'Stage 4: Continuous Attention',
           rating: 9,
-          notes: 'Rain sounds created perfect ambiance. Achieved sustained attention for long periods.',
+          notes: 'Rain sounds created perfect ambiance. Achieved sustained attention for long periods. Excellent PAHM distribution with minimal past/future wandering.',
           presentPercentage: 87,
           environment: {
             posture: 'sitting',
@@ -315,10 +447,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'rain'
           },
           pahmCounts: {
-            present_happy: 48,
-            present_unhappy: 4,
-            absent_happy: 2,
-            absent_unhappy: 6
+            present_attachment: 20,
+            present_neutral: 26,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 2,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
@@ -329,7 +466,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 2,
           stageLabel: 'Stage 2: Sustained Attention',
           rating: 8,
-          notes: 'Good consistency building. Evening sessions becoming a strong habit.',
+          notes: 'Good consistency building. Evening sessions becoming a strong habit. PAHM matrix shows steady improvement in present-moment awareness.',
           presentPercentage: 78,
           environment: {
             posture: 'sitting',
@@ -338,10 +475,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'soft music'
           },
           pahmCounts: {
-            present_happy: 26,
-            present_unhappy: 8,
-            absent_happy: 5,
-            absent_unhappy: 4
+            present_attachment: 11,
+            present_neutral: 13,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
@@ -352,7 +494,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 9,
-          notes: 'Morning clarity is exceptional. Mind feels refreshed and alert.',
+          notes: 'Morning clarity is exceptional. Mind feels refreshed and alert. The 9-category PAHM system captures the nuanced quality of morning awareness.',
           presentPercentage: 84,
           environment: {
             posture: 'sitting',
@@ -361,10 +503,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'birds'
           },
           pahmCounts: {
-            present_happy: 38,
-            present_unhappy: 7,
-            absent_happy: 3,
-            absent_unhappy: 4
+            present_attachment: 16,
+            present_neutral: 20,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
@@ -375,7 +522,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 2,
           stageLabel: 'Stage 2: Sustained Attention',
           rating: 8,
-          notes: 'Late evening session. Perfect for unwinding and letting go of the day.',
+          notes: 'Late evening session. Perfect for unwinding and letting go of the day. PAHM tracking shows effective transition from day stress to evening calm.',
           presentPercentage: 76,
           environment: {
             posture: 'lying',
@@ -384,10 +531,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'silence'
           },
           pahmCounts: {
-            present_happy: 22,
-            present_unhappy: 6,
-            absent_happy: 6,
-            absent_unhappy: 4
+            present_attachment: 9,
+            present_neutral: 11,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 2,
+            past_aversion: 2,
+            future_attachment: 1,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
@@ -398,7 +550,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 4,
           stageLabel: 'Stage 4: Continuous Attention',
           rating: 10,
-          notes: 'Breakthrough session! Sustained jhana-like states. Profound sense of unity and peace.',
+          notes: 'Breakthrough session! Sustained jhana-like states. Profound sense of unity and peace. The 9-category PAHM matrix perfectly captures this exceptional state.',
           presentPercentage: 92,
           environment: {
             posture: 'sitting',
@@ -407,10 +559,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'water'
           },
           pahmCounts: {
-            present_happy: 52,
-            present_unhappy: 3,
-            absent_happy: 1,
-            absent_unhappy: 2
+            present_attachment: 22,
+            present_neutral: 28,
+            present_aversion: 2,
+            past_attachment: 0,
+            past_neutral: 1,
+            past_aversion: 0,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
           }
         },
         {
@@ -421,7 +578,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 8,
-          notes: 'Afternoon session after stressful work. Meditation restored balance and perspective.',
+          notes: 'Afternoon session after stressful work. Meditation restored balance and perspective. PAHM analysis shows effective stress transformation.',
           presentPercentage: 81,
           environment: {
             posture: 'sitting',
@@ -430,10 +587,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'office ambient'
           },
           pahmCounts: {
-            present_happy: 32,
-            present_unhappy: 9,
-            absent_happy: 3,
-            absent_unhappy: 6
+            present_attachment: 13,
+            present_neutral: 17,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 2,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
@@ -444,7 +606,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 2,
           stageLabel: 'Stage 2: Sustained Attention',
           rating: 7,
-          notes: 'Building momentum. Each day the practice feels more natural and effortless.',
+          notes: 'Building momentum. Each day the practice feels more natural and effortless. The 9-category system shows gradual improvement patterns.',
           presentPercentage: 75,
           environment: {
             posture: 'sitting',
@@ -453,10 +615,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'quiet'
           },
           pahmCounts: {
-            present_happy: 24,
-            present_unhappy: 8,
-            absent_happy: 5,
-            absent_unhappy: 5
+            present_attachment: 10,
+            present_neutral: 12,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
@@ -467,7 +634,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 9,
-          notes: 'Evening practice with incense. Aromatic anchor enhanced concentration beautifully.',
+          notes: 'Evening practice with incense. Aromatic anchor enhanced concentration beautifully. PAHM matrix reveals how sensory anchors support present-moment awareness.',
           presentPercentage: 83,
           environment: {
             posture: 'sitting',
@@ -476,10 +643,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'incense ambient'
           },
           pahmCounts: {
-            present_happy: 36,
-            present_unhappy: 6,
-            absent_happy: 4,
-            absent_unhappy: 4
+            present_attachment: 15,
+            present_neutral: 19,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
@@ -490,7 +662,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 2,
           stageLabel: 'Stage 2: Sustained Attention',
           rating: 8,
-          notes: 'Weekend morning practice. No rush, just pure presence and awareness.',
+          notes: 'Weekend morning practice. No rush, just pure presence and awareness. The 9-category PAHM tracking captures the spacious quality of weekend practice.',
           presentPercentage: 79,
           environment: {
             posture: 'sitting',
@@ -499,10 +671,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'distant traffic'
           },
           pahmCounts: {
-            present_happy: 28,
-            present_unhappy: 7,
-            absent_happy: 4,
-            absent_unhappy: 5
+            present_attachment: 12,
+            present_neutral: 14,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
@@ -513,7 +690,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 9,
-          notes: 'Walking meditation in the park. Movement + mindfulness = perfect combination.',
+          notes: 'Walking meditation in the park. Movement + mindfulness = perfect combination. PAHM analysis shows how movement supports present-moment awareness.',
           presentPercentage: 85,
           environment: {
             posture: 'walking',
@@ -522,10 +699,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'park atmosphere'
           },
           pahmCounts: {
-            present_happy: 40,
-            present_unhappy: 5,
-            absent_happy: 3,
-            absent_unhappy: 4
+            present_attachment: 17,
+            present_neutral: 21,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
@@ -536,7 +718,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stageLevel: 3,
           stageLabel: 'Stage 3: Interrupted Attention',
           rating: 8,
-          notes: 'Early bird session. The world is still quiet, mind follows suit naturally.',
+          notes: 'Early bird session. The world is still quiet, mind follows suit naturally. Pre-dawn practice shows unique PAHM patterns in the 9-category matrix.',
           presentPercentage: 82,
           environment: {
             posture: 'sitting',
@@ -545,122 +727,191 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sounds: 'silence'
           },
           pahmCounts: {
-            present_happy: 34,
-            present_unhappy: 8,
-            absent_happy: 3,
-            absent_unhappy: 5
+            present_attachment: 14,
+            present_neutral: 18,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
-        
-        // MIND RECOVERY SESSIONS - PAHM PRACTICE WITH DIFFERENT CONTEXTS (6 sessions)
         {
           sessionId: generateId('session'),
-          timestamp: '2025-06-19T06:30:00.000Z',
-          duration: 5,
-          sessionType: 'mind_recovery',
-          mindRecoveryContext: 'morning-recharge',
-          mindRecoveryPurpose: 'energy-boost',
-          rating: 9,
-          notes: 'Morning PAHM practice right after waking up. Perfect energy boost to start the day with clarity.',
-          presentPercentage: 78,
+          timestamp: '2025-06-04T21:00:00.000Z',
+          duration: 19,
+          sessionType: 'meditation',
+          stageLevel: 2,
+          stageLabel: 'Stage 2: Sustained Attention',
+          rating: 7,
+          notes: 'Night owl session. Sometimes evening practice is exactly what the mind needs. PAHM tracking shows how late practice differs from morning sessions.',
+          presentPercentage: 74,
           environment: {
             posture: 'lying',
-            location: 'bedroom',
-            lighting: 'natural',
-            sounds: 'quiet'
+            location: 'indoor',
+            lighting: 'moonlight',
+            sounds: 'night sounds'
           },
           pahmCounts: {
-            present_happy: 18,
-            present_unhappy: 4,
-            absent_happy: 2,
-            absent_unhappy: 1
-          },
-          recoveryMetrics: {
-            stressReduction: 6,
-            energyLevel: 9,
-            clarityImprovement: 8,
-            moodImprovement: 9
+            present_attachment: 9,
+            present_neutral: 11,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 2,
+            past_aversion: 2,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
           }
         },
         {
           sessionId: generateId('session'),
-          timestamp: '2025-06-18T14:15:00.000Z',
-          duration: 3,
-          sessionType: 'mind_recovery',
-          mindRecoveryContext: 'emotional-reset',
-          mindRecoveryPurpose: 'stress-relief',
-          rating: 8,
-          notes: 'PAHM practice after a stressful meeting. Quickly restored emotional balance and perspective.',
-          presentPercentage: 72,
+          timestamp: '2025-06-03T07:30:00.000Z',
+          duration: 33,
+          sessionType: 'meditation',
+          stageLevel: 4,
+          stageLabel: 'Stage 4: Continuous Attention',
+          rating: 10,
+          notes: 'Another breakthrough! Extended periods of effortless concentration. The 9-category PAHM system beautifully maps these deeper states of awareness.',
+          presentPercentage: 89,
           environment: {
             posture: 'sitting',
-            location: 'office',
-            lighting: 'artificial',
-            sounds: 'office ambient'
+            location: 'outdoor',
+            lighting: 'morning sun',
+            sounds: 'gentle breeze'
           },
           pahmCounts: {
-            present_happy: 11,
-            present_unhappy: 6,
-            absent_happy: 1,
-            absent_unhappy: 2
-          },
-          recoveryMetrics: {
-            stressReduction: 9,
-            energyLevel: 6,
-            clarityImprovement: 7,
-            moodImprovement: 8
+            present_attachment: 19,
+            present_neutral: 25,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 2,
+            future_aversion: 1
           }
         },
         {
           sessionId: generateId('session'),
-          timestamp: '2025-06-17T12:00:00.000Z',
-          duration: 4,
+          timestamp: '2025-06-02T12:15:00.000Z',
+          duration: 21,
+          sessionType: 'meditation',
+          stageLevel: 2,
+          stageLabel: 'Stage 2: Sustained Attention',
+          rating: 8,
+          notes: 'Midday reset session. Perfect for breaking up the workday and returning to center. PAHM analysis reveals the restorative power of brief practice.',
+          presentPercentage: 77,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'artificial',
+            sounds: 'office quiet'
+          },
+          pahmCounts: {
+            present_attachment: 11,
+            present_neutral: 13,
+            present_aversion: 2,
+            past_attachment: 2,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-01T18:45:00.000Z',
+          duration: 29,
+          sessionType: 'meditation',
+          stageLevel: 3,
+          stageLabel: 'Stage 3: Interrupted Attention',
+          rating: 9,
+          notes: 'Month-end reflection session. Grateful for the journey and excited for continued growth. The 9-category PAHM matrix shows beautiful progress patterns.',
+          presentPercentage: 86,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'sunset',
+            sounds: 'evening calm'
+          },
+          pahmCounts: {
+            present_attachment: 16,
+            present_neutral: 20,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 2,
+            future_aversion: 2
+          }
+        },
+
+        // MIND RECOVERY SESSIONS WITH 9-CATEGORY PAHM (6 sessions)
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-18T14:30:00.000Z',
+          duration: 3,
           sessionType: 'mind_recovery',
           mindRecoveryContext: 'midday-reset',
           mindRecoveryPurpose: 'mental-refresh',
           rating: 8,
-          notes: 'Midday PAHM practice to refresh mental clarity. Great reset for afternoon productivity.',
-          presentPercentage: 75,
+          notes: 'Quick midday reset between meetings. Instant clarity and energy boost. PAHM tracking shows rapid shift from scattered to present awareness.',
+          presentPercentage: 78,
           environment: {
             posture: 'sitting',
             location: 'indoor',
             lighting: 'natural',
-            sounds: 'quiet'
+            sounds: 'office ambient'
           },
           pahmCounts: {
-            present_happy: 14,
-            present_unhappy: 5,
-            absent_happy: 2,
-            absent_unhappy: 1
+            present_attachment: 5,
+            present_neutral: 7,
+            present_aversion: 1,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
           },
           recoveryMetrics: {
             stressReduction: 7,
             energyLevel: 8,
-            clarityImprovement: 9,
+            clarityImprovement: 8,
             moodImprovement: 7
           }
         },
         {
           sessionId: generateId('session'),
-          timestamp: '2025-06-16T18:30:00.000Z',
+          timestamp: '2025-06-16T17:45:00.000Z',
           duration: 4,
           sessionType: 'mind_recovery',
           mindRecoveryContext: 'work-home-transition',
           mindRecoveryPurpose: 'transition-support',
           rating: 9,
-          notes: 'PAHM practice for work-to-home transition. Perfect way to leave work stress behind.',
-          presentPercentage: 81,
+          notes: 'Perfect transition from work mode to home mode. Helps leave office stress behind. The 9-category PAHM system captures this mental gear-shifting beautifully.',
+          presentPercentage: 82,
           environment: {
-            posture: 'sitting',
-            location: 'car',
+            posture: 'standing',
+            location: 'outdoor',
             lighting: 'evening',
-            sounds: 'quiet'
+            sounds: 'traffic distant'
           },
           pahmCounts: {
-            present_happy: 16,
-            present_unhappy: 3,
-            absent_happy: 2,
-            absent_unhappy: 1
+            present_attachment: 6,
+            present_neutral: 8,
+            present_aversion: 1,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
           },
           recoveryMetrics: {
             stressReduction: 9,
@@ -671,25 +922,98 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         },
         {
           sessionId: generateId('session'),
-          timestamp: '2025-06-15T21:45:00.000Z',
+          timestamp: '2025-06-14T06:15:00.000Z',
+          duration: 5,
+          sessionType: 'mind_recovery',
+          mindRecoveryContext: 'morning-recharge',
+          mindRecoveryPurpose: 'energy-boost',
+          rating: 8,
+          notes: 'Morning energy activation. Better than coffee! Sets positive tone for entire day. PAHM analysis shows how brief practice creates lasting effects.',
+          presentPercentage: 85,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'dawn',
+            sounds: 'birds'
+          },
+          pahmCounts: {
+            present_attachment: 7,
+            present_neutral: 9,
+            present_aversion: 1,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 0,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
+          },
+          recoveryMetrics: {
+            stressReduction: 6,
+            energyLevel: 9,
+            clarityImprovement: 8,
+            moodImprovement: 8
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-12T15:20:00.000Z',
+          duration: 3,
+          sessionType: 'mind_recovery',
+          mindRecoveryContext: 'emotional-reset',
+          mindRecoveryPurpose: 'emotional-balance',
+          rating: 9,
+          notes: 'Needed emotional reset after difficult conversation. Restored inner equilibrium quickly. The 9-category PAHM matrix shows emotional regulation in action.',
+          presentPercentage: 80,
+          environment: {
+            posture: 'sitting',
+            location: 'indoor',
+            lighting: 'natural',
+            sounds: 'quiet'
+          },
+          pahmCounts: {
+            present_attachment: 5,
+            present_neutral: 8,
+            present_aversion: 1,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
+          },
+          recoveryMetrics: {
+            stressReduction: 9,
+            energyLevel: 7,
+            clarityImprovement: 8,
+            moodImprovement: 9
+          }
+        },
+        {
+          sessionId: generateId('session'),
+          timestamp: '2025-06-10T22:30:00.000Z',
           duration: 4,
           sessionType: 'mind_recovery',
           mindRecoveryContext: 'evening-window',
           mindRecoveryPurpose: 'sleep-preparation',
           rating: 8,
-          notes: 'Evening PAHM practice before sleep. Wonderful way to unwind and prepare for rest.',
-          presentPercentage: 76,
+          notes: 'Pre-sleep wind-down session. Helps transition from day activity to restful sleep. PAHM tracking shows effective mental settling.',
+          presentPercentage: 83,
           environment: {
             posture: 'lying',
-            location: 'bedroom',
+            location: 'indoor',
             lighting: 'dim',
             sounds: 'silence'
           },
           pahmCounts: {
-            present_happy: 15,
-            present_unhappy: 4,
-            absent_happy: 3,
-            absent_unhappy: 2
+            present_attachment: 6,
+            present_neutral: 9,
+            present_aversion: 1,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
           },
           recoveryMetrics: {
             stressReduction: 8,
@@ -700,135 +1024,209 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         },
         {
           sessionId: generateId('session'),
-          timestamp: '2025-06-14T10:30:00.000Z',
-          duration: 3,
+          timestamp: '2025-06-08T11:45:00.000Z',
+          duration: 4,
           sessionType: 'mind_recovery',
-          mindRecoveryContext: 'emotional-reset',
+          mindRecoveryContext: 'stress-release',
           mindRecoveryPurpose: 'stress-relief',
-          rating: 8,
-          notes: 'PAHM practice after feeling overwhelmed. Quick and effective emotional reset.',
-          presentPercentage: 74,
+          rating: 9,
+          notes: 'Emergency stress relief session during overwhelming day. Immediate relief and perspective shift. The 9-category PAHM system perfectly captures stress transformation.',
+          presentPercentage: 79,
           environment: {
             posture: 'sitting',
             location: 'indoor',
-            lighting: 'natural',
-            sounds: 'quiet'
+            lighting: 'artificial',
+            sounds: 'office ambient'
           },
           pahmCounts: {
-            present_happy: 12,
-            present_unhappy: 5,
-            absent_happy: 2,
-            absent_unhappy: 2
+            present_attachment: 5,
+            present_neutral: 8,
+            present_aversion: 2,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 1
           },
           recoveryMetrics: {
-            stressReduction: 9,
-            energyLevel: 6,
-            clarityImprovement: 7,
-            moodImprovement: 8
+            stressReduction: 10,
+            energyLevel: 7,
+            clarityImprovement: 9,
+            moodImprovement: 9
           }
         }
       ],
       emotionalNotes: [
         {
           noteId: generateId('note'),
-          timestamp: '2025-06-19T22:00:00.000Z',
-          content: 'Morning recharge PAHM practice is becoming a powerful daily ritual. Sets such a positive tone.',
-          emotion: 'joy',
-          energyLevel: 8,
-          tags: ['morning practice', 'energy boost', 'daily ritual'],
-          gratitude: ['morning clarity', 'PAHM technique', 'consistent practice']
+          timestamp: '2025-06-19T08:00:00.000Z',
+          content: 'Feeling incredibly grateful for this practice. The 9-category PAHM system is revealing patterns I never noticed before. Present-moment awareness is becoming more natural and effortless.',
+          emotion: 'gratitude',
+          energyLevel: 9,
+          tags: ['practice', 'awareness', 'gratitude', 'pahm'],
+          gratitude: ['meditation practice', 'present moment awareness', 'inner peace']
         },
         {
           noteId: generateId('note'),
-          timestamp: '2025-06-18T21:30:00.000Z',
-          content: 'The emotional reset PAHM practice saved my day. Amazing how quickly it shifted my state.',
+          timestamp: '2025-06-18T20:00:00.000Z',
+          content: 'Evening sessions are becoming a beautiful ritual. The transition from day to night feels sacred. PAHM tracking shows how evening practice has different qualities than morning sessions.',
+          emotion: 'peaceful',
+          energyLevel: 7,
+          tags: ['evening', 'ritual', 'transition', 'sacred'],
+          gratitude: ['evening peace', 'daily rhythms', 'sacred moments']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-17T07:00:00.000Z',
+          content: 'Outdoor meditation hits differently! Nature sounds, fresh air, and natural lighting create perfect conditions. The 9-category PAHM matrix shows how environment affects awareness quality.',
+          emotion: 'joy',
+          energyLevel: 9,
+          tags: ['outdoor', 'nature', 'environment', 'joy'],
+          gratitude: ['nature connection', 'fresh air', 'natural beauty']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-16T13:00:00.000Z',
+          content: 'Short lunch break sessions are game-changers for work productivity. Just 15 minutes completely resets my mental state. PAHM analysis reveals the power of micro-practices.',
+          emotion: 'energized',
+          energyLevel: 8,
+          tags: ['work', 'productivity', 'micro-practice', 'reset'],
+          gratitude: ['work-life balance', 'mental clarity', 'productivity boost']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-15T07:30:00.000Z',
+          content: 'Rain meditation was transcendent. The sound created perfect natural white noise. Achieved some of the deepest states yet. The 9-category PAHM tracking captured this beautifully.',
+          emotion: 'bliss',
+          energyLevel: 10,
+          tags: ['rain', 'transcendent', 'deep states', 'bliss'],
+          gratitude: ['rain sounds', 'deep peace', 'transcendent moments']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-14T18:30:00.000Z',
+          content: 'Consistency is building momentum. Each session feels more natural. The habit is forming beautifully. PAHM patterns show steady improvement in present-moment stability.',
+          emotion: 'confident',
+          energyLevel: 8,
+          tags: ['consistency', 'momentum', 'habit', 'improvement'],
+          gratitude: ['steady progress', 'growing confidence', 'habit formation']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-13T07:45:00.000Z',
+          content: 'Morning clarity is becoming my superpower. Starting the day with meditation sets such a positive tone. The 9-category PAHM system shows unique morning awareness patterns.',
+          emotion: 'empowered',
+          energyLevel: 9,
+          tags: ['morning', 'clarity', 'superpower', 'positive'],
+          gratitude: ['morning energy', 'mental clarity', 'positive start']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-12T20:30:00.000Z',
+          content: 'Late evening practice helps process the day. Perfect for letting go and transitioning to rest. PAHM tracking shows how practice supports natural daily rhythms.',
+          emotion: 'peaceful',
+          energyLevel: 6,
+          tags: ['evening', 'processing', 'letting go', 'rest'],
+          gratitude: ['daily processing', 'peaceful transitions', 'restful sleep']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-11T07:00:00.000Z',
+          content: 'Breakthrough session! Sustained jhana-like states felt incredible. The 9-category PAHM matrix perfectly mapped these deeper consciousness states. Profound sense of unity.',
+          emotion: 'awe',
+          energyLevel: 10,
+          tags: ['breakthrough', 'jhana', 'unity', 'consciousness'],
+          gratitude: ['profound experiences', 'consciousness exploration', 'unity awareness']
+        },
+        {
+          noteId: generateId('note'),
+          timestamp: '2025-06-10T17:00:00.000Z',
+          content: 'Meditation after stressful work is like a reset button. Transforms perspective instantly. PAHM analysis shows how practice neutralizes stress patterns effectively.',
           emotion: 'relieved',
           energyLevel: 7,
-          tags: ['emotional balance', 'stress relief', 'quick recovery'],
-          gratitude: ['emotional tools', 'quick relief', 'stress management']
-        },
-        {
-          noteId: generateId('note'),
-          timestamp: '2025-06-17T20:45:00.000Z',
-          content: 'Work-home transition PAHM practice is a game changer. I arrive home truly present.',
-          emotion: 'peaceful',
-          energyLevel: 8,
-          tags: ['transition', 'presence', 'work-life balance'],
-          gratitude: ['smooth transitions', 'work-life balance', 'mindful presence']
-        },
-        {
-          noteId: generateId('note'),
-          timestamp: '2025-06-16T18:00:00.000Z',
-          content: 'Midday reset with PAHM practice completely refreshed my mental energy. So effective.',
-          emotion: 'refreshed',
-          energyLevel: 8,
-          tags: ['mental refresh', 'midday reset', 'productivity'],
-          gratitude: ['mental clarity', 'afternoon energy', 'productive mindset']
-        },
-        {
-          noteId: generateId('note'),
-          timestamp: '2025-06-15T19:15:00.000Z',
-          content: 'Evening window PAHM practice makes sleep so much deeper and more restorative.',
-          emotion: 'serene',
-          energyLevel: 6,
-          tags: ['sleep preparation', 'evening ritual', 'deep rest'],
-          gratitude: ['restful sleep', 'evening peace', 'day completion']
+          tags: ['stress relief', 'reset', 'perspective', 'transformation'],
+          gratitude: ['stress relief', 'perspective shifts', 'emotional regulation']
         }
       ],
       reflections: [
         {
           reflectionId: generateId('reflection'),
-          timestamp: '2025-06-19T07:00:00.000Z',
-          type: 'morning',
-          mood: 8,
+          timestamp: '2025-06-19T22:00:00.000Z',
+          type: 'evening',
+          mood: 9,
           energy: 8,
           stress: 2,
-          gratitude: ['new day', 'morning PAHM practice', 'mental clarity'],
-          intention: 'Use PAHM practice throughout the day for optimal balance'
+          gratitude: ['successful meditation practice', 'peaceful day', 'growing awareness'],
+          intention: 'Continue building consistent practice',
+          insights: 'The 9-category PAHM system is revealing incredible insights about attention patterns. Present-moment awareness is becoming more stable and natural.'
         },
         {
           reflectionId: generateId('reflection'),
-          timestamp: '2025-06-18T22:00:00.000Z',
+          timestamp: '2025-06-18T22:30:00.000Z',
           type: 'evening',
-          mood: 9,
+          mood: 8,
           energy: 7,
-          stress: 2,
-          gratitude: ['successful PAHM applications', 'emotional balance', 'peaceful evening'],
-          insights: 'PAHM practice works amazingly in different contexts throughout the day'
+          stress: 3,
+          gratitude: ['evening meditation ritual', 'restful sleep preparation', 'daily progress'],
+          intention: 'Maintain evening practice consistency',
+          insights: 'Evening sessions have unique qualities. The PAHM matrix shows different patterns compared to morning practice. Both are valuable.'
+        },
+        {
+          reflectionId: generateId('reflection'),
+          timestamp: '2025-06-17T06:30:00.000Z',
+          type: 'morning',
+          mood: 9,
+          energy: 9,
+          stress: 1,
+          gratitude: ['outdoor meditation opportunity', 'nature connection', 'morning clarity'],
+          intention: 'Incorporate more outdoor practice',
+          insights: 'Outdoor meditation brings special qualities. Natural sounds and fresh air enhance awareness. The 9-category PAHM tracking captures these environmental effects.'
         }
       ],
       analytics: {
-        totalPracticeTime: 508,
-        averageSessionLength: 24,
-        consistencyScore: 0.88,
+        totalPracticeTime: 578,
+        averageSessionLength: 23.1,
+        consistencyScore: 85,
         progressTrend: 'improving',
         lastUpdated: new Date().toISOString()
       }
     };
 
     setUserData(sampleData);
-    localStorage.setItem(getStorageKey(), JSON.stringify(sampleData));
-    
-    // Sync with AuthContext
-    if (syncWithLocalData) {
-      syncWithLocalData(sampleData);
-    }
-    
-    console.log('✅ Enhanced sample data with Mind Recovery PAHM contexts populated!');
+    saveDataToStorage(sampleData);
+    console.log('🎯 Sample data populated with 9-category PAHM system!');
   };
 
   // 🔥 CLEAR ALL DATA
   const clearAllData = () => {
     setUserData(null);
     localStorage.removeItem(getStorageKey());
-    
-    // Also clear legacy keys
-    localStorage.removeItem('basicUserData');
-    localStorage.removeItem('comprehensivePracticeData');
-    localStorage.removeItem('comprehensiveEmotionalNotes');
-    localStorage.removeItem('comprehensiveAppUsage');
-    
-    console.log('🗑️ All comprehensive data cleared!');
+    console.log('🗑️ All data cleared!');
+  };
+
+  // 🔥 LOAD DATA FROM STORAGE - Made useCallback to fix dependency warning
+  const loadDataFromStorage = useCallback(() => {
+    try {
+      const storedData = localStorage.getItem(getStorageKey());
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        setUserData(parsedData);
+        console.log('📊 Data loaded from storage');
+      }
+    } catch (error) {
+      console.error('Error loading data from storage:', error);
+    }
+  }, [currentUser?.uid]); // ✅ Added dependency
+
+  // 🔥 SAVE DATA TO STORAGE
+  const saveDataToStorage = (data: ComprehensiveUserData) => {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      console.log('💾 Data saved to storage');
+    } catch (error) {
+      console.error('Error saving data to storage:', error);
+    }
   };
 
   // 🔥 DATA GETTERS
@@ -844,160 +1242,362 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return userData?.reflections || [];
   };
 
-  // Mind Recovery specific getters
   const getMindRecoverySessions = (): PracticeSessionData[] => {
-    return userData?.practiceSessions.filter(s => s.sessionType === 'mind_recovery') || [];
+    return userData?.practiceSessions.filter(session => session.sessionType === 'mind_recovery') || [];
   };
 
   const getMeditationSessions = (): PracticeSessionData[] => {
-    return userData?.practiceSessions.filter(s => s.sessionType === 'meditation') || [];
+    return userData?.practiceSessions.filter(session => session.sessionType === 'meditation') || [];
   };
 
-  // Mind Recovery Analytics - PAHM PRACTICE BY CONTEXT
-  const getMindRecoveryAnalytics = () => {
-    if (!userData) return null;
+  // 🧠 9-CATEGORY PAHM ANALYTICS
+  const getPAHMData = (): PAHMAnalytics | null => {
+    const sessions = getPracticeSessions().filter(session => session.pahmCounts);
     
-    const mindRecoverySessions = getMindRecoverySessions();
-    const meditationSessions = getMeditationSessions();
-    
-    if (mindRecoverySessions.length === 0) return null;
-    
-    // Context Distribution (timing/purpose)
-    const contextStats: {[key: string]: {count: number, avgRating: number, avgDuration: number, avgPresent: number}} = {};
-    
-    mindRecoverySessions.forEach(session => {
-      const context = session.mindRecoveryContext || 'unknown';
-      if (!contextStats[context]) {
-        contextStats[context] = {count: 0, avgRating: 0, avgDuration: 0, avgPresent: 0};
+    if (sessions.length === 0) return null;
+
+    const totalPAHM = {
+      present_attachment: 0,
+      present_neutral: 0,
+      present_aversion: 0,
+      past_attachment: 0,
+      past_neutral: 0,
+      past_aversion: 0,
+      future_attachment: 0,
+      future_neutral: 0,
+      future_aversion: 0
+    };
+
+    sessions.forEach(session => {
+      if (session.pahmCounts) {
+        totalPAHM.present_attachment += session.pahmCounts.present_attachment;
+        totalPAHM.present_neutral += session.pahmCounts.present_neutral;
+        totalPAHM.present_aversion += session.pahmCounts.present_aversion;
+        totalPAHM.past_attachment += session.pahmCounts.past_attachment;
+        totalPAHM.past_neutral += session.pahmCounts.past_neutral;
+        totalPAHM.past_aversion += session.pahmCounts.past_aversion;
+        totalPAHM.future_attachment += session.pahmCounts.future_attachment;
+        totalPAHM.future_neutral += session.pahmCounts.future_neutral;
+        totalPAHM.future_aversion += session.pahmCounts.future_aversion;
       }
-      contextStats[context].count++;
-      contextStats[context].avgRating = 
-        (contextStats[context].avgRating * (contextStats[context].count - 1) + (session.rating || 0)) / contextStats[context].count;
-      contextStats[context].avgDuration = 
-        (contextStats[context].avgDuration * (contextStats[context].count - 1) + session.duration) / contextStats[context].count;
-      contextStats[context].avgPresent = 
-        (contextStats[context].avgPresent * (contextStats[context].count - 1) + (session.presentPercentage || 0)) / contextStats[context].count;
     });
+
+    const totalCounts = Object.values(totalPAHM).reduce((sum, count) => sum + count, 0);
     
-    // Purpose Distribution
-    const purposeStats: {[key: string]: {count: number, avgRating: number}} = {};
-    
-    mindRecoverySessions.forEach(session => {
-      const purpose = session.mindRecoveryPurpose || 'unknown';
-      if (!purposeStats[purpose]) {
-        purposeStats[purpose] = {count: 0, avgRating: 0};
-      }
-      purposeStats[purpose].count++;
-      purposeStats[purpose].avgRating = 
-        (purposeStats[purpose].avgRating * (purposeStats[purpose].count - 1) + (session.rating || 0)) / purposeStats[purpose].count;
-    });
-    
-    // Recovery Metrics Analysis
-    const sessionsWithMetrics = mindRecoverySessions.filter(s => s.recoveryMetrics);
-    let avgRecoveryMetrics = null;
-    
-    if (sessionsWithMetrics.length > 0) {
-      avgRecoveryMetrics = {
-        stressReduction: Math.round(sessionsWithMetrics.reduce((sum, s) => sum + (s.recoveryMetrics?.stressReduction || 0), 0) / sessionsWithMetrics.length * 10) / 10,
-        energyLevel: Math.round(sessionsWithMetrics.reduce((sum, s) => sum + (s.recoveryMetrics?.energyLevel || 0), 0) / sessionsWithMetrics.length * 10) / 10,
-        clarityImprovement: Math.round(sessionsWithMetrics.reduce((sum, s) => sum + (s.recoveryMetrics?.clarityImprovement || 0), 0) / sessionsWithMetrics.length * 10) / 10,
-        moodImprovement: Math.round(sessionsWithMetrics.reduce((sum, s) => sum + (s.recoveryMetrics?.moodImprovement || 0), 0) / sessionsWithMetrics.length * 10) / 10
-      };
-    }
-    
-    // Most used context and highest rated
-    const mostUsedContext = Object.entries(contextStats).reduce((max, [context, stats]) => 
-      stats.count > max.count ? { context, count: stats.count, avgRating: stats.avgRating } : max, 
-      { context: '', count: 0, avgRating: 0 }
-    );
-    
-    const highestRatedContext = Object.entries(contextStats).reduce((max, [context, stats]) => 
-      stats.avgRating > max.avgRating ? { context, avgRating: stats.avgRating, count: stats.count } : max, 
-      { context: '', avgRating: 0, count: 0 }
-    );
-    
-    // PAHM effectiveness by context
-    const pahmByContext = Object.entries(contextStats).map(([context, stats]) => ({
-      context: context.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-      avgPresent: Math.round(stats.avgPresent),
-      avgRating: Math.round(stats.avgRating * 10) / 10,
-      count: stats.count,
-      avgDuration: Math.round(stats.avgDuration)
-    }));
-    
+    const timeDistribution = {
+      present: totalPAHM.present_attachment + totalPAHM.present_neutral + totalPAHM.present_aversion,
+      past: totalPAHM.past_attachment + totalPAHM.past_neutral + totalPAHM.past_aversion,
+      future: totalPAHM.future_attachment + totalPAHM.future_neutral + totalPAHM.future_aversion
+    };
+
+    const emotionalDistribution = {
+      attachment: totalPAHM.present_attachment + totalPAHM.past_attachment + totalPAHM.future_attachment,
+      neutral: totalPAHM.present_neutral + totalPAHM.past_neutral + totalPAHM.future_neutral,
+      aversion: totalPAHM.present_aversion + totalPAHM.past_aversion + totalPAHM.future_aversion
+    };
+
     return {
-      totalMindRecoverySessions: mindRecoverySessions.length,
-      totalMeditationSessions: meditationSessions.length,
-      totalMindRecoveryTime: mindRecoverySessions.reduce((sum, s) => sum + s.duration, 0),
-      avgMindRecoveryDuration: Math.round(mindRecoverySessions.reduce((sum, s) => sum + s.duration, 0) / mindRecoverySessions.length),
-      avgMindRecoveryRating: Math.round(mindRecoverySessions.reduce((sum, s) => sum + (s.rating || 0), 0) / mindRecoverySessions.length * 10) / 10,
-      avgMindRecoveryPresent: Math.round(mindRecoverySessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / mindRecoverySessions.length),
-      
-      // Context breakdown (timing/purpose)
-      contextStats: Object.entries(contextStats).map(([context, stats]) => ({
-        context: context.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-        count: stats.count,
-        avgRating: Math.round(stats.avgRating * 10) / 10,
-        avgDuration: Math.round(stats.avgDuration),
-        avgPresent: Math.round(stats.avgPresent)
-      })),
-      
-      // Purpose breakdown
-      purposeStats: Object.entries(purposeStats).map(([purpose, stats]) => ({
-        purpose: purpose.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-        count: stats.count,
-        avgRating: Math.round(stats.avgRating * 10) / 10
-      })),
-      
-      avgRecoveryMetrics,
-      mostUsedContext: mostUsedContext.context ? {
-        name: mostUsedContext.context.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-        count: mostUsedContext.count,
-        avgRating: Math.round(mostUsedContext.avgRating * 10) / 10
-      } : null,
-      
-      highestRatedContext: highestRatedContext.context ? {
-        name: highestRatedContext.context.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-        avgRating: Math.round(highestRatedContext.avgRating * 10) / 10,
-        count: highestRatedContext.count
-      } : null,
-      
-      pahmByContext,
-      recentSessions: mindRecoverySessions.slice(-5)
+      totalPAHM,
+      totalCounts,
+      timeDistribution,
+      emotionalDistribution,
+      presentPercentage: Math.round((timeDistribution.present / totalCounts) * 100),
+      neutralPercentage: Math.round((emotionalDistribution.neutral / totalCounts) * 100),
+      sessionsAnalyzed: sessions.length,
+      totalObservations: totalCounts
     };
   };
 
-  const getAnalyticsData = () => {
-    if (!userData) return null;
+  // 🌿 ENVIRONMENT ANALYTICS - ✅ FIXED TYPING
+  const getEnvironmentData = (): EnvironmentAnalytics => {
+    const sessions = getPracticeSessions().filter(session => session.environment);
     
-    const sessions = userData.practiceSessions;
-    const notes = userData.emotionalNotes;
-    const mindRecoverySessions = getMindRecoverySessions();
-    const meditationSessions = getMeditationSessions();
-    
+    const groupByEnvironmentFactor = (factor: 'posture' | 'location' | 'lighting' | 'sounds') => {
+      const groups: { [key: string]: { ratings: number[], presents: number[], count: number } } = {};
+      
+      sessions.forEach(session => {
+        if (session.environment && session.environment[factor]) {
+          const value = session.environment[factor];
+          if (!groups[value]) {
+            groups[value] = { ratings: [], presents: [], count: 0 };
+          }
+          if (session.rating) groups[value].ratings.push(session.rating);
+          if (session.presentPercentage) groups[value].presents.push(session.presentPercentage);
+          groups[value].count++;
+        }
+      });
+
+      return Object.entries(groups)
+        .map(([name, data]) => ({
+          name,
+          count: data.count,
+          avgRating: data.ratings.length > 0 ? Math.round((data.ratings.reduce((sum, r) => sum + r, 0) / data.ratings.length) * 10) / 10 : 0,
+          avgPresent: data.presents.length > 0 ? Math.round((data.presents.reduce((sum, p) => sum + p, 0) / data.presents.length) * 10) / 10 : 0
+        }))
+        .sort((a, b) => b.avgRating - a.avgRating);
+    };
+
     return {
-      totalSessions: sessions.length,
-      totalMeditationSessions: meditationSessions.length,
-      totalMindRecoverySessions: mindRecoverySessions.length,
-      totalPracticeTime: sessions.reduce((sum, s) => sum + s.duration, 0),
-      totalMeditationTime: meditationSessions.reduce((sum, s) => sum + s.duration, 0),
-      totalMindRecoveryTime: mindRecoverySessions.reduce((sum, s) => sum + s.duration, 0),
-      averageSessionLength: sessions.length > 0 ? Math.round(sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length) : 0,
-      averageQuality: sessions.length > 0 ? Math.round(sessions.reduce((sum, s) => sum + (s.rating || 0), 0) / sessions.length * 10) / 10 : 0,
-      averagePresentPercentage: sessions.length > 0 ? Math.round(sessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / sessions.length) : 0,
-      currentStreak: userData.profile.currentStreak,
-      longestStreak: userData.profile.longestStreak,
-      emotionalNotesCount: notes.length,
-      lastUpdated: userData.analytics.lastUpdated
+      posture: groupByEnvironmentFactor('posture'),
+      location: groupByEnvironmentFactor('location'),
+      lighting: groupByEnvironmentFactor('lighting'),
+      sounds: groupByEnvironmentFactor('sounds')
     };
   };
 
-  // 🔥 AUTH INTEGRATION
-  const syncWithAuthContext = () => {
-    if (userData && syncWithLocalData) {
+  // 🕐 MIND RECOVERY ANALYTICS
+  const getMindRecoveryAnalytics = (): MindRecoveryAnalytics => {
+    const mindRecoverySessions = getMindRecoverySessions();
+    
+    const contextStats = mindRecoverySessions.reduce((acc: any[], session) => {
+      if (session.mindRecoveryContext) {
+        const existing = acc.find(item => item.context === session.mindRecoveryContext);
+        if (existing) {
+          existing.count++;
+          existing.ratings.push(session.rating || 0);
+          existing.durations.push(session.duration);
+        } else {
+          acc.push({
+            context: session.mindRecoveryContext,
+            count: 1,
+            ratings: [session.rating || 0],
+            durations: [session.duration]
+          });
+        }
+      }
+      return acc;
+    }, []).map(item => ({
+      context: item.context,
+      count: item.count,
+      avgRating: Math.round((item.ratings.reduce((sum: number, r: number) => sum + r, 0) / item.ratings.length) * 10) / 10,
+      avgDuration: Math.round((item.durations.reduce((sum: number, d: number) => sum + d, 0) / item.durations.length) * 10) / 10
+    })).sort((a, b) => b.avgRating - a.avgRating);
+
+    const purposeStats = mindRecoverySessions.reduce((acc: any[], session) => {
+      if (session.mindRecoveryPurpose) {
+        const existing = acc.find(item => item.purpose === session.mindRecoveryPurpose);
+        if (existing) {
+          existing.count++;
+          existing.ratings.push(session.rating || 0);
+          existing.durations.push(session.duration);
+        } else {
+          acc.push({
+            purpose: session.mindRecoveryPurpose,
+            count: 1,
+            ratings: [session.rating || 0],
+            durations: [session.duration]
+          });
+        }
+      }
+      return acc;
+    }, []).map(item => ({
+      purpose: item.purpose,
+      count: item.count,
+      avgRating: Math.round((item.ratings.reduce((sum: number, r: number) => sum + r, 0) / item.ratings.length) * 10) / 10,
+      avgDuration: Math.round((item.durations.reduce((sum: number, d: number) => sum + d, 0) / item.durations.length) * 10) / 10
+    })).sort((a, b) => b.avgRating - a.avgRating);
+
+    const totalMinutes = mindRecoverySessions.reduce((sum, session) => sum + session.duration, 0);
+    const avgRating = mindRecoverySessions.length > 0 
+      ? Math.round((mindRecoverySessions.reduce((sum, session) => sum + (session.rating || 0), 0) / mindRecoverySessions.length) * 10) / 10
+      : 0;
+    const avgDuration = mindRecoverySessions.length > 0 
+      ? Math.round((totalMinutes / mindRecoverySessions.length) * 10) / 10
+      : 0;
+
+    return {
+      totalMindRecoverySessions: mindRecoverySessions.length,
+      totalMindRecoveryMinutes: totalMinutes,
+      avgMindRecoveryRating: avgRating,
+      avgMindRecoveryDuration: avgDuration,
+      contextStats,
+      purposeStats,
+      highestRatedContext: contextStats.length > 0 ? { name: contextStats[0].context, rating: contextStats[0].avgRating } : undefined,
+      mostUsedContext: contextStats.length > 0 ? { name: contextStats.sort((a, b) => b.count - a.count)[0].context, count: contextStats.sort((a, b) => b.count - a.count)[0].count } : undefined
+    };
+  };
+
+  // 📊 COMPREHENSIVE ANALYTICS
+  const getAnalyticsData = (): ComprehensiveAnalytics => {
+    const allSessions = getPracticeSessions();
+    const meditationSessions = getMeditationSessions();
+    const mindRecoverySessions = getMindRecoverySessions();
+    const emotionalNotes = getDailyEmotionalNotes();
+    
+    const totalMinutes = allSessions.reduce((sum, session) => sum + session.duration, 0);
+    const avgSessionLength = allSessions.length > 0 ? Math.round((totalMinutes / allSessions.length) * 10) / 10 : 0;
+    const avgQuality = allSessions.length > 0 
+      ? Math.round((allSessions.reduce((sum, session) => sum + (session.rating || 0), 0) / allSessions.length) * 10) / 10 
+      : 0;
+    const avgPresent = allSessions.length > 0 
+      ? Math.round((allSessions.reduce((sum, session) => sum + (session.presentPercentage || 0), 0) / allSessions.length) * 10) / 10 
+      : 0;
+
+    return {
+      totalSessions: allSessions.length,
+      totalMeditationSessions: meditationSessions.length,
+      totalMindRecoverySessions: mindRecoverySessions.length,
+      totalPracticeTime: totalMinutes,
+      averageSessionLength: avgSessionLength,
+      averageQuality: avgQuality,
+      averagePresentPercentage: avgPresent,
+      currentStreak: userData?.profile.currentStreak || 0,
+      longestStreak: userData?.profile.longestStreak || 0,
+      emotionalNotesCount: emotionalNotes.length,
+      consistencyScore: userData?.analytics.consistencyScore || 0,
+      progressTrend: userData?.analytics.progressTrend || 'stable',
+      lastUpdated: new Date().toISOString()
+    };
+  };
+
+  // 🔮 PREDICTIVE INSIGHTS
+  const getPredictiveInsights = () => {
+    const sessions = getPracticeSessions();
+    if (sessions.length < 5) return null;
+
+    const recentSessions = sessions.slice(-10);
+    const avgDuration = recentSessions.reduce((sum, s) => sum + s.duration, 0) / recentSessions.length;
+    const avgRating = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
+    
+    // Analyze time patterns
+    const timePatterns = recentSessions.reduce((acc: any, session) => {
+      const hour = new Date(session.timestamp).getHours();
+      const timeSlot = hour < 6 ? 'early-morning' : 
+                     hour < 12 ? 'morning' : 
+                     hour < 18 ? 'afternoon' : 'evening';
+      
+      if (!acc[timeSlot]) acc[timeSlot] = { count: 0, totalRating: 0 };
+      acc[timeSlot].count++;
+      acc[timeSlot].totalRating += session.rating || 0;
+      return acc;
+    }, {});
+
+    const bestTimeSlot = Object.entries(timePatterns)
+      .map(([time, data]: [string, any]) => ({ time, avgRating: data.totalRating / data.count }))
+      .sort((a, b) => b.avgRating - a.avgRating)[0];
+
+    return {
+      optimalSessionLength: Math.round(avgDuration),
+      bestPracticeTime: bestTimeSlot?.time || 'morning',
+      streakProbability: Math.min(95, Math.round(avgRating * 10)),
+      qualityTrend: avgRating >= 8 ? 'excellent' : avgRating >= 6 ? 'good' : 'developing'
+    };
+  };
+
+  // 📈 PROGRESS TRENDS
+  const getProgressTrends = () => {
+    const sessions = getPracticeSessions();
+    if (sessions.length < 3) return null;
+
+    const recentSessions = sessions.slice(-7);
+    const olderSessions = sessions.slice(-14, -7);
+
+    const recentAvgRating = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
+    const olderAvgRating = olderSessions.length > 0 
+      ? olderSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / olderSessions.length 
+      : recentAvgRating;
+
+    const recentAvgPresent = recentSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / recentSessions.length;
+    const olderAvgPresent = olderSessions.length > 0 
+      ? olderSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / olderSessions.length 
+      : recentAvgPresent;
+
+    return {
+      qualityTrend: recentAvgRating > olderAvgRating ? 'improving' : recentAvgRating < olderAvgRating ? 'declining' : 'stable',
+      presentTrend: recentAvgPresent > olderAvgPresent ? 'improving' : recentAvgPresent < olderAvgPresent ? 'declining' : 'stable',
+      qualityChange: Math.round((recentAvgRating - olderAvgRating) * 10) / 10,
+      presentChange: Math.round((recentAvgPresent - olderAvgPresent) * 10) / 10
+    };
+  };
+
+  // 📊 COMPREHENSIVE ANALYTICS FOR EXPORT
+  const getComprehensiveAnalytics = () => {
+    return {
+      basicAnalytics: getAnalyticsData(),
+      pahmAnalytics: getPAHMData(),
+      environmentAnalytics: getEnvironmentData(),
+      mindRecoveryAnalytics: getMindRecoveryAnalytics(),
+      predictiveInsights: getPredictiveInsights(),
+      progressTrends: getProgressTrends()
+    };
+  };
+
+  // 📤 EXPORT DATA FOR ANALYSIS
+  const exportDataForAnalysis = () => {
+    return {
+      userData,
+      analytics: getComprehensiveAnalytics(),
+      exportTimestamp: new Date().toISOString(),
+      version: '9-category-pahm-v1.0'
+    };
+  };
+
+  // 🔥 DATA MANIPULATION METHODS
+  const addPracticeSession = (session: Omit<PracticeSessionData, 'sessionId'>) => {
+    if (!userData) return;
+
+    const newSession: PracticeSessionData = {
+      ...session,
+      sessionId: generateId('session')
+    };
+
+    const updatedData = {
+      ...userData,
+      practiceSessions: [...userData.practiceSessions, newSession]
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+  };
+
+  const addMindRecoverySession = (session: Omit<PracticeSessionData, 'sessionId'>) => {
+    const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
+      ...session,
+      sessionType: 'mind_recovery'
+    };
+    addPracticeSession(mindRecoverySession);
+  };
+
+  const addEmotionalNote = (note: Omit<EmotionalNoteData, 'noteId'>) => {
+    if (!userData) return;
+
+    const newNote: EmotionalNoteData = {
+      ...note,
+      noteId: generateId('note')
+    };
+
+    const updatedData = {
+      ...userData,
+      emotionalNotes: [...userData.emotionalNotes, newNote]
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+  };
+
+  const addReflection = (reflection: Omit<ReflectionData, 'reflectionId'>) => {
+    if (!userData) return;
+
+    const newReflection: ReflectionData = {
+      ...reflection,
+      reflectionId: generateId('reflection')
+    };
+
+    const updatedData = {
+      ...userData,
+      reflections: [...userData.reflections, newReflection]
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+  };
+
+  // 🔄 AUTH INTEGRATION - Made useCallback to fix dependency warning
+  const syncWithAuthContext = useCallback(() => {
+    if (currentUser && syncWithLocalData) {
       syncWithLocalData(userData);
     }
-  };
+  }, [currentUser, syncWithLocalData, userData]); // ✅ Added dependencies
 
   const getOnboardingStatusFromAuth = () => {
     return {
@@ -1006,244 +1606,20 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   };
 
-  // 🔥 DATA MANIPULATION
-  const addPracticeSession = (session: Omit<PracticeSessionData, 'sessionId'>) => {
-    if (!userData) return;
-    
-    const newSession: PracticeSessionData = {
-      ...session,
-      sessionId: generateId('session'),
-      sessionType: session.sessionType || 'meditation'
-    };
-    
-    const updatedData = {
-      ...userData,
-      practiceSessions: [...userData.practiceSessions, newSession],
-      profile: {
-        ...userData.profile,
-        totalSessions: userData.profile.totalSessions + 1,
-        totalMinutes: userData.profile.totalMinutes + session.duration
-      }
-    };
-    
-    setUserData(updatedData);
-    localStorage.setItem(getStorageKey(), JSON.stringify(updatedData));
-  };
-
-  // Add Mind Recovery Session
-  const addMindRecoverySession = (session: Omit<PracticeSessionData, 'sessionId'>) => {
-    if (!userData) return;
-    
-    const newSession: PracticeSessionData = {
-      ...session,
-      sessionId: generateId('session'),
-      sessionType: 'mind_recovery'
-    };
-    
-    const currentMindRecoverySessions = userData.profile.totalMindRecoverySessions || 0;
-    const currentMindRecoveryMinutes = userData.profile.totalMindRecoveryMinutes || 0;
-    
-    const updatedData = {
-      ...userData,
-      practiceSessions: [...userData.practiceSessions, newSession],
-      profile: {
-        ...userData.profile,
-        totalSessions: userData.profile.totalSessions + 1,
-        totalMinutes: userData.profile.totalMinutes + session.duration,
-        totalMindRecoverySessions: currentMindRecoverySessions + 1,
-        totalMindRecoveryMinutes: currentMindRecoveryMinutes + session.duration
-      }
-    };
-    
-    setUserData(updatedData);
-    localStorage.setItem(getStorageKey(), JSON.stringify(updatedData));
-  };
-
-  const addEmotionalNote = (note: Omit<EmotionalNoteData, 'noteId'>) => {
-    if (!userData) return;
-    
-    const newNote: EmotionalNoteData = {
-      ...note,
-      noteId: generateId('note')
-    };
-    
-    const updatedData = {
-      ...userData,
-      emotionalNotes: [...userData.emotionalNotes, newNote]
-    };
-    
-    setUserData(updatedData);
-    localStorage.setItem(getStorageKey(), JSON.stringify(updatedData));
-  };
-
-  const addReflection = (reflection: Omit<ReflectionData, 'reflectionId'>) => {
-    if (!userData) return;
-    
-    const newReflection: ReflectionData = {
-      ...reflection,
-      reflectionId: generateId('reflection')
-    };
-    
-    const updatedData = {
-      ...userData,
-      reflections: [...userData.reflections, newReflection]
-    };
-    
-    setUserData(updatedData);
-    localStorage.setItem(getStorageKey(), JSON.stringify(updatedData));
-  };
-
-  // 🔥 ADVANCED ANALYTICS (EXISTING FUNCTIONALITY)
-  const getPAHMData = () => {
-    if (!userData) return null;
-    
-    const sessionsWithPAHM = userData.practiceSessions.filter(s => s.pahmCounts);
-    if (sessionsWithPAHM.length === 0) return null;
-    
-    const avgPresent = sessionsWithPAHM.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / sessionsWithPAHM.length;
-    
-    const totalPAHM = sessionsWithPAHM.reduce((totals, session) => {
-      const counts = session.pahmCounts!;
-      return {
-        present_happy: totals.present_happy + counts.present_happy,
-        present_unhappy: totals.present_unhappy + counts.present_unhappy,
-        absent_happy: totals.absent_happy + counts.absent_happy,
-        absent_unhappy: totals.absent_unhappy + counts.absent_unhappy
-      };
-    }, { present_happy: 0, present_unhappy: 0, absent_happy: 0, absent_unhappy: 0 });
-    
-    const totalCounts = Object.values(totalPAHM).reduce((sum, count) => sum + count, 0);
-    
-    return {
-      averagePresent: Math.round(avgPresent),
-      pahmDistribution: totalCounts > 0 ? {
-        present_happy: Math.round((totalPAHM.present_happy / totalCounts) * 100),
-        present_unhappy: Math.round((totalPAHM.present_unhappy / totalCounts) * 100),
-        absent_happy: Math.round((totalPAHM.absent_happy / totalCounts) * 100),
-        absent_unhappy: Math.round((totalPAHM.absent_unhappy / totalCounts) * 100)
-      } : null,
-      sessionsAnalyzed: sessionsWithPAHM.length,
-      totalObservations: totalCounts,
-      // Split by session type
-      meditationPAHM: {
-        sessions: sessionsWithPAHM.filter(s => s.sessionType === 'meditation').length,
-        avgPresent: Math.round(sessionsWithPAHM.filter(s => s.sessionType === 'meditation').reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / Math.max(1, sessionsWithPAHM.filter(s => s.sessionType === 'meditation').length))
-      },
-      mindRecoveryPAHM: {
-        sessions: sessionsWithPAHM.filter(s => s.sessionType === 'mind_recovery').length,
-        avgPresent: Math.round(sessionsWithPAHM.filter(s => s.sessionType === 'mind_recovery').reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / Math.max(1, sessionsWithPAHM.filter(s => s.sessionType === 'mind_recovery').length))
-      }
-    };
-  };
-
-  const getEnvironmentData = () => {
-    if (!userData) return null;
-    
-    const sessionsWithEnv = userData.practiceSessions.filter(s => s.environment);
-    if (sessionsWithEnv.length === 0) return null;
-    
-    const postureStats: {[key: string]: {count: number, avgRating: number}} = {};
-    const locationStats: {[key: string]: {count: number, avgRating: number}} = {};
-    const lightingStats: {[key: string]: {count: number, avgRating: number}} = {};
-    const soundStats: {[key: string]: {count: number, avgRating: number}} = {};
-    
-    sessionsWithEnv.forEach(session => {
-      const env = session.environment!;
-      const rating = session.rating || 0;
-      
-      [
-        { key: 'posture', stats: postureStats, value: env.posture },
-        { key: 'location', stats: locationStats, value: env.location },
-        { key: 'lighting', stats: lightingStats, value: env.lighting },
-        { key: 'sounds', stats: soundStats, value: env.sounds }
-      ].forEach(({ stats, value }) => {
-        if (!stats[value]) {
-          stats[value] = {count: 0, avgRating: 0};
-        }
-        stats[value].count++;
-        stats[value].avgRating = (stats[value].avgRating * (stats[value].count - 1) + rating) / stats[value].count;
-      });
-    });
-    
-    return {
-      posture: Object.entries(postureStats).map(([key, val]) => ({
-        name: key,
-        count: val.count,
-        avgRating: Math.round(val.avgRating * 10) / 10
-      })),
-      location: Object.entries(locationStats).map(([key, val]) => ({
-        name: key,
-        count: val.count,
-        avgRating: Math.round(val.avgRating * 10) / 10
-      })),
-      lighting: Object.entries(lightingStats).map(([key, val]) => ({
-        name: key,
-        count: val.count,
-        avgRating: Math.round(val.avgRating * 10) / 10
-      })),
-      sounds: Object.entries(soundStats).map(([key, val]) => ({
-        name: key,
-        count: val.count,
-        avgRating: Math.round(val.avgRating * 10) / 10
-      }))
-    };
-  };
-
-  const getProgressTrends = () => {
-    if (!userData || userData.practiceSessions.length < 5) return null;
-    
-    const recentSessions = userData.practiceSessions.slice(-10);
-    const olderSessions = userData.practiceSessions.slice(-20, -10);
-    
-    if (olderSessions.length === 0) return null;
-    
-    const recentAvgQuality = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
-    const olderAvgQuality = olderSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / olderSessions.length;
-    
-    const recentAvgPresent = recentSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / recentSessions.length;
-    const olderAvgPresent = olderSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / olderSessions.length;
-    
-    return {
-      qualityTrend: recentAvgQuality > olderAvgQuality ? 'improving' : 
-                   recentAvgQuality < olderAvgQuality ? 'declining' : 'stable',
-      presentTrend: recentAvgPresent > olderAvgPresent ? 'improving' : 
-                   recentAvgPresent < olderAvgPresent ? 'declining' : 'stable',
-      qualityChange: Math.round((recentAvgQuality - olderAvgQuality) * 10) / 10,
-      presentChange: Math.round((recentAvgPresent - olderAvgPresent) * 10) / 10,
-      recentAvgQuality: Math.round(recentAvgQuality * 10) / 10,
-      recentAvgPresent: Math.round(recentAvgPresent)
-    };
-  };
-
-  // 🔥 LOAD DATA ON MOUNT AND USER CHANGE
+  // 🔄 LOAD DATA ON MOUNT AND USER CHANGE - Fixed dependencies
   useEffect(() => {
-    const loadUserData = () => {
-      const storageKey = getStorageKey();
-      const savedData = localStorage.getItem(storageKey);
-      
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          setUserData(parsedData);
-          console.log('✅ Enhanced user data loaded from localStorage');
-        } catch (error) {
-          console.error('Error parsing saved user data:', error);
-        }
-      }
-    };
+    loadDataFromStorage();
+  }, [loadDataFromStorage]); // ✅ Added missing dependency
 
-    loadUserData();
-  }, [currentUser?.uid]);
-
-  // 🔥 SAVE DATA WHEN IT CHANGES
+  // 🔄 SYNC WITH AUTH CONTEXT WHEN DATA CHANGES - Fixed dependencies
   useEffect(() => {
     if (userData) {
-      const storageKey = getStorageKey();
-      localStorage.setItem(storageKey, JSON.stringify(userData));
+      syncWithAuthContext();
     }
-  }, [userData, currentUser?.uid]);
+  }, [userData, syncWithAuthContext]); // ✅ Added missing dependency
 
-  const value: LocalDataContextType = {
+  // 🎯 CONTEXT VALUE
+  const contextValue: LocalDataContextType = {
     userData,
     isLoading,
     
@@ -1257,10 +1633,18 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getReflections,
     getAnalyticsData,
     
-    // Mind recovery getters
+    // Mind recovery specific
     getMindRecoverySessions,
     getMeditationSessions,
     getMindRecoveryAnalytics,
+    
+    // 9-Category PAHM Analytics
+    getPAHMData,
+    getEnvironmentData,
+    getProgressTrends,
+    getComprehensiveAnalytics,
+    getPredictiveInsights,
+    exportDataForAnalysis,
     
     // Auth integration
     syncWithAuthContext,
@@ -1270,28 +1654,24 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     addPracticeSession,
     addEmotionalNote,
     addReflection,
-    
-    // Mind recovery session addition
-    addMindRecoverySession,
-    
-    // Advanced analytics
-    getPAHMData,
-    getEnvironmentData,
-    getProgressTrends
+    addMindRecoverySession
   };
 
   return (
-    <LocalDataContext.Provider value={value}>
+    <LocalDataContext.Provider value={contextValue}>
       {children}
     </LocalDataContext.Provider>
   );
 };
 
-// 🔥 HOOK TO USE CONTEXT
-export const useLocalData = () => {
+// 🎯 CUSTOM HOOK
+export const useLocalData = (): LocalDataContextType => {
   const context = useContext(LocalDataContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useLocalData must be used within a LocalDataProvider');
   }
   return context;
 };
+
+export default LocalDataContext;
+
