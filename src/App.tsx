@@ -22,6 +22,9 @@ import WhatIsPAHMWrapper from './WhatIsPAHMWrapper';
 import SeekerPracticeTimerWrapper from './SeekerPracticeTimerWrapper';
 import SeekerPracticeCompleteWrapper from './SeekerPracticeCompleteWrapper';
 
+// 🎯 ADDED: Import ImmediateReflectionWrapper
+import ImmediateReflectionWrapper from './ImmediateReflectionWrapper';
+
 // Import Chat with Guru components
 import ChatInterface from './components/Chatwithguru/ChatInterface';
 
@@ -409,6 +412,9 @@ const AppContent: React.FC = () => {
                   <Route path="/stage4" element={<Stage4Wrapper />} />
                   <Route path="/stage5" element={<Stage5Wrapper />} />
                   <Route path="/stage6" element={<Stage6Wrapper />} />
+                  
+                  {/* 🎯 ADDED: Immediate Reflection Route */}
+                  <Route path="/immediate-reflection" element={<ImmediateReflectionWrapper />} />
                   
                   {/* Learning Routes */}
                   <Route path="/learning/pahm" element={<WhatIsPAHMWrapper />} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './PAHMMatrix.css';
 import './PAHMTimer.css';
 import { useLocalData } from './contexts/LocalDataContext';
@@ -18,6 +19,7 @@ const PAHMTimer5: React.FC<PAHMTimer5Props> = ({
   stageLevel = 'Stage 5: Overcoming Subtle Dullness',
   initialMinutes: propInitialMinutes 
 }) => {
+  const navigate = useNavigate();
   const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
   const [initialMinutes, setInitialMinutes] = useState<number>(propInitialMinutes || 60);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
@@ -25,7 +27,7 @@ const PAHMTimer5: React.FC<PAHMTimer5Props> = ({
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
   
-  // 🔥 CORRECTED: Match your exact original matrix layout
+  // PAHM matrix state - using original structure
   const [pahmCounts, setPahmCounts] = useState({
     nostalgia: 0,      // Row 1, Col 1: Attachment + Past
     likes: 0,          // Row 1, Col 2: Attachment + Present  
@@ -41,7 +43,7 @@ const PAHMTimer5: React.FC<PAHMTimer5Props> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { addPracticeSession, addEmotionalNote } = useLocalData();
 
-  // 🔥 ENHANCED: Skip setup if initialMinutes prop is provided
+  // Auto-start if initialMinutes provided
   useEffect(() => {
     if (propInitialMinutes && propInitialMinutes >= 45) {
       setTimeRemaining(propInitialMinutes * 60);
@@ -50,83 +52,62 @@ const PAHMTimer5: React.FC<PAHMTimer5Props> = ({
     }
   }, [propInitialMinutes]);
 
-  // 🔥 CORRECTED: Convert to proper 3×3 matrix format for data storage
-  const convertPAHMCounts = (counts: typeof pahmCounts) => {
-    return {
-      present_attachment: counts.likes,
-      present_neutral: counts.present,
-      present_aversion: counts.dislikes,
-      past_attachment: counts.nostalgia,
-      past_neutral: counts.past,
-      past_aversion: counts.regret,
-      future_attachment: counts.anticipation,
-      future_neutral: counts.future,
-      future_aversion: counts.worry
-    };
-  };
-
-  // Calculate present percentage
-  const calculatePresentPercentage = (counts: typeof pahmCounts) => {
-    const totalCounts = Object.values(counts).reduce((sum, count) => sum + count, 0);
-    if (totalCounts === 0) return 92;
-    
-    const presentMomentCounts = counts.present + counts.likes + counts.dislikes;
-    return Math.round((presentMomentCounts / totalCounts) * 100);
-  };
-
-  // Calculate session quality
-  const calculateSessionQuality = (counts: typeof pahmCounts, duration: number, completed: boolean) => {
-    const totalInteractions = Object.values(counts).reduce((sum, count) => sum + count, 0);
-    const presentMomentAwareness = calculatePresentPercentage(counts);
-    
-    let quality = 8.0; // Higher baseline for Stage 5
-    
-    if (presentMomentAwareness >= 90) quality += 1.5;
-    else if (presentMomentAwareness >= 75) quality += 1;
-    else if (presentMomentAwareness < 60) quality -= 1;
-    
-    if (completed) quality += 0.5;
-    
-    const durationFactor = Math.min(1, duration / (60 * 60));
-    quality = quality * (0.7 + 0.3 * durationFactor);
-    
-    const interactionRate = totalInteractions / (duration / 60);
-    if (interactionRate > 10) quality -= 0.5; // Even fewer interruptions expected in Stage 5
-    else if (interactionRate < 1.5) quality += 0.5;
-    
-    return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
-  };
-
-  // Get PAHM statistics
-  const getPAHMStats = () => {
-    const totalInteractions = Object.values(pahmCounts).reduce((sum: number, count: number) => sum + count, 0);
-    const presentPercentage = calculatePresentPercentage(pahmCounts);
-    
-    return {
-      total: totalInteractions,
-      present: presentPercentage,
-      timeStats: {
-        present: pahmCounts.present + pahmCounts.likes + pahmCounts.dislikes,
-        past: pahmCounts.past + pahmCounts.nostalgia + pahmCounts.regret,
-        future: pahmCounts.future + pahmCounts.anticipation + pahmCounts.worry
-      },
-      emotionalStats: {
-        attachment: pahmCounts.likes + pahmCounts.nostalgia + pahmCounts.anticipation,
-        neutral: pahmCounts.present + pahmCounts.past + pahmCounts.future,
-        aversion: pahmCounts.dislikes + pahmCounts.regret + pahmCounts.worry
-      }
-    };
-  };
-
-  const pahmStats = getPAHMStats();
-
+  // Timer completion handler
   const handleTimerComplete = useCallback(() => {
+    // Helper functions
+    const convertPAHMCounts = (counts: typeof pahmCounts) => {
+      return {
+        present_attachment: counts.likes,
+        present_neutral: counts.present,
+        present_aversion: counts.dislikes,
+        past_attachment: counts.nostalgia,
+        past_neutral: counts.past,
+        past_aversion: counts.regret,
+        future_attachment: counts.anticipation,
+        future_neutral: counts.future,
+        future_aversion: counts.worry
+      };
+    };
+
+    const calculatePresentPercentage = (counts: typeof pahmCounts) => {
+      const totalCounts = Object.values(counts).reduce((sum, count) => sum + count, 0);
+      if (totalCounts === 0) return 92;
+      
+      const presentMomentCounts = counts.present + counts.likes + counts.dislikes;
+      return Math.round((presentMomentCounts / totalCounts) * 100);
+    };
+
+    const calculateSessionQuality = (counts: typeof pahmCounts, duration: number, completed: boolean) => {
+      const totalInteractions = Object.values(counts).reduce((sum, count) => sum + count, 0);
+      const presentMomentAwareness = calculatePresentPercentage(counts);
+      
+      let quality = 8.0;
+      
+      if (presentMomentAwareness >= 90) quality += 1.5;
+      else if (presentMomentAwareness >= 70) quality += 1;
+      else if (presentMomentAwareness < 50) quality -= 1;
+      
+      if (completed) quality += 0.5;
+      
+      const durationFactor = Math.min(1, duration / (60 * 60));
+      quality = quality * (0.7 + 0.3 * durationFactor);
+      
+      const interactionRate = totalInteractions / (duration / 60);
+      if (interactionRate > 12) quality -= 0.5;
+      else if (interactionRate < 2) quality += 0.5;
+      
+      return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
+    };
+
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
     const presentPercentage = calculatePresentPercentage(pahmCounts);
     const sessionQuality = calculateSessionQuality(pahmCounts, actualDuration, isFullyCompleted);
 
+    // Data conversion
+    const convertedPAHMCounts = convertPAHMCounts(pahmCounts);
+    
     const sessionData = {
       timestamp: endTime,
       duration: Math.round(actualDuration / 60),
@@ -134,7 +115,7 @@ const PAHMTimer5: React.FC<PAHMTimer5Props> = ({
       stageLevel: 5,
       stageLabel: stageLevel,
       rating: sessionQuality,
-      notes: `Stage 5 PAHM practice with ${Object.values(pahmCounts).reduce((a, b) => a + b, 0)} attention observations. ${presentPercentage}% present-moment awareness. Focus: Overcoming Subtle Dullness training.`,
+      notes: `Stage 5 PAHM practice with ${Object.values(pahmCounts).reduce((a, b) => a + b, 0)} attention observations. ${presentPercentage}% present-moment awareness. Focus: Overcoming Subtle Dullness.`,
       presentPercentage,
       environment: {
         posture: posture.toLowerCase(),
@@ -142,60 +123,64 @@ const PAHMTimer5: React.FC<PAHMTimer5Props> = ({
         lighting: 'natural',
         sounds: 'quiet'
       },
-      pahmCounts: convertPAHMCounts(pahmCounts)
+      pahmCounts: convertedPAHMCounts
     };
 
     addPracticeSession(sessionData);
 
-    // 🔥 ENHANCED: Stage 5 specific post-practice reflection
+    // Add emotional note
     const totalInteractions = Object.values(pahmCounts).reduce((a, b) => a + b, 0);
     const completionMessage = isFullyCompleted 
       ? `✅ Completed full ${initialMinutes}-minute Stage 5 session!`
       : `⏱️ Completed ${Math.round(actualDuration / 60)}-minute Stage 5 session.`;
     
-    const insightMessage = presentPercentage >= 90 
-      ? "🎯 Exceptional clarity and alertness! Stage 5 mastery developing." 
-      : presentPercentage >= 75 
-      ? "✨ Strong progress overcoming subtle dullness and maintaining clarity." 
-      : "🌱 Building introspective awareness and mental clarity skills.";
-
-    // Detailed analytics for post-practice reflection
-    const timeBreakdown = `⏰ Attention Distribution: Present: ${pahmStats.timeStats.present} | Past: ${pahmStats.timeStats.past} | Future: ${pahmStats.timeStats.future}`;
-    const emotionalBreakdown = `😊 Emotional Patterns: Attachment: ${pahmStats.emotionalStats.attachment} | Neutral: ${pahmStats.emotionalStats.neutral} | Aversion: ${pahmStats.emotionalStats.aversion}`;
-    const detailedCounts = `📊 Detailed Matrix: Nostalgia(${pahmCounts.nostalgia}) Past(${pahmCounts.past}) Regret(${pahmCounts.regret}) | Likes(${pahmCounts.likes}) Present(${pahmCounts.present}) Dislikes(${pahmCounts.dislikes}) | Anticipation(${pahmCounts.anticipation}) Future(${pahmCounts.future}) Worry(${pahmCounts.worry})`;
+    const insightMessage = presentPercentage >= 85 
+      ? "🎯 Outstanding introspective awareness! Stage 5 mastery emerging." 
+      : presentPercentage >= 70 
+      ? "✨ Strong progress with subtle dullness detection and clarity." 
+      : "🌱 Building introspective awareness and mental alertness.";
 
     addEmotionalNote({
       timestamp: endTime,
-      content: `${completionMessage} 
-      
-${insightMessage} 
-
-📈 Stage 5 Session Analytics:
-• Total Observations: ${totalInteractions}
-• Present Awareness: ${presentPercentage}%
-• Quality Rating: ${sessionQuality}/10
-• Focus: Overcoming Subtle Dullness
-
-${timeBreakdown}
-${emotionalBreakdown}
-${detailedCounts}
-
-🎯 Stage 5 develops strong introspective awareness to detect and overcome subtle dullness. This creates stable, clear, and alert attention for deeper meditation states.`,
+      content: `${completionMessage}\n\n${insightMessage}\n\n📈 Stage 5 Session Analytics:\n• Total Observations: ${totalInteractions}\n• Present Awareness: ${presentPercentage}%\n• Quality Rating: ${sessionQuality}/10\n• Focus: Overcoming Subtle Dullness`,
       emotion: isFullyCompleted ? 'accomplished' : 'content',
       energyLevel: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6,
-      tags: ['pahm-practice', 'stage-5', 'subtle-dullness', 'introspective-awareness', posture.toLowerCase(), '3x3-matrix'],
+      tags: ['pahm-practice', 'stage-5', 'subtle-dullness', posture.toLowerCase(), '3x3-matrix'],
       gratitude: [
         'mindfulness practice',
-        'mental clarity', 
-        'introspective awareness skills',
+        'introspective awareness', 
+        'mental clarity skills',
         isFullyCompleted ? 'session completion' : 'practice effort'
       ]
     });
 
-    onComplete();
-  }, [initialMinutes, timeRemaining, posture, pahmCounts, stageLevel, addPracticeSession, addEmotionalNote, onComplete, pahmStats]);
+    // Convert data for navigation
+    const pahmDataForReflection = {
+      presentAttachment: convertedPAHMCounts.present_attachment,
+      presentNeutral: convertedPAHMCounts.present_neutral,
+      presentAversion: convertedPAHMCounts.present_aversion,
+      pastAttachment: convertedPAHMCounts.past_attachment,
+      pastNeutral: convertedPAHMCounts.past_neutral,
+      pastAversion: convertedPAHMCounts.past_aversion,
+      futureAttachment: convertedPAHMCounts.future_attachment,
+      futureNeutral: convertedPAHMCounts.future_neutral,
+      futureAversion: convertedPAHMCounts.future_aversion
+    };
 
-  // 🔥 FIXED: Use setInterval instead of setTimeout for countdown
+    navigate('/immediate-reflection', {
+      state: {
+        stageLevel: "Stage 5",
+        stageName: "PAHM Master",
+        duration: Math.round(actualDuration / 60),
+        posture: posture,
+        pahmData: pahmDataForReflection
+      },
+      replace: true
+    });
+
+  }, [initialMinutes, timeRemaining, posture, pahmCounts, stageLevel, addPracticeSession, addEmotionalNote, navigate]);
+
+  // Timer countdown effect
   useEffect(() => {
     if (isRunning && !isPaused && timeRemaining > 0) {
       timerRef.current = setInterval(() => {
@@ -221,7 +206,7 @@ ${detailedCounts}
     };
   }, [isRunning, isPaused]);
 
-  // Separate effect for timer completion
+  // Timer completion effect
   useEffect(() => {
     if (timeRemaining === 0 && isRunning) {
       setIsRunning(false);
@@ -262,19 +247,16 @@ ${detailedCounts}
       return newCounts;
     });
 
-    // 🔥 ADDED: Gentle flash + border glow feedback combination
-    // Visual feedback: brief brightness flash + soft border glow
     setFlashingButton(quadrant);
-    setTimeout(() => setFlashingButton(null), 300); // 300ms for combined effect
+    setTimeout(() => setFlashingButton(null), 300);
 
-    // Haptic feedback for mobile devices
     if ('vibrate' in navigator) {
-      navigator.vibrate(50); // Very brief, gentle vibration
+      navigator.vibrate(50);
     }
   };
 
   const handleCompleteEarly = () => {
-    if (window.confirm('Complete this session early? Note: Stage 5 practice is most effective with full duration for developing clarity and overcoming subtle dullness.')) {
+    if (window.confirm('Complete this session early? Note: Stage 5 practice is most effective with full duration for developing introspective awareness and overcoming subtle dullness.')) {
       handleTimerComplete();
     }
   };
@@ -292,19 +274,17 @@ ${detailedCounts}
       const newTimeRemaining = Math.max(0, timeRemaining - secondsToReduce);
       setTimeRemaining(newTimeRemaining);
       
-      const additionalInteractions = Math.floor(Math.random() * (minutes * 1.2)) + Math.floor(minutes * 0.6); // Fewer interactions for Stage 5
+      const additionalInteractions = Math.floor(Math.random() * (minutes * 1.5)) + Math.floor(minutes * 0.8);
       setPahmCounts(prev => ({
         ...prev,
-        present: prev.present + Math.floor(additionalInteractions * 0.6), // Very high present-moment awareness
-        likes: prev.likes + Math.floor(additionalInteractions * 0.12),
-        dislikes: prev.dislikes + Math.floor(additionalInteractions * 0.08),
-        future: prev.future + Math.floor(additionalInteractions * 0.06),
-        worry: prev.worry + Math.floor(additionalInteractions * 0.04),
-        anticipation: prev.anticipation + Math.floor(additionalInteractions * 0.04),
-        past: prev.past + Math.floor(additionalInteractions * 0.06)
+        present: prev.present + Math.floor(additionalInteractions * 0.5),
+        likes: prev.likes + Math.floor(additionalInteractions * 0.15),
+        dislikes: prev.dislikes + Math.floor(additionalInteractions * 0.1),
+        future: prev.future + Math.floor(additionalInteractions * 0.08),
+        worry: prev.worry + Math.floor(additionalInteractions * 0.05),
+        anticipation: prev.anticipation + Math.floor(additionalInteractions * 0.05),
+        past: prev.past + Math.floor(additionalInteractions * 0.07)
       }));
-      
-      console.log(`DEV: Fast-forwarded ${minutes} minutes, added ${additionalInteractions} PAHM interactions (Stage 5)`);
     }
   };
 
@@ -433,7 +413,7 @@ ${detailedCounts}
         {formatTime(timeRemaining)}
       </div>
 
-      {/* 🔥 ADDED: Short instruction for PAHM matrix usage */}
+      {/* Instruction */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.15)',
         padding: '12px 20px',
@@ -453,7 +433,7 @@ ${detailedCounts}
         </div>
       </div>
 
-      {/* 🔥 UPDATED: 3×3 PAHM Matrix with Logo-Inspired Colors */}
+      {/* 3×3 PAHM Matrix */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
@@ -462,12 +442,11 @@ ${detailedCounts}
         maxWidth: '500px',
         width: '100%'
       }}>
-        {/* Row 1: ATTACHMENT (Emotional Tone) */}
-        {/* Past + Attachment */}
+        {/* Row 1: ATTACHMENT */}
         <button
           onClick={() => handleQuadrantClick('nostalgia')}
           style={{
-            background: 'linear-gradient(135deg, #E8B4A0 0%, #D7A86E 100%)', // Warm terracotta
+            background: 'linear-gradient(135deg, #E8B4A0 0%, #D7A86E 100%)',
             color: '#2C3E50',
             border: 'none',
             borderRadius: '10px',
@@ -490,11 +469,10 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.nostalgia}</div>
         </button>
 
-        {/* Present + Attachment */}
         <button
           onClick={() => handleQuadrantClick('likes')}
           style={{
-            background: 'linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)', // Soft mint
+            background: 'linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)',
             color: '#2C3E50',
             border: '2px solid #4A90A4',
             borderRadius: '10px',
@@ -517,11 +495,10 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.likes}</div>
         </button>
 
-        {/* Future + Attachment */}
         <button
           onClick={() => handleQuadrantClick('anticipation')}
           style={{
-            background: 'linear-gradient(135deg, #B4A7D6 0%, #9A8AC1 100%)', // Soft lavender
+            background: 'linear-gradient(135deg, #B4A7D6 0%, #9A8AC1 100%)',
             color: '#2C3E50',
             border: 'none',
             borderRadius: '10px',
@@ -544,12 +521,11 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.anticipation}</div>
         </button>
 
-        {/* Row 2: NEUTRAL (Emotional Tone) */}
-        {/* Past + Neutral */}
+        {/* Row 2: NEUTRAL */}
         <button
           onClick={() => handleQuadrantClick('past')}
           style={{
-            background: 'linear-gradient(135deg, #F4D03F 0%, #F1C40F 100%)', // Warm golden
+            background: 'linear-gradient(135deg, #F4D03F 0%, #F1C40F 100%)',
             color: '#2C3E50',
             border: 'none',
             borderRadius: '10px',
@@ -572,11 +548,10 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.past}</div>
         </button>
 
-        {/* Present + Neutral - CENTER CELL */}
         <button
           onClick={() => handleQuadrantClick('present')}
           style={{
-            background: 'linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%)', // Pure center
+            background: 'linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%)',
             color: '#2C3E50',
             border: '3px solid #4A90A4',
             borderRadius: '10px',
@@ -599,11 +574,10 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.present}</div>
         </button>
 
-        {/* Future + Neutral */}
         <button
           onClick={() => handleQuadrantClick('future')}
           style={{
-            background: 'linear-gradient(135deg, #85C1E9 0%, #5DADE2 100%)', // Calm blue
+            background: 'linear-gradient(135deg, #85C1E9 0%, #5DADE2 100%)',
             color: '#2C3E50',
             border: 'none',
             borderRadius: '10px',
@@ -626,12 +600,11 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.future}</div>
         </button>
 
-        {/* Row 3: AVERSION (Emotional Tone) */}
-        {/* Past + Aversion */}
+        {/* Row 3: AVERSION */}
         <button
           onClick={() => handleQuadrantClick('regret')}
           style={{
-            background: 'linear-gradient(135deg, #E6B8A2 0%, #D7A86E 100%)', // Muted earth
+            background: 'linear-gradient(135deg, #E6B8A2 0%, #D7A86E 100%)',
             color: '#2C3E50',
             border: 'none',
             borderRadius: '10px',
@@ -654,11 +627,10 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.regret}</div>
         </button>
 
-        {/* Present + Aversion */}
         <button
           onClick={() => handleQuadrantClick('dislikes')}
           style={{
-            background: 'linear-gradient(135deg, #F5B7B1 0%, #E8B4A0 100%)', // Soft coral
+            background: 'linear-gradient(135deg, #F5B7B1 0%, #E8B4A0 100%)',
             color: '#2C3E50',
             border: '2px solid #4A90A4',
             borderRadius: '10px',
@@ -681,11 +653,10 @@ ${detailedCounts}
           <div style={{ fontSize: '16px', marginTop: '4px' }}>{pahmCounts.dislikes}</div>
         </button>
 
-        {/* Future + Aversion */}
         <button
           onClick={() => handleQuadrantClick('worry')}
           style={{
-            background: 'linear-gradient(135deg, #D5BDDD 0%, #C8A8D8 100%)', // Muted purple
+            background: 'linear-gradient(135deg, #D5BDDD 0%, #C8A8D8 100%)',
             color: '#2C3E50',
             border: 'none',
             borderRadius: '10px',
@@ -761,6 +732,20 @@ ${detailedCounts}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
+              onClick={() => fastForwardMinutes(5)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                padding: '8px 16px',
+                border: '1px solid white',
+                borderRadius: '15px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              +5min
+            </button>
+            <button
               onClick={() => fastForwardMinutes(10)}
               style={{
                 background: 'rgba(255, 255, 255, 0.2)',
@@ -775,7 +760,7 @@ ${detailedCounts}
               +10min
             </button>
             <button
-              onClick={() => fastForwardMinutes(20)}
+              onClick={() => fastForwardMinutes(30)}
               style={{
                 background: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
@@ -786,21 +771,7 @@ ${detailedCounts}
                 cursor: 'pointer'
               }}
             >
-              +20min
-            </button>
-            <button
-              onClick={() => fastForwardMinutes(45)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                padding: '8px 16px',
-                border: '1px solid white',
-                borderRadius: '15px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              +45min
+              +30min
             </button>
           </div>
         </div>
