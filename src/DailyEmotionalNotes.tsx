@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import './DailyEmotionalNotes.css';
-import { useAuth } from './AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface EmotionalNote {
   id: string;
@@ -8,204 +6,587 @@ interface EmotionalNote {
   timestamp: string;
   emotion?: string;
   tags?: string[];
+  energyLevel?: number;
 }
 
 const DailyEmotionalNotes: React.FC = () => {
-  const { currentUser } = useAuth();
   const [notes, setNotes] = useState<EmotionalNote[]>([]);
   const [newNote, setNewNote] = useState<string>('');
   const [selectedEmotion, setSelectedEmotion] = useState<string>('neutral');
   const [tags, setTags] = useState<string>('');
+  const [energyLevel, setEnergyLevel] = useState<number>(5);
   const [viewMode, setViewMode] = useState<'create' | 'history'>('create');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
   
+  // Enhanced emotion data with better colors and descriptions
+  const emotions = [
+    { key: 'joy', name: 'Joy', icon: '😊', color: '#4caf50' },
+    { key: 'gratitude', name: 'Grateful', icon: '🙏', color: '#8bc34a' },
+    { key: 'calm', name: 'Calm', icon: '😌', color: '#00bcd4' },
+    { key: 'excited', name: 'Excited', icon: '🤩', color: '#ff9800' },
+    { key: 'neutral', name: 'Neutral', icon: '😐', color: '#9e9e9e' },
+    { key: 'thoughtful', name: 'Thoughtful', icon: '🤔', color: '#607d8b' },
+    { key: 'stressed', name: 'Stressed', icon: '😰', color: '#ff5722' },
+    { key: 'sad', name: 'Sad', icon: '😢', color: '#3f51b5' }
+  ];
+
+  // Generate unique ID
+  const generateId = (): string => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  // Save notes to localStorage
+  const saveNotes = useCallback((notesToSave: EmotionalNote[]) => {
+    try {
+      localStorage.setItem('dailyEmotionalNotes', JSON.stringify(notesToSave));
+    } catch (error) {
+      console.error('Error saving notes to localStorage:', error);
+      alert('Failed to save note. Please try again.');
+    }
+  }, []);
+
   // Load notes from localStorage on component mount
   useEffect(() => {
-    const savedNotes = localStorage.getItem('emotionalNotes');
-    if (savedNotes) {
-      try {
-        setNotes(JSON.parse(savedNotes));
-      } catch (e) {
-        console.error('Error parsing saved notes:', e);
+    try {
+      const savedNotes = localStorage.getItem('dailyEmotionalNotes');
+      if (savedNotes) {
+        const parsedNotes = JSON.parse(savedNotes);
+        setNotes(parsedNotes);
       }
+    } catch (error) {
+      console.error('Error loading notes from localStorage:', error);
+      // Don't show alert for loading errors, just log them
+    } finally {
+      setIsLoaded(true);
     }
   }, []);
   
-  // Save notes to localStorage whenever they change
+  // Save notes to localStorage whenever they change (but only after initial load)
   useEffect(() => {
-    localStorage.setItem('emotionalNotes', JSON.stringify(notes));
-  }, [notes]);
+    if (isLoaded && notes.length > 0) {
+      saveNotes(notes);
+    }
+  }, [notes, isLoaded, saveNotes]);
   
   // Handle note submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newNote.trim()) return;
     
-    const tagArray = tags
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0);
+    setIsSubmitting(true);
     
-    const newNoteObj: EmotionalNote = {
-      id: Date.now().toString(),
-      content: newNote,
-      timestamp: new Date().toISOString(),
-      emotion: selectedEmotion,
-      tags: tagArray.length > 0 ? tagArray : undefined
-    };
-    
-    setNotes([newNoteObj, ...notes]);
-    setNewNote('');
-    setSelectedEmotion('neutral');
-    setTags('');
+    try {
+      // Simulate brief processing time for better UX
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const tagArray = tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+      
+      const newNoteObj: EmotionalNote = {
+        id: generateId(),
+        content: newNote.trim(),
+        timestamp: new Date().toISOString(),
+        emotion: selectedEmotion,
+        energyLevel,
+        tags: tagArray.length > 0 ? tagArray : undefined
+      };
+      
+      const updatedNotes = [newNoteObj, ...notes];
+      setNotes(updatedNotes);
+      
+      // Reset form
+      setNewNote('');
+      setSelectedEmotion('neutral');
+      setTags('');
+      setEnergyLevel(5);
+      
+      // Switch to history view to show the new note
+      setViewMode('history');
+      
+    } catch (error) {
+      console.error('Error creating note:', error);
+      alert('Failed to create note. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Delete note function
+  const deleteNote = useCallback((noteId: string) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      const updatedNotes = notes.filter(note => note.id !== noteId);
+      setNotes(updatedNotes);
+      
+      // If no more notes, save empty array explicitly
+      if (updatedNotes.length === 0) {
+        saveNotes([]);
+      }
+    }
+  }, [notes, saveNotes]);
   
   // Format date for display
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
-  // Get emotion color
-  const getEmotionColor = (emotion: string): string => {
-    switch (emotion) {
-      case 'joy': return '#FFD700';
-      case 'sadness': return '#6495ED';
-      case 'anger': return '#FF6347';
-      case 'fear': return '#9370DB';
-      case 'disgust': return '#8FBC8F';
-      case 'surprise': return '#FF69B4';
-      default: return '#A9A9A9'; // neutral
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return `Today ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays === 1) {
+      return `Yesterday ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     }
   };
   
-  // Get emotion icon
-  const getEmotionIcon = (emotion: string): string => {
-    switch (emotion) {
-      case 'joy': return '😊';
-      case 'sadness': return '😢';
-      case 'anger': return '😠';
-      case 'fear': return '😨';
-      case 'disgust': return '🤢';
-      case 'surprise': return '😲';
-      default: return '😐'; // neutral
-    }
+  // Get emotion data
+  const getEmotionData = (emotionKey: string) => {
+    return emotions.find(e => e.key === emotionKey) || emotions.find(e => e.key === 'neutral')!;
   };
-  
+
+  // Show loading state
+  if (!isLoaded) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '20px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>📝</div>
+          <h2>Loading your notes...</h2>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="daily-emotional-notes">
-      <header className="notes-header">
-        <h1>Daily Emotional Notes</h1>
-        <p className="notes-description">
-          Track your emotional experiences throughout the day.
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: 'white',
+      padding: '20px'
+    }}>
+      {/* Header */}
+      <header style={{
+        textAlign: 'center',
+        marginBottom: '30px'
+      }}>
+        <h1 style={{ 
+          fontSize: '32px', 
+          fontWeight: 'bold', 
+          margin: '0 0 10px 0',
+          textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Daily Emotional Notes 📝
+        </h1>
+        <p style={{
+          fontSize: '16px',
+          opacity: 0.9,
+          margin: '0 0 30px 0'
+        }}>
+          Track your emotional experiences and build self-awareness
         </p>
         
-        <div className="view-toggle">
-          <button 
-            className={`view-button ${viewMode === 'create' ? 'active' : ''}`}
+        {/* View Toggle */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '10px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '25px',
+          padding: '5px',
+          maxWidth: '300px',
+          margin: '0 auto'
+        }}>
+          <button
             onClick={() => setViewMode('create')}
+            style={{
+              background: viewMode === 'create' 
+                ? 'linear-gradient(135deg, #fff 0%, #f0f0f0 100%)'
+                : 'transparent',
+              color: viewMode === 'create' ? '#333' : 'white',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              flex: 1
+            }}
           >
-            Create Note
+            ✏️ Create Note
           </button>
-          <button 
-            className={`view-button ${viewMode === 'history' ? 'active' : ''}`}
+          <button
             onClick={() => setViewMode('history')}
+            style={{
+              background: viewMode === 'history' 
+                ? 'linear-gradient(135deg, #fff 0%, #f0f0f0 100%)'
+                : 'transparent',
+              color: viewMode === 'history' ? '#333' : 'white',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              flex: 1
+            }}
           >
-            History
+            📚 History ({notes.length})
           </button>
         </div>
       </header>
       
       {viewMode === 'create' ? (
-        <div className="create-note-section">
+        <div style={{
+          maxWidth: '600px',
+          margin: '0 auto'
+        }}>
           <form onSubmit={handleSubmit}>
-            <div className="emotion-selector">
-              <label>How are you feeling?</label>
-              <div className="emotion-buttons">
-                {['joy', 'sadness', 'anger', 'fear', 'disgust', 'surprise', 'neutral'].map(emotion => (
-                  <button
-                    key={emotion}
-                    type="button"
-                    className={`emotion-button ${selectedEmotion === emotion ? 'selected' : ''}`}
-                    onClick={() => setSelectedEmotion(emotion)}
-                    style={{ 
-                      backgroundColor: selectedEmotion === emotion ? getEmotionColor(emotion) : 'transparent',
-                      color: selectedEmotion === emotion ? '#fff' : '#333'
-                    }}
-                  >
-                    <span className="emotion-icon">{getEmotionIcon(emotion)}</span>
-                    <span className="emotion-name">
-                      {emotion.charAt(0).toUpperCase() + emotion.slice(1)}
-                    </span>
-                  </button>
-                ))}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '20px',
+              padding: '30px',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+              marginBottom: '20px'
+            }}>
+              {/* Emotion Selection */}
+              <div style={{ marginBottom: '30px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  marginBottom: '15px',
+                  textAlign: 'center'
+                }}>
+                  How are you feeling? 💭
+                </label>
+                
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                  gap: '10px'
+                }}>
+                  {emotions.map(emotion => (
+                    <button
+                      key={emotion.key}
+                      type="button"
+                      onClick={() => setSelectedEmotion(emotion.key)}
+                      style={{
+                        background: selectedEmotion === emotion.key 
+                          ? `linear-gradient(135deg, ${emotion.color} 0%, ${emotion.color}dd 100%)`
+                          : 'rgba(255, 255, 255, 0.1)',
+                        color: 'white',
+                        border: selectedEmotion === emotion.key ? `2px solid ${emotion.color}` : '2px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: '15px',
+                        padding: '15px 10px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.3s ease',
+                        transform: selectedEmotion === emotion.key ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow: selectedEmotion === emotion.key ? `0 4px 15px ${emotion.color}40` : 'none'
+                      }}
+                    >
+                      <div style={{ fontSize: '24px', marginBottom: '5px' }}>{emotion.icon}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{emotion.name}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Energy Level */}
+              <div style={{ marginBottom: '30px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  marginBottom: '10px',
+                  textAlign: 'center'
+                }}>
+                  Energy Level: {energyLevel}/10 ⚡
+                </label>
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  justifyContent: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', opacity: 0.8 }}>Low</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={energyLevel}
+                    onChange={(e) => setEnergyLevel(parseInt(e.target.value))}
+                    style={{
+                      flex: 1,
+                      maxWidth: '200px',
+                      height: '8px',
+                      borderRadius: '4px',
+                      background: 'rgba(255, 255, 255, 0.3)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{ fontSize: '14px', opacity: 0.8 }}>High</span>
+                </div>
+              </div>
+              
+              {/* Note Content */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  marginBottom: '10px'
+                }}>
+                  What's happening? 📖
+                </label>
+                <textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Describe your experience, thoughts, or feelings..."
+                  required
+                  style={{
+                    width: '100%',
+                    height: '120px',
+                    padding: '15px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    outline: 'none',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+              
+              {/* Tags */}
+              <div style={{ marginBottom: '30px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  marginBottom: '10px'
+                }}>
+                  Tags (optional) 🏷️
+                </label>
+                <input
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="work, family, health, meditation..."
+                  style={{
+                    width: '100%',
+                    padding: '12px 15px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isSubmitting || !newNote.trim()}
+                style={{
+                  width: '100%',
+                  background: !newNote.trim() 
+                    ? 'rgba(255, 255, 255, 0.3)' 
+                    : isSubmitting 
+                    ? 'rgba(76, 175, 80, 0.7)'
+                    : 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '15px 30px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  cursor: !newNote.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: !newNote.trim() ? 'none' : '0 4px 15px rgba(76, 175, 80, 0.3)'
+                }}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Note'}
+              </button>
             </div>
-            
-            <div className="note-input-container">
-              <label htmlFor="note-content">What's happening?</label>
-              <textarea
-                id="note-content"
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Describe your experience..."
-                rows={5}
-                required
-              />
-            </div>
-            
-            <div className="tags-input-container">
-              <label htmlFor="note-tags">Tags (comma separated)</label>
-              <input
-                id="note-tags"
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="work, family, health..."
-              />
-            </div>
-            
-            <button type="submit" className="save-note-button">
-              Save Note
-            </button>
           </form>
         </div>
       ) : (
-        <div className="notes-history-section">
+        <div style={{
+          maxWidth: '800px',
+          margin: '0 auto'
+        }}>
           {notes.length === 0 ? (
-            <div className="empty-history">
-              <p>No notes yet. Start by creating your first emotional note!</p>
+            <div style={{
+              textAlign: 'center',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '20px',
+              padding: '40px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '20px' }}>📝</div>
+              <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>No notes yet</h3>
+              <p style={{ fontSize: '16px', opacity: 0.8 }}>
+                Start by creating your first emotional note!
+              </p>
             </div>
           ) : (
-            <div className="notes-list">
-              {notes.map(note => (
-                <div key={note.id} className="note-card">
-                  <div className="note-header">
-                    <div className="note-emotion" style={{ backgroundColor: getEmotionColor(note.emotion || 'neutral') }}>
-                      <span className="emotion-icon">{getEmotionIcon(note.emotion || 'neutral')}</span>
-                      <span className="emotion-name">
-                        {note.emotion ? note.emotion.charAt(0).toUpperCase() + note.emotion.slice(1) : 'Neutral'}
-                      </span>
+            <div style={{
+              display: 'grid',
+              gap: '20px'
+            }}>
+              {notes.map(note => {
+                const emotionData = getEmotionData(note.emotion || 'neutral');
+                return (
+                  <div
+                    key={note.id}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: '20px',
+                      padding: '25px',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                      transition: 'transform 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => deleteNote(note.id)}
+                      style={{
+                        position: 'absolute',
+                        top: '15px',
+                        right: '15px',
+                        background: 'rgba(244, 67, 54, 0.8)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '30px',
+                        height: '30px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Delete note"
+                    >
+                      ×
+                    </button>
+
+                    {/* Note Header */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '15px',
+                      paddingRight: '40px'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}>
+                        <div style={{
+                          background: `linear-gradient(135deg, ${emotionData.color} 0%, ${emotionData.color}dd 100%)`,
+                          borderRadius: '20px',
+                          padding: '8px 15px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span style={{ fontSize: '20px' }}>{emotionData.icon}</span>
+                          <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                            {emotionData.name}
+                          </span>
+                        </div>
+                        
+                        {note.energyLevel && (
+                          <div style={{
+                            background: 'rgba(255, 255, 255, 0.2)',
+                            borderRadius: '15px',
+                            padding: '5px 10px',
+                            fontSize: '12px'
+                          }}>
+                            ⚡ {note.energyLevel}/10
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{
+                        fontSize: '14px',
+                        opacity: 0.8
+                      }}>
+                        {formatDate(note.timestamp)}
+                      </div>
                     </div>
-                    <div className="note-date">{formatDate(note.timestamp)}</div>
+                    
+                    {/* Note Content */}
+                    <div style={{
+                      fontSize: '16px',
+                      lineHeight: '1.5',
+                      marginBottom: '15px'
+                    }}>
+                      {note.content}
+                    </div>
+                    
+                    {/* Tags */}
+                    {note.tags && note.tags.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}>
+                        {note.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.2)',
+                              borderRadius: '12px',
+                              padding: '4px 8px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="note-content">{note.content}</div>
-                  
-                  {note.tags && note.tags.length > 0 && (
-                    <div className="note-tags">
-                      {note.tags.map((tag, index) => (
-                        <span key={index} className="tag">{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -214,4 +595,9 @@ const DailyEmotionalNotes: React.FC = () => {
   );
 };
 
-export default DailyEmotionalNotes;
+// Wrapper component
+const DailyEmotionalNotesWrapper: React.FC = () => {
+  return <DailyEmotionalNotes />;
+};
+
+export default DailyEmotionalNotesWrapper;

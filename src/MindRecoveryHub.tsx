@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './MindRecoveryHub.css';
 
 interface MindRecoveryHubProps {
   onBack: () => void;
@@ -15,6 +14,7 @@ interface Exercise {
   category: string;
   benefits: string[];
   recommended: boolean;
+  icon: string;
 }
 
 const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({ 
@@ -35,7 +35,7 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
     goals: ['stress-reduction', 'focus']
   };
   
-  // Mock exercises data
+  // Enhanced exercises data with icons
   const mockExercises: Exercise[] = [
     {
       id: 'breathing-reset',
@@ -44,7 +44,8 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       duration: '3 min',
       category: 'stress-reduction',
       benefits: ['Reduces anxiety', 'Increases oxygen flow', 'Calms the mind'],
-      recommended: false
+      recommended: false,
+      icon: '🌬️'
     },
     {
       id: 'thought-labeling',
@@ -53,7 +54,8 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       duration: '5 min',
       category: 'awareness',
       benefits: ['Reduces rumination', 'Increases metacognition', 'Develops non-attachment'],
-      recommended: false
+      recommended: false,
+      icon: '🏷️'
     },
     {
       id: 'body-scan',
@@ -62,7 +64,8 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       duration: '4 min',
       category: 'embodiment',
       benefits: ['Increases body awareness', 'Reduces physical tension', 'Grounds attention'],
-      recommended: false
+      recommended: false,
+      icon: '🧘'
     },
     {
       id: 'gratitude-moment',
@@ -71,7 +74,8 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       duration: '2 min',
       category: 'positivity',
       benefits: ['Improves mood', 'Counters negativity bias', 'Builds resilience'],
-      recommended: false
+      recommended: false,
+      icon: '🙏'
     },
     {
       id: 'single-point-focus',
@@ -80,7 +84,8 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       duration: '5 min',
       category: 'focus',
       benefits: ['Strengthens attention', 'Reduces distractibility', 'Builds concentration'],
-      recommended: false
+      recommended: false,
+      icon: '🎯'
     },
     {
       id: 'loving-kindness',
@@ -89,7 +94,8 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       duration: '3 min',
       category: 'compassion',
       benefits: ['Increases empathy', 'Reduces self-criticism', 'Improves relationships'],
-      recommended: false
+      recommended: false,
+      icon: '💝'
     }
   ];
   
@@ -143,103 +149,300 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
   const handleExerciseSelect = (exerciseId: string) => {
     onExerciseSelect(exerciseId);
   };
-  
+
+  // Filter tab data
+  const filterTabs = [
+    { id: 'all', label: 'All', icon: '📋' },
+    { id: 'recommended', label: 'Recommended', icon: '⭐' },
+    { id: 'stress-reduction', label: 'Stress', icon: '😌' },
+    { id: 'focus', label: 'Focus', icon: '🎯' },
+    { id: 'awareness', label: 'Awareness', icon: '👁️' },
+    { id: 'embodiment', label: 'Body', icon: '🧘' }
+  ];
+
   return (
-    <div className="mind-recovery-hub">
-      <header className="hub-header">
-        <button className="back-button" onClick={onBack}>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      color: 'white',
+      padding: '20px'
+    }}>
+      {/* Header */}
+      <header style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '30px',
+        position: 'relative'
+      }}>
+        <button
+          onClick={onBack}
+          style={{
+            background: 'rgba(255, 255, 255, 0.2)',
+            color: 'white',
+            border: '2px solid white',
+            borderRadius: '25px',
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            marginRight: '20px'
+          }}
+        >
           ← Back
         </button>
-        <h1>Mind Recovery Hub</h1>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <h1 style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            margin: '0',
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            Mind Recovery Hub 🧠
+          </h1>
+        </div>
       </header>
       
-      <div className="hub-description">
-        <p>Quick practices to recover your attention and return to presence.</p>
+      {/* Description */}
+      <div style={{
+        textAlign: 'center',
+        marginBottom: '30px',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '15px',
+        padding: '20px',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <p style={{ 
+          fontSize: '18px', 
+          margin: '0',
+          opacity: 0.9
+        }}>
+          Quick practices to recover your attention and return to presence
+        </p>
       </div>
       
-      <div className="hub-filters">
-        <div className="search-container">
-          <input 
+      {/* Search and Filters */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '20px',
+        padding: '20px',
+        marginBottom: '30px',
+        backdropFilter: 'blur(10px)'
+      }}>
+        {/* Search */}
+        <div style={{ marginBottom: '20px' }}>
+          <input
             type="text"
-            placeholder="Search exercises..."
+            placeholder="🔍 Search exercises..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
+            style={{
+              width: '100%',
+              padding: '15px',
+              borderRadius: '25px',
+              border: 'none',
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              fontSize: '16px',
+              outline: 'none'
+            }}
           />
         </div>
         
-        <div className="filter-tabs">
-          <button 
-            className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All
-          </button>
-          <button 
-            className={`filter-tab ${filter === 'recommended' ? 'active' : ''}`}
-            onClick={() => setFilter('recommended')}
-          >
-            Recommended
-          </button>
-          <button 
-            className={`filter-tab ${filter === 'stress-reduction' ? 'active' : ''}`}
-            onClick={() => setFilter('stress-reduction')}
-          >
-            Stress
-          </button>
-          <button 
-            className={`filter-tab ${filter === 'focus' ? 'active' : ''}`}
-            onClick={() => setFilter('focus')}
-          >
-            Focus
-          </button>
+        {/* Filter Tabs */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+          gap: '10px'
+        }}>
+          {filterTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setFilter(tab.id)}
+              style={{
+                background: filter === tab.id
+                  ? 'linear-gradient(135deg, #fff 0%, #f0f0f0 100%)'
+                  : 'rgba(255, 255, 255, 0.2)',
+                color: filter === tab.id ? '#333' : 'white',
+                border: 'none',
+                borderRadius: '15px',
+                padding: '12px 8px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                transform: filter === tab.id ? 'scale(1.05)' : 'scale(1)',
+                boxShadow: filter === tab.id ? '0 4px 15px rgba(255,255,255,0.3)' : 'none'
+              }}
+            >
+              <div style={{ fontSize: '18px', marginBottom: '4px' }}>{tab.icon}</div>
+              <div>{tab.label}</div>
+            </button>
+          ))}
         </div>
       </div>
       
+      {/* Content */}
       {loading ? (
-        <div className="loading-indicator">
-          <p>Loading exercises...</p>
+        <div style={{
+          textAlign: 'center',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '15px',
+          padding: '40px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
+          <p style={{ fontSize: '18px', margin: '0' }}>Loading exercises...</p>
         </div>
       ) : error ? (
-        <div className="error-message">
-          <p>{error}</p>
+        <div style={{
+          textAlign: 'center',
+          background: 'rgba(244, 67, 54, 0.2)',
+          borderRadius: '15px',
+          padding: '40px',
+          border: '2px solid rgba(244, 67, 54, 0.5)'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>❌</div>
+          <p style={{ fontSize: '18px', margin: '0' }}>{error}</p>
         </div>
       ) : (
-        <div className="exercises-grid">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '20px'
+        }}>
           {filteredExercises.length === 0 ? (
-            <div className="no-results">
-              <p>No exercises found matching your criteria.</p>
+            <div style={{
+              gridColumn: '1 / -1',
+              textAlign: 'center',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '15px',
+              padding: '40px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔍</div>
+              <p style={{ fontSize: '18px', margin: '0' }}>No exercises found matching your criteria.</p>
             </div>
           ) : (
             filteredExercises.map(exercise => (
-              <div 
+              <div
                 key={exercise.id}
-                className={`exercise-card ${exercise.recommended ? 'recommended' : ''}`}
                 onClick={() => handleExerciseSelect(exercise.id)}
+                style={{
+                  background: exercise.recommended 
+                    ? 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.1) 100%)'
+                    : 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '20px',
+                  padding: '25px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(10px)',
+                  border: exercise.recommended ? '2px solid rgba(255,215,0,0.5)' : '2px solid transparent',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
                 {exercise.recommended && (
-                  <div className="recommended-badge">Recommended</div>
+                  <div style={{
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+                    color: '#333',
+                    padding: '5px 12px',
+                    borderRadius: '15px',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    ⭐ Recommended
+                  </div>
                 )}
                 
-                <h3 className="exercise-title">{exercise.title}</h3>
-                <p className="exercise-description">{exercise.description}</p>
-                
-                <div className="exercise-meta">
-                  <span className="exercise-duration">{exercise.duration}</span>
-                  <span className="exercise-category">{exercise.category}</span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '15px'
+                }}>
+                  <div style={{ fontSize: '32px', marginRight: '15px' }}>{exercise.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ 
+                      fontSize: '20px', 
+                      fontWeight: 'bold', 
+                      margin: '0 0 5px 0' 
+                    }}>
+                      {exercise.title}
+                    </h3>
+                    <div style={{
+                      display: 'flex',
+                      gap: '15px',
+                      fontSize: '14px',
+                      opacity: 0.8
+                    }}>
+                      <span>⏱️ {exercise.duration}</span>
+                      <span>📝 {exercise.category}</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="exercise-benefits">
-                  <h4>Benefits:</h4>
-                  <ul>
+                <p style={{ 
+                  fontSize: '14px', 
+                  lineHeight: '1.5', 
+                  margin: '0 0 20px 0',
+                  opacity: 0.9
+                }}>
+                  {exercise.description}
+                </p>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <h4 style={{ 
+                    fontSize: '14px', 
+                    fontWeight: 'bold', 
+                    margin: '0 0 10px 0',
+                    opacity: 0.8
+                  }}>
+                    Benefits:
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
                     {exercise.benefits.map((benefit, index) => (
-                      <li key={index}>{benefit}</li>
+                      <span
+                        key={index}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          padding: '4px 8px',
+                          borderRadius: '10px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        {benefit}
+                      </span>
                     ))}
-                  </ul>
+                  </div>
                 </div>
                 
-                <button className="start-button">
-                  Start Exercise
+                <button style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '15px',
+                  padding: '12px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)'
+                }}>
+                  Start Exercise →
                 </button>
               </div>
             ))
