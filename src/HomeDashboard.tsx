@@ -161,11 +161,11 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   };
 
   const tLevels = [
-    { level: 'T1', duration: 5, title: 'T1: Physical Stillness for 5 minutes' },
-    { level: 'T2', duration: 10, title: 'T2: Physical Stillness for 10 minutes' },
-    { level: 'T3', duration: 15, title: 'T3: Physical Stillness for 15 minutes' },
-    { level: 'T4', duration: 20, title: 'T4: Physical Stillness for 20 minutes' },
-    { level: 'T5', duration: 25, title: 'T5: Physical Stillness for 25 minutes' }
+    { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes' },
+    { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes' },
+    { level: 'T3', duration: 20, title: 'T3: Physical Stillness for 20 minutes' },
+    { level: 'T4', duration: 25, title: 'T4: Physical Stillness for 25 minutes' },
+    { level: 'T5', duration: 30, title: 'T5: Physical Stillness for 30 minutes' }
   ];
 
   const stageData = [

@@ -27,7 +27,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  const [mindWanderingCount, setMindWanderingCount] = useState<number>(0);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
   
   // Enhanced analytics integration
@@ -40,8 +39,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const t4RecorderRef = useRef<any>(null);
   const t5RecorderRef = useRef<any>(null);
   
-  // Ref for interval
-  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  // Ref for interval - FIXED: Only one timer needed
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Extract T-level from stageLevel (e.g., "T1: Physical Stillness for 10 minutes")
@@ -63,17 +61,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   };
 
   // Calculate session quality for basic stillness practice
-  const calculateSessionQuality = (duration: number, wanderingCount: number, completed: boolean) => {
+  const calculateSessionQuality = (duration: number, completed: boolean) => {
     let quality = 7; // Base quality
     
     // Completion bonus
-    if (completed) quality += 1;
-    
-    // Mind wandering factor (fewer is better for stillness)
-    const wanderingRate = wanderingCount / (duration / 60); // per minute
-    if (wanderingRate <= 2) quality += 1; // Very still
-    else if (wanderingRate <= 5) quality += 0.5; // Good stillness
-    else if (wanderingRate > 10) quality -= 1; // Restless
+    if (completed) quality += 1.5;
     
     // Duration factor
     const durationFactor = Math.min(1, duration / (10 * 60)); // 10 min baseline for T1
@@ -82,7 +74,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   };
 
-  // Start timer
+  // FIXED: Simplified start timer - no duplicate interval
   const startTimer = () => {
     setIsActive(true);
     setIsPaused(false);
@@ -92,50 +84,30 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     const now = new Date().toISOString();
     setSessionStartTime(now);
     sessionStorage.setItem('practiceStartTime', now);
-    
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
-    
-    timerInterval.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timerInterval.current as NodeJS.Timeout);
-          // Session completed naturally - mark as fully completed
-          recordSession(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
   };
   
   // Pause timer
   const pauseTimer = () => {
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
     setIsPaused(true);
   };
   
   // Resume timer
   const resumeTimer = () => {
     setIsPaused(false);
-    startTimer();
   };
   
   // Handle back button
   const handleBack = () => {
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
     onBack();
   };
 
   // Record session data using the appropriate recorder
   const recordSession = (isFullyCompleted: boolean) => {
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
     
     // Calculate time spent
@@ -208,7 +180,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
-    const sessionQuality = calculateSessionQuality(actualDuration, mindWanderingCount, isFullyCompleted);
+    const sessionQuality = calculateSessionQuality(actualDuration, isFullyCompleted);
 
     // Session data for basic stillness practice
     const sessionData = {
@@ -218,8 +190,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       stageLevel: 1,
       stageLabel: stageLevel || 'Stage 1: Stillness Practice',
       rating: sessionQuality,
-      notes: `Stillness practice session. Noticed mind wandering ${mindWanderingCount} times.`,
-      presentPercentage: Math.max(60, 100 - (mindWanderingCount * 5)), // Estimate based on wandering
+      notes: `Stillness practice session completed successfully.`,
+      presentPercentage: isFullyCompleted ? 85 : 70,
       environment: {
         posture: 'seated',
         location: 'indoor',
@@ -235,11 +207,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       ? `Completed full ${initialMinutes}-minute stillness session! 🎯`
       : `Completed ${Math.round(actualDuration / 60)}-minute stillness session.`;
     
-    const stillnessInsight = mindWanderingCount <= 3 
-      ? "Excellent stillness and focus!" 
-      : mindWanderingCount <= 8 
-      ? "Good progress in developing stillness." 
-      : "Building foundation for deeper stillness.";
+    const stillnessInsight = "Building foundation for deeper mindfulness practice.";
 
     addEmotionalNote({
       timestamp: endTime,
@@ -255,7 +223,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     });
 
     onComplete();
-  }, [initialMinutes, timeRemaining, mindWanderingCount, stageLevel, addPracticeSession, addEmotionalNote, onComplete]);
+  }, [initialMinutes, timeRemaining, stageLevel, addPracticeSession, addEmotionalNote, onComplete]);
 
   // Separate effect to handle timer completion
   useEffect(() => {
@@ -265,6 +233,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
+  // FIXED: Single timer effect - no duplicate
   useEffect(() => {
     if (isRunning && !isPaused && timeRemaining > 0) {
       timerRef.current = setInterval(() => {
@@ -299,16 +268,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setTimeRemaining(initialMinutes * 60);
     setCurrentStage('practice');
     setIsRunning(true);
-    setMindWanderingCount(0);
     setSessionStartTime(new Date().toISOString());
   };
 
   const handlePause = () => {
     setIsPaused(!isPaused);
-  };
-
-  const handleMindWandering = () => {
-    setMindWanderingCount(prev => prev + 1);
   };
 
   const handleCompleteEarly = () => {
@@ -383,10 +347,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       const newTimeRemaining = Math.max(0, timeRemaining - secondsToReduce);
       setTimeRemaining(newTimeRemaining);
       
-      // Add some mind wandering for realism
-      const additionalWandering = Math.floor(Math.random() * (minutes / 2));
-      setMindWanderingCount(prev => prev + additionalWandering);
-      
       console.log(`DEV: Fast-forwarded ${minutes} minutes`);
     }
   };
@@ -400,8 +360,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // Clean up interval on unmount
   useEffect(() => {
     return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
     };
   }, []);
@@ -515,8 +475,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             <li>Sit comfortably with your back straight</li>
             <li>Close your eyes or soften your gaze</li>
             <li>Focus on your breath or body sensations</li>
-            <li>When you notice your mind wandering, tap "Mind Wandering"</li>
-            <li>Gently return attention to your breath</li>
+            <li>Maintain physical stillness throughout the session</li>
+            <li>Gently return attention to your breath when distracted</li>
             <li>The goal is developing stillness and stability</li>
           </ul>
         </div>
@@ -663,36 +623,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           )}
         </div>
 
-        {/* Session Stats */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          padding: '15px',
-          borderRadius: '10px',
-          marginTop: '20px',
-          width: '100%',
-          maxWidth: '280px',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '14px', marginBottom: '5px' }}>
-            Mind Wandering: {mindWanderingCount} times
-          </div>
-          <button
-            onClick={handleMindWandering}
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              padding: '8px 16px',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '15px',
-              fontSize: '12px',
-              cursor: 'pointer',
-              marginTop: '5px'
-            }}
-          >
-            Mind Wandered
-          </button>
-        </div>
-
         {/* Development Controls */}
         {process.env.NODE_ENV !== 'production' && (
           <div style={{
@@ -758,4 +688,3 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
 };
 
 export default PracticeTimer;
-
