@@ -1013,18 +1013,22 @@ const AnalyticsBoard: React.FC = () => {
 
   // Clear all data
   const clearAllData = () => {
-    setPracticeData([]);
-    setEmotionalNotes([]);
-    setAppUsage({
-      lastLogin: new Date().toISOString(),
-      totalSessions: 0,
-      totalPracticeTime: 0,
-      averageSessionLength: 0,
-      longestStreak: 0,
-      currentStreak: 0,
-      averageQuality: 0,
-      averagePresentPercentage: 0
+  setPracticeData([]);
+  setEmotionalNotes([]);
+  setAppUsage({
+    lastLogin: new Date().toISOString(),
+    totalSessions: 0,
+    totalPracticeTime: 0,
+    averageSessionLength: 0,
+    longestStreak: 0,
+    currentStreak: 0,
+    averageQuality: 0,
+    averagePresentPercentage: 0
     });
+    
+    localStorage.removeItem('comprehensivePracticeData');
+    localStorage.removeItem('comprehensiveEmotionalNotes');
+    localStorage.removeItem('comprehensiveAppUsage');
     
     if (basicClear) {
       basicClear();
@@ -1493,6 +1497,98 @@ const AnalyticsBoard: React.FC = () => {
       averageRating: Math.round(averageRating * 10) / 10,
       averageDuration: Math.round(averageDuration),
       techniques
+    };
+  };
+
+  // Get app usage patterns
+  const getAppUsagePatterns = () => {
+    const { practice } = getFilteredData();
+    
+    // Session timing analysis
+    const timeOfDayStats: {[key: string]: number} = {};
+    const dayOfWeekStats: {[key: string]: number} = {};
+    const sessionLengthDistribution: {[key: string]: number} = {};
+    
+    practice.forEach(session => {
+      const date = new Date(session.date);
+      const hour = date.getHours();
+      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      // Time of day categorization
+      let timeCategory = '';
+      if (hour >= 5 && hour < 9) timeCategory = 'Early Morning (5-9 AM)';
+      else if (hour >= 9 && hour < 12) timeCategory = 'Morning (9-12 PM)';
+      else if (hour >= 12 && hour < 17) timeCategory = 'Afternoon (12-5 PM)';
+      else if (hour >= 17 && hour < 21) timeCategory = 'Evening (5-9 PM)';
+      else timeCategory = 'Night (9 PM-5 AM)';
+      
+      timeOfDayStats[timeCategory] = (timeOfDayStats[timeCategory] || 0) + 1;
+      dayOfWeekStats[dayOfWeek] = (dayOfWeekStats[dayOfWeek] || 0) + 1;
+      
+      // Session length categorization
+      let lengthCategory = '';
+      if (session.duration <= 5) lengthCategory = '1-5 minutes';
+      else if (session.duration <= 15) lengthCategory = '6-15 minutes';
+      else if (session.duration <= 30) lengthCategory = '16-30 minutes';
+      else lengthCategory = '30+ minutes';
+      
+      sessionLengthDistribution[lengthCategory] = (sessionLengthDistribution[lengthCategory] || 0) + 1;
+    });
+    
+    return {
+      timeOfDayStats,
+      dayOfWeekStats,
+      sessionLengthDistribution,
+      totalSessions: practice.length,
+      averageSessionsPerWeek: Math.round((practice.length / 4) * 10) / 10, // Assuming month view
+      consistency: practice.length > 20 ? 'High' : practice.length > 10 ? 'Medium' : 'Low'
+    };
+  };
+
+  // Get feature utilization
+  const getFeatureUtilization = () => {
+    const { practice, notes } = getFilteredData();
+    
+    const features = {
+      meditation: practice.filter(s => !s.stageLevel.includes('Mind Recovery')).length,
+      mindRecovery: practice.filter(s => s.stageLevel.includes('Mind Recovery')).length,
+      emotionalNotes: notes.length,
+      environmentTracking: practice.filter(s => s.environment).length,
+      pahmTracking: practice.filter(s => s.pahmCounts).length,
+      ratings: practice.filter(s => s.rating).length,
+      personalNotes: practice.filter(s => s.notes).length
+    };
+    
+    const totalFeatureUses = Object.values(features).reduce((sum, count) => sum + count, 0);
+    
+    return Object.entries(features).map(([feature, count]) => ({
+      feature: feature.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+      count,
+      percentage: totalFeatureUses > 0 ? Math.round((count / totalFeatureUses) * 100) : 0
+    })).sort((a, b) => b.count - a.count);
+  };
+
+  // Get engagement metrics
+  const getEngagementMetrics = () => {
+    const { practice, notes } = getFilteredData();
+    
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const lastWeekSessions = practice.filter(s => new Date(s.date) >= weekAgo).length;
+    const lastMonthSessions = practice.filter(s => new Date(s.date) >= monthAgo).length;
+    
+    const avgSessionQuality = practice.reduce((sum, s) => sum + (s.rating || 0), 0) / practice.length;
+    const notesPerSession = notes.length / practice.length;
+    
+    return {
+      weeklyFrequency: lastWeekSessions,
+      monthlyFrequency: lastMonthSessions,
+      averageQuality: Math.round(avgSessionQuality * 10) / 10,
+      engagementLevel: avgSessionQuality >= 8 ? 'High' : avgSessionQuality >= 6 ? 'Medium' : 'Low',
+      notesPerSession: Math.round(notesPerSession * 10) / 10,
+      documentationHabit: notesPerSession >= 0.5 ? 'Excellent' : notesPerSession >= 0.25 ? 'Good' : 'Basic'
     };
   };
 
@@ -3633,6 +3729,818 @@ const AnalyticsBoard: React.FC = () => {
     </div>
   );
 
+  // NEW: Render Insights Tab
+  const renderInsightsTab = () => {
+    const usagePatterns = getAppUsagePatterns();
+    const engagementMetrics = getEngagementMetrics();
+    
+    return (
+      <div>
+        <h3 style={{ 
+          fontSize: '1.8rem',
+          fontWeight: '700',
+          marginBottom: '30px',
+          color: '#333'
+        }}>
+          💡 Personalized Meditation Insights
+        </h3>
+
+        {/* Smart Recommendations */}
+        <div style={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '30px',
+          borderRadius: '20px',
+          color: 'white',
+          marginBottom: '40px',
+          boxShadow: '0 8px 30px rgba(102, 126, 234, 0.3)'
+        }}>
+          <h4 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px' }}>
+            🎯 Smart Recommendations
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ marginBottom: '10px', fontSize: '1.1rem' }}>🕐 Optimal Practice Time</h5>
+              <p style={{ lineHeight: '1.5', fontSize: '0.95rem' }}>
+                Based on your {stats.totalSessions} sessions, you perform best during <strong>{usagePatterns.timeOfDayStats && Object.entries(usagePatterns.timeOfDayStats).reduce((a, b) => usagePatterns.timeOfDayStats[a[0]] > usagePatterns.timeOfDayStats[b[0]] ? a : b)[0]}</strong>. 
+                Consider scheduling your main practice during this peak window.
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ marginBottom: '10px', fontSize: '1.1rem' }}>⏱️ Session Length Sweet Spot</h5>
+              <p style={{ lineHeight: '1.5', fontSize: '0.95rem' }}>
+                Your average session of <strong>{stats.averageDuration} minutes</strong> with <strong>{stats.averageRating}/10</strong> quality suggests 
+                {stats.averageDuration < 20 ? ' you could benefit from slightly longer sessions (20-25 min) for deeper states.' : 
+                 stats.averageDuration > 35 ? ' shorter, more frequent sessions might maintain better consistency.' : 
+                 ' you\'ve found an excellent balance for sustainable practice.'}
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ marginBottom: '10px', fontSize: '1.1rem' }}>🧠 PAHM Development Focus</h5>
+              <p style={{ lineHeight: '1.5', fontSize: '0.95rem' }}>
+                {currentPahmInsights ? 
+                  `With ${currentPahmInsights.presentPercentage}% present-moment awareness, focus on ${
+                    currentPahmInsights.presentPercentage < 70 ? 'basic attention training and breath awareness' :
+                    currentPahmInsights.presentPercentage < 85 ? 'maintaining longer periods of sustained attention' :
+                    'exploring deeper states and meta-cognitive awareness'
+                  }.` :
+                  'Start with basic PAHM tracking to understand your mental patterns and focus areas.'
+                }
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ marginBottom: '10px', fontSize: '1.1rem' }}>🌿 Environment Optimization</h5>
+              <p style={{ lineHeight: '1.5', fontSize: '0.95rem' }}>
+                {environmentAnalysisLocal.posture.length > 0 ? 
+                  `Your best environment: ${environmentAnalysisLocal.posture[0]?.name} posture, ${environmentAnalysisLocal.location[0]?.name} location, ${environmentAnalysisLocal.sounds[0]?.name} sounds. Recreate these conditions more often.` :
+                  'Track your environment settings to discover which conditions support your best sessions.'
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Insights */}
+        <div style={{ marginBottom: '40px' }}>
+          <h4 style={{ 
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            marginBottom: '20px',
+            color: '#333'
+          }}>
+            📈 Progress & Pattern Analysis
+          </h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '30px' }}>
+            {/* Consistency Analysis */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ color: '#4caf50', marginBottom: '15px', fontSize: '1.2rem' }}>🎯 Consistency Insights</h5>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Current Streak:</span>
+                  <strong style={{ color: '#4caf50' }}>{appUsage.currentStreak} days</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Weekly Frequency:</span>
+                  <strong>{engagementMetrics.weeklyFrequency} sessions</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Practice Stability:</span>
+                  <strong style={{ color: usagePatterns.consistency === 'High' ? '#4caf50' : '#ff9800' }}>
+                    {usagePatterns.consistency}
+                  </strong>
+                </div>
+              </div>
+              <div style={{ 
+                marginTop: '15px', 
+                padding: '12px', 
+                background: '#f0f8ff', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                color: '#555'
+              }}>
+                💡 {usagePatterns.consistency === 'High' ? 
+                  'Excellent consistency! Your regular practice is building strong mindfulness habits.' :
+                  'Consider setting a specific daily time for practice to improve consistency.'
+                }
+              </div>
+            </div>
+
+            {/* Quality Trends */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ color: '#667eea', marginBottom: '15px', fontSize: '1.2rem' }}>⭐ Quality Trends</h5>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Average Rating:</span>
+                  <strong style={{ color: stats.averageRating >= 8 ? '#4caf50' : '#ff9800' }}>
+                    {stats.averageRating}/10
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Engagement Level:</span>
+                  <strong>{engagementMetrics.engagementLevel}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Documentation:</span>
+                  <strong>{engagementMetrics.documentationHabit}</strong>
+                </div>
+              </div>
+              <div style={{ 
+                marginTop: '15px', 
+                padding: '12px', 
+                background: '#f8f4ff', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                color: '#555'
+              }}>
+                💡 {stats.averageRating >= 8 ? 
+                  'High-quality sessions indicate excellent practice depth and technique.' :
+                  'Focus on creating optimal conditions and trying different techniques to improve session quality.'
+                }
+              </div>
+            </div>
+
+            {/* Emotional Intelligence */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ color: '#fa709a', marginBottom: '15px', fontSize: '1.2rem' }}>💝 Emotional Intelligence</h5>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Emotional Notes:</span>
+                  <strong>{stats.totalEmotionalNotes}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Dominant Emotion:</span>
+                  <strong>{stats.mostCommonEmotion}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Energy Level:</span>
+                  <strong style={{ color: stats.averageEnergyLevel >= 7 ? '#4caf50' : '#ff9800' }}>
+                    {stats.averageEnergyLevel}/10
+                  </strong>
+                </div>
+              </div>
+              <div style={{ 
+                marginTop: '15px', 
+                padding: '12px', 
+                background: '#fff0f5', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                color: '#555'
+              }}>
+                💡 Your emotional awareness through journaling shows {stats.averageEnergyLevel >= 7 ? 'high vitality' : 'developing energy'} and good self-reflection habits.
+              </div>
+            </div>
+
+            {/* Mind Recovery Intelligence */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ color: '#ff9800', marginBottom: '15px', fontSize: '1.2rem' }}>🕐 Contextual Wisdom</h5>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Quick Sessions:</span>
+                  <strong>{stats.mindRecoverySessions}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Efficiency Rating:</span>
+                  <strong>{mindRecoveryInsights.averageRating}/10</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Integration Level:</span>
+                  <strong>{stats.mindRecoveryUsage}% of practice</strong>
+                </div>
+              </div>
+              <div style={{ 
+                marginTop: '15px', 
+                padding: '12px', 
+                background: '#fff8e1', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                color: '#555'
+              }}>
+                💡 {stats.mindRecoveryUsage >= 30 ? 
+                  'Excellent integration of mindfulness into daily life through contextual practice.' :
+                  'Consider using more Mind Recovery sessions for better mindfulness integration.'
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Predictive Insights */}
+        {predictiveInsights && (
+          <div style={{ 
+            background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+            padding: '30px',
+            borderRadius: '20px',
+            border: '2px solid #2196f3',
+            marginBottom: '40px'
+          }}>
+            <h4 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', color: '#1976d2' }}>
+              🔮 Predictive Analytics & Future Insights
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+                <h5 style={{ color: '#2196f3', marginBottom: '10px' }}>📊 Optimal Session Length</h5>
+                <div style={{ fontSize: '2rem', fontWeight: '700', color: '#1976d2', marginBottom: '5px' }}>
+                  {predictiveInsights.optimalSessionLength} min
+                </div>
+                <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                  Based on your quality ratings and completion patterns
+                </p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+                <h5 style={{ color: '#2196f3', marginBottom: '10px' }}>⏰ Best Practice Window</h5>
+                <div style={{ fontSize: '1.3rem', fontWeight: '700', color: '#1976d2', marginBottom: '5px' }}>
+                  {predictiveInsights.bestPracticeTime}
+                </div>
+                <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                  Your highest-rated sessions occur during this time
+                </p>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+                <h5 style={{ color: '#2196f3', marginBottom: '10px' }}>🔥 Streak Probability</h5>
+                <div style={{ fontSize: '2rem', fontWeight: '700', color: predictiveInsights.streakProbability >= 80 ? '#4caf50' : '#ff9800', marginBottom: '5px' }}>
+                  {predictiveInsights.streakProbability}%
+                </div>
+                <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                  Likelihood of maintaining your current practice streak
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Growth Recommendations */}
+        <div>
+          <h4 style={{ 
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            marginBottom: '20px',
+            color: '#333'
+          }}>
+            🌱 Personalized Growth Recommendations
+          </h4>
+          
+          <div style={{ display: 'grid', gap: '20px' }}>
+            {[
+              {
+                icon: '🎯',
+                title: 'Next Level Challenge',
+                content: (currentPahmInsights?.presentPercentage ?? 0) >= 80 ? 
+                  'You\'ve mastered present-moment awareness! Try exploring meta-cognitive practices and teaching others.' :
+                  (currentPahmInsights?.presentPercentage ?? 0) >= 60 ? 
+                  'Focus on extending periods of continuous attention. Try 30+ minute sessions with minimal mind-wandering.' :
+                  'Build stronger foundational attention. Practice basic breath awareness and PAHM tracking consistently.',
+                color: '#667eea',
+                priority: 'High'
+              },
+              {
+                icon: '🕐',
+                title: 'Mind Recovery Expansion',
+                content: stats.mindRecoveryUsage >= 30 ? 
+                  'Excellent contextual practice! Experiment with advanced techniques like micro-meditations and transition awareness.' :
+                  'Integrate more Mind Recovery sessions into daily activities. Try 2-5 minute practices between tasks.',
+                color: '#fa709a',
+                priority: stats.mindRecoveryUsage < 20 ? 'High' : 'Medium'
+              },
+              {
+                icon: '🌿',
+                title: 'Environment Mastery',
+                content: environmentAnalysisLocal.posture.length > 0 ? 
+                  `Your ${environmentAnalysisLocal.posture[0]?.name} setup works well. Try practicing in challenging environments to build adaptability.` :
+                  'Start tracking environmental factors to discover your optimal practice conditions.',
+                color: '#4caf50',
+                priority: 'Medium'
+              },
+              {
+                icon: '💝',
+                title: 'Emotional Intelligence',
+                content: stats.averageEnergyLevel >= 7 ? 
+                  'High emotional awareness! Explore advanced practices like loving-kindness and emotional regulation techniques.' :
+                  'Develop deeper emotional awareness through regular journaling and energy tracking.',
+                color: '#ff9800',
+                priority: stats.averageEnergyLevel < 5 ? 'High' : 'Medium'
+              }
+            ].map((rec, index) => (
+              <div key={index} style={{ 
+                background: 'white',
+                padding: '25px',
+                borderRadius: '16px',
+                border: `2px solid ${rec.color}`,
+                boxShadow: `0 4px 20px ${rec.color}20`,
+                position: 'relative'
+              }}>
+                <div style={{ 
+                  position: 'absolute',
+                  top: '15px',
+                  right: '15px',
+                  background: rec.priority === 'High' ? '#f44336' : '#ff9800',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.7rem',
+                  fontWeight: '600'
+                }}>
+                  {rec.priority} Priority
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+                  <span style={{ fontSize: '2rem' }}>{rec.icon}</span>
+                  <h5 style={{ color: rec.color, fontWeight: '700', fontSize: '1.2rem' }}>{rec.title}</h5>
+                </div>
+                <p style={{ color: '#555', lineHeight: '1.6', fontSize: '1rem' }}>{rec.content}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // NEW: Render Usage Tab
+  const renderUsageTab = () => {
+    const usagePatterns = getAppUsagePatterns();
+    const featureUtilization = getFeatureUtilization();
+    const engagementMetrics = getEngagementMetrics();
+    
+    return (
+      <div>
+        <h3 style={{ 
+          fontSize: '1.8rem',
+          fontWeight: '700',
+          marginBottom: '30px',
+          color: '#333'
+        }}>
+          📱 App Usage Analytics
+        </h3>
+
+        {/* Usage Overview */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '20px', 
+          marginBottom: '40px' 
+        }}>
+          {[
+            {
+              value: appUsage.totalSessions,
+              label: 'Total Sessions',
+              icon: '📊',
+              color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              insight: 'All-time usage'
+            },
+            {
+              value: engagementMetrics.weeklyFrequency,
+              label: 'Weekly Sessions',
+              icon: '📅',
+              color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              insight: 'Recent activity'
+            },
+            {
+              value: `${Math.round(appUsage.totalPracticeTime / 60)}h`,
+              label: 'Total Practice Time',
+              icon: '⏱️',
+              color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+              insight: 'Lifetime meditation'
+            },
+            {
+              value: `${appUsage.averageSessionLength}min`,
+              label: 'Avg Session Length',
+              icon: '🎯',
+              color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+              insight: 'Time per session'
+            },
+            {
+              value: usagePatterns.consistency,
+              label: 'Practice Consistency',
+              icon: '🔥',
+              color: usagePatterns.consistency === 'High' ? 
+                'linear-gradient(135deg, #4caf50 0%, #45a049 100%)' : 
+                'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+              insight: 'Habit strength'
+            }
+          ].map((metric, index) => (
+            <div key={index} style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              textAlign: 'center',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              transition: 'transform 0.3s, box-shadow 0.3s'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-5px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.15)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '8px' }}>{metric.icon}</div>
+              <div style={{ 
+                fontSize: '2.5rem', 
+                fontWeight: '700',
+                background: metric.color,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '8px'
+              }}>
+                {metric.value}
+              </div>
+              <div style={{ 
+                color: '#666', 
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                marginBottom: '5px'
+              }}>
+                {metric.label}
+              </div>
+              <div style={{ 
+                fontSize: '0.9rem', 
+                color: '#999',
+                fontStyle: 'italic'
+              }}>
+                {metric.insight}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Session Patterns */}
+        <div style={{ marginBottom: '40px' }}>
+          <h4 style={{ 
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            marginBottom: '20px',
+            color: '#333'
+          }}>
+            ⏰ Session Timing Patterns
+          </h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '30px' }}>
+            {/* Time of Day Analysis */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ marginBottom: '20px', color: '#333', fontSize: '1.2rem' }}>🌅 Preferred Practice Times</h5>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {Object.entries(usagePatterns.timeOfDayStats || {}).map(([time, count]) => (
+                  <div key={time} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    background: '#f8f9fa',
+                    borderRadius: '6px'
+                  }}>
+                    <span style={{ fontWeight: '500', color: '#333' }}>{time}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ 
+                        width: `${(count / Math.max(...Object.values(usagePatterns.timeOfDayStats || {}))) * 100}px`,
+                        maxWidth: '100px',
+                        height: '8px',
+                        background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
+                        borderRadius: '4px'
+                      }}></div>
+                      <span style={{ fontWeight: '600', color: '#4facfe', minWidth: '30px' }}>{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Day of Week Pattern */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ marginBottom: '20px', color: '#333', fontSize: '1.2rem' }}>📅 Weekly Practice Pattern</h5>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {Object.entries(usagePatterns.dayOfWeekStats || {}).map(([day, count]) => (
+                  <div key={day} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    background: '#f8f9fa',
+                    borderRadius: '6px'
+                  }}>
+                    <span style={{ fontWeight: '500', color: '#333' }}>{day}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ 
+                        width: `${(count / Math.max(...Object.values(usagePatterns.dayOfWeekStats || {}))) * 100}px`,
+                        maxWidth: '100px',
+                        height: '8px',
+                        background: 'linear-gradient(90deg, #fa709a 0%, #fee140 100%)',
+                        borderRadius: '4px'
+                      }}></div>
+                      <span style={{ fontWeight: '600', color: '#fa709a', minWidth: '30px' }}>{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Session Length Distribution */}
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}>
+              <h5 style={{ marginBottom: '20px', color: '#333', fontSize: '1.2rem' }}>⏱️ Session Length Preferences</h5>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {Object.entries(usagePatterns.sessionLengthDistribution || {}).map(([length, count]) => (
+                  <div key={length} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    background: '#f8f9fa',
+                    borderRadius: '6px'
+                  }}>
+                    <span style={{ fontWeight: '500', color: '#333' }}>{length}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ 
+                        width: `${(count / Math.max(...Object.values(usagePatterns.sessionLengthDistribution || {}))) * 100}px`,
+                        maxWidth: '100px',
+                        height: '8px',
+                        background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                        borderRadius: '4px'
+                      }}></div>
+                      <span style={{ fontWeight: '600', color: '#667eea', minWidth: '30px' }}>{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature Utilization */}
+        <div style={{ marginBottom: '40px' }}>
+          <h4 style={{ 
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            marginBottom: '20px',
+            color: '#333'
+          }}>
+            🛠️ Feature Utilization Analysis
+          </h4>
+          
+          <div style={{ 
+            background: 'white',
+            padding: '30px',
+            borderRadius: '16px',
+            border: '1px solid #e0e0e0',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          }}>
+            <div style={{ display: 'grid', gap: '15px' }}>
+              {featureUtilization.map((feature, index) => (
+                <div key={index} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '15px'
+                }}>
+                  <div style={{ 
+                    minWidth: '180px',
+                    fontWeight: '500',
+                    color: '#333'
+                  }}>
+                    {feature.feature}
+                  </div>
+                  <div style={{ 
+                    flex: 1,
+                    height: '24px',
+                    background: '#f0f0f0',
+                    borderRadius: '12px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ 
+                      height: '100%',
+                      width: `${feature.percentage}%`,
+                      background: `linear-gradient(90deg, ${
+                        index % 4 === 0 ? '#4facfe, #00f2fe' :
+                        index % 4 === 1 ? '#fa709a, #fee140' :
+                        index % 4 === 2 ? '#667eea, #764ba2' :
+                        '#4caf50, #45a049'
+                      })`,
+                      borderRadius: '12px',
+                      transition: 'width 0.8s ease-in-out'
+                    }}></div>
+                  </div>
+                  <div style={{ 
+                    minWidth: '80px',
+                    textAlign: 'right',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end'
+                  }}>
+                    <span style={{ fontWeight: '600', color: '#333' }}>{feature.count}</span>
+                    <span style={{ fontSize: '0.8rem', color: '#666' }}>{feature.percentage}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Engagement Metrics */}
+        <div style={{ 
+          background: 'linear-gradient(135deg, #e8f5e8 0%, #ffffff 100%)',
+          padding: '30px',
+          borderRadius: '20px',
+          border: '2px solid #4caf50',
+          marginBottom: '40px'
+        }}>
+          <h4 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', color: '#2e7d32' }}>
+            📈 Engagement & Quality Metrics
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ color: '#4caf50', marginBottom: '10px' }}>🎯 Session Quality</h5>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#2e7d32', marginBottom: '5px' }}>
+                {stats.averageRating}/10
+              </div>
+              <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                Average session quality rating
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ color: '#4caf50', marginBottom: '10px' }}>📝 Documentation Rate</h5>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2e7d32', marginBottom: '5px' }}>
+                {engagementMetrics.notesPerSession} notes/session
+              </div>
+              <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                {engagementMetrics.documentationHabit} documentation habit
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ color: '#4caf50', marginBottom: '10px' }}>🔄 Engagement Level</h5>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2e7d32', marginBottom: '5px' }}>
+                {engagementMetrics.engagementLevel}
+              </div>
+              <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                Based on session quality and frequency
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.7)', padding: '20px', borderRadius: '12px' }}>
+              <h5 style={{ color: '#4caf50', marginBottom: '10px' }}>📊 Usage Intensity</h5>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2e7d32', marginBottom: '5px' }}>
+                {usagePatterns.averageSessionsPerWeek}/week
+              </div>
+              <p style={{ fontSize: '0.9rem', color: '#555' }}>
+                Average sessions per week
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Usage Insights */}
+        <div>
+          <h4 style={{ 
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            marginBottom: '20px',
+            color: '#333'
+          }}>
+            💡 Usage Pattern Insights
+          </h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '2px solid #2196f3',
+              boxShadow: '0 4px 20px rgba(33, 150, 243, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                <span style={{ fontSize: '1.5rem' }}>📊</span>
+                <h5 style={{ color: '#2196f3', fontWeight: '700', fontSize: '1.2rem' }}>Practice Consistency Analysis</h5>
+              </div>
+              <p style={{ color: '#555', lineHeight: '1.6' }}>
+                With {usagePatterns.consistency.toLowerCase()} consistency and {engagementMetrics.weeklyFrequency} sessions per week, 
+                your practice shows {usagePatterns.consistency === 'High' ? 
+                  'excellent dedication. You\'ve built strong mindfulness habits that will yield long-term benefits.' :
+                  'good potential for improvement. Consider setting specific practice times to build stronger habits.'
+                }
+              </p>
+            </div>
+            
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '2px solid #9c27b0',
+              boxShadow: '0 4px 20px rgba(156, 39, 176, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                <span style={{ fontSize: '1.5rem' }}>🛠️</span>
+                <h5 style={{ color: '#9c27b0', fontWeight: '700', fontSize: '1.2rem' }}>Feature Adoption Patterns</h5>
+              </div>
+              <p style={{ color: '#555', lineHeight: '1.6' }}>
+                You actively use {featureUtilization.filter(f => f.count > 0).length} out of {featureUtilization.length} available features. 
+                Your most utilized feature is {featureUtilization[0]?.feature} ({featureUtilization[0]?.percentage}% of usage), 
+                showing {featureUtilization[0]?.percentage >= 30 ? 'strong engagement' : 'balanced exploration'} with the platform.
+              </p>
+            </div>
+
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '2px solid #ff9800',
+              boxShadow: '0 4px 20px rgba(255, 152, 0, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                <span style={{ fontSize: '1.5rem' }}>⏰</span>
+                <h5 style={{ color: '#ff9800', fontWeight: '700', fontSize: '1.2rem' }}>Temporal Usage Intelligence</h5>
+              </div>
+              <p style={{ color: '#555', lineHeight: '1.6' }}>
+                Your peak practice time is {Object.entries(usagePatterns.timeOfDayStats || {}).reduce((a, b) => 
+                  (usagePatterns.timeOfDayStats || {})[a[0]] > (usagePatterns.timeOfDayStats || {})[b[0]] ? a : b, ['', 0])[0]}, 
+                and you practice most on {Object.entries(usagePatterns.dayOfWeekStats || {}).reduce((a, b) => 
+                  (usagePatterns.dayOfWeekStats || {})[a[0]] > (usagePatterns.dayOfWeekStats || {})[b[0]] ? a : b, ['', 0])[0]}s. 
+                This shows strong self-awareness of your optimal practice windows.
+              </p>
+            </div>
+
+            <div style={{ 
+              background: 'white',
+              padding: '25px',
+              borderRadius: '16px',
+              border: '2px solid #4caf50',
+              boxShadow: '0 4px 20px rgba(76, 175, 80, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                <span style={{ fontSize: '1.5rem' }}>📈</span>
+                <h5 style={{ color: '#4caf50', fontWeight: '700', fontSize: '1.2rem' }}>Engagement Quality Score</h5>
+              </div>
+              <p style={{ color: '#555', lineHeight: '1.6' }}>
+                Your {engagementMetrics.engagementLevel.toLowerCase()} engagement level, {engagementMetrics.documentationHabit.toLowerCase()} documentation habits, 
+                and {stats.averageRating}/10 session quality indicate {engagementMetrics.engagementLevel === 'High' ? 
+                  'exceptional commitment to mindful practice and self-reflection.' :
+                  'solid foundation with room for deeper practice engagement.'
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Main render with loading state
   if (isLoading) {
     return (
@@ -3935,12 +4843,11 @@ const AnalyticsBoard: React.FC = () => {
         {activeTab === 'emotional' && renderEmotionalTab()}
         {activeTab === 'pahm' && renderPAHMTab()}
         {activeTab === 'environment' && renderEnvironmentTab()}
-        {activeTab === 'insights' && renderOverviewTab()}
-        {activeTab === 'usage' && renderOverviewTab()}
+        {activeTab === 'insights' && renderInsightsTab()}
+        {activeTab === 'usage' && renderUsageTab()}
       </div>
     </div>
   );
 };
 
 export default AnalyticsBoard;
-

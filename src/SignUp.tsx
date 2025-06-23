@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './SignUp.css';
-import Logo from './Logo'; // Adjust path if needed
 import GoogleIcon from './icons/GoogleIcon'; // Adjust path if needed
 import AppleIcon from './icons/AppleIcon'; // Adjust path if needed
 
@@ -41,12 +40,6 @@ const SignUp: React.FC<SignUpProps> = ({
     <div className="signup-container">
       <div className="signup-card">
         <div className="signup-content">
-          <div className="logo-section">
-            <div className="matrix-logo">
-              <Logo />
-            </div>
-          </div>
-
           <div className="signup-header">
             <h1>Create Account</h1>
             <p>Sign up to start your journey to lasting happiness</p>
@@ -112,5 +105,3 @@ const SignUp: React.FC<SignUpProps> = ({
 };
 
 export default SignUp;
-
-

@@ -310,14 +310,13 @@ const AppContent: React.FC = () => {
             }
           />
 
-          {/* Questionnaire Route */}
+          {/* Questionnaire Route - Fixed: Removed onSkip prop */}
           <Route 
             path="/questionnaire" 
             element={
               isAuthenticated ? (
                 <Questionnaire 
                   onComplete={handleQuestionnaireComplete} 
-                  onSkip={() => navigate('/introduction')}
                 />
               ) : (
                 <Navigate to="/signin" replace />
