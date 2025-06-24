@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import PageViewTracker from './components/PageViewTracker';
 import './App.css';
 import { AuthProvider, useAuth } from './AuthContext';
+import { AdminProvider } from './AdminContext'; // Add this import
 import DevPanelToggle from './DevPanelToggle';
 import MainNavigation from './MainNavigation';
 import DailyEmotionalNotesWrapper from './DailyEmotionalNotesWrapper';
@@ -471,11 +472,13 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <LocalDataProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </LocalDataProvider>
+      <AdminProvider>
+        <LocalDataProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </LocalDataProvider>
+      </AdminProvider>
     </AuthProvider>
   );
 };
