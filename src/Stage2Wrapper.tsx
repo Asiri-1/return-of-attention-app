@@ -5,7 +5,7 @@ import Stage2PostureSelection from './Stage2PostureSelection';
 import PAHMTimer2 from './PAHMTimer2';
 import PAHMReflection2 from './PAHMReflection2';
 import MainNavigation from './MainNavigation';
-import PAHMTraineePracticeRecorder from './PAHMTraineePracticeRecorder';
+// ❌ REMOVED: import PAHMTraineePracticeRecorder from './PAHMTraineePracticeRecorder';
 
 interface Stage2WrapperProps {}
 
@@ -18,7 +18,7 @@ const Stage2Wrapper: React.FC<Stage2WrapperProps> = () => {
   const [showTimer, setShowTimer] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
   const [selectedPosture, setSelectedPosture] = useState('');
-  const [sessionData, setSessionData] = useState<any>(null);
+  // ❌ REMOVED: const [sessionData, setSessionData] = useState<any>(null);
 
   // Check if coming from PAHM explanation
   const isFromPAHM = location.state && location.state.fromPAHM;
@@ -83,20 +83,7 @@ const Stage2Wrapper: React.FC<Stage2WrapperProps> = () => {
     // Default case - show introduction
   }, [effectivelyFromPAHM, isFromIntro, navigate]);
 
-  // Effect to handle session recording
-  React.useEffect(() => {
-    const recordData = sessionStorage.getItem('recordPAHMSession');
-    if (recordData) {
-      try {
-        const data = JSON.parse(recordData);
-        // This will be picked up by the PAHMTraineePracticeRecorder component
-        // which will call its recordSession method
-        sessionStorage.removeItem('recordPAHMSession'); // Clear after use
-      } catch (e) {
-        console.error("Error parsing record data:", e);
-      }
-    }
-  }, [showReflection]); // Trigger when showing reflection
+  // ❌ REMOVED: Complex session recording effect - PAHMTimer2 handles everything
 
   const handleComplete = () => {
     // For Stage 2, navigate to PAHM explanation
@@ -146,27 +133,11 @@ const Stage2Wrapper: React.FC<Stage2WrapperProps> = () => {
     });
   };
   
+  // ✅ SIMPLIFIED: Let PAHMTimer2 handle all data saving and navigation
   const handleTimerComplete = () => {
-    // When timer completes, store the selected posture for reflection
-    sessionStorage.setItem('currentPosture', selectedPosture);
+    console.log('🎯 Stage2Wrapper - Timer completed, showing reflection');
     
-    // Get practice data for recording
-    const startTime = new Date(sessionStorage.getItem('practiceStartTime') || new Date().toISOString());
-    const endTime = new Date(sessionStorage.getItem('practiceEndTime') || new Date().toISOString());
-    const practiceDuration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // in minutes
-    const pahmCounts = JSON.parse(sessionStorage.getItem('pahmTracking') || '{}');
-    
-    // Record the session using the recorder component's method
-    // This will be picked up by the PAHMTraineePracticeRecorder component
-    sessionStorage.setItem('recordPAHMSession', JSON.stringify({
-      duration: 30, // Target duration (you may want to get this from the timer)
-      timeSpent: practiceDuration,
-      isCompleted: true,
-      pahmCounts: pahmCounts
-    }));
-    
-    // Instead of navigating to a potentially non-existent route,
-    // render the PAHMReflection2 component directly in this wrapper
+    // Simple state transition - PAHMTimer2 handles all data saving
     setShowTimer(false);
     setShowReflection(true);
   };
@@ -177,12 +148,7 @@ const Stage2Wrapper: React.FC<Stage2WrapperProps> = () => {
     navigate('/home');
   };
 
-  // Handler for session recording
-  const handleRecordSession = (data: any) => {
-    setSessionData(data);
-    console.log("Session recorded:", data);
-    // You can add additional logic here if needed
-  };
+  // ❌ REMOVED: handleRecordSession function - no longer needed
 
   return (
     <MainNavigation>
@@ -211,7 +177,7 @@ const Stage2Wrapper: React.FC<Stage2WrapperProps> = () => {
           onBack={handleBack}
         />
       )}
-      <PAHMTraineePracticeRecorder onRecordSession={handleRecordSession} />
+      {/* ❌ REMOVED: <PAHMTraineePracticeRecorder onRecordSession={handleRecordSession} /> */}
     </MainNavigation>
   );
 };

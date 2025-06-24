@@ -216,6 +216,7 @@ interface ComprehensiveUserData {
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
+  refreshTrigger: number; // ✨ NEW: Auto-refresh trigger
   
   // Core methods (production only)
   clearAllData: () => void;
@@ -265,11 +266,20 @@ interface LocalDataContextType {
 // 🔧 CREATE CONTEXT
 const LocalDataContext = createContext<LocalDataContextType | undefined>(undefined);
 
-// 🚀 COMPREHENSIVE PROVIDER WITH COMPLETE FUNCTIONALITY
+// 🚀 COMPLETE PROVIDER WITH AUTO-REFRESH + ALL ORIGINAL FUNCTIONALITY
 export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, syncWithLocalData } = useAuth();
   const [userData, setUserData] = useState<ComprehensiveUserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // ✨ AUTO-REFRESH MECHANISM - This triggers component re-renders automatically
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 🔥 AUTOMATIC REFRESH FUNCTION - Called whenever data changes
+  const triggerAutoRefresh = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+    console.log('🔄 Auto-refresh triggered - all components will update automatically');
+  }, []);
 
   // 🔥 GENERATE UNIQUE IDS
   const generateId = (prefix: string): string => {
@@ -285,6 +295,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const clearAllData = () => {
     setUserData(null);
     localStorage.removeItem(getStorageKey());
+    triggerAutoRefresh(); // ✨ Auto-refresh after clearing
     console.log('🗑️ All data cleared!');
   };
 
@@ -349,6 +360,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setUserData(emptyData);
         saveDataToStorage(emptyData);
       }
+      triggerAutoRefresh(); // ✨ Auto-refresh after loading
     } catch (error) {
       console.error('Error loading data from storage:', error);
     } finally {
@@ -365,33 +377,34 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (currentUser && syncWithLocalData) {
         syncWithLocalData(data);
       }
+      triggerAutoRefresh(); // ✨ Auto-refresh after saving
     } catch (error) {
       console.error('Error saving data to storage:', error);
     }
-  }, [getStorageKey, currentUser, syncWithLocalData]);
+  }, [getStorageKey, currentUser, syncWithLocalData, triggerAutoRefresh]);
 
-  // 🔥 DATA GETTERS
+  // 🔥 DATA GETTERS - All depend on refreshTrigger for automatic updates
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions || [];
-  }, [userData?.practiceSessions]);
+  }, [userData?.practiceSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   const getDailyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
     return userData?.emotionalNotes || [];
-  }, [userData?.emotionalNotes]);
+  }, [userData?.emotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   const getReflections = useCallback((): ReflectionData[] => {
     return userData?.reflections || [];
-  }, [userData?.reflections]);
+  }, [userData?.reflections, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   const getMindRecoverySessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'mind_recovery') || [];
-  }, [userData?.practiceSessions]);
+  }, [userData?.practiceSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   const getMeditationSessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'meditation') || [];
-  }, [userData?.practiceSessions]);
+  }, [userData?.practiceSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
-  // 🧠 9-CATEGORY PAHM ANALYTICS
+  // 🧠 9-CATEGORY PAHM ANALYTICS - Auto-refreshing
   const getPAHMData = useCallback((): PAHMAnalytics | null => {
     const sessions = getPracticeSessions().filter(session => session.pahmCounts);
     
@@ -441,9 +454,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       sessionsAnalyzed: sessions.length,
       totalObservations: totalCounts
     };
-  }, [getPracticeSessions]);
+  }, [getPracticeSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
-  // 🌿 ENVIRONMENT ANALYTICS
+  // 🌿 ENVIRONMENT ANALYTICS - Auto-refreshing
   const getEnvironmentData = useCallback((): EnvironmentAnalytics => {
     const sessions = getPracticeSessions().filter(session => session.environment);
     
@@ -478,9 +491,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       lighting: groupByEnvironmentFactor('lighting'),
       sounds: groupByEnvironmentFactor('sounds')
     };
-  }, [getPracticeSessions]);
+  }, [getPracticeSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
-  // 🕐 MIND RECOVERY ANALYTICS
+  // 🕐 MIND RECOVERY ANALYTICS - Auto-refreshing
   const getMindRecoveryAnalytics = useCallback((): MindRecoveryAnalytics => {
     const mindRecoverySessions = getMindRecoverySessions();
     
@@ -550,9 +563,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       highestRatedContext: contextStats.length > 0 ? { name: contextStats[0].context, rating: contextStats[0].avgRating } : undefined,
       mostUsedContext: contextStats.length > 0 ? { name: contextStats.sort((a, b) => b.count - a.count)[0].context, count: contextStats.sort((a, b) => b.count - a.count)[0].count } : undefined
     };
-  }, [getMindRecoverySessions]);
+  }, [getMindRecoverySessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
-  // 📊 COMPREHENSIVE ANALYTICS
+  // 📊 COMPREHENSIVE ANALYTICS - Auto-refreshing
   const getAnalyticsData = useCallback((): ComprehensiveAnalytics => {
     const allSessions = getPracticeSessions();
     const meditationSessions = getMeditationSessions();
@@ -615,7 +628,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       progressTrend: avgQuality >= 8 ? 'improving' : avgQuality >= 6 ? 'stable' : 'improving',
       lastUpdated: new Date().toISOString()
     };
-  }, [getPracticeSessions, getMeditationSessions, getMindRecoverySessions, getDailyEmotionalNotes]);
+  }, [getPracticeSessions, getMeditationSessions, getMindRecoverySessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // 🔮 PREDICTIVE INSIGHTS
   const getPredictiveInsights = useCallback(() => {
@@ -649,7 +662,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       streakProbability: Math.min(95, Math.round(avgRating * 10)),
       qualityTrend: avgRating >= 8 ? 'excellent' : avgRating >= 6 ? 'good' : 'developing'
     };
-  }, [getPracticeSessions]);
+  }, [getPracticeSessions, refreshTrigger]);
 
   // 📈 PROGRESS TRENDS
   const getProgressTrends = useCallback(() => {
@@ -675,7 +688,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       qualityChange: Math.round((recentAvgRating - olderAvgRating) * 10) / 10,
       presentChange: Math.round((recentAvgPresent - olderAvgPresent) * 10) / 10
     };
-  }, [getPracticeSessions]);
+  }, [getPracticeSessions, refreshTrigger]);
 
   // 📊 COMPREHENSIVE ANALYTICS FOR EXPORT
   const getComprehensiveAnalytics = useCallback(() => {
@@ -687,7 +700,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       predictiveInsights: getPredictiveInsights(),
       progressTrends: getProgressTrends()
     };
-  }, [getAnalyticsData, getPAHMData, getEnvironmentData, getMindRecoveryAnalytics, getPredictiveInsights, getProgressTrends]);
+  }, [getAnalyticsData, getPAHMData, getEnvironmentData, getMindRecoveryAnalytics, getPredictiveInsights, getProgressTrends, refreshTrigger]);
 
   // 📤 EXPORT DATA FOR ANALYSIS
   const exportDataForAnalysis = useCallback(() => {
@@ -697,7 +710,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       exportTimestamp: new Date().toISOString(),
       version: 'production-complete-v1.0'
     };
-  }, [userData, getComprehensiveAnalytics]);
+  }, [userData, getComprehensiveAnalytics, refreshTrigger]);
 
   // 📊 DASHBOARD ANALYTICS - ALL TABS SUPPORT
   
@@ -727,7 +740,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const notes = getDailyEmotionalNotes().filter(note => new Date(note.timestamp) >= cutoffDate);
     
     return { practice, notes };
-  }, [getPracticeSessions, getDailyEmotionalNotes]);
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get practice duration trend data
   const getPracticeDurationData = useCallback((timeRange: string = 'month') => {
@@ -749,7 +762,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       date,
       duration: durationByDate[date]
     }));
-  }, [getFilteredData]);
+  }, [getFilteredData, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get emotion distribution
   const getEmotionDistribution = useCallback((timeRange: string = 'month') => {
@@ -779,7 +792,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       count,
       color: getEmotionColor(emotion)
     }));
-  }, [getFilteredData]);
+  }, [getFilteredData, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get practice distribution by stage
   const getPracticeDistribution = useCallback((timeRange: string = 'month') => {
@@ -801,7 +814,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       stage,
       count
     }));
-  }, [getFilteredData]);
+  }, [getFilteredData, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get app usage patterns
   const getAppUsagePatterns = useCallback(() => {
@@ -846,7 +859,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       averageSessionsPerWeek: Math.round((practice.length / 4) * 10) / 10,
       consistency: practice.length > 20 ? 'High' : practice.length > 10 ? 'Medium' : 'Low'
     };
-  }, [getPracticeSessions]);
+  }, [getPracticeSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get engagement metrics
   const getEngagementMetrics = useCallback(() => {
@@ -873,7 +886,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       notesPerSession: Math.round(notesPerSession * 10) / 10,
       documentationHabit: notesPerSession >= 0.5 ? 'Excellent' : notesPerSession >= 0.25 ? 'Good' : 'Basic'
     };
-  }, [getPracticeSessions, getDailyEmotionalNotes]);
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get feature utilization
   const getFeatureUtilization = useCallback(() => {
@@ -897,7 +910,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       count,
       percentage: totalFeatureUses > 0 ? Math.round((count / totalFeatureUses) * 100) : 0
     })).sort((a, b) => b.count - a.count);
-  }, [getPracticeSessions, getDailyEmotionalNotes]);
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
 
   // Get comprehensive statistics for overview
   const getComprehensiveStats = useCallback(() => {
@@ -959,12 +972,12 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       mostCommonEmotion: mostCommonEmotion.charAt(0).toUpperCase() + mostCommonEmotion.slice(1),
       averageEnergyLevel: energyLevelCount > 0 ? Math.round((totalEnergyLevel / energyLevelCount) * 10) / 10 : 0
     };
-  }, [getPracticeSessions, getDailyEmotionalNotes]);
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
 
   // Get 9-Category PAHM insights (alias for dashboard compatibility)
   const get9CategoryPAHMInsights = useCallback(() => {
     return getPAHMData();
-  }, [getPAHMData]);
+  }, [getPAHMData, refreshTrigger]);
 
   // Get Mind Recovery insights (alias for dashboard compatibility)
   const getMindRecoveryInsights = useCallback(() => {
@@ -1015,9 +1028,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       averageDuration: Math.round(averageDuration),
       techniques
     };
-  }, [getMindRecoverySessions]);
+  }, [getMindRecoverySessions, refreshTrigger]);
 
-  // 🔥 DATA MANIPULATION METHODS
+  // 🔥 DATA MANIPULATION METHODS - These trigger auto-refresh
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     if (!userData) return;
 
@@ -1051,6 +1064,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
+    
+    console.log('✅ Practice session added - auto-refresh triggered:', {
+      sessionId: newSession.sessionId,
+      stageLevel: newSession.stageLevel,
+      sessionType: newSession.sessionType,
+      duration: newSession.duration
+    });
   }, [userData, saveDataToStorage]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
@@ -1080,6 +1100,12 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
+    
+    console.log('✅ Emotional note added - auto-refresh triggered:', {
+      noteId: newNote.noteId,
+      emotion: newNote.emotion,
+      content: newNote.content
+    });
   }, [userData, saveDataToStorage]);
 
   const addReflection = useCallback((reflection: Omit<ReflectionData, 'reflectionId'>) => {
@@ -1101,6 +1127,11 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
+    
+    console.log('✅ Reflection added - auto-refresh triggered:', {
+      reflectionId: newReflection.reflectionId,
+      type: newReflection.type
+    });
   }, [userData, saveDataToStorage]);
 
   // 🔄 AUTH INTEGRATION
@@ -1129,15 +1160,16 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [userData, currentUser, syncWithLocalData]);
 
-  // 🎯 COMPLETE CONTEXT VALUE
+  // 🎯 COMPLETE CONTEXT VALUE - ALL ORIGINAL FUNCTIONALITY + AUTO-REFRESH
   const contextValue: LocalDataContextType = {
     userData,
     isLoading,
+    refreshTrigger, // ✨ Expose refresh trigger
     
     // Core methods
     clearAllData,
     
-    // Data getters
+    // Data getters (all auto-refreshing)
     getPracticeSessions,
     getDailyEmotionalNotes,
     getReflections,
@@ -1156,7 +1188,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getPredictiveInsights,
     exportDataForAnalysis,
     
-    // Dashboard Analytics - ALL TABS SUPPORT
+    // Dashboard Analytics - ALL TABS SUPPORT (all auto-refreshing)
     getFilteredData,
     getPracticeDurationData,
     getEmotionDistribution,
@@ -1172,7 +1204,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     syncWithAuthContext,
     getOnboardingStatusFromAuth,
     
-    // Data manipulation
+    // Data manipulation (these trigger auto-refresh)
     addPracticeSession,
     addEmotionalNote,
     addReflection,

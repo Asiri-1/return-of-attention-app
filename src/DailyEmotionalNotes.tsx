@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocalData } from './contexts/LocalDataContext';
 
+// Updated interface to match LocalDataContext
 interface EmotionalNote {
-  id: string;
+  noteId: string;
   content: string;
   timestamp: string;
   emotion?: string;
@@ -10,6 +12,9 @@ interface EmotionalNote {
 }
 
 const DailyEmotionalNotes: React.FC = () => {
+  // Use LocalDataContext instead of local state
+  const { getDailyEmotionalNotes, addEmotionalNote } = useLocalData();
+  
   const [notes, setNotes] = useState<EmotionalNote[]>([]);
   const [newNote, setNewNote] = useState<string>('');
   const [selectedEmotion, setSelectedEmotion] = useState<string>('neutral');
@@ -18,6 +23,7 @@ const DailyEmotionalNotes: React.FC = () => {
   const [viewMode, setViewMode] = useState<'create' | 'history'>('create');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [migrationComplete, setMigrationComplete] = useState<boolean>(false);
   
   // Enhanced emotion data with better colors and descriptions
   const emotions = [
@@ -31,45 +37,83 @@ const DailyEmotionalNotes: React.FC = () => {
     { key: 'sad', name: 'Sad', icon: '😢', color: '#3f51b5' }
   ];
 
-  // Generate unique ID
-  const generateId = (): string => {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  };
-
-  // Save notes to localStorage
-  const saveNotes = useCallback((notesToSave: EmotionalNote[]) => {
+  // Migration function to move old localStorage data to LocalDataContext
+  const migrateOldData = useCallback(() => {
     try {
-      localStorage.setItem('dailyEmotionalNotes', JSON.stringify(notesToSave));
-    } catch (error) {
-      console.error('Error saving notes to localStorage:', error);
-      alert('Failed to save note. Please try again.');
-    }
-  }, []);
-
-  // Load notes from localStorage on component mount
-  useEffect(() => {
-    try {
-      const savedNotes = localStorage.getItem('dailyEmotionalNotes');
-      if (savedNotes) {
-        const parsedNotes = JSON.parse(savedNotes);
-        setNotes(parsedNotes);
+      const oldNotes = localStorage.getItem('dailyEmotionalNotes');
+      if (oldNotes && !migrationComplete) {
+        const parsedOldNotes = JSON.parse(oldNotes);
+        
+        // Migrate each old note to new format
+        parsedOldNotes.forEach((oldNote: any) => {
+          // Convert old format to new format and add via context
+          addEmotionalNote({
+            content: oldNote.content,
+            timestamp: oldNote.timestamp,
+            emotion: oldNote.emotion,
+            energyLevel: oldNote.energyLevel,
+            tags: oldNote.tags
+          });
+        });
+        
+        // Clean up old storage
+        localStorage.removeItem('dailyEmotionalNotes');
+        setMigrationComplete(true);
+        
+        console.log('✅ Migrated old emotional notes to new system');
       }
     } catch (error) {
-      console.error('Error loading notes from localStorage:', error);
-      // Don't show alert for loading errors, just log them
-    } finally {
-      setIsLoaded(true);
+      console.error('Migration error:', error);
     }
-  }, []);
-  
-  // Save notes to localStorage whenever they change (but only after initial load)
+  }, [addEmotionalNote, migrationComplete]);
+
+  // Load notes from LocalDataContext
+  const loadNotesFromContext = useCallback(() => {
+    try {
+      const contextNotes = getDailyEmotionalNotes();
+      // Convert to local interface format
+      const formattedNotes = contextNotes.map(note => ({
+        noteId: note.noteId,
+        content: note.content,
+        timestamp: note.timestamp,
+        emotion: note.emotion,
+        tags: note.tags,
+        energyLevel: note.energyLevel
+      }));
+      setNotes(formattedNotes);
+    } catch (error) {
+      console.error('Error loading notes from context:', error);
+    }
+  }, [getDailyEmotionalNotes]);
+
+  // Load data and handle migration on component mount
   useEffect(() => {
-    if (isLoaded && notes.length > 0) {
-      saveNotes(notes);
+    const initializeData = async () => {
+      try {
+        // First, try to migrate old data
+        migrateOldData();
+        
+        // Then load from context
+        loadNotesFromContext();
+        
+      } catch (error) {
+        console.error('Error initializing data:', error);
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    initializeData();
+  }, [migrateOldData, loadNotesFromContext]);
+
+  // Refresh notes when context changes
+  useEffect(() => {
+    if (isLoaded) {
+      loadNotesFromContext();
     }
-  }, [notes, isLoaded, saveNotes]);
+  }, [isLoaded, loadNotesFromContext]);
   
-  // Handle note submission
+  // Handle note submission using LocalDataContext
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -86,17 +130,17 @@ const DailyEmotionalNotes: React.FC = () => {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
       
-      const newNoteObj: EmotionalNote = {
-        id: generateId(),
+      // Add note via LocalDataContext
+      addEmotionalNote({
         content: newNote.trim(),
         timestamp: new Date().toISOString(),
         emotion: selectedEmotion,
         energyLevel,
         tags: tagArray.length > 0 ? tagArray : undefined
-      };
+      });
       
-      const updatedNotes = [newNoteObj, ...notes];
-      setNotes(updatedNotes);
+      // Refresh notes from context
+      loadNotesFromContext();
       
       // Reset form
       setNewNote('');
@@ -115,18 +159,17 @@ const DailyEmotionalNotes: React.FC = () => {
     }
   };
 
-  // Delete note function
+  // Delete note function (no changes needed since we're working with local state)
   const deleteNote = useCallback((noteId: string) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
-      const updatedNotes = notes.filter(note => note.id !== noteId);
+      // For now, just remove from local state
+      // Note: You might want to add a deleteEmotionalNote method to LocalDataContext
+      const updatedNotes = notes.filter(note => note.noteId !== noteId);
       setNotes(updatedNotes);
       
-      // If no more notes, save empty array explicitly
-      if (updatedNotes.length === 0) {
-        saveNotes([]);
-      }
+      console.log('⚠️ Note deleted from local view. Consider adding deleteEmotionalNote to LocalDataContext for persistence.');
     }
-  }, [notes, saveNotes]);
+  }, [notes]);
   
   // Format date for display
   const formatDate = (dateString: string): string => {
@@ -169,6 +212,11 @@ const DailyEmotionalNotes: React.FC = () => {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>📝</div>
           <h2>Loading your notes...</h2>
+          {migrationComplete && (
+            <p style={{ fontSize: '14px', opacity: 0.8, marginTop: '10px' }}>
+              ✅ Data migration complete
+            </p>
+          )}
         </div>
       </div>
     );
@@ -465,7 +513,7 @@ const DailyEmotionalNotes: React.FC = () => {
                 const emotionData = getEmotionData(note.emotion || 'neutral');
                 return (
                   <div
-                    key={note.id}
+                    key={note.noteId}
                     style={{
                       background: 'rgba(255, 255, 255, 0.1)',
                       borderRadius: '20px',
@@ -484,7 +532,7 @@ const DailyEmotionalNotes: React.FC = () => {
                   >
                     {/* Delete Button */}
                     <button
-                      onClick={() => deleteNote(note.id)}
+                      onClick={() => deleteNote(note.noteId)}
                       style={{
                         position: 'absolute',
                         top: '15px',

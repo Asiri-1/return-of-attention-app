@@ -27,6 +27,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
   
   // Enhanced analytics integration
@@ -128,16 +129,28 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       timestamp: endTime,
       duration: timeSpentMinutes || initialMinutes,
       sessionType: 'meditation' as const,
-      stageLevel: getTLevelNumber(tLevel), // Convert to number
+      stageLevel: getTLevelNumber(tLevel), // Convert to number (this puts it in Stage 1)
       stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
       rating: isFullyCompleted ? 8 : 6,
       notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
       presentPercentage: isFullyCompleted ? 85 : 70,
       environment: {
-        posture: 'sitting',
+        posture: sessionStorage.getItem('currentPosture') || 'seated',
         location: 'indoor',
         lighting: 'natural',
         sounds: 'quiet'
+      },
+      // 🔥 IMPORTANT: Add empty PAHM structure for consistency
+      pahmCounts: {
+        present_attachment: 0,
+        present_neutral: 0,
+        present_aversion: 0,
+        past_attachment: 0,
+        past_neutral: 0,
+        past_aversion: 0,
+        future_attachment: 0,
+        future_neutral: 0,
+        future_aversion: 0
       }
     };
     
@@ -151,9 +164,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         content: `Successfully completed ${tLevel.toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
         emotion: 'accomplished',
         energyLevel: 8,
-        tags: ['achievement', 'physical_training', tLevel]
+        tags: ['achievement', 'physical_training', tLevel, 't-level']
       });
     }
+    
+    console.log('✅ PracticeTimer - Session saved to LocalDataContext:', enhancedSessionData);
     
     // 🔒 PRESERVE: Keep all existing functionality exactly as is
     const sessionData = {
@@ -193,10 +208,22 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       notes: `Stillness practice session completed successfully.`,
       presentPercentage: isFullyCompleted ? 85 : 70,
       environment: {
-        posture: 'seated',
+        posture: sessionStorage.getItem('currentPosture') || 'seated',
         location: 'indoor',
         lighting: 'natural',
         sounds: 'quiet'
+      },
+      // 🔥 IMPORTANT: Add empty PAHM structure for consistency
+      pahmCounts: {
+        present_attachment: 0,
+        present_neutral: 0,
+        present_aversion: 0,
+        past_attachment: 0,
+        past_neutral: 0,
+        past_aversion: 0,
+        future_attachment: 0,
+        future_neutral: 0,
+        future_aversion: 0
       }
     };
 
@@ -221,6 +248,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         isFullyCompleted ? 'session completion' : 'practice effort'
       ]
     });
+
+    console.log('✅ PracticeTimer - Timer completion saved to LocalDataContext:', sessionData);
 
     onComplete();
   }, [initialMinutes, timeRemaining, stageLevel, addPracticeSession, addEmotionalNote, onComplete]);
@@ -324,14 +353,37 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - DEV FAST-FORWARD`,
       presentPercentage: 80,
       environment: {
-        posture: 'sitting',
+        posture: sessionStorage.getItem('currentPosture') || 'seated',
         location: 'indoor',
         lighting: 'natural',
         sounds: 'quiet'
+      },
+      // 🔥 IMPORTANT: Add empty PAHM structure for consistency
+      pahmCounts: {
+        present_attachment: 0,
+        present_neutral: 0,
+        present_aversion: 0,
+        past_attachment: 0,
+        past_neutral: 0,
+        past_aversion: 0,
+        future_attachment: 0,
+        future_neutral: 0,
+        future_aversion: 0
       }
     };
     
     addPracticeSession(enhancedSessionData);
+    
+    // Add dev completion note
+    addEmotionalNote({
+      timestamp: now,
+      content: `DEV: Fast-forwarded ${tLevel.toUpperCase()} training session for testing.`,
+      emotion: 'accomplished',
+      energyLevel: 8,
+      tags: ['dev', 'fast-forward', tLevel, 't-level']
+    });
+    
+    console.log('✅ PracticeTimer - DEV fast-forward saved to LocalDataContext:', enhancedSessionData);
     
     // Log for development purposes
     console.log(`DEV: Fast-forwarded ${tLevel} practice session`);

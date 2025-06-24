@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useLocalData } from './contexts/LocalDataContext'; // Added this import
 
 interface MindRecoveryTimerProps {
   practiceType: string;
@@ -38,8 +39,9 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { currentUser } = useAuth();
+  const { addMindRecoverySession } = useLocalData(); // Added this hook
 
-  // Timer completion handler
+  // Timer completion handler - UPDATED with LocalDataContext storage
   const handleTimerComplete = useCallback(() => {
     const endTime = new Date().toISOString();
     const actualDuration = duration; // Always 5 minutes for mind recovery
@@ -56,28 +58,64 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     const presentPercentage = calculatePresentPercentage(pahmCounts);
     const totalInteractions = Object.values(pahmCounts).reduce((a, b) => a + b, 0);
 
-    // Data for storage
-    const practiceData = {
-      type: 'mind-recovery',
-      practiceType,
-      posture,
-      duration,
-      completedAt: endTime,
-      userId: currentUser?.uid || 'anonymous',
-      pahmCounts,
-      presentPercentage,
-      totalInteractions,
-      quality: totalInteractions > 0 ? 'engaged' : 'peaceful' // Simple quality measure
+    // Convert PAHM counts to LocalDataContext format
+    const formattedPahmCounts = {
+      present_attachment: pahmCounts.likes,
+      present_neutral: pahmCounts.present,
+      present_aversion: pahmCounts.dislikes,
+      past_attachment: pahmCounts.nostalgia,
+      past_neutral: pahmCounts.past,
+      past_aversion: pahmCounts.regret,
+      future_attachment: pahmCounts.anticipation,
+      future_neutral: pahmCounts.future,
+      future_aversion: pahmCounts.worry
     };
 
-    // Get existing practice history
-    const practiceHistory = JSON.parse(localStorage.getItem('mindRecoveryHistory') || '[]');
-    practiceHistory.push(practiceData);
-    localStorage.setItem('mindRecoveryHistory', JSON.stringify(practiceHistory));
+    // Determine rating based on engagement
+    const rating = totalInteractions > 15 ? 9 : 
+                   totalInteractions > 10 ? 8 : 
+                   totalInteractions > 5 ? 7 : 6;
 
-    // Complete with PAHM counts
+    // Get practice title for notes
+    const getPracticeTitle = (): string => {
+      switch (practiceType) {
+        case 'morning-recharge':
+          return 'Morning Recharge';
+        case 'emotional-reset':
+          return 'Emotional Reset';
+        case 'work-home-transition':
+          return 'Work-Home Transition';
+        case 'evening-wind-down':
+          return 'Evening Wind-Down';
+        case 'mid-day-reset':
+          return 'Mid-Day Reset';
+        default:
+          return 'Mind Recovery Practice';
+      }
+    };
+
+    // Use LocalDataContext instead of localStorage
+    addMindRecoverySession({
+      timestamp: endTime,
+      duration: actualDuration,
+      sessionType: 'mind_recovery',
+      mindRecoveryContext: practiceType as any,
+      mindRecoveryPurpose: 'stress-relief', // Default purpose
+      rating: rating,
+      notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments`,
+      presentPercentage: presentPercentage,
+      environment: {
+        posture: posture,
+        location: 'unknown',
+        lighting: 'unknown',
+        sounds: 'unknown'
+      },
+      pahmCounts: formattedPahmCounts
+    });
+
+    // Complete with PAHM counts (keep existing functionality)
     onComplete(pahmCounts);
-  }, [duration, practiceType, posture, pahmCounts, currentUser, onComplete]);
+  }, [duration, practiceType, posture, pahmCounts, currentUser, onComplete, addMindRecoverySession]);
 
   // Timer countdown effect - same as PAHMTimer2
   useEffect(() => {

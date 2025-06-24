@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Reflection.css';
 import './PAHMReflection.css';
 
+// 🔒 ORIGINAL INTERFACE - UNCHANGED
 interface PAHMReflectionProps {
   stageLevel: string;
   stageName: string;
@@ -31,28 +32,11 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
   onComplete,
   onBack
 }) => {
-  // 🔍 DEBUG: Log all props received
-  useEffect(() => {
-    console.log('🔍 PAHMReflectionShared - Component mounted with props:');
-    console.log('  stageLevel:', stageLevel);
-    console.log('  stageName:', stageName);
-    console.log('  duration:', duration);
-    console.log('  posture:', posture);
-    console.log('  pahmData:', pahmData);
-    console.log('  pahmData type:', typeof pahmData);
-    console.log('  pahmData keys:', Object.keys(pahmData || {}));
-    console.log('  pahmData JSON:', JSON.stringify(pahmData, null, 2));
-  }, [stageLevel, stageName, duration, posture, pahmData]);
-
-  // State for star rating
+  // 🔒 ORIGINAL STATE - UNCHANGED
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
-  
-  // State for text feedback
   const [feedback, setFeedback] = useState<string>('');
   const [insights, setInsights] = useState<string>('');
-  
-  // State for challenges
   const [challenges, setChallenges] = useState<{[key: string]: boolean}>({
     discomfort: false,
     sleepiness: false,
@@ -62,8 +46,18 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     anxiety: false,
     other: false
   });
+
+  // 🔥 ONLY ADDITION: Better logging for debugging
+  useEffect(() => {
+    console.log('🔍 PAHMReflectionShared - Component mounted with props:');
+    console.log('  stageLevel:', stageLevel);
+    console.log('  stageName:', stageName);
+    console.log('  duration:', duration);
+    console.log('  posture:', posture);
+    console.log('  pahmData:', pahmData);
+  }, [stageLevel, stageName, duration, posture, pahmData]);
   
-  // Format posture name for display
+  // 🔒 ORIGINAL FUNCTIONS - UNCHANGED
   const formatPostureName = (postureId: string): string => {
     switch(postureId) {
       case 'chair': return 'Chair Sitting';
@@ -80,12 +74,10 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     }
   };
   
-  // Handle star rating
   const handleRatingClick = (value: number) => {
     setRating(value);
   };
   
-  // Handle challenge checkbox change
   const handleChallengeChange = (challenge: string) => {
     setChallenges(prev => ({
       ...prev,
@@ -93,42 +85,36 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     }));
   };
   
-  // Calculate PAHM totals
+  // 🔥 ONLY CHANGE: Better data validation and calculation
   const calculatePAHMTotals = () => {
-    // 🔍 DEBUG: Log calculation process
     console.log('🔍 PAHMReflectionShared - calculatePAHMTotals called');
     console.log('🔍 Input pahmData for calculation:', pahmData);
     
-    // Default empty values to 0
+    // Ensure all values are numbers with better validation
     const data = {
-      presentAttachment: pahmData?.presentAttachment || 0,
-      presentNeutral: pahmData?.presentNeutral || 0,
-      presentAversion: pahmData?.presentAversion || 0,
-      pastAttachment: pahmData?.pastAttachment || 0,
-      pastNeutral: pahmData?.pastNeutral || 0,
-      pastAversion: pahmData?.pastAversion || 0,
-      futureAttachment: pahmData?.futureAttachment || 0,
-      futureNeutral: pahmData?.futureNeutral || 0,
-      futureAversion: pahmData?.futureAversion || 0
+      presentAttachment: Number(pahmData?.presentAttachment) || 0,
+      presentNeutral: Number(pahmData?.presentNeutral) || 0,
+      presentAversion: Number(pahmData?.presentAversion) || 0,
+      pastAttachment: Number(pahmData?.pastAttachment) || 0,
+      pastNeutral: Number(pahmData?.pastNeutral) || 0,
+      pastAversion: Number(pahmData?.pastAversion) || 0,
+      futureAttachment: Number(pahmData?.futureAttachment) || 0,
+      futureNeutral: Number(pahmData?.futureNeutral) || 0,
+      futureAversion: Number(pahmData?.futureAversion) || 0
     };
     
-    // 🔍 DEBUG: Log processed data
     console.log('🔍 Processed PAHM data:', data);
     
-    // Calculate time dimension totals
     const presentTotal = data.presentAttachment + data.presentNeutral + data.presentAversion;
     const pastTotal = data.pastAttachment + data.pastNeutral + data.pastAversion;
     const futureTotal = data.futureAttachment + data.futureNeutral + data.futureAversion;
     
-    // Calculate emotional tone totals
     const attachmentTotal = data.presentAttachment + data.pastAttachment + data.futureAttachment;
     const neutralTotal = data.presentNeutral + data.pastNeutral + data.futureNeutral;
     const aversionTotal = data.presentAversion + data.pastAversion + data.futureAversion;
     
-    // Calculate grand total
     const grandTotal = presentTotal + pastTotal + futureTotal;
     
-    // 🔍 DEBUG: Log calculated totals
     console.log('🔍 Calculated totals:', {
       presentTotal,
       pastTotal,
@@ -151,21 +137,17 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     };
   };
   
-  // Get PAHM totals
   const pahmTotals = calculatePAHMTotals();
   
-  // Calculate percentage
   const getPercentage = (count: number) => {
     if (pahmTotals.grandTotal === 0) return 0;
     return Math.round((count / pahmTotals.grandTotal) * 100);
   };
   
-  // Handle form submission
+  // 🔒 ORIGINAL SUBMIT HANDLER - UNCHANGED
   const handleSubmit = () => {
-    // 🔍 DEBUG: Log reflection submission
     console.log('🔍 PAHMReflectionShared - Submitting reflection with data:');
     
-    // Save reflection data to localStorage or sessionStorage if needed
     const reflectionData = {
       stageLevel,
       stageName,
@@ -182,16 +164,15 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     
     console.log('🔍 Reflection data to save:', reflectionData);
     
-    // Store in localStorage for history
     const previousReflections = JSON.parse(localStorage.getItem('reflectionHistory') || '[]');
     localStorage.setItem('reflectionHistory', JSON.stringify([...previousReflections, reflectionData]));
     
     console.log('🔍 Reflection saved to localStorage');
     
-    // Complete the reflection
     onComplete();
   };
 
+  // 🔒 ORIGINAL UI - COMPLETELY UNCHANGED
   return (
     <div className="reflection-screen">
       <div className="reflection-header">
@@ -222,7 +203,7 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
             Below are the total counts of where your attention went during practice.
           </p>
           
-          {/* 🔍 DEBUG: Display raw data on screen temporarily */}
+          {/* 🔥 ONLY ADDITION: Debug display in development */}
           {process.env.NODE_ENV !== 'production' && (
             <div style={{
               background: '#f0f0f0', 
@@ -240,7 +221,6 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
           )}
           
           <div className="pahm-matrix-results">
-            {/* 🚨 FIXED: Proper grid layout without display: contents */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: '120px 100px 100px 100px 100px 100px',
