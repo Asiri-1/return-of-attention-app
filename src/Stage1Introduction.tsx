@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 import './StageLevelIntroduction.css';
 
 interface Stage1IntroductionProps {
@@ -14,26 +15,58 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
   hasSeenBefore = false
 }) => {
   const [currentSlide, setCurrentSlide] = React.useState(0);
-  const stageNumber = 1; // Hardcoded to stage 1
+  const stageNumber = 1;
   const navigate = useNavigate();
   
-  // We're removing the auto-skip logic to ensure the introduction is always shown
-  // Users can still manually skip using the skip button if needed
+  const { updateUserProfileInContext, currentUser } = useAuth(); // ✅ ADD: Get currentUser to check state
   
-  // Mark this stage's introduction as completed
+  // ✅ FIXED: Mark introduction AND assessment as completed with proper timing
   const markIntroCompleted = () => {
+    console.log('🔍 DEBUG: markIntroCompleted called');
+    console.log('🔍 DEBUG: Current user before update:', currentUser);
+    
+    // Update localStorage (existing logic)
     const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
     if (!completedIntros.includes(stageNumber)) {
       completedIntros.push(stageNumber);
       localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
     }
+    
+    console.log('🔍 DEBUG: About to update AuthContext...');
+    
+    // ✅ CRITICAL: Update user assessment status in AuthContext
+    updateUserProfileInContext({ 
+      assessmentCompleted: true,
+      currentStage: '1'
+    });
+    
+    console.log('✅ Stage 1 introduction completed - assessment marked as complete');
   };
   
-  // Handle skip button click
+  // ✅ FIXED: Handle skip with delay to ensure state update
   const handleSkip = () => {
     markIntroCompleted();
-    // Navigate directly to home page using React Router instead of window.location
-    navigate('/home');
+    
+    // ✅ ADD: Small delay to ensure state propagation
+    setTimeout(() => {
+      console.log('🔍 DEBUG: Navigating to /home after state update');
+      navigate('/home');
+    }, 100);
+  };
+  
+  // ✅ FIXED: Handle next slide completion with delay  
+  const nextSlide = () => {
+    if (currentSlide < slides.length - 1) {
+      setCurrentSlide(currentSlide + 1);
+    } else {
+      markIntroCompleted();
+      
+      // ✅ ADD: Small delay to ensure state propagation
+      setTimeout(() => {
+        console.log('🔍 DEBUG: Navigating to /home after completion');
+        navigate('/home');
+      }, 100);
+    }
   };
   
   const stageTitle = "Seeker: Physical Readiness";
@@ -53,18 +86,6 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   ];
   
-  const nextSlide = () => {
-    if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
-    } else {
-      // Mark this introduction as completed
-      markIntroCompleted();
-      
-      // Navigate to home page using React Router instead of window.location
-      navigate('/home');
-    }
-  };
-  
   const prevSlide = () => {
     if (currentSlide > 0) {
       setCurrentSlide(currentSlide - 1);
@@ -73,7 +94,6 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   };
   
-  // Determine button text based on current slide
   const getButtonText = () => {
     if (currentSlide < slides.length - 1) {
       return "Next";
@@ -84,7 +104,6 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
   // Show a welcome back message for returning users
   useEffect(() => {
     if (hasSeenBefore) {
-      // Add a small delay to ensure the UI is rendered before showing the message
       const timer = setTimeout(() => {
         const welcomeMessage = document.createElement('div');
         welcomeMessage.className = 'welcome-back-message';
@@ -96,7 +115,6 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
         `;
         document.querySelector('.stage-level-introduction')?.appendChild(welcomeMessage);
         
-        // Remove the message after 3 seconds
         setTimeout(() => {
           document.querySelector('.welcome-back-message')?.remove();
         }, 3000);

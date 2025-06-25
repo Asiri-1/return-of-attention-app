@@ -1,73 +1,101 @@
 import React, { useState } from 'react';
 
-interface Stage5PostureSelectionProps {
+// 🎯 ONE UNIVERSAL INTERFACE - Handles all your current props
+interface UniversalPostureSelectionProps {
   onBack: () => void;
   onStartPractice: (selectedPosture: string) => void;
+  
+  // Support both your current prop patterns
+  stageNumber?: number;        // From PostureSelection.tsx
+  currentTLevel?: string;      // From Stage1PostureSelection.tsx
+  
+  // Optional: for future extensibility
+  sessionType?: 'meditation' | 'mind_recovery';
+  showDuration?: boolean;
 }
 
-const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
+const UniversalPostureSelection: React.FC<UniversalPostureSelectionProps> = ({
   onBack,
-  onStartPractice
+  onStartPractice,
+  stageNumber,
+  currentTLevel,
+  sessionType = 'meditation',
+  showDuration = true
 }) => {
   const [selectedPosture, setSelectedPosture] = useState<string>('');
-     
+  
+  // 🧘 SAME 9 POSTURES - From your existing components
   const postures = [
-    { 
-      id: 'chair', 
-      name: 'Chair Sitting', 
-      description: 'Sitting upright on a chair with feet flat on the floor',
-      icon: '🪑'
-    },
-    { 
-      id: 'cushion', 
-      name: 'Cushion Sitting', 
-      description: 'Sitting cross-legged on a meditation cushion',
-      icon: '🧘'
-    },
-    { 
-      id: 'seiza', 
-      name: 'Seiza Position', 
-      description: 'Kneeling with weight resting on cushion or bench',
-      icon: '🙏'
-    },
-    { 
-      id: 'burmese', 
-      name: 'Burmese Position', 
-      description: 'Sitting with both legs bent and resting on the floor',
-      icon: '🕉️'
-    },
-    { 
-      id: 'lotus', 
-      name: 'Half Lotus', 
-      description: 'One foot resting on the opposite thigh',
-      icon: '🧘‍♂️'
-    },
-    { 
-      id: 'full-lotus', 
-      name: 'Full Lotus', 
-      description: 'Both feet resting on opposite thighs',
-      icon: '🧘‍♀️'
-    },
-    { 
-      id: 'lying', 
-      name: 'Lying Down', 
-      description: 'Lying flat on back with arms at sides',
-      icon: '🛏️'
-    },
-    { 
-      id: 'standing', 
-      name: 'Standing', 
-      description: 'Standing with feet shoulder-width apart',
-      icon: '🧍'
-    },
-    { 
-      id: 'other', 
-      name: 'Other', 
-      description: 'Another posture not listed here',
-      icon: '❓'
-    }
+    { id: 'chair', name: 'Chair Sitting', description: 'Sitting upright on a chair with feet flat on the floor', icon: '🪑' },
+    { id: 'cushion', name: 'Cushion Sitting', description: 'Sitting cross-legged on a meditation cushion', icon: '🧘' },
+    { id: 'seiza', name: 'Seiza Position', description: 'Kneeling with weight resting on cushion or bench', icon: '🙏' },
+    { id: 'burmese', name: 'Burmese Position', description: 'Sitting with both legs bent and resting on the floor', icon: '🕉️' },
+    { id: 'lotus', name: 'Half Lotus', description: 'One foot resting on the opposite thigh', icon: '🧘‍♂️' },
+    { id: 'full-lotus', name: 'Full Lotus', description: 'Both feet resting on opposite thighs', icon: '🧘‍♀️' },
+    { id: 'lying', name: 'Lying Down', description: 'Lying flat on back with arms at sides', icon: '🛏️' },
+    { id: 'standing', name: 'Standing', description: 'Standing with feet shoulder-width apart', icon: '🧍' },
+    { id: 'other', name: 'Other', description: 'Another posture not listed here', icon: '❓' }
   ];
-     
+
+  // 🎯 SMART LOGIC - Handles both your current patterns
+  const getDisplayInfo = () => {
+    // If currentTLevel is provided (Stage1PostureSelection.tsx pattern)
+    if (currentTLevel) {
+      return {
+        title: `Seeker Practice Setup - ${currentTLevel}`,
+        stageName: 'Seeker',
+        duration: getDurationFromTLevel(currentTLevel),
+        practiceType: 'Physical Stillness',
+        instructions: 'Tracking your posture helps identify which positions work best for your physical stillness practice.'
+      };
+    }
+    
+    // If stageNumber is provided (PostureSelection.tsx pattern)  
+    if (stageNumber) {
+      return {
+        title: `${getStageName(stageNumber)} Practice Setup`,
+        stageName: getStageName(stageNumber),
+        duration: null, // General version doesn't show duration
+        practiceType: stageNumber === 1 ? 'Physical Stillness' : 'PAHM Practice',
+        instructions: 'Tracking your posture helps identify which positions work best for your practice.'
+      };
+    }
+    
+    // Fallback
+    return {
+      title: 'Practice Setup',
+      stageName: 'Practice',
+      duration: null,
+      practiceType: 'Practice',
+      instructions: 'Choose your preferred posture for this session.'
+    };
+  };
+
+  // 📝 FUNCTIONS FROM YOUR EXISTING CODE
+  const getStageName = (stage: number): string => {
+    switch (stage) {
+      case 1: return "Seeker";
+      case 2: return "PAHM Trainer";
+      case 3: return "PAHM Beginner";
+      case 4: return "PAHM Practitioner";
+      case 5: return "PAHM Master";
+      case 6: return "PAHM Illuminator";
+      default: return "Practice";
+    }
+  };
+
+  const getDurationFromTLevel = (tLevel: string): string => {
+    switch(tLevel) {
+      case 'T1': return '10 minutes';
+      case 'T2': return '15 minutes';
+      case 'T3': return '20 minutes';
+      case 'T4': return '25 minutes';
+      case 'T5': return '30 minutes';
+      default: return '10 minutes';
+    }
+  };
+
+  // 🎮 HANDLERS - Same as your existing code
   const handlePostureSelect = (postureId: string) => {
     setSelectedPosture(postureId);
   };
@@ -77,14 +105,16 @@ const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
       onStartPractice(selectedPosture);
     }
   };
-     
+
+  const displayInfo = getDisplayInfo();
+
   return (
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
-      {/* Header */}
+      {/* 📱 HEADER - Adapts based on props */}
       <header style={{
         background: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
@@ -136,18 +166,49 @@ const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
             color: 'white',
             textShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
-            PAHM Master Practice Setup
+            {displayInfo.title}
           </h1>
         </div>
       </header>
 
-      {/* Main Content */}
       <main style={{
         padding: 'clamp(20px, 4vw, 40px)',
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {/* Instructions */}
+        {/* 📊 T-LEVEL SECTION - Only shows when currentTLevel provided */}
+        {currentTLevel && displayInfo.duration && showDuration && (
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '32px',
+            background: 'rgba(255, 255, 255, 0.15)',
+            borderRadius: '20px',
+            padding: 'clamp(24px, 4vw, 32px)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h2 style={{
+              fontSize: 'clamp(24px, 5vw, 36px)',
+              fontWeight: '700',
+              margin: '0 0 12px 0',
+              color: 'white'
+            }}>
+              {currentTLevel} Practice
+            </h2>
+            <p style={{ 
+              fontSize: 'clamp(16px, 3vw, 20px)', 
+              margin: '0',
+              color: 'white',
+              opacity: 0.95,
+              fontWeight: '500'
+            }}>
+              {displayInfo.duration} of {displayInfo.practiceType}
+            </p>
+          </div>
+        )}
+
+        {/* 📝 INSTRUCTIONS */}
         <div style={{
           textAlign: 'center',
           marginBottom: '40px',
@@ -173,12 +234,11 @@ const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
             maxWidth: '600px',
             margin: '0 auto'
           }}>
-            Choose the posture you'll be using for this PAHM Master practice session. 
-            A comfortable, stable posture will help you maintain awareness of thought patterns.
+            {displayInfo.instructions}
           </p>
         </div>
 
-        {/* Posture Grid */}
+        {/* 🧘 POSTURE GRID - Same as your existing code */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -283,7 +343,7 @@ const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
           ))}
         </div>
 
-        {/* Start Button */}
+        {/* ▶️ START BUTTON */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center',
@@ -329,7 +389,7 @@ const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
         </div>
       </main>
 
-      {/* CSS for Mobile Responsiveness */}
+      {/* 📱 RESPONSIVE CSS */}
       <style>{`
         @media (max-width: 768px) {
           .posture-grid {
@@ -357,4 +417,4 @@ const Stage5PostureSelection: React.FC<Stage5PostureSelectionProps> = ({
   );
 };
 
-export default Stage5PostureSelection;
+export default UniversalPostureSelection;

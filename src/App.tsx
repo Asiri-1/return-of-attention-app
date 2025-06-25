@@ -232,6 +232,20 @@ const AppContent: React.FC = () => {
     navigate('/introduction');
   };
 
+  // 🔥 SIMPLE FIX: Just mark assessment as completed and navigate to home
+  const handleSelfAssessmentComplete = (data?: any) => {
+    console.log('🔍 Self-assessment completed, marking as done and navigating to home');
+    
+    // Update user profile to mark assessment as completed
+    updateUserProfileInContext({ 
+      assessmentCompleted: true,
+      currentStage: '1'
+    });
+    
+    // Navigate directly to home
+    navigate('/home');
+  };
+
   // Check if user should see introduction flow
   const shouldShowIntroductionFlow = (): boolean => {
     if (!isAuthenticated || !currentUser) return false;
@@ -354,12 +368,13 @@ const AppContent: React.FC = () => {
             }
           />
 
+          {/* 🔥 FIXED: Self-assessment completion now navigates to HOME */}
           <Route 
             path="/self-assessment-completion" 
             element={
               isAuthenticated ? (
                 <SelfAssessmentCompletion 
-                  onGetStarted={() => navigate('/stage1')} 
+                  onGetStarted={handleSelfAssessmentComplete}
                   onBack={() => navigate('/self-assessment')} 
                 />
               ) : (

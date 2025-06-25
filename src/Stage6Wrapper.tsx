@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Stage6Introduction from './Stage6Introduction';
-import Stage6PostureSelection from './Stage6PostureSelection';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection'; // ← CHANGED: Use Universal Component
 import PAHMTimer6 from './PAHMTimer6';
 import PAHMReflection6 from './PAHMReflection6';
 import MainNavigation from './MainNavigation';
@@ -190,7 +190,8 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
           posture={selectedPosture}
         />
       ) : showPostureSelection ? (
-        <Stage6PostureSelection
+        <UniversalPostureSelection
+          stageNumber={6}
           onBack={handleBack}
           onStartPractice={handleStartPractice}
         />
