@@ -23,6 +23,7 @@ const AnalyticsBoard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [timeRange, setTimeRange] = useState<string>('month');
+  const [activePAHMTab, setActivePAHMTab] = useState<string>('overall'); // 
 
   // ✅ FIXED: All data getters now depend on refreshTrigger for auto-updates
   const analyticsData = getAnalyticsData();
@@ -45,6 +46,15 @@ const AnalyticsBoard: React.FC = () => {
 
   // ✅ NEW: Stage-specific PAHM analytics
   const getStageSpecificPAHMData = () => {
+    // Debug: Let's see what data we actually have
+    console.log('🔍 Debug Session Data:', {
+      totalSessions: filteredData.practice.length,
+      firstSession: filteredData.practice[0],
+      sessionTypes: filteredData.practice.map(s => s.sessionType).slice(0, 5),
+      stageLevels: filteredData.practice.map(s => s.stageLevel).slice(0, 5),
+      hasPahmCounts: filteredData.practice.map(s => !!s.pahmCounts).slice(0, 5)
+    });
+    
     const sessions = filteredData.practice.filter(session => 
       session.sessionType === 'meditation' && 
       session.stageLevel && 
@@ -52,6 +62,8 @@ const AnalyticsBoard: React.FC = () => {
       session.stageLevel <= 6 &&
       session.pahmCounts
     );
+
+    console.log('🎯 Filtered Sessions for Stage Evolution:', sessions.length);
 
     if (sessions.length === 0) return null;
 
@@ -482,70 +494,6 @@ const AnalyticsBoard: React.FC = () => {
     );
   };
 
-  // ✅ NEW: Stage-Specific PAHM Chart Component
-  const StageSpecificPAHMChart: React.FC<{ stageData: any[] }> = ({ stageData }) => {
-    if (!stageData || stageData.length === 0) {
-      return (
-        <div className="chart-empty">
-          <div className="chart-empty-icon">🧠</div>
-          <div className="chart-empty-text">No stage-specific PAHM data available</div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="stage-specific-pahm-chart">
-        <h4 className="chart-title">🎯 Stage-Specific PAHM Analytics</h4>
-        
-        <div className="stage-cards">
-          {stageData.map((stage) => (
-            <div key={stage.stageLevel} className="stage-card">
-              <div className="stage-header">
-                <h5>Stage {stage.stageLevel}</h5>
-                <span className="stage-name">{stage.stageName}</span>
-              </div>
-              
-              <div className="stage-metrics">
-                <div className="stage-metric">
-                  <div className="metric-value">{stage.sessionCount}</div>
-                  <div className="metric-label">Sessions</div>
-                </div>
-                <div className="stage-metric">
-                  <div className="metric-value">{stage.presentPercentage}%</div>
-                  <div className="metric-label">Present</div>
-                </div>
-                <div className="stage-metric">
-                  <div className="metric-value">{stage.avgRating}</div>
-                  <div className="metric-label">Quality</div>
-                </div>
-                <div className="stage-metric">
-                  <div className="metric-value">{stage.totalObservations}</div>
-                  <div className="metric-label">Observations</div>
-                </div>
-              </div>
-              
-              <div className="stage-progress">
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{ width: `${stage.presentPercentage}%` }}
-                  ></div>
-                </div>
-                <div className="progress-label">Present Moment Awareness</div>
-              </div>
-              
-              <div className="stage-insights">
-                {stage.presentPercentage >= 80 && <span className="insight excellent">🏆 Mastery Level</span>}
-                {stage.presentPercentage >= 60 && stage.presentPercentage < 80 && <span className="insight good">✨ Developing Well</span>}
-                {stage.presentPercentage < 60 && <span className="insight developing">🌱 Building Foundation</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   // PAHM Matrix Chart Component
   const PAHMMatrixChart: React.FC<{ insights: any }> = ({ insights }) => {
     if (!insights) return null;
@@ -874,53 +822,427 @@ const AnalyticsBoard: React.FC = () => {
     </div>
   );
 
-  // ✅ ENHANCED PAHM Tab Content with Stage-Specific Analytics
+  // ✅ ENHANCED PAHM Tab Content with Stage Evolution Analytics
   const renderPAHMTab = () => {
     const stageSpecificData = getStageSpecificPAHMData();
     
-    return (
-      <div className="pahm-tab" key={refreshTrigger}>
-        {/* ✅ NEW: Stage-Specific PAHM Analytics Section */}
-        {stageSpecificData && stageSpecificData.length > 0 && (
-          <div className="stage-specific-section">
-            <StageSpecificPAHMChart stageData={stageSpecificData} />
-          </div>
-        )}
+    // Debug: Log the stage data to see what we're getting
+    console.log('🧠 PAHM Tab Debug:', {
+      stageSpecificData,
+      hasData: stageSpecificData && stageSpecificData.length > 0,
+      filteredPractice: filteredData.practice.slice(0, 3) // Show first 3 sessions for debugging
+    });
 
-        {pahmData ? (
-          <>
-            <h3>🧠 Overall 9-Category PAHM Matrix Analysis</h3>
-            <PAHMMatrixChart insights={pahmData} />
+    // State for PAHM sub-tabs
+    
+    // Enhanced Evolution Analytics
+    const getStageEvolutionAnalytics = () => {
+      if (!stageSpecificData || stageSpecificData.length === 0) {
+        console.log('❌ No stage evolution data available');
+        return null;
+      }
+      
+      // Calculate evolution metrics
+      const evolution = {
+        presentAwarenessProgression: stageSpecificData.map(stage => ({
+          stage: stage.stageLevel,
+          stageName: stage.stageName,
+          percentage: stage.presentPercentage,
+          sessions: stage.sessionCount
+        })),
+        qualityProgression: stageSpecificData.map(stage => ({
+          stage: stage.stageLevel,
+          stageName: stage.stageName,
+          quality: stage.avgRating,
+          sessions: stage.sessionCount
+        })),
+        observationEvolution: stageSpecificData.map(stage => ({
+          stage: stage.stageLevel,
+          stageName: stage.stageName,
+          totalObservations: stage.totalObservations,
+          observationsPerSession: Math.round(stage.totalObservations / stage.sessionCount)
+        })),
+        durationEvolution: stageSpecificData.map(stage => ({
+          stage: stage.stageLevel,
+          stageName: stage.stageName,
+          avgDuration: stage.avgDuration,
+          totalDuration: stage.totalDuration
+        }))
+      };
+
+      // Calculate improvement rates
+      const improvementRates = {
+        presentAwareness: evolution.presentAwarenessProgression.length > 1 ? 
+          evolution.presentAwarenessProgression[evolution.presentAwarenessProgression.length - 1].percentage - 
+          evolution.presentAwarenessProgression[0].percentage : 0,
+        qualityImprovement: evolution.qualityProgression.length > 1 ?
+          evolution.qualityProgression[evolution.qualityProgression.length - 1].quality -
+          evolution.qualityProgression[0].quality : 0
+      };
+
+      return { evolution, improvementRates };
+    };
+
+    const evolutionData = getStageEvolutionAnalytics();
+
+    // Get individual stage data
+    const getIndividualStageData = (stageLevel: number) => {
+      return stageSpecificData?.find(stage => stage.stageLevel === stageLevel) || null;
+    };
+
+    // Render individual stage tab content
+    const renderStageTab = (stageLevel: number, stageName: string) => {
+      const stageData = getIndividualStageData(stageLevel);
+      
+      if (!stageData) {
+        return (
+          <div className="stage-tab-content">
+            <div className="stage-no-data">
+              <div className="stage-no-data-icon">🧘</div>
+              <h4>No {stageName} Data Yet</h4>
+              <p>Complete meditation sessions in Stage {stageLevel} with PAHM tracking to see detailed analytics for this stage.</p>
+              <div className="stage-preview">
+                <h5>What you'll see once you practice Stage {stageLevel}:</h5>
+                <ul>
+                  <li>📊 Present-moment awareness percentage</li>
+                  <li>⭐ Session quality ratings</li>
+                  <li>👁️ Total PAHM observations</li>
+                  <li>🎯 9-category emotion distribution</li>
+                  <li>📈 Progress over time</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="stage-tab-content">
+          <div className="stage-overview-card">
+            <div className="stage-card-header">
+              <div className="stage-number">Stage {stageData.stageLevel}</div>
+              <div className="stage-title">{stageData.stageName}</div>
+            </div>
             
-            <div className="pahm-insights">
-              <h4>💡 PAHM Insights</h4>
+            <div className="stage-key-metrics">
+              <div className="key-metric">
+                <div className="metric-icon">🎯</div>
+                <div className="metric-value">{stageData.presentPercentage}%</div>
+                <div className="metric-label">Present Awareness</div>
+              </div>
+              <div className="key-metric">
+                <div className="metric-icon">⭐</div>
+                <div className="metric-value">{stageData.avgRating}</div>
+                <div className="metric-label">Avg Quality</div>
+              </div>
+              <div className="key-metric">
+                <div className="metric-icon">🧘</div>
+                <div className="metric-value">{stageData.sessionCount}</div>
+                <div className="metric-label">Sessions</div>
+              </div>
+              <div className="key-metric">
+                <div className="metric-icon">👁️</div>
+                <div className="metric-value">{stageData.totalObservations}</div>
+                <div className="metric-label">Observations</div>
+              </div>
+            </div>
+
+            <div className="stage-progress-bar">
+              <div className="progress-label">Present Moment Mastery</div>
+              <div className="progress-track">
+                <div 
+                  className="progress-fill"
+                  style={{ 
+                    width: `${stageData.presentPercentage}%`,
+                    background: stageData.presentPercentage >= 80 ? 
+                      'linear-gradient(90deg, #27ae60, #2ecc71)' :
+                      stageData.presentPercentage >= 65 ?
+                      'linear-gradient(90deg, #f39c12, #e67e22)' :
+                      'linear-gradient(90deg, #3498db, #2980b9)'
+                  }}
+                ></div>
+              </div>
+              <div className="mastery-level">
+                {stageData.presentPercentage >= 80 && <span className="level master">🏆 Master Level</span>}
+                {stageData.presentPercentage >= 65 && stageData.presentPercentage < 80 && <span className="level advanced">⭐ Advanced</span>}
+                {stageData.presentPercentage >= 50 && stageData.presentPercentage < 65 && <span className="level developing">🌱 Developing</span>}
+                {stageData.presentPercentage < 50 && <span className="level beginning">🌱 Beginning</span>}
+              </div>
+            </div>
+          </div>
+
+          <div className="stage-detailed-analytics">
+            <div className="stage-pahm-breakdown">
+              <h4>🧠 9-Category PAHM Breakdown</h4>
+              <div className="pahm-grid">
+                <div className="pahm-time-section">
+                  <h5>Present Moment</h5>
+                  <div className="pahm-emotions">
+                    <div className="emotion-item attachment">
+                      <span className="emotion-label">Attachment</span>
+                      <span className="emotion-value">{stageData.totalPAHM.present_attachment}</span>
+                    </div>
+                    <div className="emotion-item neutral">
+                      <span className="emotion-label">Neutral</span>
+                      <span className="emotion-value">{stageData.totalPAHM.present_neutral}</span>
+                    </div>
+                    <div className="emotion-item aversion">
+                      <span className="emotion-label">Aversion</span>
+                      <span className="emotion-value">{stageData.totalPAHM.present_aversion}</span>
+                    </div>
+                  </div>
+                  <div className="time-total">Total: {stageData.timeDistribution.present}</div>
+                </div>
+
+                <div className="pahm-time-section">
+                  <h5>Past</h5>
+                  <div className="pahm-emotions">
+                    <div className="emotion-item attachment">
+                      <span className="emotion-label">Attachment</span>
+                      <span className="emotion-value">{stageData.totalPAHM.past_attachment}</span>
+                    </div>
+                    <div className="emotion-item neutral">
+                      <span className="emotion-label">Neutral</span>
+                      <span className="emotion-value">{stageData.totalPAHM.past_neutral}</span>
+                    </div>
+                    <div className="emotion-item aversion">
+                      <span className="emotion-label">Aversion</span>
+                      <span className="emotion-value">{stageData.totalPAHM.past_aversion}</span>
+                    </div>
+                  </div>
+                  <div className="time-total">Total: {stageData.timeDistribution.past}</div>
+                </div>
+
+                <div className="pahm-time-section">
+                  <h5>Future</h5>
+                  <div className="pahm-emotions">
+                    <div className="emotion-item attachment">
+                      <span className="emotion-label">Attachment</span>
+                      <span className="emotion-value">{stageData.totalPAHM.future_attachment}</span>
+                    </div>
+                    <div className="emotion-item neutral">
+                      <span className="emotion-label">Neutral</span>
+                      <span className="emotion-value">{stageData.totalPAHM.future_neutral}</span>
+                    </div>
+                    <div className="emotion-item aversion">
+                      <span className="emotion-label">Aversion</span>
+                      <span className="emotion-value">{stageData.totalPAHM.future_aversion}</span>
+                    </div>
+                  </div>
+                  <div className="time-total">Total: {stageData.timeDistribution.future}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="stage-insights">
+              <h4>💡 Stage {stageLevel} Insights</h4>
               <div className="insights-grid">
-                <div className="insight-card">
-                  <h5>🎯 Present Moment Mastery</h5>
+                <div className="insight-item">
+                  <h5>🎯 Attention Quality</h5>
                   <p>
-                    You maintain {pahmData.presentPercentage}% present-moment awareness across {pahmData.sessionsAnalyzed} sessions.
-                    {pahmData.presentPercentage >= 80 && " Outstanding mindfulness practice!"}
-                    {pahmData.presentPercentage >= 60 && pahmData.presentPercentage < 80 && " Good awareness development!"}
-                    {pahmData.presentPercentage < 60 && " Focus on present-moment attention training."}
+                    Your present-moment awareness in Stage {stageLevel} is {stageData.presentPercentage}%.
+                    {stageData.presentPercentage >= 70 && " Excellent mindfulness development!"}
+                    {stageData.presentPercentage >= 50 && stageData.presentPercentage < 70 && " Good progress in attention training."}
+                    {stageData.presentPercentage < 50 && " Focus on building stronger present-moment awareness."}
                   </p>
                 </div>
-                <div className="insight-card">
-                  <h5>⚖️ Emotional Equanimity</h5>
+                <div className="insight-item">
+                  <h5>📊 Session Consistency</h5>
                   <p>
-                    {pahmData.neutralPercentage}% of your mental states are emotionally neutral, indicating balanced equanimity.
-                    {pahmData.neutralPercentage >= 40 && " Excellent emotional balance!"}
+                    You've completed {stageData.sessionCount} sessions with an average rating of {stageData.avgRating}/10.
+                    {stageData.avgRating >= 8 && " Outstanding session quality!"}
+                    {stageData.avgRating >= 6 && stageData.avgRating < 8 && " Good meditation experience."}
                   </p>
                 </div>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">🧠</div>
-            <h3>No 9-Category PAHM Matrix Data Yet</h3>
-            <p>Complete practice sessions with PAHM tracking to see your comprehensive matrix analysis.</p>
           </div>
-        )}
+        </div>
+      );
+    };
+    
+    return (
+      <div className="pahm-tab enhanced-pahm-tab" key={refreshTrigger}>
+        {/* PAHM Sub-Tabs */}
+        <div className="pahm-sub-tabs">
+          <div className="sub-tab-buttons">
+            <button 
+              className={`sub-tab-button ${activePAHMTab === 'overall' ? 'active' : ''}`}
+              onClick={() => setActivePAHMTab('overall')}
+            >
+              📊 Overall Analysis
+            </button>
+            <button 
+              className={`sub-tab-button ${activePAHMTab === 'stage2' ? 'active' : ''}`}
+              onClick={() => setActivePAHMTab('stage2')}
+            >
+              2️⃣ PAHM Trainee
+            </button>
+            <button 
+              className={`sub-tab-button ${activePAHMTab === 'stage3' ? 'active' : ''}`}
+              onClick={() => setActivePAHMTab('stage3')}
+            >
+              3️⃣ PAHM Apprentice
+            </button>
+            <button 
+              className={`sub-tab-button ${activePAHMTab === 'stage4' ? 'active' : ''}`}
+              onClick={() => setActivePAHMTab('stage4')}
+            >
+              4️⃣ PAHM Practitioner
+            </button>
+            <button 
+              className={`sub-tab-button ${activePAHMTab === 'stage5' ? 'active' : ''}`}
+              onClick={() => setActivePAHMTab('stage5')}
+            >
+              5️⃣ PAHM Adept
+            </button>
+            <button 
+              className={`sub-tab-button ${activePAHMTab === 'stage6' ? 'active' : ''}`}
+              onClick={() => setActivePAHMTab('stage6')}
+            >
+              6️⃣ PAHM Master
+            </button>
+            {stageSpecificData && stageSpecificData.length > 1 && (
+              <button 
+                className={`sub-tab-button ${activePAHMTab === 'evolution' ? 'active' : ''}`}
+                onClick={() => setActivePAHMTab('evolution')}
+              >
+                📈 Evolution
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Sub-Tab Content */}
+        <div className="pahm-sub-content">
+          {activePAHMTab === 'overall' && (
+            <div>
+              {pahmData ? (
+                <div className="overall-pahm-section">
+                  <h3>🧠 Overall 9-Category PAHM Matrix Analysis</h3>
+                  <PAHMMatrixChart insights={pahmData} />
+                  
+                  <div className="pahm-insights">
+                    <h4>💡 PAHM Evolution Insights</h4>
+                    <div className="insights-grid">
+                      <div className="insight-card">
+                        <h5>🎯 Present Moment Mastery</h5>
+                        <p>
+                          Overall {pahmData.presentPercentage}% present-moment awareness across {pahmData.sessionsAnalyzed} sessions.
+                          {evolutionData && evolutionData.improvementRates.presentAwareness > 0 && 
+                            ` You've improved by ${Math.round(evolutionData.improvementRates.presentAwareness)}% from your first to latest stage!`}
+                        </p>
+                      </div>
+                      <div className="insight-card">
+                        <h5>⚖️ Emotional Equanimity</h5>
+                        <p>
+                          {pahmData.neutralPercentage}% neutral emotional states indicating balanced equanimity development.
+                          {pahmData.neutralPercentage >= 40 && " Excellent emotional balance across your practice evolution!"}
+                        </p>
+                      </div>
+                      {stageSpecificData && stageSpecificData.length > 1 && (
+                        <div className="insight-card">
+                          <h5>📈 Stage Progression</h5>
+                          <p>
+                            You've practiced {stageSpecificData.length} different stages, showing commitment to comprehensive development.
+                            {stageSpecificData.some(s => s.presentPercentage >= 80) && 
+                              " You've achieved mastery level in some stages!"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <div className="empty-icon">🧠</div>
+                  <h3>No Overall PAHM Data Yet</h3>
+                  <p>Complete meditation sessions with PAHM tracking to see your overall analysis.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activePAHMTab === 'stage2' && renderStageTab(2, 'PAHM Trainee')}
+          {activePAHMTab === 'stage3' && renderStageTab(3, 'PAHM Apprentice')}
+          {activePAHMTab === 'stage4' && renderStageTab(4, 'PAHM Practitioner')}
+          {activePAHMTab === 'stage5' && renderStageTab(5, 'PAHM Adept')}
+          {activePAHMTab === 'stage6' && renderStageTab(6, 'PAHM Master')}
+
+          {activePAHMTab === 'evolution' && evolutionData && (
+            <div>
+              {/* Stage Evolution Overview */}
+              <div className="stage-evolution-overview">
+                <h3>🎯 PAHM Mastery Evolution Across Stages</h3>
+                <div className="evolution-summary">
+                  <div className="evolution-highlight">
+                    <div className="highlight-icon">📈</div>
+                    <div className="highlight-content">
+                      <div className="highlight-value">
+                        {evolutionData.improvementRates.presentAwareness > 0 ? '+' : ''}
+                        {Math.round(evolutionData.improvementRates.presentAwareness)}%
+                      </div>
+                      <div className="highlight-label">Present Awareness Growth</div>
+                    </div>
+                  </div>
+                  <div className="evolution-highlight">
+                    <div className="highlight-icon">⭐</div>
+                    <div className="highlight-content">
+                      <div className="highlight-value">
+                        {evolutionData.improvementRates.qualityImprovement > 0 ? '+' : ''}
+                        {evolutionData.improvementRates.qualityImprovement.toFixed(1)}
+                      </div>
+                      <div className="highlight-label">Quality Improvement</div>
+                    </div>
+                  </div>
+                  <div className="evolution-highlight">
+                    <div className="highlight-icon">🧘</div>
+                    <div className="highlight-content">
+                      <div className="highlight-value">{stageSpecificData?.length || 0}</div>
+                      <div className="highlight-label">Stages Practiced</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Present Moment Mastery Evolution Chart */}
+              <div className="present-mastery-evolution">
+                <h4>🎯 Present Moment Mastery Evolution</h4>
+                <div className="evolution-chart">
+                  <div className="chart-container">
+                    {evolutionData.evolution.presentAwarenessProgression.map((stage, index) => (
+                      <div key={stage.stage} className="evolution-bar-item">
+                        <div className="stage-info">
+                          <div className="stage-number">Stage {stage.stage}</div>
+                          <div className="stage-name">{stage.stageName}</div>
+                          <div className="stage-sessions">{stage.sessions} sessions</div>
+                        </div>
+                        <div className="evolution-bar-track">
+                          <div 
+                            className={`evolution-bar-fill ${
+                              stage.percentage >= 80 ? 'mastery' : 
+                              stage.percentage >= 65 ? 'advanced' : 
+                              stage.percentage >= 50 ? 'developing' : 'beginning'
+                            }`}
+                            style={{ width: `${stage.percentage}%` }}
+                          >
+                            <span className="bar-percentage">{stage.percentage}%</span>
+                          </div>
+                        </div>
+                        <div className="mastery-indicator">
+                          {stage.percentage >= 80 && <span className="mastery-badge master">🏆 Master</span>}
+                          {stage.percentage >= 65 && stage.percentage < 80 && <span className="mastery-badge advanced">⭐ Advanced</span>}
+                          {stage.percentage >= 50 && stage.percentage < 65 && <span className="mastery-badge developing">🌱 Developing</span>}
+                          {stage.percentage < 50 && <span className="mastery-badge beginning">🌱 Beginning</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
