@@ -17,13 +17,14 @@ const AnalyticsBoard: React.FC = () => {
     getAppUsagePatterns,
     getEngagementMetrics,
     getFeatureUtilization,
-    getMindRecoveryInsights
+    getMindRecoveryInsights,
+    refreshTrigger // ✅ Use refresh trigger for auto-updates
   } = useLocalData();
 
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [timeRange, setTimeRange] = useState<string>('month');
 
-  // Get all analytics data from your real data sources
+  // ✅ FIXED: All data getters now depend on refreshTrigger for auto-updates
   const analyticsData = getAnalyticsData();
   const pahmData = getPAHMData();
   const environmentData = getEnvironmentData();
@@ -42,6 +43,91 @@ const AnalyticsBoard: React.FC = () => {
 
   const filteredData = getFilteredAnalytics();
 
+  // ✅ NEW: Stage-specific PAHM analytics
+  const getStageSpecificPAHMData = () => {
+    const sessions = filteredData.practice.filter(session => 
+      session.sessionType === 'meditation' && 
+      session.stageLevel && 
+      session.stageLevel >= 2 && 
+      session.stageLevel <= 6 &&
+      session.pahmCounts
+    );
+
+    if (sessions.length === 0) return null;
+
+    // Group by stage level
+    const stageGroups: { [key: string]: any[] } = sessions.reduce((groups, session) => {
+      const stage = session.stageLevel!.toString();
+      if (!groups[stage]) {
+        groups[stage] = [];
+      }
+      groups[stage].push(session);
+      return groups;
+    }, {} as { [key: string]: any[] });
+
+    // Stage name mapping
+    const stageNameMap: { [key: string]: string } = {
+      "2": "PAHM Trainee",
+      "3": "PAHM Apprentice", 
+      "4": "PAHM Practitioner",
+      "5": "PAHM Adept",
+      "6": "PAHM Master"
+    };
+
+    // Calculate analytics for each stage
+    const stageAnalytics = Object.entries(stageGroups).map(([stageLevel, stageSessions]) => {
+      const totalPAHM = {
+        present_attachment: 0,
+        present_neutral: 0,
+        present_aversion: 0,
+        past_attachment: 0,
+        past_neutral: 0,
+        past_aversion: 0,
+        future_attachment: 0,
+        future_neutral: 0,
+        future_aversion: 0
+      };
+
+      stageSessions.forEach(session => {
+        if (session.pahmCounts) {
+          Object.keys(totalPAHM).forEach(key => {
+            totalPAHM[key as keyof typeof totalPAHM] += session.pahmCounts[key] || 0;
+          });
+        }
+      });
+
+      const totalCounts = Object.values(totalPAHM).reduce((sum, count) => sum + count, 0);
+      
+      const timeDistribution = {
+        present: totalPAHM.present_attachment + totalPAHM.present_neutral + totalPAHM.present_aversion,
+        past: totalPAHM.past_attachment + totalPAHM.past_neutral + totalPAHM.past_aversion,
+        future: totalPAHM.future_attachment + totalPAHM.future_neutral + totalPAHM.future_aversion
+      };
+
+      const presentPercentage = totalCounts > 0 ? Math.round((timeDistribution.present / totalCounts) * 100) : 0;
+      const avgRating = stageSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / stageSessions.length;
+      const totalDuration = stageSessions.reduce((sum, s) => sum + s.duration, 0);
+
+      const stageName = stageNameMap[stageLevel] || `Stage ${stageLevel}`;
+
+      return {
+        stageLevel: parseInt(stageLevel),
+        stageName,
+        sessionCount: stageSessions.length,
+        totalObservations: totalCounts,
+        presentPercentage,
+        avgRating: Math.round(avgRating * 10) / 10,
+        totalDuration,
+        avgDuration: Math.round(totalDuration / stageSessions.length),
+        totalPAHM,
+        timeDistribution,
+        lastSession: stageSessions[stageSessions.length - 1].timestamp
+      };
+    }).sort((a, b) => a.stageLevel - b.stageLevel);
+
+    return stageAnalytics;
+  };
+
   // Format date helper
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -54,7 +140,7 @@ const AnalyticsBoard: React.FC = () => {
   };
 
   // ========================================
-  // REAL-TIME INSIGHTS LOGIC STARTS HERE
+  // REAL-TIME INSIGHTS LOGIC - ENHANCED
   // ========================================
 
   // PROGRESS ANALYSIS - Compares recent vs past performance
@@ -396,6 +482,70 @@ const AnalyticsBoard: React.FC = () => {
     );
   };
 
+  // ✅ NEW: Stage-Specific PAHM Chart Component
+  const StageSpecificPAHMChart: React.FC<{ stageData: any[] }> = ({ stageData }) => {
+    if (!stageData || stageData.length === 0) {
+      return (
+        <div className="chart-empty">
+          <div className="chart-empty-icon">🧠</div>
+          <div className="chart-empty-text">No stage-specific PAHM data available</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="stage-specific-pahm-chart">
+        <h4 className="chart-title">🎯 Stage-Specific PAHM Analytics</h4>
+        
+        <div className="stage-cards">
+          {stageData.map((stage) => (
+            <div key={stage.stageLevel} className="stage-card">
+              <div className="stage-header">
+                <h5>Stage {stage.stageLevel}</h5>
+                <span className="stage-name">{stage.stageName}</span>
+              </div>
+              
+              <div className="stage-metrics">
+                <div className="stage-metric">
+                  <div className="metric-value">{stage.sessionCount}</div>
+                  <div className="metric-label">Sessions</div>
+                </div>
+                <div className="stage-metric">
+                  <div className="metric-value">{stage.presentPercentage}%</div>
+                  <div className="metric-label">Present</div>
+                </div>
+                <div className="stage-metric">
+                  <div className="metric-value">{stage.avgRating}</div>
+                  <div className="metric-label">Quality</div>
+                </div>
+                <div className="stage-metric">
+                  <div className="metric-value">{stage.totalObservations}</div>
+                  <div className="metric-label">Observations</div>
+                </div>
+              </div>
+              
+              <div className="stage-progress">
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill"
+                    style={{ width: `${stage.presentPercentage}%` }}
+                  ></div>
+                </div>
+                <div className="progress-label">Present Moment Awareness</div>
+              </div>
+              
+              <div className="stage-insights">
+                {stage.presentPercentage >= 80 && <span className="insight excellent">🏆 Mastery Level</span>}
+                {stage.presentPercentage >= 60 && stage.presentPercentage < 80 && <span className="insight good">✨ Developing Well</span>}
+                {stage.presentPercentage < 60 && <span className="insight developing">🌱 Building Foundation</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // PAHM Matrix Chart Component
   const PAHMMatrixChart: React.FC<{ insights: any }> = ({ insights }) => {
     if (!insights) return null;
@@ -466,7 +616,7 @@ const AnalyticsBoard: React.FC = () => {
     const patterns = getPatternInsights();
 
     return (
-      <div className="insights-tab">
+      <div className="insights-tab" key={refreshTrigger}>
         {/* Progress Overview */}
         <div className="insights-hero">
           <h3>💡 Your Practice Insights</h3>
@@ -615,7 +765,7 @@ const AnalyticsBoard: React.FC = () => {
 
   // Overview Tab Content (simplified - insights moved to separate tab)
   const renderOverviewTab = () => (
-    <div className="overview-tab">
+    <div className="overview-tab" key={refreshTrigger}>
       {/* Key Metrics */}
       <div className="metrics-grid">
         <div className="metric-card total-sessions">
@@ -724,49 +874,60 @@ const AnalyticsBoard: React.FC = () => {
     </div>
   );
 
-  // PAHM Tab Content
-  const renderPAHMTab = () => (
-    <div className="pahm-tab">
-      {pahmData ? (
-        <>
-          <h3>🧠 9-Category PAHM Matrix Analysis</h3>
-          <PAHMMatrixChart insights={pahmData} />
-          
-          <div className="pahm-insights">
-            <h4>💡 PAHM Insights</h4>
-            <div className="insights-grid">
-              <div className="insight-card">
-                <h5>🎯 Present Moment Mastery</h5>
-                <p>
-                  You maintain {pahmData.presentPercentage}% present-moment awareness across {pahmData.sessionsAnalyzed} sessions.
-                  {pahmData.presentPercentage >= 80 && " Outstanding mindfulness practice!"}
-                  {pahmData.presentPercentage >= 60 && pahmData.presentPercentage < 80 && " Good awareness development!"}
-                  {pahmData.presentPercentage < 60 && " Focus on present-moment attention training."}
-                </p>
-              </div>
-              <div className="insight-card">
-                <h5>⚖️ Emotional Equanimity</h5>
-                <p>
-                  {pahmData.neutralPercentage}% of your mental states are emotionally neutral, indicating balanced equanimity.
-                  {pahmData.neutralPercentage >= 40 && " Excellent emotional balance!"}
-                </p>
+  // ✅ ENHANCED PAHM Tab Content with Stage-Specific Analytics
+  const renderPAHMTab = () => {
+    const stageSpecificData = getStageSpecificPAHMData();
+    
+    return (
+      <div className="pahm-tab" key={refreshTrigger}>
+        {/* ✅ NEW: Stage-Specific PAHM Analytics Section */}
+        {stageSpecificData && stageSpecificData.length > 0 && (
+          <div className="stage-specific-section">
+            <StageSpecificPAHMChart stageData={stageSpecificData} />
+          </div>
+        )}
+
+        {pahmData ? (
+          <>
+            <h3>🧠 Overall 9-Category PAHM Matrix Analysis</h3>
+            <PAHMMatrixChart insights={pahmData} />
+            
+            <div className="pahm-insights">
+              <h4>💡 PAHM Insights</h4>
+              <div className="insights-grid">
+                <div className="insight-card">
+                  <h5>🎯 Present Moment Mastery</h5>
+                  <p>
+                    You maintain {pahmData.presentPercentage}% present-moment awareness across {pahmData.sessionsAnalyzed} sessions.
+                    {pahmData.presentPercentage >= 80 && " Outstanding mindfulness practice!"}
+                    {pahmData.presentPercentage >= 60 && pahmData.presentPercentage < 80 && " Good awareness development!"}
+                    {pahmData.presentPercentage < 60 && " Focus on present-moment attention training."}
+                  </p>
+                </div>
+                <div className="insight-card">
+                  <h5>⚖️ Emotional Equanimity</h5>
+                  <p>
+                    {pahmData.neutralPercentage}% of your mental states are emotionally neutral, indicating balanced equanimity.
+                    {pahmData.neutralPercentage >= 40 && " Excellent emotional balance!"}
+                  </p>
+                </div>
               </div>
             </div>
+          </>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-icon">🧠</div>
+            <h3>No 9-Category PAHM Matrix Data Yet</h3>
+            <p>Complete practice sessions with PAHM tracking to see your comprehensive matrix analysis.</p>
           </div>
-        </>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">🧠</div>
-          <h3>No 9-Category PAHM Matrix Data Yet</h3>
-          <p>Complete practice sessions with PAHM tracking to see your comprehensive matrix analysis.</p>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   // Environment Tab Content
   const renderEnvironmentTab = () => (
-    <div className="environment-tab">
+    <div className="environment-tab" key={refreshTrigger}>
       {environmentData && environmentData.posture.length > 0 ? (
         <>
           <h3>🌿 Environmental Factors Analysis</h3>
@@ -855,7 +1016,7 @@ const AnalyticsBoard: React.FC = () => {
     const mindRecoveryInsights = getMindRecoveryInsights();
     
     return (
-      <div className="mind-recovery-tab">
+      <div className="mind-recovery-tab" key={refreshTrigger}>
         {mindRecoveryInsights.totalSessions > 0 ? (
           <>
             <h3>🕐 Mind Recovery Analytics</h3>
@@ -919,7 +1080,7 @@ const AnalyticsBoard: React.FC = () => {
 
   // Emotional Tab Content
   const renderEmotionalTab = () => (
-    <div className="emotional-tab">
+    <div className="emotional-tab" key={refreshTrigger}>
       <h3>😊 Emotional Distribution</h3>
       
       <div className="emotion-chart-container">
@@ -978,7 +1139,7 @@ const AnalyticsBoard: React.FC = () => {
     const featureUtilization = getFeatureUtilization();
 
     return (
-      <div className="usage-tab">
+      <div className="usage-tab" key={refreshTrigger}>
         <h3>📱 App Usage Analytics</h3>
         
         <div className="metrics-grid">

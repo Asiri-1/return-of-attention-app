@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useLocalData } from '../../contexts/LocalDataContext';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PAHMReflectionShared from '../../PAHMReflectionShared';
 
 interface UniversalPAHMReflectionProps {
@@ -9,16 +9,7 @@ interface UniversalPAHMReflectionProps {
   onBack: () => void;
 }
 
-// 🎯 Stage-specific configurations
-const STAGE_CONFIGS = {
-  2: { name: "PAHM Trainee", minDuration: 15, insights: "foundation" },
-  3: { name: "PAHM Apprentice", minDuration: 20, insights: "development" },
-  4: { name: "PAHM Practitioner", minDuration: 25, insights: "deepening" },
-  5: { name: "PAHM Adept", minDuration: 30, insights: "mastery" },
-  6: { name: "PAHM Master", minDuration: 35, insights: "transcendence" }
-};
-
-interface PAHMCounts {
+interface PAHMTrackingData {
   presentAttachment: number;
   presentNeutral: number;
   presentAversion: number;
@@ -30,177 +21,162 @@ interface PAHMCounts {
   futureAversion: number;
 }
 
+interface PAHMCountsFromSession {
+  present_attachment?: number;
+  present_neutral?: number;
+  present_aversion?: number;
+  past_attachment?: number;
+  past_neutral?: number;
+  past_aversion?: number;
+  future_attachment?: number;
+  future_neutral?: number;
+  future_aversion?: number;
+}
+
+const STAGE_CONFIGS = {
+  2: { name: "PAHM Trainee", minDuration: 15 },
+  3: { name: "PAHM Apprentice", minDuration: 20 },
+  4: { name: "PAHM Practitioner", minDuration: 25 },
+  5: { name: "PAHM Adept", minDuration: 30 },
+  6: { name: "PAHM Master", minDuration: 35 }
+};
+
 const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({ 
   stageLevel, 
   onComplete, 
   onBack 
 }) => {
-  const { getPracticeSessions, addEmotionalNote } = useLocalData();
+  const { userData, addEmotionalNote } = useLocalData();
+  const navigate = useNavigate();
   const location = useLocation();
-  const [pahmData, setPahmData] = useState<PAHMCounts | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const stageConfig = STAGE_CONFIGS[stageLevel as keyof typeof STAGE_CONFIGS];
 
-  // 🔧 Convert UniversalPAHMTimer format to reflection format
-  const convertPAHMData = (pahmCounts: any): PAHMCounts | null => {
-    if (!pahmCounts) return null;
+  // 🎯 FIXED: Get data from navigation state (same pattern as PAHMTimer3)
+  const navigationState = location.state as {
+    stageLevel?: string;
+    stageName?: string;
+    duration?: number;
+    posture?: string;
+    pahmData?: PAHMTrackingData;
+  } | null;
+
+  let pahmTrackingData: PAHMTrackingData = {
+    presentAttachment: 0,
+    presentNeutral: 0,
+    presentAversion: 0,
+    pastAttachment: 0,
+    pastNeutral: 0,
+    pastAversion: 0,
+    futureAttachment: 0,
+    futureNeutral: 0,
+    futureAversion: 0
+  };
+  let practiceDuration = 0;
+  let posture = 'seated';
+
+  if (navigationState?.pahmData) {
+    // Use data from navigation state (preferred method)
+    pahmTrackingData = navigationState.pahmData;
+    practiceDuration = navigationState.duration || 0;
+    posture = navigationState.posture || 'seated';
+  } else {
+    // Fallback: Get the most recent session from database
+    const allSessions = userData?.practiceSessions || [];
+    const mostRecentSession = allSessions.length > 0 
+      ? allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+      : null;
+
+    if (mostRecentSession && mostRecentSession.stageLevel === stageLevel) {
+      const pahmCounts: PAHMCountsFromSession = mostRecentSession.pahmCounts || {};
+
+      pahmTrackingData = {
+        presentAttachment: Number(pahmCounts.present_attachment) || 0,
+        presentNeutral: Number(pahmCounts.present_neutral) || 0, 
+        presentAversion: Number(pahmCounts.present_aversion) || 0,
+        pastAttachment: Number(pahmCounts.past_attachment) || 0,
+        pastNeutral: Number(pahmCounts.past_neutral) || 0,
+        pastAversion: Number(pahmCounts.past_aversion) || 0,
+        futureAttachment: Number(pahmCounts.future_attachment) || 0,
+        futureNeutral: Number(pahmCounts.future_neutral) || 0,
+        futureAversion: Number(pahmCounts.future_aversion) || 0
+      };
+
+      practiceDuration = mostRecentSession.duration || 0;
+      posture = mostRecentSession.environment?.posture || 'seated';
+    } else {
+      // Final fallback: sessionStorage
+      const rawPahmData = JSON.parse(sessionStorage.getItem('pahmTracking') || '{}');
+      
+      pahmTrackingData = {
+        presentAttachment: rawPahmData.likes || 0,
+        presentNeutral: rawPahmData.present || 0,
+        presentAversion: rawPahmData.dislikes || 0,
+        pastAttachment: rawPahmData.nostalgia || 0,
+        pastNeutral: rawPahmData.past || 0,
+        pastAversion: rawPahmData.regret || 0,
+        futureAttachment: rawPahmData.anticipation || 0,
+        futureNeutral: rawPahmData.future || 0,
+        futureAversion: rawPahmData.worry || 0
+      };
+
+      const startTime = new Date(sessionStorage.getItem('practiceStartTime') || new Date().toISOString());
+      const endTime = new Date(sessionStorage.getItem('practiceEndTime') || new Date().toISOString());
+      practiceDuration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+      posture = sessionStorage.getItem('currentPosture') || 'seated';
+    }
+  }
+
+  const totalPahmCount = Object.values(pahmTrackingData).reduce((sum, count) => sum + count, 0);
+
+  const handleComplete = () => {
+    const presentPercentage = totalPahmCount > 0 ? 
+      Math.round(((pahmTrackingData.presentAttachment + pahmTrackingData.presentNeutral + pahmTrackingData.presentAversion) / totalPahmCount) * 100) : 0;
+
+    const stageInsight = `Stage ${stageLevel} (${stageConfig.name}) completed with ${totalPahmCount} attention observations across all 9 PAHM quadrants. ${presentPercentage}% present-moment awareness shows your mindfulness development.`;
     
-    // Handle both old format (likes, nostalgia) and new format (presentAttachment)
-    const converted: PAHMCounts = {
-      // Present moment categories
-      presentAttachment: pahmCounts.likes || pahmCounts.presentAttachment || pahmCounts.present_attachment || 0,
-      presentNeutral: pahmCounts.present || pahmCounts.presentNeutral || pahmCounts.present_neutral || 0,  
-      presentAversion: pahmCounts.dislikes || pahmCounts.presentAversion || pahmCounts.present_aversion || 0,
-      
-      // Past categories  
-      pastAttachment: pahmCounts.nostalgia || pahmCounts.pastAttachment || pahmCounts.past_attachment || 0,
-      pastNeutral: pahmCounts.past || pahmCounts.pastNeutral || pahmCounts.past_neutral || 0,
-      pastAversion: pahmCounts.regret || pahmCounts.pastAversion || pahmCounts.past_aversion || 0,
-      
-      // Future categories
-      futureAttachment: pahmCounts.anticipation || pahmCounts.futureAttachment || pahmCounts.future_attachment || 0,
-      futureNeutral: pahmCounts.future || pahmCounts.futureNeutral || pahmCounts.future_neutral || 0,
-      futureAversion: pahmCounts.worry || pahmCounts.futureAversion || pahmCounts.future_aversion || 0,
-    };
-
-    return converted;
-  };
-
-  // 🎯 Generate stage-specific insights
-  const generateStageInsights = (data: PAHMCounts): string => {
-    const total = (Object.values(data) as number[]).reduce((sum, count) => sum + count, 0);
-    const presentPercentage = total > 0 ? 
-      Math.round(((data.presentAttachment + data.presentNeutral + data.presentAversion) / total) * 100) : 0;
-
-    const insights = {
-      foundation: `As a PAHM Trainee (Stage 2), you're building awareness of where your mind goes. ${presentPercentage}% present focus is a great start!`,
-      development: `PAHM Apprentice (Stage 3) shows growing mindfulness. Your ${presentPercentage}% present moment awareness indicates developing stability.`,
-      deepening: `As a PAHM Practitioner (Stage 4), you're deepening your understanding. ${presentPercentage}% present focus reflects your growing mastery.`,
-      mastery: `PAHM Adept (Stage 5) demonstrates significant skill. Your ${presentPercentage}% present awareness shows advanced mindfulness.`,
-      transcendence: `PAHM Master (Stage 6) - approaching transcendent awareness. ${presentPercentage}% present focus reflects profound understanding.`
-    };
-
-    return insights[stageConfig.insights as keyof typeof insights];
-  };
-
-  useEffect(() => {
-    const loadPAHMData = async () => {
-      try {
-        let convertedSessionData: PAHMCounts | null = null;
-        let sessionMetadata: any = {};
-
-        // Priority 1: Navigation state (from UniversalPAHMTimer)
-        if (location.state?.pahmData) {
-          convertedSessionData = convertPAHMData(location.state.pahmData);
-          sessionMetadata = {
-            duration: location.state.duration,
-            posture: location.state.posture,
-            stageLevel: stageLevel
-          };
-        }
-        
-        // Priority 2: Latest session from LocalDataContext
-        if (!convertedSessionData) {
-          const sessions = getPracticeSessions();
-          
-          if (sessions?.length > 0) {
-            const latestSession = sessions[sessions.length - 1];
-            if (latestSession?.pahmCounts) {
-              convertedSessionData = convertPAHMData(latestSession.pahmCounts);
-              sessionMetadata = {
-                duration: latestSession.duration,
-                posture: latestSession.environment?.posture,
-                stageLevel: latestSession.stageLevel || stageLevel
-              };
-            }
+    const emotionalNote = {
+      timestamp: new Date().toISOString(),
+      content: stageInsight,
+      emotion: 'reflective',
+      metadata: {
+        stageLevel: stageLevel,
+        stageName: stageConfig.name,
+        pahmBreakdown: pahmTrackingData,
+        totalObservations: totalPahmCount,
+        presentPercentage,
+        allNineQuadrants: {
+          present: {
+            attachment: pahmTrackingData.presentAttachment,
+            neutral: pahmTrackingData.presentNeutral,
+            aversion: pahmTrackingData.presentAversion
+          },
+          past: {
+            attachment: pahmTrackingData.pastAttachment,
+            neutral: pahmTrackingData.pastNeutral,
+            aversion: pahmTrackingData.pastAversion
+          },
+          future: {
+            attachment: pahmTrackingData.futureAttachment,
+            neutral: pahmTrackingData.futureNeutral,
+            aversion: pahmTrackingData.futureAversion
           }
         }
-
-        // Priority 3: Legacy sessionStorage (fallback for old PAHMReflection2-6)
-        if (!convertedSessionData) {
-          const storedData = sessionStorage.getItem(`lastPAHMSession-stage${stageLevel}`) || 
-                           sessionStorage.getItem('lastPAHMSession');
-          if (storedData) {
-            const parsed = JSON.parse(storedData);
-            convertedSessionData = convertPAHMData(parsed.pahmCounts || parsed);
-            sessionMetadata = { duration: parsed.duration || stageConfig.minDuration };
-          }
-        }
-
-        if (convertedSessionData) {
-          setPahmData({ ...convertedSessionData, ...sessionMetadata } as any);
-          
-          // 🎯 Generate stage-specific emotional note (only once)
-          if (!sessionStorage.getItem(`reflection-saved-stage${stageLevel}-${Date.now()}`)) {
-            const stageInsight = generateStageInsights(convertedSessionData);
-            const emotionalNote = {
-              timestamp: new Date().toISOString(),
-              content: stageInsight,
-              emotion: 'reflective',
-              metadata: {
-                stageLevel: stageLevel,
-                stageName: stageConfig.name,
-                pahmBreakdown: convertedSessionData,
-                sessionMetadata
-              }
-            };
-            
-            // Save stage-aware reflection
-            await addEmotionalNote(emotionalNote);
-            
-            // Mark as saved to prevent duplicate saves
-            sessionStorage.setItem(`reflection-saved-stage${stageLevel}-${Date.now()}`, 'true');
-          }
-          
-        } else {
-          // Create empty structure so reflection doesn't crash
-          setPahmData({
-            presentAttachment: 0, presentNeutral: 0, presentAversion: 0,
-            pastAttachment: 0, pastNeutral: 0, pastAversion: 0,
-            futureAttachment: 0, futureNeutral: 0, futureAversion: 0,
-          });
-        }
-      } catch (error) {
-        console.error(`❌ Stage ${stageLevel} reflection error:`, error);
-        setPahmData(null);
-      } finally {
-        setLoading(false);
       }
     };
-
-    loadPAHMData();
-  }, [location.state, stageLevel]); // ✅ FIXED: Only depend on primitive values
-
-  if (loading) {
-    return (
-      <div className="reflection-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading Stage {stageLevel} reflection...</p>
-      </div>
-    );
-  }
-
-  if (!pahmData) {
-    return (
-      <div className="reflection-error">
-        <h3>Unable to load Stage {stageLevel} reflection</h3>
-        <p>Please try the practice again.</p>
-        <button onClick={onBack} className="btn-secondary">
-          Back to Practice
-        </button>
-      </div>
-    );
-  }
+    
+    addEmotionalNote(emotionalNote);
+    sessionStorage.setItem('stageProgress', stageLevel.toString());
+    onComplete();
+  };
 
   return (
     <PAHMReflectionShared
       stageLevel={`Stage ${stageLevel}`}
       stageName={stageConfig.name}
-      duration={(pahmData as any).duration || stageConfig.minDuration}
-      posture={(pahmData as any).posture || 'seated'}
-      pahmData={pahmData}
-      onComplete={onComplete}
+      duration={practiceDuration}
+      posture={posture}
+      pahmData={pahmTrackingData}
+      onComplete={handleComplete}
       onBack={onBack}
     />
   );

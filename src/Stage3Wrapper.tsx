@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Stage3Introduction from './Stage3Introduction';
-import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection'; // ← CHANGED: Use Universal Component
-import PAHMTimer3 from './PAHMTimer3';
-import PAHMReflection3 from './PAHMReflection3';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
+import UniversalPAHMTimer from './components/shared/UniversalPAHMTimer';
+import UniversalPAHMReflection from './components/shared/UniversalPAHMReflection';
 import MainNavigation from './MainNavigation';
 
 interface Stage3WrapperProps {}
@@ -123,7 +123,7 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     sessionStorage.setItem('currentPosture', selectedPosture);
     
     // Instead of navigating to a potentially non-existent route,
-    // render the PAHMReflection3 component directly in this wrapper
+    // render the UniversalPAHMReflection component directly in this wrapper
     setShowTimer(false);
     setShowReflection(true);
   };
@@ -137,7 +137,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
   return (
     <MainNavigation>
       {showReflection ? (
-        <PAHMReflection3
+        <UniversalPAHMReflection
+          stageLevel={3}
           onComplete={handleReflectionComplete}
           onBack={() => {
             setShowReflection(false);
@@ -145,7 +146,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
           }}
         />
       ) : showTimer ? (
-        <PAHMTimer3
+        <UniversalPAHMTimer
+          stageLevel={3}
           onComplete={handleTimerComplete}
           onBack={handleBack}
           posture={selectedPosture}

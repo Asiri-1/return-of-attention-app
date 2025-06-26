@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLocalData } from '../../contexts/LocalDataContext';
 
 interface UniversalPAHMTimerProps {
@@ -27,7 +28,7 @@ const getStageConfig = (stage: number) => {
     2: {
       title: "PAHM Trainee: Understanding Thought Patterns",
       subtitle: "Notice your thoughts and tap the matching state",
-      minDuration: 15,
+      minDuration: 30,
       defaultDuration: 30,
       instruction: "📝 Notice your thoughts and tap the matching state",
       description: "Stage 2 focuses on recognizing thought patterns without judgment",
@@ -35,8 +36,8 @@ const getStageConfig = (stage: number) => {
     },
     3: {
       title: "PAHM Apprentice: Deepening Awareness", 
-      subtitle: "Observe the arising and passing of mental states",
-      minDuration: 20,
+      subtitle: "Notice your thoughts and tap the matching state",
+      minDuration: 30,
       defaultDuration: 35,
       instruction: "🎯 Observe the arising and passing of mental states",
       description: "Stage 3 develops sustained attention with deeper pattern recognition",
@@ -44,8 +45,8 @@ const getStageConfig = (stage: number) => {
     },
     4: {
       title: "PAHM Practitioner: Sustained Attention",
-      subtitle: "Maintain continuous awareness across all nine positions",
-      minDuration: 25,
+      subtitle: "Notice your thoughts and tap the matching state",
+      minDuration: 30,
       defaultDuration: 40,
       instruction: "⚡ Maintain continuous awareness across all positions",
       description: "Stage 4 cultivates unbroken mindfulness and effortless observation",
@@ -53,7 +54,7 @@ const getStageConfig = (stage: number) => {
     },
     5: {
       title: "PAHM Adept: Effortless Observation",
-      subtitle: "Experience the space between thoughts and reactions",
+      subtitle: "Notice your thoughts and tap the matching state",
       minDuration: 30,
       defaultDuration: 45,
       instruction: "🌌 Experience the space between thoughts and reactions",
@@ -62,7 +63,7 @@ const getStageConfig = (stage: number) => {
     },
     6: {
       title: "PAHM Master: Integration & Wisdom",
-      subtitle: "Embody present-moment awareness in all activities",
+      subtitle: "Notice your thoughts and tap the matching state",
       minDuration: 35,
       defaultDuration: 50,
       instruction: "✨ Embody present-moment awareness naturally",
@@ -226,6 +227,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
   initialMinutes: propInitialMinutes 
 }) => {
   const config = getStageConfig(stageLevel);
+  const navigate = useNavigate();
   
   // 🔧 COMPONENT STATE
   const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
@@ -264,10 +266,8 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     }
   }, [propInitialMinutes, config.minDuration]);
 
-  // 🎯 TIMER COMPLETION HANDLER - FIXED WITH PROPER CALLBACK FLOW
+  // 🎯 TIMER COMPLETION HANDLER - FIXED WITH DIRECT NAVIGATION
   const handleTimerComplete = useCallback(() => {
-    console.log('🎯 UniversalPAHMTimer - Timer completion started for Stage', stageLevel);
-    
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
@@ -302,7 +302,6 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
 
     // 💾 SAVE TO ANALYTICS
     addPracticeSession(sessionData);
-    console.log('🎯 UniversalPAHMTimer - Session data saved to analytics:', sessionData);
 
     // 📝 COMPREHENSIVE EMOTIONAL NOTE
     const stageEmojis = ['', '', '🌱', '🌟', '💎', '🔮', '🏔️'];
@@ -350,12 +349,34 @@ This data helps track your meditation progress and attention patterns over time.
       ]
     });
 
-    console.log(`🎯 UniversalPAHMTimer - Stage ${stageLevel} completion saved to analytics`);
+    // 🎯 FIXED: Convert to camelCase for navigation (same as PAHMTimer3 pattern)
+    const pahmDataForReflection = {
+      presentAttachment: convertedPAHMCounts.present_attachment,
+      presentNeutral: convertedPAHMCounts.present_neutral,
+      presentAversion: convertedPAHMCounts.present_aversion,
+      pastAttachment: convertedPAHMCounts.past_attachment,
+      pastNeutral: convertedPAHMCounts.past_neutral,
+      pastAversion: convertedPAHMCounts.past_aversion,
+      futureAttachment: convertedPAHMCounts.future_attachment,
+      futureNeutral: convertedPAHMCounts.future_neutral,
+      futureAversion: convertedPAHMCounts.future_aversion
+    };
 
-    // ✅ PROPER REACT CALLBACK FLOW - Let parent handle navigation
-    onComplete();
+    // 🎯 DIRECT NAVIGATION (same pattern as working PAHMTimer3)
+    navigate('/immediate-reflection', {
+      state: {
+        stageLevel: `Stage ${stageLevel}`,
+        stageName: config.title,
+        duration: Math.round(actualDuration / 60),
+        posture: posture,
+        pahmData: pahmDataForReflection
+      },
+      replace: true
+    });
+
+    // Don't call onComplete() - let direct navigation handle the flow
     
-  }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, addEmotionalNote, onComplete]);
+  }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, addEmotionalNote, navigate]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -403,22 +424,16 @@ This data helps track your meditation progress and attention patterns over time.
       past: 0, present: 0, future: 0,
       regret: 0, dislikes: 0, worry: 0
     } as PAHMCounts);
-    
-    console.log(`🎯 UniversalPAHMTimer - Started Stage ${stageLevel} practice for ${initialMinutes} minutes`);
   };
 
   const handlePause = () => {
     setIsPaused(!isPaused);
-    console.log('🎯 UniversalPAHMTimer - Timer', isPaused ? 'resumed' : 'paused');
   };
 
   const handleQuadrantClick = (quadrant: keyof PAHMCounts) => {
     setPahmCounts(prev => {
       const newCounts = { ...prev };
       newCounts[quadrant] = newCounts[quadrant] + 1;
-      
-      console.log(`🎯 PAHM Button clicked: ${quadrant}, new count: ${newCounts[quadrant]}`);
-      
       return newCounts;
     });
 

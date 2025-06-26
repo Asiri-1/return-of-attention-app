@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import './Reflection.css';
 import './PAHMReflection.css';
 
-// 🔒 ORIGINAL INTERFACE - UNCHANGED
 interface PAHMReflectionProps {
   stageLevel: string;
   stageName: string;
@@ -32,7 +31,6 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
   onComplete,
   onBack
 }) => {
-  // 🔒 ORIGINAL STATE - UNCHANGED
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [feedback, setFeedback] = useState<string>('');
@@ -46,18 +44,7 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     anxiety: false,
     other: false
   });
-
-  // 🔥 ONLY ADDITION: Better logging for debugging
-  useEffect(() => {
-    console.log('🔍 PAHMReflectionShared - Component mounted with props:');
-    console.log('  stageLevel:', stageLevel);
-    console.log('  stageName:', stageName);
-    console.log('  duration:', duration);
-    console.log('  posture:', posture);
-    console.log('  pahmData:', pahmData);
-  }, [stageLevel, stageName, duration, posture, pahmData]);
   
-  // 🔒 ORIGINAL FUNCTIONS - UNCHANGED
   const formatPostureName = (postureId: string): string => {
     switch(postureId) {
       case 'chair': return 'Chair Sitting';
@@ -85,11 +72,7 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     }));
   };
   
-  // 🔥 ONLY CHANGE: Better data validation and calculation
   const calculatePAHMTotals = () => {
-    console.log('🔍 PAHMReflectionShared - calculatePAHMTotals called');
-    console.log('🔍 Input pahmData for calculation:', pahmData);
-    
     // Ensure all values are numbers with better validation
     const data = {
       presentAttachment: Number(pahmData?.presentAttachment) || 0,
@@ -103,8 +86,6 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
       futureAversion: Number(pahmData?.futureAversion) || 0
     };
     
-    console.log('🔍 Processed PAHM data:', data);
-    
     const presentTotal = data.presentAttachment + data.presentNeutral + data.presentAversion;
     const pastTotal = data.pastAttachment + data.pastNeutral + data.pastAversion;
     const futureTotal = data.futureAttachment + data.futureNeutral + data.futureAversion;
@@ -114,16 +95,6 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     const aversionTotal = data.presentAversion + data.pastAversion + data.futureAversion;
     
     const grandTotal = presentTotal + pastTotal + futureTotal;
-    
-    console.log('🔍 Calculated totals:', {
-      presentTotal,
-      pastTotal,
-      futureTotal,
-      attachmentTotal,
-      neutralTotal,
-      aversionTotal,
-      grandTotal
-    });
     
     return {
       presentTotal,
@@ -144,10 +115,7 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     return Math.round((count / pahmTotals.grandTotal) * 100);
   };
   
-  // 🔒 ORIGINAL SUBMIT HANDLER - UNCHANGED
   const handleSubmit = () => {
-    console.log('🔍 PAHMReflectionShared - Submitting reflection with data:');
-    
     const reflectionData = {
       stageLevel,
       stageName,
@@ -162,17 +130,12 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
       timestamp: new Date().toISOString()
     };
     
-    console.log('🔍 Reflection data to save:', reflectionData);
-    
     const previousReflections = JSON.parse(localStorage.getItem('reflectionHistory') || '[]');
     localStorage.setItem('reflectionHistory', JSON.stringify([...previousReflections, reflectionData]));
-    
-    console.log('🔍 Reflection saved to localStorage');
     
     onComplete();
   };
 
-  // 🔒 ORIGINAL UI - COMPLETELY UNCHANGED
   return (
     <div className="reflection-screen">
       <div className="reflection-header">
@@ -202,23 +165,6 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
           <p className="tracking-explanation">
             Below are the total counts of where your attention went during practice.
           </p>
-          
-          {/* 🔥 ONLY ADDITION: Debug display in development */}
-          {process.env.NODE_ENV !== 'production' && (
-            <div style={{
-              background: '#f0f0f0', 
-              padding: '10px', 
-              marginBottom: '20px', 
-              borderRadius: '5px',
-              fontSize: '12px',
-              fontFamily: 'monospace',
-              color: '#333'
-            }}>
-              <strong>🔍 DEBUG - Raw PAHM Data:</strong>
-              <pre>{JSON.stringify(pahmData, null, 2)}</pre>
-              <strong>🔍 DEBUG - Grand Total:</strong> {pahmTotals.grandTotal}
-            </div>
-          )}
           
           <div className="pahm-matrix-results">
             <div style={{

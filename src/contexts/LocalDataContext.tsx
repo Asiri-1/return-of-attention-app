@@ -37,6 +37,7 @@ interface PracticeSessionData {
     clarityImprovement: number;
     moodImprovement: number;
   };
+  metadata?: any; // ✅ NEW: Additional metadata field
 }
 
 interface EmotionalNoteData {
@@ -47,6 +48,7 @@ interface EmotionalNoteData {
   energyLevel?: number;
   tags?: string[];
   gratitude?: string[];
+  metadata?: any; // ✅ NEW: Additional metadata field
 }
 
 interface ReflectionData {
@@ -216,7 +218,7 @@ interface ComprehensiveUserData {
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
-  refreshTrigger: number; // ✨ NEW: Auto-refresh trigger
+  refreshTrigger: number; // ✨ AUTO-REFRESH TRIGGER
   
   // Core methods (production only)
   clearAllData: () => void;
@@ -266,19 +268,22 @@ interface LocalDataContextType {
 // 🔧 CREATE CONTEXT
 const LocalDataContext = createContext<LocalDataContextType | undefined>(undefined);
 
-// 🚀 COMPLETE PROVIDER WITH AUTO-REFRESH + ALL ORIGINAL FUNCTIONALITY
+// 🚀 ENHANCED PROVIDER WITH IMPROVED AUTO-REFRESH + DATA CONSISTENCY
 export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, syncWithLocalData } = useAuth();
   const [userData, setUserData] = useState<ComprehensiveUserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // ✨ AUTO-REFRESH MECHANISM - This triggers component re-renders automatically
+  // ✨ ENHANCED AUTO-REFRESH MECHANISM 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // 🔥 AUTOMATIC REFRESH FUNCTION - Called whenever data changes
+  // 🔥 ENHANCED AUTOMATIC REFRESH FUNCTION
   const triggerAutoRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
-    console.log('🔄 Auto-refresh triggered - all components will update automatically');
+    setRefreshTrigger(prev => {
+      const newTrigger = prev + 1;
+      console.log(`🔄 Auto-refresh triggered #${newTrigger} - all components will update automatically`);
+      return newTrigger;
+    });
   }, []);
 
   // 🔥 GENERATE UNIQUE IDS
@@ -295,8 +300,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const clearAllData = () => {
     setUserData(null);
     localStorage.removeItem(getStorageKey());
-    triggerAutoRefresh(); // ✨ Auto-refresh after clearing
-    console.log('🗑️ All data cleared!');
+    triggerAutoRefresh();
+    console.log('🗑️ All data cleared and auto-refresh triggered!');
   };
 
   // 🔥 LOAD DATA FROM STORAGE
@@ -360,7 +365,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setUserData(emptyData);
         saveDataToStorage(emptyData);
       }
-      triggerAutoRefresh(); // ✨ Auto-refresh after loading
+      triggerAutoRefresh();
     } catch (error) {
       console.error('Error loading data from storage:', error);
     } finally {
@@ -368,47 +373,62 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
 
-  // 🔥 SAVE DATA TO STORAGE WITH AUTO-UPDATE
+  // 🔥 ENHANCED SAVE DATA TO STORAGE WITH BETTER AUTO-UPDATE
   const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
     try {
       localStorage.setItem(getStorageKey(), JSON.stringify(data));
       console.log('💾 Data auto-saved to storage');
+      
       // Auto-sync with auth context
       if (currentUser && syncWithLocalData) {
         syncWithLocalData(data);
       }
-      triggerAutoRefresh(); // ✨ Auto-refresh after saving
+      
+      // ✅ CRITICAL: Trigger auto-refresh AFTER save to ensure components update
+      setTimeout(() => {
+        triggerAutoRefresh();
+      }, 50); // Small delay to ensure save completes
+      
     } catch (error) {
       console.error('Error saving data to storage:', error);
     }
   }, [getStorageKey, currentUser, syncWithLocalData, triggerAutoRefresh]);
 
-  // 🔥 DATA GETTERS - All depend on refreshTrigger for automatic updates
+  // 🔥 ENHANCED DATA GETTERS - All depend on refreshTrigger for automatic updates
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
-    return userData?.practiceSessions || [];
-  }, [userData?.practiceSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+    const sessions = userData?.practiceSessions || [];
+    console.log(`📊 getPracticeSessions called - returning ${sessions.length} sessions (refresh #${refreshTrigger})`);
+    return sessions;
+  }, [userData?.practiceSessions, refreshTrigger]);
 
   const getDailyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
-    return userData?.emotionalNotes || [];
-  }, [userData?.emotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
+    const notes = userData?.emotionalNotes || [];
+    console.log(`💝 getDailyEmotionalNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
+    return notes;
+  }, [userData?.emotionalNotes, refreshTrigger]);
 
   const getReflections = useCallback((): ReflectionData[] => {
     return userData?.reflections || [];
-  }, [userData?.reflections, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [userData?.reflections, refreshTrigger]);
 
   const getMindRecoverySessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'mind_recovery') || [];
-  }, [userData?.practiceSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [userData?.practiceSessions, refreshTrigger]);
 
   const getMeditationSessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'meditation') || [];
-  }, [userData?.practiceSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [userData?.practiceSessions, refreshTrigger]);
 
-  // 🧠 9-CATEGORY PAHM ANALYTICS - Auto-refreshing
+  // 🧠 ENHANCED 9-CATEGORY PAHM ANALYTICS with better data validation
   const getPAHMData = useCallback((): PAHMAnalytics | null => {
     const sessions = getPracticeSessions().filter(session => session.pahmCounts);
     
-    if (sessions.length === 0) return null;
+    if (sessions.length === 0) {
+      console.log('🧠 No PAHM data found');
+      return null;
+    }
+
+    console.log(`🧠 Analyzing PAHM data from ${sessions.length} sessions`);
 
     const totalPAHM = {
       present_attachment: 0,
@@ -425,12 +445,14 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     sessions.forEach(session => {
       if (session.pahmCounts) {
         Object.keys(totalPAHM).forEach(key => {
-          totalPAHM[key as keyof typeof totalPAHM] += session.pahmCounts![key as keyof typeof session.pahmCounts];
+          const value = session.pahmCounts![key as keyof typeof session.pahmCounts] || 0;
+          totalPAHM[key as keyof typeof totalPAHM] += value;
         });
       }
     });
 
     const totalCounts = Object.values(totalPAHM).reduce((sum, count) => sum + count, 0);
+    console.log(`🧠 Total PAHM observations: ${totalCounts}`);
     
     const timeDistribution = {
       present: totalPAHM.present_attachment + totalPAHM.present_neutral + totalPAHM.present_aversion,
@@ -444,17 +466,20 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       aversion: totalPAHM.present_aversion + totalPAHM.past_aversion + totalPAHM.future_aversion
     };
 
+    const presentPercentage = totalCounts > 0 ? Math.round((timeDistribution.present / totalCounts) * 100) : 0;
+    const neutralPercentage = totalCounts > 0 ? Math.round((emotionalDistribution.neutral / totalCounts) * 100) : 0;
+
     return {
       totalPAHM,
       totalCounts,
       timeDistribution,
       emotionalDistribution,
-      presentPercentage: Math.round((timeDistribution.present / totalCounts) * 100),
-      neutralPercentage: Math.round((emotionalDistribution.neutral / totalCounts) * 100),
+      presentPercentage,
+      neutralPercentage,
       sessionsAnalyzed: sessions.length,
       totalObservations: totalCounts
     };
-  }, [getPracticeSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getPracticeSessions, refreshTrigger]);
 
   // 🌿 ENVIRONMENT ANALYTICS - Auto-refreshing
   const getEnvironmentData = useCallback((): EnvironmentAnalytics => {
@@ -491,7 +516,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       lighting: groupByEnvironmentFactor('lighting'),
       sounds: groupByEnvironmentFactor('sounds')
     };
-  }, [getPracticeSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getPracticeSessions, refreshTrigger]);
 
   // 🕐 MIND RECOVERY ANALYTICS - Auto-refreshing
   const getMindRecoveryAnalytics = useCallback((): MindRecoveryAnalytics => {
@@ -563,14 +588,16 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       highestRatedContext: contextStats.length > 0 ? { name: contextStats[0].context, rating: contextStats[0].avgRating } : undefined,
       mostUsedContext: contextStats.length > 0 ? { name: contextStats.sort((a, b) => b.count - a.count)[0].context, count: contextStats.sort((a, b) => b.count - a.count)[0].count } : undefined
     };
-  }, [getMindRecoverySessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getMindRecoverySessions, refreshTrigger]);
 
-  // 📊 COMPREHENSIVE ANALYTICS - Auto-refreshing
+  // 📊 ENHANCED COMPREHENSIVE ANALYTICS with better streak calculation
   const getAnalyticsData = useCallback((): ComprehensiveAnalytics => {
     const allSessions = getPracticeSessions();
     const meditationSessions = getMeditationSessions();
     const mindRecoverySessions = getMindRecoverySessions();
     const emotionalNotes = getDailyEmotionalNotes();
+    
+    console.log(`📊 Calculating analytics for ${allSessions.length} total sessions`);
     
     const totalMinutes = allSessions.reduce((sum, session) => sum + session.duration, 0);
     const avgSessionLength = allSessions.length > 0 ? Math.round((totalMinutes / allSessions.length) * 10) / 10 : 0;
@@ -581,7 +608,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ? Math.round((allSessions.reduce((sum, session) => sum + (session.presentPercentage || 0), 0) / allSessions.length) * 10) / 10 
       : 0;
 
-    // Calculate streaks
+    // ✅ ENHANCED STREAK CALCULATION - More accurate
     const sortedSessions = allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     let currentStreak = 0;
     let longestStreak = 0;
@@ -589,16 +616,27 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     if (sortedSessions.length > 0) {
       const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+      
       const lastSessionDate = new Date(sortedSessions[0].timestamp);
       const daysDiff = Math.floor((today.getTime() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (daysDiff <= 1) {
+      if (daysDiff <= 1) { // Session today or yesterday
         currentStreak = 1;
         tempStreak = 1;
         
-        for (let i = 1; i < sortedSessions.length; i++) {
-          const currentDate = new Date(sortedSessions[i - 1].timestamp);
-          const prevDate = new Date(sortedSessions[i].timestamp);
+        // Check consecutive days
+        const sessionDates = new Set<string>();
+        sortedSessions.forEach(session => {
+          const dateStr = new Date(session.timestamp).toDateString();
+          sessionDates.add(dateStr);
+        });
+        
+        const uniqueDates = Array.from(sessionDates).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+        
+        for (let i = 1; i < uniqueDates.length; i++) {
+          const currentDate = new Date(uniqueDates[i - 1]);
+          const prevDate = new Date(uniqueDates[i]);
           const diff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
           
           if (diff === 1) {
@@ -613,7 +651,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }
 
-    return {
+    const progressTrend: 'improving' | 'stable' | 'declining' = 
+      avgQuality >= 8 ? 'improving' : avgQuality >= 6 ? 'stable' : 'improving';
+
+    const analytics: ComprehensiveAnalytics = {
       totalSessions: allSessions.length,
       totalMeditationSessions: meditationSessions.length,
       totalMindRecoverySessions: mindRecoverySessions.length,
@@ -625,10 +666,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       longestStreak: longestStreak,
       emotionalNotesCount: emotionalNotes.length,
       consistencyScore: allSessions.length > 0 ? Math.min(100, Math.round((currentStreak / 30) * 100)) : 0,
-      progressTrend: avgQuality >= 8 ? 'improving' : avgQuality >= 6 ? 'stable' : 'improving',
+      progressTrend,
       lastUpdated: new Date().toISOString()
     };
-  }, [getPracticeSessions, getMeditationSessions, getMindRecoverySessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
+
+    console.log('📊 Analytics calculated:', analytics);
+    return analytics;
+  }, [getPracticeSessions, getMeditationSessions, getMindRecoverySessions, getDailyEmotionalNotes, refreshTrigger]);
 
   // 🔮 PREDICTIVE INSIGHTS
   const getPredictiveInsights = useCallback(() => {
@@ -739,8 +783,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const practice = getPracticeSessions().filter(session => new Date(session.timestamp) >= cutoffDate);
     const notes = getDailyEmotionalNotes().filter(note => new Date(note.timestamp) >= cutoffDate);
     
+    console.log(`📊 Filtered data for ${timeRange}: ${practice.length} sessions, ${notes.length} notes`);
     return { practice, notes };
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
 
   // Get practice duration trend data
   const getPracticeDurationData = useCallback((timeRange: string = 'month') => {
@@ -762,7 +807,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       date,
       duration: durationByDate[date]
     }));
-  }, [getFilteredData, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getFilteredData, refreshTrigger]);
 
   // Get emotion distribution
   const getEmotionDistribution = useCallback((timeRange: string = 'month') => {
@@ -782,7 +827,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         focused: '#4169E1', blissful: '#DA70D6', accomplished: '#228B22', clear: '#00CED1',
         nurtured: '#DDA0DD', transcendent: '#8A2BE2', balanced: '#32CD32', integrated: '#4682B4',
         profound: '#800080', refreshed: '#00FA9A', loving: '#FF1493', grateful: '#FFA500',
-        centered: '#6495ED', sadness: '#6495ED', anger: '#FF6347', fear: '#9370DB', neutral: '#A9A9A9'
+        centered: '#6495ED', sadness: '#6495ED', anger: '#FF6347', fear: '#9370DB', neutral: '#A9A9A9',
+        reflective: '#9370DB'
       };
       return colors[emotion.toLowerCase()] || '#A9A9A9';
     };
@@ -792,7 +838,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       count,
       color: getEmotionColor(emotion)
     }));
-  }, [getFilteredData, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getFilteredData, refreshTrigger]);
 
   // Get practice distribution by stage
   const getPracticeDistribution = useCallback((timeRange: string = 'month') => {
@@ -814,7 +860,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       stage,
       count
     }));
-  }, [getFilteredData, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getFilteredData, refreshTrigger]);
 
   // Get app usage patterns
   const getAppUsagePatterns = useCallback(() => {
@@ -859,7 +905,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       averageSessionsPerWeek: Math.round((practice.length / 4) * 10) / 10,
       consistency: practice.length > 20 ? 'High' : practice.length > 10 ? 'Medium' : 'Low'
     };
-  }, [getPracticeSessions, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getPracticeSessions, refreshTrigger]);
 
   // Get engagement metrics
   const getEngagementMetrics = useCallback(() => {
@@ -886,7 +932,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       notesPerSession: Math.round(notesPerSession * 10) / 10,
       documentationHabit: notesPerSession >= 0.5 ? 'Excellent' : notesPerSession >= 0.25 ? 'Good' : 'Basic'
     };
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
 
   // Get feature utilization
   const getFeatureUtilization = useCallback(() => {
@@ -910,7 +956,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       count,
       percentage: totalFeatureUses > 0 ? Math.round((count / totalFeatureUses) * 100) : 0
     })).sort((a, b) => b.count - a.count);
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]); // ✨ Depends on refreshTrigger
+  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
 
   // Get comprehensive statistics for overview
   const getComprehensiveStats = useCallback(() => {
@@ -1030,14 +1076,25 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getMindRecoverySessions, refreshTrigger]);
 
-  // 🔥 DATA MANIPULATION METHODS - These trigger auto-refresh
+  // 🔥 ENHANCED DATA MANIPULATION METHODS - Improved validation and auto-refresh
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
-    if (!userData) return;
+    if (!userData) {
+      console.error('❌ Cannot add session - userData is null');
+      return;
+    }
 
     const newSession: PracticeSessionData = {
       ...session,
       sessionId: generateId('session')
     };
+
+    console.log('💾 Adding practice session:', {
+      sessionId: newSession.sessionId,
+      stageLevel: newSession.stageLevel,
+      sessionType: newSession.sessionType,
+      duration: newSession.duration,
+      pahmCounts: newSession.pahmCounts
+    });
 
     const updatedData = {
       ...userData,
@@ -1065,12 +1122,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Practice session added - auto-refresh triggered:', {
-      sessionId: newSession.sessionId,
-      stageLevel: newSession.stageLevel,
-      sessionType: newSession.sessionType,
-      duration: newSession.duration
-    });
+    console.log('✅ Practice session added successfully - auto-refresh will trigger');
   }, [userData, saveDataToStorage]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
@@ -1082,12 +1134,21 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [addPracticeSession]);
 
   const addEmotionalNote = useCallback((note: Omit<EmotionalNoteData, 'noteId'>) => {
-    if (!userData) return;
+    if (!userData) {
+      console.error('❌ Cannot add note - userData is null');
+      return;
+    }
 
     const newNote: EmotionalNoteData = {
       ...note,
       noteId: generateId('note')
     };
+
+    console.log('💝 Adding emotional note:', {
+      noteId: newNote.noteId,
+      emotion: newNote.emotion,
+      contentLength: newNote.content.length
+    });
 
     const updatedData = {
       ...userData,
@@ -1101,15 +1162,14 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Emotional note added - auto-refresh triggered:', {
-      noteId: newNote.noteId,
-      emotion: newNote.emotion,
-      content: newNote.content
-    });
+    console.log('✅ Emotional note added successfully - auto-refresh will trigger');
   }, [userData, saveDataToStorage]);
 
   const addReflection = useCallback((reflection: Omit<ReflectionData, 'reflectionId'>) => {
-    if (!userData) return;
+    if (!userData) {
+      console.error('❌ Cannot add reflection - userData is null');
+      return;
+    }
 
     const newReflection: ReflectionData = {
       ...reflection,
@@ -1128,10 +1188,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Reflection added - auto-refresh triggered:', {
-      reflectionId: newReflection.reflectionId,
-      type: newReflection.type
-    });
+    console.log('✅ Reflection added successfully - auto-refresh will trigger');
   }, [userData, saveDataToStorage]);
 
   // 🔄 AUTH INTEGRATION
@@ -1160,16 +1217,16 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [userData, currentUser, syncWithLocalData]);
 
-  // 🎯 COMPLETE CONTEXT VALUE - ALL ORIGINAL FUNCTIONALITY + AUTO-REFRESH
+  // 🎯 COMPLETE CONTEXT VALUE - ALL FUNCTIONALITY + ENHANCED AUTO-REFRESH
   const contextValue: LocalDataContextType = {
     userData,
     isLoading,
-    refreshTrigger, // ✨ Expose refresh trigger
+    refreshTrigger, // ✨ Expose refresh trigger for component updates
     
     // Core methods
     clearAllData,
     
-    // Data getters (all auto-refreshing)
+    // Data getters (all auto-refreshing via refreshTrigger)
     getPracticeSessions,
     getDailyEmotionalNotes,
     getReflections,

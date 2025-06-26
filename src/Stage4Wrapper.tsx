@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Stage4Introduction from './Stage4Introduction';
-import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection'; // ← CHANGED: Use Universal Component
-import PAHMTimer4 from './PAHMTimer4';
-import PAHMReflection4 from './PAHMReflection4';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
+import UniversalPAHMTimer from './components/shared/UniversalPAHMTimer';
+import UniversalPAHMReflection from './components/shared/UniversalPAHMReflection';
 import MainNavigation from './MainNavigation';
-import PAHMPractitionerPracticeRecorder from './PAHMPractitionerPracticeRecorder';
 
 interface Stage4WrapperProps {}
 
@@ -18,7 +17,6 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
   const [showTimer, setShowTimer] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
   const [selectedPosture, setSelectedPosture] = useState('');
-  const [sessionData, setSessionData] = useState<any>(null);
 
   // Check if coming from PAHM explanation
   const isFromPAHM = location.state && location.state.fromPAHM;
@@ -34,8 +32,6 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
   
   // Combine state-based and URL-based checks
   const effectivelyFromPAHM = isFromPAHM || isFromPAHMViaURL;
-  
-  const savedPosture = sessionStorage.getItem('selectedPosture');
   
   // Check if user has previously completed the introduction
   const hasCompletedIntro = () => {
@@ -71,21 +67,6 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
     }
     // Default case - show introduction
   }, [effectivelyFromPAHM, isFromIntro]);
-
-  // Effect to handle session recording
-  React.useEffect(() => {
-    const recordData = sessionStorage.getItem('recordPAHMSession');
-    if (recordData) {
-      try {
-        const data = JSON.parse(recordData);
-        // This will be picked up by the PAHMPractitionerPracticeRecorder component
-        // which will call its recordSession method
-        sessionStorage.removeItem('recordPAHMSession'); // Clear after use
-      } catch (e) {
-        console.error("Error parsing record data:", e);
-      }
-    }
-  }, [showReflection]); // Trigger when showing reflection
 
   const handleComplete = () => {
     // For Stage 4, navigate to PAHM explanation
@@ -139,23 +120,8 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
     // When timer completes, store the selected posture for reflection
     sessionStorage.setItem('currentPosture', selectedPosture);
     
-    // Get practice data for recording
-    const startTime = new Date(sessionStorage.getItem('practiceStartTime') || new Date().toISOString());
-    const endTime = new Date(sessionStorage.getItem('practiceEndTime') || new Date().toISOString());
-    const practiceDuration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // in minutes
-    const pahmCounts = JSON.parse(sessionStorage.getItem('pahmTracking') || '{}');
-    
-    // Record the session using the recorder component's method
-    // This will be picked up by the PAHMPractitionerPracticeRecorder component
-    sessionStorage.setItem('recordPAHMSession', JSON.stringify({
-      duration: 30, // Target duration (you may want to get this from the timer)
-      timeSpent: practiceDuration,
-      isCompleted: true,
-      pahmCounts: pahmCounts
-    }));
-    
     // Instead of navigating to a potentially non-existent route,
-    // render the PAHMReflection4 component directly in this wrapper
+    // render the UniversalPAHMReflection component directly in this wrapper
     setShowTimer(false);
     setShowReflection(true);
   };
@@ -166,17 +132,11 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
     navigate('/home');
   };
 
-  // Handler for session recording
-  const handleRecordSession = (data: any) => {
-    setSessionData(data);
-    console.log("Session recorded:", data);
-    // You can add additional logic here if needed
-  };
-
   return (
     <MainNavigation>
       {showReflection ? (
-        <PAHMReflection4
+        <UniversalPAHMReflection
+          stageLevel={4}
           onComplete={handleReflectionComplete}
           onBack={() => {
             setShowReflection(false);
@@ -184,7 +144,8 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
           }}
         />
       ) : showTimer ? (
-        <PAHMTimer4
+        <UniversalPAHMTimer
+          stageLevel={4}
           onComplete={handleTimerComplete}
           onBack={handleBack}
           posture={selectedPosture}
@@ -201,7 +162,6 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
           onBack={handleBack}
         />
       )}
-      <PAHMPractitionerPracticeRecorder onRecordSession={handleRecordSession} />
     </MainNavigation>
   );
 };
