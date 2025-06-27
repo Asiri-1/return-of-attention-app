@@ -18,12 +18,13 @@ const AnalyticsBoard: React.FC = () => {
     getEngagementMetrics,
     getFeatureUtilization,
     getMindRecoveryInsights,
+    getPracticeSessions, // Added for debug
     refreshTrigger // ✅ Use refresh trigger for auto-updates
   } = useLocalData();
 
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [timeRange, setTimeRange] = useState<string>('month');
-  const [activePAHMTab, setActivePAHMTab] = useState<string>('overall'); // 
+  const [activePAHMTab, setActivePAHMTab] = useState<string>('overall');
 
   // ✅ FIXED: All data getters now depend on refreshTrigger for auto-updates
   const analyticsData = getAnalyticsData();
@@ -833,8 +834,6 @@ const AnalyticsBoard: React.FC = () => {
       filteredPractice: filteredData.practice.slice(0, 3) // Show first 3 sessions for debugging
     });
 
-    // State for PAHM sub-tabs
-    
     // Enhanced Evolution Analytics
     const getStageEvolutionAnalytics = () => {
       if (!stageSpecificData || stageSpecificData.length === 0) {

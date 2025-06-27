@@ -255,7 +255,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // 🎯 Real analytics functions from LocalDataContext
-  const { addPracticeSession, addEmotionalNote } = useLocalData();
+  const { addPracticeSession, addEmotionalNote, userData, isLoading } = useLocalData();
 
   // Auto-start if initialMinutes provided
   useEffect(() => {
@@ -266,11 +266,15 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     }
   }, [propInitialMinutes, config.minDuration]);
 
-  // 🎯 TIMER COMPLETION HANDLER - FIXED WITH DIRECT NAVIGATION
+  // 🎯 ENHANCED TIMER COMPLETION HANDLER - BETTER DEBUGGING & RETRIES
   const handleTimerComplete = useCallback(() => {
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
+    
+    console.log('🎯 TIMER COMPLETION STARTED');
+    console.log('📊 UserData available:', !!userData);
+    console.log('⏰ Loading state:', isLoading);
     
     // 📊 ANALYTICS CALCULATIONS
     const totalInteractions = (Object.values(pahmCounts) as number[]).reduce((sum, count) => sum + count, 0);
@@ -281,7 +285,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     // 🎯 SINGLE STANDARD FORMAT - LocalDataContext underscore format
     const convertedPAHMCounts = convertToStandardFormat(pahmCounts);
 
-    // 💾 SESSION DATA OBJECT
+    // 💾 SESSION DATA OBJECT - VERIFIED FORMAT
     const sessionData = {
       timestamp: endTime,
       duration: Math.round(actualDuration / 60),
@@ -300,54 +304,55 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       pahmCounts: convertedPAHMCounts
     };
 
-    // 💾 SAVE TO ANALYTICS
-    addPracticeSession(sessionData);
-
-    // 📝 COMPREHENSIVE EMOTIONAL NOTE
-    const stageEmojis = ['', '', '🌱', '🌟', '💎', '🔮', '🏔️'];
-    const completionMessage = isFullyCompleted 
-      ? `✅ ${stageEmojis[stageLevel]} Completed full ${initialMinutes}-minute Stage ${stageLevel} PAHM session!`
-      : `⏱️ ${stageEmojis[stageLevel]} Completed ${Math.round(actualDuration / 60)}-minute Stage ${stageLevel} PAHM session.`;
-    
-    const insightMessage = presentPercentage >= 80 
-      ? "🎯 Excellent present-moment awareness!" 
-      : presentPercentage >= 60 
-      ? "✨ Good mindfulness development." 
-      : "🌱 Building present-moment attention.";
-
-    const timeBreakdown = `⏰ Attention Distribution: Present: ${pahmStats.timeStats.present} | Past: ${pahmStats.timeStats.past} | Future: ${pahmStats.timeStats.future}`;
-    const emotionalBreakdown = `😊 Emotional Patterns: Attachment: ${pahmStats.emotionalStats.attachment} | Neutral: ${pahmStats.emotionalStats.neutral} | Aversion: ${pahmStats.emotionalStats.aversion}`;
-    const detailedCounts = `📊 Detailed Matrix: Nostalgia(${pahmCounts.nostalgia}) Past(${pahmCounts.past}) Regret(${pahmCounts.regret}) | Likes(${pahmCounts.likes}) Present(${pahmCounts.present}) Dislikes(${pahmCounts.dislikes}) | Anticipation(${pahmCounts.anticipation}) Future(${pahmCounts.future}) Worry(${pahmCounts.worry})`;
-
-    addEmotionalNote({
-      timestamp: endTime,
-      content: `${completionMessage} 
+    // 🔥 ENHANCED PRACTICE SESSION SAVING WITH RETRY LOGIC
+    const savePracticeSession = () => {
+      console.log('🚨 ATTEMPTING TO SAVE PRACTICE SESSION');
+      console.log('📊 Session Data:', {
+        duration: sessionData.duration,
+        stageLevel: sessionData.stageLevel,
+        sessionType: sessionData.sessionType,
+        hasPahmCounts: !!sessionData.pahmCounts,
+        presentPercentage: sessionData.presentPercentage
+      });
       
-${insightMessage} 
+      if (!userData) {
+        console.error('❌ CRITICAL: userData is null - cannot save practice session');
+        console.log('⏳ Will retry in 1 second...');
+        
+        // Retry after a short delay to allow userData to initialize
+        setTimeout(() => {
+          console.log('🔄 RETRY: Attempting to save practice session again');
+          if (userData) {
+            console.log('✅ UserData now available - proceeding with save');
+            try {
+              addPracticeSession(sessionData);
+              console.log('✅✅ PRACTICE SESSION SAVED SUCCESSFULLY ON RETRY');
+            } catch (error) {
+              console.error('❌❌ PRACTICE SESSION SAVE FAILED ON RETRY:', error);
+            }
+          } else {
+            console.error('❌❌ UserData still null after retry - practice session not saved');
+          }
+        }, 1000);
+        return;
+      }
 
-📈 Session Analytics:
-• Stage Level: ${stageLevel} (${config.title})
-• Total Observations: ${totalInteractions}
-• Present Awareness: ${presentPercentage}%
-• Quality Rating: ${sessionQuality}/10
+      try {
+        addPracticeSession(sessionData);
+        console.log('✅✅ PRACTICE SESSION SAVED SUCCESSFULLY');
+      } catch (error) {
+        console.error('❌❌ ERROR SAVING PRACTICE SESSION:', error);
+        console.error('📊 Failed session data:', sessionData);
+      }
+    };
 
-${timeBreakdown}
-${emotionalBreakdown}
-${detailedCounts}
+    // Save practice session
+    savePracticeSession();
 
-🎯 ${config.description}
-
-This data helps track your meditation progress and attention patterns over time.`,
-      emotion: isFullyCompleted ? 'accomplished' : 'content',
-      energyLevel: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6,
-      tags: ['pahm-practice', `stage-${stageLevel}`, posture.toLowerCase(), '9-category-matrix'],
-      gratitude: [
-        'mindfulness practice',
-        'present-moment awareness', 
-        `stage ${stageLevel} development`,
-        isFullyCompleted ? 'session completion' : 'practice effort'
-      ]
-    });
+    // ✅ REMOVED AUTOMATIC EMOTIONAL NOTE
+    // Emotional notes should be manual user reflections, not automatic session dumps
+    // All session data is already saved in the practice session above
+    console.log('📝 Skipping automatic emotional note - user can add manual reflection if desired');
 
     // 🎯 FIXED: Convert to camelCase for navigation (same as PAHMTimer3 pattern)
     const pahmDataForReflection = {
@@ -363,6 +368,7 @@ This data helps track your meditation progress and attention patterns over time.
     };
 
     // 🎯 DIRECT NAVIGATION (same pattern as working PAHMTimer3)
+    console.log('🧭 NAVIGATING TO REFLECTION');
     navigate('/immediate-reflection', {
       state: {
         stageLevel: `Stage ${stageLevel}`,
@@ -374,9 +380,9 @@ This data helps track your meditation progress and attention patterns over time.
       replace: true
     });
 
-    // Don't call onComplete() - let direct navigation handle the flow
+    console.log('🎯 TIMER COMPLETION FINISHED');
     
-  }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, addEmotionalNote, navigate]);
+  }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, addEmotionalNote, navigate, userData, isLoading]);
 
   // Timer countdown effect
   useEffect(() => {

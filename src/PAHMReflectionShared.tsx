@@ -20,7 +20,22 @@ interface PAHMReflectionProps {
   };
   onComplete: () => void;
   onBack: () => void;
+  // NEW: Optional props for emotion selection
+  onEmotionSelected?: (emotion: string, note: string) => void;
+  allowEmotionSelection?: boolean;
 }
+
+// 🎭 EMOTION OPTIONS - Same as DailyEmotionalNotes
+const EMOTION_OPTIONS = [
+  { key: 'joy', name: 'Joy', icon: '😊', color: '#4caf50' },
+  { key: 'gratitude', name: 'Grateful', icon: '🙏', color: '#8bc34a' },
+  { key: 'calm', name: 'Calm', icon: '😌', color: '#00bcd4' },
+  { key: 'excited', name: 'Excited', icon: '🤩', color: '#ff9800' },
+  { key: 'neutral', name: 'Neutral', icon: '😐', color: '#9e9e9e' },
+  { key: 'thoughtful', name: 'Thoughtful', icon: '🤔', color: '#607d8b' },
+  { key: 'stressed', name: 'Stressed', icon: '😰', color: '#ff5722' },
+  { key: 'sad', name: 'Sad', icon: '😢', color: '#3f51b5' }
+];
 
 const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
   stageLevel,
@@ -29,7 +44,9 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
   posture,
   pahmData = {},
   onComplete,
-  onBack
+  onBack,
+  onEmotionSelected,
+  allowEmotionSelection = true
 }) => {
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -44,6 +61,11 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     anxiety: false,
     other: false
   });
+  
+  // 🎭 EMOTION SELECTION STATE
+  const [showEmotionSelection, setShowEmotionSelection] = useState(false);
+  const [selectedEmotion, setSelectedEmotion] = useState<string>('');
+  const [emotionNote, setEmotionNote] = useState<string>('');
   
   const formatPostureName = (postureId: string): string => {
     switch(postureId) {
@@ -115,6 +137,22 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     return Math.round((count / pahmTotals.grandTotal) * 100);
   };
   
+  // 🎭 EMOTION SELECTION HANDLERS
+  const handleShowEmotionSelection = () => {
+    setShowEmotionSelection(true);
+  };
+
+  const handleSaveEmotionalNote = () => {
+    if (selectedEmotion && onEmotionSelected) {
+      onEmotionSelected(selectedEmotion, emotionNote);
+    }
+    handleSubmit();
+  };
+
+  const handleSkipEmotionalNote = () => {
+    handleSubmit();
+  };
+  
   const handleSubmit = () => {
     const reflectionData = {
       stageLevel,
@@ -135,6 +173,141 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     
     onComplete();
   };
+
+  // 🎭 EMOTION SELECTION UI
+  if (showEmotionSelection) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '20px',
+          padding: '40px',
+          maxWidth: '600px',
+          width: '100%',
+          backdropFilter: 'blur(10px)',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ fontSize: '28px', marginBottom: '10px' }}>How are you feeling? 💭</h2>
+          <p style={{ fontSize: '16px', opacity: 0.8, marginBottom: '30px' }}>
+            Add an optional emotional note about your meditation experience
+          </p>
+
+          {/* Emotion Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: '15px',
+            marginBottom: '30px'
+          }}>
+            {EMOTION_OPTIONS.map(emotion => (
+              <button
+                key={emotion.key}
+                onClick={() => setSelectedEmotion(emotion.key)}
+                style={{
+                  background: selectedEmotion === emotion.key 
+                    ? `linear-gradient(135deg, ${emotion.color} 0%, ${emotion.color}dd 100%)`
+                    : 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  border: selectedEmotion === emotion.key ? `2px solid ${emotion.color}` : '2px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '15px',
+                  padding: '20px 15px',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 0.3s ease',
+                  transform: selectedEmotion === emotion.key ? 'scale(1.05)' : 'scale(1)',
+                  boxShadow: selectedEmotion === emotion.key ? `0 4px 15px ${emotion.color}40` : 'none'
+                }}
+              >
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>{emotion.icon}</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{emotion.name}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Optional Note */}
+          {selectedEmotion && (
+            <div style={{ marginBottom: '30px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                marginBottom: '10px'
+              }}>
+                Add a note (optional) 📝
+              </label>
+              <textarea
+                value={emotionNote}
+                onChange={(e) => setEmotionNote(e.target.value)}
+                placeholder="How was your meditation? Any insights or reflections..."
+                style={{
+                  width: '100%',
+                  height: '80px',
+                  padding: '15px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  outline: 'none',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+            <button
+              onClick={handleSkipEmotionalNote}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '25px',
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              Skip Note
+            </button>
+            
+            {selectedEmotion && (
+              <button
+                onClick={handleSaveEmotionalNote}
+                style={{
+                  background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Save Emotional Note
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="reflection-screen">
@@ -719,31 +892,92 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
             Consider practicing at this level again, or move to the next level when you feel ready.
           </p>
           
-          <button 
-            className="complete-button" 
-            onClick={handleSubmit}
-            style={{
-              background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-              color: 'white',
-              padding: '15px 40px',
-              border: 'none',
-              borderRadius: '25px',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
-              transition: 'transform 0.2s ease',
-              transform: 'scale(1)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            Complete Reflection
-          </button>
+          {/* 🎭 NEW: Emotion Selection Buttons */}
+          {allowEmotionSelection && (
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              marginBottom: '20px'
+            }}>
+              <button
+                onClick={handleShowEmotionSelection}
+                style={{
+                  background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                  color: 'white',
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '25px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(255, 152, 0, 0.3)',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                💭 Add How I'm Feeling
+              </button>
+              
+              <button 
+                onClick={handleSubmit}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  padding: '12px 24px',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '25px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                Skip & Complete
+              </button>
+            </div>
+          )}
+          
+          {/* Original Complete Button (shown if emotion selection is disabled) */}
+          {!allowEmotionSelection && (
+            <button 
+              className="complete-button" 
+              onClick={handleSubmit}
+              style={{
+                background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                color: 'white',
+                padding: '15px 40px',
+                border: 'none',
+                borderRadius: '25px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                transition: 'transform 0.2s ease',
+                transform: 'scale(1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              Complete Reflection
+            </button>
+          )}
         </div>
       </div>
     </div>
