@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AssessmentPopup from './AssessmentPopup';
+import AdminPanel from './components/AdminPanel';
+import HappinessProgressTracker from './HappinessProgressTracker';
 
 interface HomeDashboardProps {
   onStartPractice: () => void;
@@ -40,6 +42,10 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 🎯 HAPPINESS TRACKER STATE
+  const [showHappinessTracker, setShowHappinessTracker] = useState(false);
+  const [happinessPoints, setHappinessPoints] = useState(342);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -94,6 +100,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
     setStreak(3);
     setTotalHours(12.5);
+
+    // 🎯 Load happiness points from localStorage
+    const savedHappinessPoints = localStorage.getItem('happiness_points');
+    if (savedHappinessPoints) {
+      setHappinessPoints(parseInt(savedHappinessPoints));
+    }
   }, [location]);
 
   const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
@@ -160,6 +172,15 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     window.location.reload();
   };
 
+  // 🎯 HAPPINESS TRACKER HANDLERS
+  const handleHappinessPointsClick = () => {
+    setShowHappinessTracker(true);
+  };
+
+  const handleCloseHappinessTracker = () => {
+    setShowHappinessTracker(false);
+  };
+
   const tLevels = [
     { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes' },
     { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes' },
@@ -203,6 +224,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
+      {/* Admin Panel */}
+      <AdminPanel />
+
+      {/* 🎯 HAPPINESS TRACKER MODAL */}
+      {showHappinessTracker && (
+        <HappinessProgressTracker onClose={handleCloseHappinessTracker} />
+      )}
+
       {/* Development Reset Button */}
       <button 
         onClick={handleResetProgress}
@@ -244,7 +273,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         />
       )}
 
-      {/* Header */}
+      {/* 🎯 HEADER WITH HAPPINESS POINTS */}
       <header style={{
         background: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
@@ -265,6 +294,46 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           }}>
             Welcome{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}
           </h1>
+        </div>
+        
+        {/* 🎯 HAPPINESS POINTS IN CENTER */}
+        <div 
+          onClick={handleHappinessPointsClick}
+          style={{
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%)',
+            padding: '12px 24px',
+            borderRadius: '50px',
+            color: 'white',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+            textAlign: 'center',
+            minWidth: '120px',
+            border: '2px solid rgba(255, 255, 255, 0.2)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+          }}
+        >
+          <div style={{
+            fontSize: '24px',
+            fontWeight: 'bold',
+            marginBottom: '2px'
+          }}>
+            😊 {happinessPoints}
+          </div>
+          <div style={{
+            fontSize: '11px',
+            opacity: 0.9,
+            fontWeight: '500'
+          }}>
+            Happiness Points
+          </div>
         </div>
         
         {/* Quick Stats */}
@@ -476,28 +545,19 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                           fontSize: '13px',
                           fontWeight: '500',
                           cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          textAlign: 'left',
-                          backdropFilter: 'blur(5px)',
-                          width: '100%'
+                          transition: 'all 0.2s ease',
+                          textAlign: 'left'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.transform = 'translateX(4px)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                          e.currentTarget.style.transform = 'translateY(0px)';
+                          e.currentTarget.style.transform = 'translateX(0px)';
                         }}
                       >
-                        <div style={{ fontWeight: '600' }}>{tLevel.level}</div>
-                        <div style={{ 
-                          fontSize: '11px', 
-                          opacity: 0.9,
-                          marginTop: '2px'
-                        }}>
-                          Physical Stillness for {tLevel.duration} minutes
-                        </div>
+                        {tLevel.title}
                       </button>
                     ))}
                   </div>
@@ -505,7 +565,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               )}
             </div>
 
-            {/* Stages 2-6 */}
+            {/* PAHM Stages 2-6 */}
             {stageData.map((stage) => (
               <div
                 key={stage.num}
@@ -513,17 +573,15 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 style={{
                   background: currentStage >= stage.num 
                     ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)'
-                    : 'linear-gradient(135deg, rgba(209, 213, 219, 0.3) 0%, rgba(156, 163, 175, 0.3) 100%)',
+                    : 'linear-gradient(135deg, rgba(209, 213, 219, 0.08) 0%, rgba(156, 163, 175, 0.08) 100%)',
                   borderRadius: '16px',
                   padding: '20px',
                   border: currentStage >= stage.num 
                     ? '2px solid rgba(102, 126, 234, 0.2)'
-                    : '2px solid rgba(209, 213, 219, 0.3)',
-                  cursor: currentStage >= stage.num ? 'pointer' : 'not-allowed',
-                  opacity: currentStage >= stage.num ? 1 : 0.6,
+                    : '2px solid rgba(209, 213, 219, 0.2)',
+                  cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center'
+                  opacity: currentStage >= stage.num ? 1 : 0.6
                 }}
                 onMouseEnter={(e) => {
                   if (currentStage >= stage.num) {
@@ -537,67 +595,175 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 }}
               >
                 <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: currentStage > stage.num 
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                    : currentStage === stage.num 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                    : 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
-                  color: 'white',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  marginRight: '16px'
+                  alignItems: 'center'
                 }}>
-                  {currentStage > stage.num ? '✓' : stage.num}
-                </div>
-                <div>
-                  <h3 style={{
-                    margin: '0 0 4px 0',
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: currentStage >= stage.num 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     fontSize: '18px',
                     fontWeight: '700',
-                    color: currentStage >= stage.num ? '#1f2937' : '#9ca3af'
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                    marginRight: '16px'
                   }}>
-                    {stage.title}
-                  </h3>
-                  <p style={{
-                    margin: 0,
-                    fontSize: '14px',
-                    color: currentStage >= stage.num ? '#6b7280' : '#9ca3af'
-                  }}>
-                    {stage.desc}
-                  </p>
+                    {stage.num}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      color: currentStage >= stage.num ? '#1f2937' : '#9ca3af'
+                    }}>
+                      {stage.title}
+                    </h3>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '14px',
+                      color: currentStage >= stage.num ? '#6b7280' : '#9ca3af'
+                    }}>
+                      {stage.desc}
+                    </p>
+                  </div>
+                  {currentStage < stage.num && (
+                    <div style={{
+                      fontSize: '16px',
+                      color: '#9ca3af'
+                    }}>
+                      🔒
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </section>
-        
-        {/* Learning Resources */}
+
+        {/* Quick Actions */}
         <section style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '20px',
-          padding: 'clamp(20px, 5vw, 32px)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '20px',
+          marginBottom: '24px'
         }}>
           <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            gap: '16px'
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '20px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
           }}>
-            <h2 style={{
-              margin: 0,
-              fontSize: 'clamp(20px, 4vw, 28px)',
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '20px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Quick Actions
+            </h3>
+            <div style={{
+              display: 'grid',
+              gap: '12px'
+            }}>
+              <button
+                onClick={onViewProgress}
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                }}
+              >
+                📊 View Progress
+              </button>
+              <button
+                onClick={() => navigate('/notes')}
+                style={{
+                  background: 'rgba(102, 126, 234, 0.1)',
+                  color: '#667eea',
+                  border: '2px solid rgba(102, 126, 234, 0.2)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}
+              >
+                📝 Daily Notes
+              </button>
+              <button
+                onClick={() => navigate('/mind-recovery')}
+                style={{
+                  background: 'rgba(102, 126, 234, 0.1)',
+                  color: '#667eea',
+                  border: '2px solid rgba(102, 126, 234, 0.2)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}
+              >
+                🧠 Mind Recovery
+              </button>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '20px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '20px',
               fontWeight: '700',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               WebkitBackgroundClip: 'text',
@@ -605,87 +771,63 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               backgroundClip: 'text'
             }}>
               Learning Resources
-            </h2>
-            <button 
-              onClick={onViewLearning}
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-              }}
-            >
-              View All
-            </button>
-          </div>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '20px'
-          }}>
-            {resourceData.map((resource, index) => (
-              <div
-                key={index}
-                onClick={resource.onClick}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
-                  borderRadius: '16px',
-                  padding: '24px',
-                  border: '1px solid rgba(102, 126, 234, 0.1)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  textAlign: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)';
-                }}
-              >
-                <div style={{
-                  fontSize: '32px',
-                  marginBottom: '16px'
-                }}>
-                  {resource.icon}
-                </div>
-                <h3 style={{
-                  margin: '0 0 8px 0',
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  color: '#1f2937'
-                }}>
-                  {resource.title}
-                </h3>
-                <p style={{
-                  margin: 0,
-                  fontSize: '14px',
-                  color: '#6b7280',
-                  lineHeight: '1.5'
-                }}>
-                  {resource.desc}
-                </p>
-              </div>
-            ))}
+            </h3>
+            <div style={{
+              display: 'grid',
+              gap: '12px'
+            }}>
+              {resourceData.map((resource, index) => (
+                <button
+                  key={index}
+                  onClick={resource.onClick}
+                  style={{
+                    background: 'rgba(102, 126, 234, 0.05)',
+                    border: '1px solid rgba(102, 126, 234, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{
+                      fontSize: '20px',
+                      marginRight: '12px'
+                    }}>
+                      {resource.icon}
+                    </span>
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#1f2937'
+                    }}>
+                      {resource.title}
+                    </span>
+                  </div>
+                  <p style={{
+                    margin: 0,
+                    fontSize: '14px',
+                    color: '#6b7280',
+                    lineHeight: '1.4'
+                  }}>
+                    {resource.desc}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       </main>
@@ -700,39 +842,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           to {
             opacity: 1;
             transform: translateY(0);
-          }
-        }
-
-        @media (max-width: 768px) {
-          .stages-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          .resource-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          .header-flex {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-          
-          .stats-flex {
-            margin-top: 16px !important;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .header-padding {
-            padding: 12px 16px !important;
-          }
-          
-          .main-padding {
-            padding: 16px !important;
-          }
-          
-          .section-padding {
-            padding: 16px !important;
           }
         }
       `}</style>

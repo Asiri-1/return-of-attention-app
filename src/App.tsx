@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'; // BrowserRouter added back here
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import PageViewTracker from './components/PageViewTracker';
 import './App.css';
 import { AuthProvider, useAuth } from './AuthContext';
-import { AdminProvider } from './AdminContext'; // Add this import
+import { AdminProvider } from './AdminContext'; // Already imported
 import DevPanelToggle from './DevPanelToggle';
 import MainNavigation from './MainNavigation';
 import DailyEmotionalNotesWrapper from './DailyEmotionalNotesWrapper';
@@ -463,14 +463,23 @@ const AppContent: React.FC = () => {
                   <Route 
                     path="/chatwithguru" 
                     element={
-                      <ChatInterface 
-                        knowledgeBaseReady={knowledgeBaseReady}
-                        currentUser={currentUser}
-                      />
+                      knowledgeBaseReady ? (
+                        <ChatInterface />
+                      ) : (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          height: '50vh',
+                          fontSize: '18px'
+                        }}>
+                          Loading knowledge base...
+                        </div>
+                      )
                     } 
                   />
                   
-                  {/* Redirect any unknown routes to home */}
+                  {/* Catch-all redirect to home for authenticated users */}
                   <Route path="*" element={<Navigate to="/home" replace />} />
                 </Routes>
               </MainNavigation>
@@ -484,17 +493,18 @@ const AppContent: React.FC = () => {
   );
 };
 
+// 🔥 MAIN APP COMPONENT - Updated with AdminProvider
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AdminProvider>
-        <LocalDataProvider>
-          <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <AdminProvider>
+          <LocalDataProvider>
             <AppContent />
-          </BrowserRouter>
-        </LocalDataProvider>
-      </AdminProvider>
-    </AuthProvider>
+          </LocalDataProvider>
+        </AdminProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 
