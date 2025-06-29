@@ -36,7 +36,7 @@ import Questionnaire from './Questionnaire';
 
 // Import Knowledge Base Components
 import { LocalDataProvider } from './contexts/LocalDataContext';
-import { EnhancedLocalStorageManager } from './services/EnhancedLocalStorageManager';
+import { EnhancedLocalStorageManager } from './services/AdaptiveWisdomEngine';
 import { apiService } from './services/api';
 
 // Helper component to wrap authenticated pages with navigation

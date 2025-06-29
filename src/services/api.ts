@@ -1,10 +1,10 @@
 import axios from "axios";
-import app from "../utils/firebase-config"; // Import the default export (the Firebase app instance)
-import { getFunctions, httpsCallable } from "firebase/functions"; // Import getFunctions
-import { getAuth } from "firebase/auth"; // Import getAuth
+import app from "../utils/firebase-config";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getAuth } from "firebase/auth";
 
 // Get the auth and functions instances from the app
-const auth = getAuth(app );
+const auth = getAuth(app);
 const functions = getFunctions(app);
 
 // Use your deployed Firebase Functions API
@@ -16,7 +16,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-} );
+});
 
 // Add Firebase auth token to requests
 api.interceptors.request.use(async (config) => {
@@ -72,20 +72,64 @@ export const del = async (path: string) => {
   }
 };
 
-// Example function to call your deployed helloWorld Firebase Function
-export const getHelloWorld = async () => {
-  const helloWorldCallable = httpsCallable(functions, 'helloWorld' );
-  const result = await helloWorldCallable();
-  return result.data;
+// 🚀 NEW: PAHM Guru Chat using Firebase Functions
+export const pahmGuruChat = async (message: string, userContext: any, sessionId: string) => {
+  try {
+    // Try using httpsCallable first (direct Firebase Functions call)
+    const pahmChatCallable = httpsCallable(functions, 'pahmGuruChat');
+    const result = await pahmChatCallable({
+      message,
+      userContext,
+      sessionId
+    });
+    return result.data;
+  } catch (error) {
+    console.warn('Direct Firebase call failed, trying HTTP endpoint:', error);
+    
+    // Fallback to HTTP endpoint
+    try {
+      const response = await axios.post(
+        'https://us-central1-return-of-attention-app.cloudfunctions.net/pahmGuruChat',
+        {
+          message,
+          userContext,
+          sessionId
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': auth.currentUser ? `Bearer ${await auth.currentUser.getIdToken()}` : ''
+          }
+        }
+      );
+      return response.data;
+    } catch (httpError) {
+      console.error('HTTP endpoint also failed:', httpError);
+      throw httpError;
+    }
+  }
 };
 
-// User profile functions - now using the deployed backend
+// Example function to call your deployed helloWorld Firebase Function
+export const getHelloWorld = async () => {
+  try {
+    const helloWorldCallable = httpsCallable(functions, 'helloWorld');
+    const result = await helloWorldCallable();
+    return result.data;
+  } catch (error) {
+    console.warn('Direct helloWorld call failed, trying HTTP:', error);
+    // Fallback to HTTP
+    const response = await axios.get('https://us-central1-return-of-attention-app.cloudfunctions.net/helloWorld');
+    return response.data;
+  }
+};
+
+// User profile functions - keep your existing code
 export const getUserProfile = async () => {
   try {
     return await get('/users/profile');
   } catch (error) {
     console.error('Error getting user profile:', error);
-    // Return mock data as fallback
     return {
       data: {
         uid: "mock-uid",
@@ -108,7 +152,6 @@ export const createUserProfile = async (profileData: any) => {
     return await post('/users/profile', profileData);
   } catch (error) {
     console.error('Error creating user profile:', error);
-    // Save to localStorage as fallback
     const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
     const updatedProfile = { ...existingProfile, ...profileData };
     localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
@@ -121,7 +164,6 @@ export const updateUserProfile = async (profileData: any) => {
     return await put('/users/profile', profileData);
   } catch (error) {
     console.error('Error updating user profile:', error);
-    // Save to localStorage as fallback
     const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
     const updatedProfile = { ...existingProfile, ...profileData };
     localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
@@ -130,13 +172,12 @@ export const updateUserProfile = async (profileData: any) => {
   }
 };
 
-// Practice session functions
+// Practice session functions - keep your existing code
 export const createPracticeSession = async (sessionData: any) => {
   try {
     return await post('/practice/sessions', sessionData);
   } catch (error) {
     console.error('Error creating practice session:', error);
-    // Save to localStorage as fallback
     const sessions = JSON.parse(localStorage.getItem('practiceSessions') || '[]');
     const newSession = { 
       id: `session-${Date.now()}`, 
@@ -154,19 +195,17 @@ export const getPracticeSessions = async () => {
     return await get('/practice/sessions');
   } catch (error) {
     console.error('Error getting practice sessions:', error);
-    // Return localStorage data as fallback
     const sessions = JSON.parse(localStorage.getItem('practiceSessions') || '[]');
     return { data: sessions };
   }
 };
 
-// Emotional notes functions
+// Emotional notes functions - keep your existing code
 export const createEmotionalNote = async (noteData: any) => {
   try {
     return await post('/emotional-notes', noteData);
   } catch (error) {
     console.error('Error creating emotional note:', error);
-    // Save to localStorage as fallback
     const notes = JSON.parse(localStorage.getItem('emotionalNotes') || '[]');
     const newNote = { 
       id: `note-${Date.now()}`, 
@@ -184,19 +223,17 @@ export const getEmotionalNotes = async () => {
     return await get('/emotional-notes');
   } catch (error) {
     console.error('Error getting emotional notes:', error);
-    // Return localStorage data as fallback
     const notes = JSON.parse(localStorage.getItem('emotionalNotes') || '[]');
     return { data: notes };
   }
 };
 
-// Analytics functions
+// Analytics functions - keep your existing code
 export const getAnalytics = async () => {
   try {
     return await get('/analytics');
   } catch (error) {
     console.error('Error getting analytics:', error);
-    // Return calculated analytics from localStorage as fallback
     const sessions = JSON.parse(localStorage.getItem('practiceSessions') || '[]');
     const notes = JSON.parse(localStorage.getItem('emotionalNotes') || '[]');
     
@@ -206,7 +243,7 @@ export const getAnalytics = async () => {
         totalPracticeTime: sessions.reduce((sum: number, session: any) => sum + (session.duration || 0), 0),
         averageSessionLength: sessions.length > 0 ? 
           sessions.reduce((sum: number, session: any) => sum + (session.duration || 0), 0) / sessions.length : 0,
-        currentStreak: 0, // Calculate streak from sessions
+        currentStreak: 0,
         totalNotes: notes.length,
         sessionsThisWeek: sessions.filter((session: any) => {
           const sessionDate = new Date(session.createdAt || session.date);
@@ -219,7 +256,7 @@ export const getAnalytics = async () => {
   }
 };
 
-// Create an apiService object for backward compatibility
+// Enhanced apiService object with new methods
 export const apiService = {
   getUserProfile,
   createUserProfile,
@@ -229,6 +266,19 @@ export const apiService = {
   createEmotionalNote,
   getEmotionalNotes,
   getAnalytics,
+  // NEW methods
+  pahmGuruChat,
+  helloWorld: getHelloWorld,
+  healthCheck: async () => {
+    try {
+      const healthCallable = httpsCallable(functions, 'healthCheck');
+      const result = await healthCallable();
+      return result.data;
+    } catch (error) {
+      console.warn('Health check failed:', error);
+      throw error;
+    }
+  }
 };
 
 export default api;
