@@ -2,7 +2,7 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    padding: 10px 20px; /* Adjusted from 20px to 10px top/bottom padding */
+    padding: 10px 20px;
     background-color: #FFFFFF;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -72,6 +72,7 @@
     -webkit-transition: .2s;
     transition: opacity .2s;
     border-radius: 4px;
+    cursor: pointer;
 }
 
 .duration-slider:hover {
@@ -94,6 +95,7 @@
     border-radius: 50%;
     background: #007bff;
     cursor: pointer;
+    border: none;
 }
 
 .start-practice-button {
@@ -106,6 +108,8 @@
     font-size: 18px;
     margin-top: 20px;
     width: 100%;
+    min-height: 44px; /* Touch-friendly minimum */
+    transition: background-color 0.2s;
 }
 
 .start-practice-button:hover {
@@ -121,8 +125,261 @@
     cursor: pointer;
     font-size: 16px;
     margin-top: 20px;
+    min-height: 44px; /* Touch-friendly minimum */
+    transition: background-color 0.2s;
 }
 
 .back-button:hover {
     background-color: #e9f5ff;
+}
+
+/* Mobile Responsive Design */
+
+/* Tablet (768px and below) */
+@media (max-width: 768px) {
+    .practice-setup {
+        padding: 8px 16px;
+    }
+    
+    .practice-setup-header {
+        margin-bottom: 24px;
+    }
+    
+    .practice-setup-header h1 {
+        font-size: 16px;
+    }
+    
+    .practice-setup-content {
+        max-width: 100%;
+    }
+    
+    .practice-setup-content h2 {
+        font-size: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .setup-section {
+        margin-bottom: 24px;
+    }
+    
+    .setup-section h3 {
+        font-size: 15px;
+        margin-bottom: 12px;
+    }
+    
+    .duration-value {
+        font-size: 20px;
+    }
+    
+    .duration-slider {
+        height: 10px; /* Slightly larger for easier touch */
+    }
+    
+    .duration-slider::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .duration-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .start-practice-button {
+        font-size: 16px;
+        padding: 14px 20px;
+    }
+    
+    .back-button {
+        font-size: 15px;
+        padding: 10px 18px;
+    }
+}
+
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+    .practice-setup {
+        padding: 6px 12px;
+    }
+    
+    .practice-setup-header {
+        margin-bottom: 20px;
+    }
+    
+    .practice-setup-header h1 {
+        font-size: 15px;
+        margin-top: 8px;
+    }
+    
+    .practice-setup-content h2 {
+        font-size: 18px;
+        margin-bottom: 20px;
+    }
+    
+    .setup-section {
+        margin-bottom: 20px;
+    }
+    
+    .setup-section h3 {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .duration-control {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .duration-value {
+        font-size: 18px;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    
+    .duration-slider {
+        height: 12px; /* Even larger for mobile */
+        margin: 10px 0;
+    }
+    
+    .duration-slider::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .duration-slider::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .start-practice-button {
+        font-size: 15px;
+        padding: 16px 20px;
+        margin-top: 16px;
+    }
+    
+    .back-button {
+        font-size: 14px;
+        padding: 12px 16px;
+        margin-top: 16px;
+    }
+}
+
+/* Small Mobile (360px and below) */
+@media (max-width: 360px) {
+    .practice-setup {
+        padding: 4px 8px;
+    }
+    
+    .practice-setup-header {
+        margin-bottom: 16px;
+    }
+    
+    .practice-setup-header h1 {
+        font-size: 14px;
+        margin-top: 6px;
+    }
+    
+    .practice-setup-content h2 {
+        font-size: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .setup-section {
+        margin-bottom: 16px;
+    }
+    
+    .setup-section h3 {
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+    
+    .duration-value {
+        font-size: 16px;
+    }
+    
+    .duration-slider {
+        height: 14px;
+        margin: 8px 0;
+    }
+    
+    .duration-slider::-webkit-slider-thumb {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .duration-slider::-moz-range-thumb {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .start-practice-button {
+        font-size: 14px;
+        padding: 14px 18px;
+        margin-top: 12px;
+    }
+    
+    .back-button {
+        font-size: 13px;
+        padding: 10px 14px;
+        margin-top: 12px;
+    }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+    .duration-slider {
+        height: 16px; /* Extra large for touch devices */
+    }
+    
+    .duration-slider::-webkit-slider-thumb {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .duration-slider::-moz-range-thumb {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .start-practice-button:hover,
+    .back-button:hover {
+        background-color: initial;
+    }
+    
+    .start-practice-button:active {
+        background-color: #004085;
+    }
+    
+    .back-button:active {
+        background-color: #cce7ff;
+    }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .practice-setup {
+        padding: 4px 16px;
+    }
+    
+    .practice-setup-header {
+        margin-bottom: 16px;
+    }
+    
+    .practice-setup-content h2 {
+        font-size: 18px;
+        margin-bottom: 16px;
+    }
+    
+    .setup-section {
+        margin-bottom: 16px;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .duration-slider::-webkit-slider-thumb {
+        border: 1px solid rgba(0, 123, 255, 0.2);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
 }

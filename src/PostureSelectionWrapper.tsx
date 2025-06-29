@@ -1,6 +1,6 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import PostureSelection from './PostureSelection';
+import { useNavigate } from 'react-router-dom';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
 
 interface PostureSelectionWrapperProps {
   stageNumber: number;
@@ -14,28 +14,21 @@ const PostureSelectionWrapper: React.FC<PostureSelectionWrapperProps> = ({ stage
   };
   
   const handleStartPractice = (selectedPosture: string) => {
-    // Store the selected posture in session storage for this practice session
     sessionStorage.setItem('currentPosture', selectedPosture);
     
-    // Navigate to the appropriate timer based on stage number
     if (stageNumber === 1) {
-      // For Stage One (Seeker), navigate to the appropriate T-level practice
-      // Get the current T-level from localStorage or sessionStorage, default to T1
       const currentUserData = localStorage.getItem('currentUser');
       let level = 't1';
-      let duration = 10; // Default duration for T1
+      let duration = 10;
       
-      // Check if we have level and duration in location state first (from direct T-level click)
       const locationState = window.history.state?.usr || {};
       if (locationState.level && locationState.duration) {
         level = locationState.level.toLowerCase();
         duration = locationState.duration;
       } else if (currentUserData) {
         const currentUser = JSON.parse(currentUserData);
-        // Use the user's saved T-level if available, otherwise default to T1
         level = currentUser.currentTLevel || 't1';
         
-        // Set duration based on level
         switch(level) {
           case 't1': duration = 10; break;
           case 't2': duration = 15; break;
@@ -45,12 +38,10 @@ const PostureSelectionWrapper: React.FC<PostureSelectionWrapperProps> = ({ stage
           default: duration = 10;
         }
       } else {
-        // Fallback to session storage if available
         const sessionLevel = sessionStorage.getItem('currentTLevel');
         if (sessionLevel) {
           level = sessionLevel;
           
-          // Set duration based on level
           switch(level) {
             case 't1': duration = 10; break;
             case 't2': duration = 15; break;
@@ -62,13 +53,9 @@ const PostureSelectionWrapper: React.FC<PostureSelectionWrapperProps> = ({ stage
         }
       }
       
-      // Store the current level in sessionStorage for this session
       sessionStorage.setItem('currentTLevel', level);
-      
-      // Format the level for display (e.g., 't1' to 'T1')
       const displayLevel = level.toUpperCase();
       
-      // Navigate to the seeker practice timer with all necessary state
       navigate('/seeker-practice-timer', { 
         state: { 
           posture: selectedPosture,
@@ -78,8 +65,6 @@ const PostureSelectionWrapper: React.FC<PostureSelectionWrapperProps> = ({ stage
         } 
       });
     } else {
-      // For PAHM stages (2-6), navigate to the PAHM practice timer
-      // Get the stage title based on stage number
       let stageTitle = 'PAHM Practice';
       switch (stageNumber) {
         case 2:
@@ -108,12 +93,31 @@ const PostureSelectionWrapper: React.FC<PostureSelectionWrapperProps> = ({ stage
       });
     }
   };
+
+  const getCurrentTLevel = (): string | undefined => {
+    if (stageNumber !== 1) return undefined;
+    
+    const locationState = window.history.state?.usr || {};
+    if (locationState.level) {
+      return locationState.level.toUpperCase();
+    }
+    
+    const currentUserData = localStorage.getItem('currentUser');
+    if (currentUserData) {
+      const currentUser = JSON.parse(currentUserData);
+      return currentUser.currentTLevel?.toUpperCase() || 'T1';
+    }
+    
+    const sessionLevel = sessionStorage.getItem('currentTLevel');
+    return sessionLevel?.toUpperCase() || 'T1';
+  };
   
   return (
-    <PostureSelection
+    <UniversalPostureSelection
       onBack={handleBack}
       onStartPractice={handleStartPractice}
       stageNumber={stageNumber}
+      currentTLevel={getCurrentTLevel()}
     />
   );
 };

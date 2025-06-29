@@ -6,7 +6,7 @@ import T2Introduction from './T2Introduction';
 import T3Introduction from './T3Introduction';
 import T4Introduction from './T4Introduction';
 import T5Introduction from './T5Introduction';
-import Stage1PostureSelection from './Stage1PostureSelection';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
 import Stage1Reflection from './Stage1Reflection';
 import MainNavigation from './MainNavigation';
 
@@ -251,7 +251,7 @@ const Stage1Wrapper: React.FC<Stage1WrapperProps> = () => {
           onBack={handleBack}
         />
       ) : showPostureSelection ? (
-        <Stage1PostureSelection
+        <UniversalPostureSelection
           onBack={handleBack}
           onStartPractice={handleStartPractice}
           currentTLevel={currentTLevel}

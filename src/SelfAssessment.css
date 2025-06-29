@@ -1,216 +1,286 @@
 .self-assessment-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  width: 100%;
-  background-color: #f8f9fa;
+  min-height: 100vh; /* Use min-height to ensure it takes full viewport height */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Consistent background */
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   padding: 20px;
   box-sizing: border-box;
-  position: relative;
-}
-
-.notification-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  width: 100%;
-  z-index: 1000;
-}
-
-.notification-content {
-  background-color: white;
-  padding: 30px;
-  border-radius: 12px;
-  max-width: 500px;
-  text-align: center;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-}
-
-.notification-content h3 {
-  margin-top: 0;
-  color: #e74c3c;
-  font-size: 22px;
-}
-
-.notification-content p {
-  margin-bottom: 20px;
-  line-height: 1.6;
-  color: #2c3e50;
-}
-
-.notification-content button {
-  background-color: #4a90e2;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.notification-content button:hover {
-  background-color: #3a80d2;
+  align-items: center; /* Center content horizontally */
+  justify-content: center; /* Center content vertically */
 }
 
 .assessment-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  max-width: 700px; /* Match max-width of content */
   margin-bottom: 30px;
 }
 
 .back-button {
-  padding: 8px 16px;
-  background-color: transparent;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 10px 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
-  color: #5d6778;
+  font-size: 16px;
+  color: white;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .progress-indicator {
-  font-size: 14px;
-  color: #5d6778;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .assessment-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  align-items: center; /* Center content horizontally */
   max-width: 700px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  padding: 30px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .category-container {
-  text-align: left;
+  text-align: center; /* Center category title and description */
+  margin-bottom: 30px;
 }
 
 .category-container h2 {
-  font-size: 22px;
+  font-size: 28px;
+  font-weight: 600;
   margin-bottom: 10px;
-  color: #2c3e50;
-  line-height: 1.4;
+  color: white;
+  line-height: 1.3;
 }
 
 .category-description {
-  color: #5d6778;
+  color: rgba(255, 255, 255, 0.8);
   margin-bottom: 20px;
   line-height: 1.5;
+  max-width: 600px;
 }
 
 .instruction {
   font-weight: 500;
   margin-bottom: 15px;
-  color: #2c3e50;
-}
-
-.entry-form {
-  margin-bottom: 20px;
+  color: white;
+  font-size: 18px;
 }
 
 .entry-input-container {
   display: flex;
-  margin-bottom: 15px;
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 20px;
 }
 
 .entry-input {
   flex: 1;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 6px 0 0 6px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 10px 0 0 10px;
   font-size: 16px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  outline: none;
+}
+
+.entry-input::placeholder {
+  color: #888;
 }
 
 .add-entry-button {
-  padding: 12px 20px;
-  background-color: #4a90e2;
+  padding: 14px 25px;
+  background-color: #4CAF50; /* Green color for add button */
   color: white;
   border: none;
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 10px 10px 0;
   cursor: pointer;
   font-size: 16px;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.add-entry-button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
 }
 
 .entries-list {
-  margin-bottom: 15px;
-  max-height: 200px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 250px; /* Limit height for scrollability */
   overflow-y: auto;
+  margin-bottom: 20px;
 }
 
 .entry-item {
-  padding: 10px 15px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  margin-bottom: 10px;
   font-size: 16px;
+  color: white;
 }
 
-.entry-count {
+.entry-item button {
+  background-color: #e74c3c; /* Red for remove button */
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 8px;
+  cursor: pointer;
   font-size: 14px;
-  color: #5d6778;
-  margin-bottom: 20px;
+  transition: background-color 0.2s;
+}
+
+.entry-item button:hover {
+  background-color: #c0392b;
 }
 
 .navigation-buttons {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 500px;
+  margin-top: 30px;
 }
 
-.next-button {
-  padding: 12px 24px;
-  background-color: #4a90e2;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.navigation-buttons button {
+  padding: 14px 28px;
   font-size: 16px;
-  transition: background-color 0.2s;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
 }
 
-.next-button:hover {
-  background-color: #3a80d2;
+.navigation-buttons button:first-child {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-.next-button:disabled {
-  background-color: #cccccc;
+.navigation-buttons button:first-child:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.navigation-buttons button:last-child {
+  background: #4CAF50;
+  color: white;
+  border: 2px solid #4CAF50;
+}
+
+.navigation-buttons button:last-child:hover:not(:disabled) {
+  background: #45a049;
+  border-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.navigation-buttons button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
+  .self-assessment-container {
+    padding: 15px;
+  }
+
+  .assessment-content {
+    padding: 20px;
+  }
+
+  .category-container h2 {
+    font-size: 24px;
+  }
+
+  .instruction {
+    font-size: 16px;
+  }
+
+  .entry-input, .add-entry-button {
+    padding: 12px 15px;
+    font-size: 15px;
+  }
+
+  .entry-item {
+    padding: 10px 15px;
+    font-size: 15px;
+  }
+
+  .entry-item button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .navigation-buttons button {
+    padding: 12px 24px;
+    font-size: 15px;
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .self-assessment-container {
+    padding: 10px;
+  }
+
   .assessment-content {
     padding: 15px;
   }
-  
+
   .category-container h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
-  
-  .entry-input, .add-entry-button {
-    padding: 10px;
+
+  .instruction {
     font-size: 14px;
   }
-  
+
+  .entry-input, .add-entry-button {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
   .entry-item {
     padding: 8px 12px;
     font-size: 14px;
   }
-  
-  .next-button {
-    padding: 10px 20px;
-    font-size: 14px;
+
+  .navigation-buttons {
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 15px;
+  }
+
+  .navigation-buttons button {
+    width: 100%;
+    min-width: unset;
   }
 }

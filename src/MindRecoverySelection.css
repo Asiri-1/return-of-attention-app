@@ -41,7 +41,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  min-height: 200px; /* Ensure cards have a consistent height */
+  min-height: 200px;
 }
 
 .practice-option-card:hover {
@@ -64,7 +64,7 @@
   font-size: 0.95em;
   color: #555;
   margin-bottom: 15px;
-  flex-grow: 1; /* Allow description to take available space */
+  flex-grow: 1;
 }
 
 .practice-duration {
@@ -111,13 +111,38 @@
   background-color: #e0e0e0;
 }
 
+/* Enhanced Mobile Responsive Design */
+
+/* Tablet (768px and below) */
 @media (max-width: 768px) {
+  .mind-recovery-selection {
+    padding: 15px;
+  }
+
   .practice-options-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
 
   .selection-header h1 {
     font-size: 2em;
+  }
+
+  .selection-description {
+    font-size: 1em;
+  }
+
+  .practice-option-card {
+    padding: 20px;
+    min-height: 180px;
+  }
+
+  .practice-icon {
+    font-size: 2.5em;
+  }
+
+  .practice-option-card h3 {
+    font-size: 1.3em;
   }
 
   .back-button {
@@ -126,5 +151,162 @@
     margin-bottom: 15px;
     display: block;
     text-align: left;
+  }
+
+  .info-section {
+    padding: 15px;
+  }
+}
+
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+  .mind-recovery-selection {
+    padding: 10px;
+  }
+
+  .selection-header {
+    margin-bottom: 20px;
+  }
+
+  .selection-header h1 {
+    font-size: 1.8em;
+    margin-bottom: 8px;
+  }
+
+  .selection-description {
+    font-size: 0.95em;
+  }
+
+  .practice-options-grid {
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .practice-option-card {
+    padding: 18px;
+    min-height: 160px;
+    border-radius: 10px;
+  }
+
+  .practice-icon {
+    font-size: 2.2em;
+    margin-bottom: 12px;
+  }
+
+  .practice-option-card h3 {
+    font-size: 1.2em;
+    margin-bottom: 8px;
+  }
+
+  .practice-option-card p {
+    font-size: 0.9em;
+    margin-bottom: 12px;
+  }
+
+  .practice-duration {
+    font-size: 0.8em;
+  }
+
+  .info-section {
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 15px;
+  }
+
+  .info-section h3 {
+    font-size: 1.1em;
+  }
+
+  .info-section p {
+    font-size: 0.9em;
+    line-height: 1.5;
+  }
+
+  .back-button {
+    font-size: 1.1em;
+    padding: 8px 12px;
+  }
+}
+
+/* Small Mobile (360px and below) */
+@media (max-width: 360px) {
+  .mind-recovery-selection {
+    padding: 8px;
+  }
+
+  .selection-header h1 {
+    font-size: 1.6em;
+  }
+
+  .selection-description {
+    font-size: 0.9em;
+  }
+
+  .practice-option-card {
+    padding: 15px;
+    min-height: 140px;
+  }
+
+  .practice-icon {
+    font-size: 2em;
+    margin-bottom: 10px;
+  }
+
+  .practice-option-card h3 {
+    font-size: 1.1em;
+  }
+
+  .practice-option-card p {
+    font-size: 0.85em;
+    margin-bottom: 10px;
+  }
+
+  .practice-duration {
+    font-size: 0.75em;
+  }
+
+  .info-section {
+    padding: 10px;
+  }
+
+  .info-section h3 {
+    font-size: 1em;
+  }
+
+  .info-section p {
+    font-size: 0.85em;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (max-width: 768px) {
+  .practice-option-card {
+    /* Ensure cards are easily tappable on touch devices */
+    min-height: 44px; /* iOS recommended minimum touch target */
+  }
+
+  .back-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .practice-option-card:hover {
+    transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .back-button:hover {
+    background-color: transparent;
+  }
+
+  /* Add active states for touch feedback */
+  .practice-option-card:active {
+    transform: scale(0.98);
+    background-color: #f8f9fa;
+  }
+
+  .back-button:active {
+    background-color: #e0e0e0;
   }
 }

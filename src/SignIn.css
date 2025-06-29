@@ -34,24 +34,6 @@
   padding: 40px;
 }
 
-.logo-section {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.matrix-logo {
-  width: 120px;
-  height: 120px;
-  margin: 0 auto 20px;
-  border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  transition: transform 0.3s ease;
-}
-
-.matrix-logo:hover {
-  transform: scale(1.05);
-}
-
 .signin-header {
   text-align: center;
   margin-bottom: 30px;
@@ -311,11 +293,6 @@
   .signin-header p {
     font-size: 15px;
   }
-
-  .matrix-logo {
-    width: 100px;
-    height: 100px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -417,3 +394,5 @@
     transform: translateY(0);
   }
 }
+
+

@@ -1,57 +1,116 @@
-import { v4 as uuidv4 } from 'uuid';
+import { logEvent } from "firebase/analytics";
+import { analytics } from "./firebase-config";
 
-interface AnalyticsEvent {
-  event_name: string;
-  [key: string]: any; // Allows for flexible additional properties
-}
-
-// Function to get or generate a session ID
-const getSessionId = (): string => {
-  let sessionId = localStorage.getItem('analytics_session_id');
-  if (!sessionId) {
-    sessionId = uuidv4();
-    localStorage.setItem('analytics_session_id', sessionId);
-  }
-  return sessionId as string; // Explicitly cast to string after ensuring it's not null
-};
-
-// Function to get device information
-const getDeviceInfo = () => {
-  return {
-    userAgent: navigator.userAgent,
-    screenWidth: window.screen.width,
-    screenHeight: window.screen.height,
-    platform: navigator.platform,
-  };
-};
-
-export const trackEvent = async (event: AnalyticsEvent, userId?: string) => {
+// Helper function to log events with error handling
+const trackEvent = (eventName: string, parameters: { [key: string]: any } = {}) => {
   try {
-    // Update this URL to your deployed function URL
-    const analyticsFunctionUrl = "https://loganalyticsevent-ikcorhnhlq-uc.a.run.app"; 
-
-    const eventPayload = {
-      ...event,
-      timestamp: new Date( ).toISOString(),
-      user_id: userId || 'anonymous', // Use provided userId or 'anonymous'
-      session_id: getSessionId(),
-      device_info: getDeviceInfo(),
-    };
-
-    const response = await fetch(analyticsFunctionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(eventPayload),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to send analytics event:", response.statusText, await response.text());
-    } else {
-      console.log("Analytics event sent successfully:", event.event_name);
+    if (analytics) {
+      logEvent(analytics, eventName, parameters);
+      console.log(`Analytics Event: ${eventName}`, parameters);
     }
   } catch (error) {
-    console.error("Error sending analytics event:", error);
+    console.error("Analytics tracking error:", error);
   }
+};
+
+// Practice Session Events
+export const trackPracticeSessionStarted = (stage: string, sessionType: string, duration: number) => {
+  trackEvent("practice_session_started", {
+    stage,
+    session_type: sessionType,
+    planned_duration: duration,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackPracticeSessionCompleted = (stage: string, sessionType: string, actualDuration: number, outcome: number, reflection: string) => {
+  trackEvent("practice_session_completed", {
+    stage,
+    session_type: sessionType,
+    actual_duration: actualDuration,
+    outcome_rating: outcome,
+    reflection_notes_length: reflection ? reflection.length : 0,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Daily Notes Events
+export const trackDailyNoteCreated = (mood: string, noteLength: number, tags: string[]) => {
+  trackEvent("daily_note_created", {
+    mood,
+    note_length: noteLength,
+    tags_count: tags ? tags.length : 0,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackEmotionalNoteCreated = (emotion: string, intensity: number, noteLength: number) => {
+  trackEvent("emotional_note_created", {
+    emotion,
+    intensity,
+    note_length: noteLength,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Chat Events
+export const trackChatMessageSent = (messageLength: number, sessionId: string, messageType: string = "user") => {
+  trackEvent("chat_message_sent", {
+    message_length: messageLength,
+    session_id: sessionId,
+    message_type: messageType,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackChatFeedbackGiven = (rating: number, feedbackText: string, sessionId: string) => {
+  trackEvent("chat_feedback_given", {
+    rating,
+    feedback_text_length: feedbackText ? feedbackText.length : 0,
+    session_id: sessionId,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Navigation Events
+export const trackPageView = (pageName: string) => {
+  trackEvent("page_view", {
+    page_name: pageName,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackUserOnboarding = (step: string, completed: boolean) => {
+  trackEvent("user_onboarding", {
+    step,
+    completed,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Assessment Events
+export const trackAssessmentStarted = (assessmentType: string) => {
+  trackEvent("assessment_started", {
+    assessment_type: assessmentType,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackAssessmentCompleted = (assessmentType: string, score: number, answers: any[]) => {
+  trackEvent("assessment_completed", {
+    assessment_type: assessmentType,
+    score,
+    answers_count: answers ? answers.length : 0,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// App Performance Events
+export const trackAppError = (errorType: string, errorMessage: string, component: string) => {
+  trackEvent("app_error", {
+    error_type: errorType,
+    error_message: errorMessage,
+    component,
+    timestamp: new Date().toISOString()
+  });
 };

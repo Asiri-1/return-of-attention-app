@@ -164,7 +164,6 @@ const InteractiveDemo: React.FC<InteractiveDemoProps> = ({ onComplete, onBack })
                 </div>
                 
                 <PracticeTimer 
-                  initialMinutes={2} // 2 minutes (converted from 120 seconds)
                   stageLevel="Demo Practice"
                   onComplete={handleDemoComplete}
                   onBack={() => setStep(1)}
