@@ -41,7 +41,7 @@ const T1Introduction: React.FC<T1IntroductionProps> = ({
           <button className="nav-button next" onClick={onComplete}>
             Begin Practice
           </button>
-        </div>
+        </div>a
       </div>
     </div>
   );

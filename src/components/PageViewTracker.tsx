@@ -1,25 +1,21 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { trackEvent } from '../utils/analytics';
-import { useAuth } from '../AuthContext'; // Import useAuth
+import { trackPageView } from '../utils/analytics'; // Corrected import
+// import { useAuth } from '../AuthContext'; // Only import if actually used elsewhere in this component
 
 const PageViewTracker: React.FC = () => {
   const location = useLocation();
-  const { currentUser } = useAuth(); // Get currentUser from AuthContext
+  // const { currentUser } = useAuth(); // Only uncomment if you need currentUser for something else in this component
 
   useEffect(() => {
     const pagePath = location.pathname + location.search;
-    const pageTitle = document.title;
+    // const pageTitle = document.title; // Not used by trackPageView currently
 
-    trackEvent({
-      event_name: 'page_view',
-      page_path: pagePath,
-      page_title: pageTitle,
-    }, currentUser?.email || undefined); // Pass user ID or email, ensure it's string or undefined
+    trackPageView(pagePath); // Call trackPageView with the pagePath
 
     console.log(`Page view tracked: ${pagePath}`);
 
-  }, [location, currentUser]); // Re-run effect when location or currentUser changes
+  }, [location]); // Re-run effect when location changes
 
   return null;
 };

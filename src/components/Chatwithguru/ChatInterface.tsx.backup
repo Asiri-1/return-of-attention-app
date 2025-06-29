@@ -1,0 +1,221 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { get } from '../../services/api'; // Ensure this is 'get', not 'apiService'
+import './ChatInterface.css';
+import MessageBubble from './MessageBubble';
+import SuggestionChips from './SuggestionChips';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  isError?: boolean;
+}
+
+const ChatInterface: React.FC = () => {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'testing' | 'connected' | 'error'>('testing');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        setIsLoading(true);
+        setConnectionStatus('testing');
+        
+        // Test the deployed helloWorld function
+        const result = await get('helloWorld');
+        console.log('Firebase Functions test result:', result);
+        
+        setConnectionStatus('connected');
+        setSessionId('test-session-' + Date.now());
+        
+        // Add welcome message
+        setMessages([{
+          role: 'assistant',
+          content: `Hello! I\'m your PAHM Guru, connected to Firebase Functions. The backend responded: "${result}". How can I assist you with your attention practice today?`,
+          timestamp: new Date()
+        }]);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error testing Firebase Functions connection:', error);
+        setConnectionStatus('error');
+        setIsLoading(false);
+        
+        // Add error message
+        setMessages([{
+          role: 'assistant',
+          content: `Hello! I\'m your PAHM Guru. However, I\'m currently having trouble connecting to the backend services. Please check the console for details.`,
+          timestamp: new Date(),
+          isError: true
+        }]);
+      }
+    };
+
+    testConnection();
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || !sessionId) return;
+
+    const userMessage: Message = {
+      role: 'user',
+      content: inputMessage,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputMessage;
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simulated PAHM Guru response
+      const simulatedResponse = `Thank you for your message: "${currentInput}". This is a simulated response. Once the pahmGuruChat Firebase Function is deployed, I\'ll provide personalized guidance based on your attention practice journey.`;
+      
+      const guruMessage: Message = {
+        role: 'assistant',
+        content: simulatedResponse,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, guruMessage]);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setIsLoading(false);
+      
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error processing your message. Please try again.',
+        timestamp: new Date(),
+        isError: true
+      }]);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleFeedback = async (rating: number) => {
+    if (!sessionId) return;
+    
+    try {
+      console.log('Feedback submitted:', rating);
+      setFeedbackGiven(true);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setInputMessage(suggestion);
+  };
+
+  const renderConnectionStatus = () => {
+    if (connectionStatus === 'testing') {
+      return <div className="connection-status testing">Testing Firebase Functions connection...</div>;
+    } else if (connectionStatus === 'connected') {
+      return <div className="connection-status connected">✓ Connected to Firebase Functions</div>;
+    } else {
+      return <div className="connection-status error">✗ Connection to Firebase Functions failed</div>;
+    }
+  };
+
+  const renderFeedback = () => {
+    if (feedbackGiven) {
+      return (
+        <div className="feedback-container">
+          <p>Thank you for your feedback!</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="feedback-container">
+        <p>How helpful was this conversation?</p>
+        <div className="rating-buttons">
+          {[1, 2, 3, 4, 5].map(rating => (
+            <button 
+              key={rating} 
+              className="rating-button"
+              onClick={() => handleFeedback(rating)}
+            >
+              {rating}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="chat-container">
+      <div className="chat-header">
+        <h2>PAHM Guru</h2>
+        <p>Your personalized attention practice guide</p>
+        {renderConnectionStatus()}
+      </div>
+      
+      <div className="messages-container">
+        {messages.map((msg, index) => (
+          <MessageBubble 
+            key={index}
+            message={msg}
+          />
+        ))}
+        {isLoading && (
+          <div className="message guru-message loading">
+            <div className="typing-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      {messages.length <= 1 && (
+        <SuggestionChips onSuggestionClick={handleSuggestionClick} />
+      )}
+      
+      {messages.length > 2 && !isLoading && renderFeedback()}
+      
+      <div className="chat-input-container">
+        <textarea
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Ask me about your attention practice..."
+          disabled={isLoading || !sessionId}
+        />
+        <button 
+          onClick={handleSendMessage} 
+          disabled={isLoading || !inputMessage.trim() || !sessionId}
+          className="send-button"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ChatInterface;

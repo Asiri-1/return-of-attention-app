@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './PAHMTimer.css';
 import PAHMMatrix from './PAHMMatrix';
 import { PAHMCounts } from './types/PAHMTypes';
+import { useLocalData } from './contexts/LocalDataContext'; // ✨ ONLY NEW IMPORT
 
 interface PAHMTimerProps {
   initialMinutes: number;
@@ -16,7 +17,10 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
   onComplete,
   onBack
 }) => {
-  // Timer states
+  // ✨ ONLY NEW LINE: LocalDataContext hooks (background functionality)
+  const { addPracticeSession, addEmotionalNote } = useLocalData();
+
+  // Timer states (UNCHANGED)
   const [minutes, setMinutes] = useState<number>(initialMinutes);
   const [seconds, setSeconds] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -25,7 +29,7 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
   const [customMinutes, setCustomMinutes] = useState<number>(initialMinutes);
   const [customInput, setCustomInput] = useState<string>("");
   
-  // PAHM tracking states
+  // PAHM tracking states (UNCHANGED)
   const [pahmCounts, setPahmCounts] = useState<PAHMCounts>({
     nostalgia: 0,
     likes: 0,
@@ -37,8 +41,81 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
     dislikes: 0,
     worry: 0
   });
+
+  // ✨ NEW: Background helper functions (no UI impact)
+  const saveToAnalytics = useCallback((completed: boolean = true) => {
+    try {
+      const endTime = new Date().toISOString();
+      const actualDuration = completed ? initialMinutes : (initialMinutes - minutes - (seconds / 60));
+      const totalInteractions = Object.values(pahmCounts).reduce((sum, count) => sum + count, 0);
+      
+      // Convert PAHM counts to storage format
+      const convertedPAHMCounts = {
+        present_attachment: pahmCounts.likes,
+        present_neutral: pahmCounts.present,
+        present_aversion: pahmCounts.dislikes,
+        past_attachment: pahmCounts.nostalgia,
+        past_neutral: pahmCounts.past,
+        past_aversion: pahmCounts.regret,
+        future_attachment: pahmCounts.anticipation,
+        future_neutral: pahmCounts.future,
+        future_aversion: pahmCounts.worry
+      };
+
+      // Calculate present percentage
+      const presentMomentCounts = pahmCounts.present + pahmCounts.likes + pahmCounts.dislikes;
+      const presentPercentage = totalInteractions > 0 ? Math.round((presentMomentCounts / totalInteractions) * 100) : 85;
+      
+      // Calculate session quality
+      let sessionQuality = 7;
+      if (presentPercentage >= 80) sessionQuality += 1.5;
+      else if (presentPercentage >= 60) sessionQuality += 1;
+      else if (presentPercentage < 40) sessionQuality -= 1;
+      if (completed) sessionQuality += 0.5;
+      sessionQuality = Math.min(10, Math.max(1, Math.round(sessionQuality * 10) / 10));
+
+      // Determine stage level
+      let stageNumber = 2;
+      if (stageLevel.includes('Stage 1') || stageLevel.includes('T1')) stageNumber = 1;
+      else if (stageLevel.includes('Stage 3') || stageLevel.includes('T3')) stageNumber = 3;
+      else if (stageLevel.includes('Stage 4') || stageLevel.includes('T4')) stageNumber = 4;
+      else if (stageLevel.includes('Stage 5') || stageLevel.includes('T5')) stageNumber = 5;
+      else if (stageLevel.includes('Stage 6') || stageLevel.includes('T6')) stageNumber = 6;
+
+      // Save session to LocalDataContext
+      addPracticeSession({
+        timestamp: endTime,
+        duration: Math.round(actualDuration),
+        sessionType: 'meditation' as const,
+        stageLevel: stageNumber,
+        stageLabel: stageLevel,
+        rating: sessionQuality,
+        notes: `PAHM practice session with ${totalInteractions} attention observations. ${presentPercentage}% present-moment awareness.`,
+        presentPercentage,
+        environment: {
+          posture: sessionStorage.getItem('currentPosture') || 'seated',
+          location: 'indoor',
+          lighting: 'natural',
+          sounds: 'quiet'
+        },
+        pahmCounts: convertedPAHMCounts
+      });
+
+      // Add emotional note
+      addEmotionalNote({
+        timestamp: endTime,
+        content: `${completed ? 'Completed' : 'Practiced'} ${Math.round(actualDuration)}-minute ${stageLevel} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness.`,
+        emotion: completed ? 'accomplished' : 'content',
+        energyLevel: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6,
+        tags: ['pahm-practice', `stage-${stageNumber}`, 'meditation']
+      });
+
+    } catch (error) {
+      console.error('Error saving to analytics:', error);
+    }
+  }, [initialMinutes, minutes, seconds, pahmCounts, stageLevel, addPracticeSession, addEmotionalNote]);
   
-  // Handle PAHM position updates
+  // Handle PAHM position updates (UNCHANGED)
   const handlePAHMCountUpdate = useCallback((position: string, count: number) => {
     setPahmCounts(prevCounts => {
       // Create a copy of the previous counts
@@ -53,7 +130,7 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
     });
   }, []);
   
-  // Handle custom duration input
+  // Handle custom duration input (UNCHANGED)
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setCustomInput(value);
@@ -61,11 +138,11 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
     // Update customMinutes if valid number
     const numValue = parseInt(value);
     if (!isNaN(numValue) && numValue > 0) {
-      setCustomMinutes(Math.max(numValue, 30)); // Ensure minimum 30 minutes
+      setCustomMinutes(Math.max(numValue, 30)); // Keep original minimum 30 minutes
     }
   };
   
-  // Timer logic
+  // Timer logic (ENHANCED: only added background save)
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
@@ -80,7 +157,8 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
           // Timer complete
           if (interval) clearInterval(interval);
           setIsRunning(false);
-          onComplete(pahmCounts);
+          saveToAnalytics(true); // ✨ ONLY NEW LINE: Save to analytics in background
+          onComplete(pahmCounts); // Original functionality preserved
         }
       }, 1000);
     } else if (interval) {
@@ -90,11 +168,11 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, isPaused, minutes, seconds, onComplete, pahmCounts]);
+  }, [isRunning, isPaused, minutes, seconds, onComplete, pahmCounts, saveToAnalytics]);
   
-  // Start practice with custom duration
+  // Start practice with custom duration (UNCHANGED)
   const handleStartPractice = () => {
-    // Ensure minimum 30 minutes for PAHM stages
+    // Ensure minimum 30 minutes for PAHM stages (UNCHANGED)
     const finalMinutes = Math.max(customMinutes, 30);
     setMinutes(finalMinutes);
     setSeconds(0);
@@ -102,22 +180,23 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
     setIsSetup(false);
   };
   
-  // Toggle pause/resume
+  // Toggle pause/resume (UNCHANGED)
   const handlePauseResume = () => {
     setIsPaused(!isPaused);
   };
   
-  // Skip to reflection
+  // Skip to reflection (ENHANCED: only added background save)
   const handleSkipToReflection = () => {
-    onComplete(pahmCounts);
+    saveToAnalytics(false); // ✨ ONLY NEW LINE: Save to analytics in background
+    onComplete(pahmCounts); // Original functionality preserved
   };
   
-  // Format time as MM:SS
+  // Format time as MM:SS (UNCHANGED)
   const formatTime = (mins: number, secs: number) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  // Render setup screen
+  // Render setup screen (COMPLETELY UNCHANGED)
   if (isSetup) {
     return (
       <div className="pahm-timer setup-mode">
@@ -198,7 +277,7 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
     );
   }
   
-  // Render active timer
+  // Render active timer (COMPLETELY UNCHANGED)
   return (
     <div className="pahm-timer">
       <div className="timer-header">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import MindRecoverySelection from './MindRecoverySelection';
+import MindRecoveryHub from './MindRecoveryHub';
 
 const MindRecoverySelectionWrapper: React.FC = () => {
   const navigate = useNavigate();
@@ -9,10 +9,18 @@ const MindRecoverySelectionWrapper: React.FC = () => {
     navigate('/home');
   };
 
+  const handleExerciseSelect = (exerciseId: string) => {
+    console.log(`MindRecoveryHub: Attempting to navigate to /mind-recovery/${exerciseId}`);
+    navigate(`/mind-recovery/${exerciseId}`);
+  };
+
   return (
-    <MindRecoverySelection onBack={handleBack} />
+    <MindRecoveryHub 
+      onBack={handleBack}
+      onExerciseSelect={handleExerciseSelect}
+      userData={undefined}
+    />
   );
 };
 
 export default MindRecoverySelectionWrapper;
-

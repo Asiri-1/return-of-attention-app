@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import './HomeDashboard.css';
 import { useAuth } from './AuthContext';
-import Logo from './Logo';
 import { useNavigate, useLocation } from 'react-router-dom';
-import StageOneProgression from './StageOneProgression';
 import AssessmentPopup from './AssessmentPopup';
+import AdminPanel from './components/AdminPanel';
+import HappinessProgressTracker from './HappinessProgressTracker';
 
 interface HomeDashboardProps {
   onStartPractice: () => void;
@@ -35,61 +34,64 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onShowPAHMExplanation,
   onShowWhatIsPAHM
 }) => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
 
-  // Handle logout function
-  const handleSignOut = () => {
-    logout();
-    window.location.href = '/';
-  };
   const [currentStage, setCurrentStage] = useState<number>(1);
-  const [currentTLevel, setCurrentTLevel] = useState<string>('T1');
   const [streak, setStreak] = useState<number>(0);
   const [totalHours, setTotalHours] = useState<number>(0);
-  const [recentSessions, setRecentSessions] = useState<any[]>([]);
-  const [forceUpdate, setForceUpdate] = useState<number>(0); // Add state for forcing re-renders
+  const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 🎯 HAPPINESS TRACKER STATE
+  const [showHappinessTracker, setShowHappinessTracker] = useState(false);
+  const [happinessPoints, setHappinessPoints] = useState(342);
+
+  // 🔥 REMOVED: All redirect logic - Let App.tsx handle redirects
+  // Assessment popup state
+  const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
+
+  // 🔥 SIMPLIFIED: Check for assessment popup ONLY (no redirects)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Only show assessment popup if questionnaire is completed but assessment is not
+    const questionnaireCompleted = currentUser.questionnaireCompleted;
+    const assessmentCompleted = currentUser.assessmentCompleted;
+    
+    if (questionnaireCompleted && !assessmentCompleted) {
+      console.log('📊 Showing assessment popup');
+      setShowAssessmentPopup(true);
+    }
+  }, [currentUser]); // Removed navigate and location.state dependencies
+
   // Fetch user data on component mount
-  // Force a re-render when the component mounts or when returning to this page
   useEffect(() => {
     // Check if T5 is completed
     const t5Completed = sessionStorage.getItem('t5Completed') === 'true' ||
                         localStorage.getItem('t5Completed') === 'true';
 
-    // If T5 is completed, ensure currentStage is at least 2
     if (t5Completed && currentStage < 2) {
       setCurrentStage(2);
       localStorage.setItem('devCurrentStage', '2');
       sessionStorage.setItem('stageProgress', '2');
-
-      // Force a re-render by updating a state variable
-      setForceUpdate(prev => prev + 1);
     }
 
-    // Add event listener for storage changes (for when T5 is completed in another component)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 't5Completed' && e.newValue === 'true') {
         setCurrentStage(2);
         localStorage.setItem('devCurrentStage', '2');
         sessionStorage.setItem('stageProgress', '2');
-
-        // Force a re-render
-        setForceUpdate(prev => prev + 1);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-
-    // Clean up
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [currentStage]);
 
   useEffect(() => {
-    // Check for stage progress in sessionStorage (set by reflection components)
     const stageProgress = sessionStorage.getItem('stageProgress');
     if (stageProgress) {
       const progressStage = parseInt(stageProgress, 10);
@@ -99,109 +101,54 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       }
     }
 
-    // Force Stage 1 to show T1-T5 options when returning from Stage1 components
     const returnFromStage1 = sessionStorage.getItem('returnFromStage1');
     if (returnFromStage1 === 'true') {
       setCurrentStage(1);
-      sessionStorage.removeItem('returnFromStage1'); // Clear the flag after use
+      setShowT1T5Dropdown(true);
+      sessionStorage.removeItem('returnFromStage1');
     }
 
-    // Check if we're coming from T5 completion
     if (location.state && location.state.fromT5Completion) {
       console.log('Coming from T5 completion, updating stage progress');
       setCurrentStage(2);
       localStorage.setItem('devCurrentStage', '2');
       sessionStorage.setItem('stageProgress', '2');
-
-      // Force a page reload to ensure all components update
       window.location.reload();
     }
 
-    // Mock streak data
     setStreak(3);
-
-    // Mock total practice hours
     setTotalHours(12.5);
 
-    // Mock recent sessions
-    setRecentSessions([
-      {
-        id: 'session-1',
-        date: new Date(Date.now() - 86400000), // Yesterday
-        duration: 30,
-        presentPercentage: 42
-      },
-      {
-        id: 'session-2',
-        date: new Date(Date.now() - 86400000 * 3), // 3 days ago
-        duration: 25,
-        presentPercentage: 38
-      },
-      {
-        id: 'session-3',
-        date: new Date(Date.now() - 86400000 * 5), // 5 days ago
-        duration: 35,
-        presentPercentage: 45
-      }
-    ]);
+    // 🎯 Load happiness points from localStorage
+    const savedHappinessPoints = localStorage.getItem('happiness_points');
+    if (savedHappinessPoints) {
+      setHappinessPoints(parseInt(savedHappinessPoints));
+    }
   }, [location]);
 
-  // Format date for display
-  const formatDate = (date: Date): string => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
-    }
-  };
-
-  // State for assessment popup
-  const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<{
-    type: 'stage' | 'tlevel';
-    stageNumber?: number;
-    level?: string;
-    duration?: number;
-  } | null>(null);
-
-  // Handle stage button click for development purposes
   const handleStageClick = (stageNumber: number) => {
-    // Get the highest stage the user has reached
     const savedStage = localStorage.getItem('devCurrentStage');
     const highestStage = savedStage ? parseInt(savedStage, 10) : 1;
 
-    // For all stages, update the display stage
+    if (stageNumber === 1) {
+      setShowT1T5Dropdown(!showT1T5Dropdown);
+      return;
+    }
+
     setCurrentStage(stageNumber);
 
-    // Only update localStorage if clicking on a stage that's higher than current progress
     if (stageNumber > highestStage) {
       localStorage.setItem('devCurrentStage', stageNumber.toString());
     } else {
-      // Keep the highest stage in localStorage for progress bar
       localStorage.setItem('devCurrentStage', highestStage.toString());
     }
 
-    // Navigate to the specific stage wrapper component
     navigate(`/stage${stageNumber}`);
   };
 
-  // Handle T-level click with duration parameter
   const handleTLevelClick = (level: string, duration: number) => {
-    setCurrentTLevel(level);
-
-    // Store the selected T-level in sessionStorage for this session
     sessionStorage.setItem('currentTLevel', level.toLowerCase());
 
-    // Navigate to Stage1Wrapper with a flag to show T1Introduction
     navigate(`/stage1`, { 
       state: { 
         showT1Introduction: true,
@@ -213,71 +160,74 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     });
   };
 
-  // Handle going to assessment from popup
   const handleGoToAssessment = () => {
     setShowAssessmentPopup(false);
-
-    // Navigate directly to self-assessment instead of introduction
     navigate('/self-assessment');
-
-    // Reset pending navigation
-    setPendingNavigation(null);
   };
 
-  // Handle closing assessment popup
   const handleCloseAssessmentPopup = () => {
     setShowAssessmentPopup(false);
-    setPendingNavigation(null);
   };
 
-  // Reset progress function for development purposes
-  const handleResetProgress = () => {
-    // Clear all progress data from localStorage and sessionStorage
-    localStorage.removeItem('devCurrentStage');
-    sessionStorage.removeItem('stageProgress');
-    sessionStorage.removeItem('returnFromStage1');
-    sessionStorage.removeItem('currentTLevel');
-
-    // Clear PAHM tracking data
-    for (let i = 1; i <= 6; i++) {
-      sessionStorage.removeItem(`pahmCounts${i}`);
-    }
-
-    // Clear T-level progress
-    for (let i = 1; i <= 5; i++) {
-      sessionStorage.removeItem(`t${i}Completed`);
-    }
-
-    // Reset to Stage 1
-    setCurrentStage(1);
-    setCurrentTLevel('T1');
-
-    // Reload the page to ensure all components update
-    window.location.reload();
+  // 🎯 HAPPINESS TRACKER HANDLERS
+  const handleHappinessPointsClick = () => {
+    setShowHappinessTracker(true);
   };
+
+  const handleCloseHappinessTracker = () => {
+    setShowHappinessTracker(false);
+  };
+
+  const tLevels = [
+    { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes' },
+    { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes' },
+    { level: 'T3', duration: 20, title: 'T3: Physical Stillness for 20 minutes' },
+    { level: 'T4', duration: 25, title: 'T4: Physical Stillness for 25 minutes' },
+    { level: 'T5', duration: 30, title: 'T5: Physical Stillness for 30 minutes' }
+  ];
+
+  const stageData = [
+    { num: 2, title: 'PAHM Trainee', desc: 'Basic attention training' },
+    { num: 3, title: 'PAHM Beginner', desc: 'Structured practice' },
+    { num: 4, title: 'PAHM Practitioner', desc: 'Advanced techniques' },
+    { num: 5, title: 'PAHM Master', desc: 'Refined awareness' },
+    { num: 6, title: 'PAHM Illuminator', desc: 'Complete mastery' }
+  ];
+
+  const resourceData = [
+    {
+      icon: '📖',
+      title: `Stage ${currentStage} Guide`,
+      desc: 'Learn about your current stage and practice techniques',
+      onClick: onViewLearning
+    },
+    {
+      icon: '🧘',
+      title: 'Posture Guide',
+      desc: 'Find the optimal meditation posture for your practice',
+      onClick: onShowPostureGuide
+    },
+    {
+      icon: '🔍',
+      title: 'PAHM Matrix Explained',
+      desc: 'Understand the Present Attention and Happiness Matrix',
+      onClick: onShowPAHMExplanation
+    }
+  ];
 
   return (
-    <div className="home-dashboard">
-      {/* Development-only reset button */}
-      <button 
-        onClick={handleResetProgress}
-        style={{
-          position: 'fixed',
-          bottom: '10px',
-          left: '10px',
-          backgroundColor: '#FF5252',
-          color: 'white',
-          padding: '5px 10px',
-          borderRadius: '5px',
-          border: 'none',
-          fontSize: '12px',
-          cursor: 'pointer',
-          zIndex: 1000,
-          opacity: 0.8
-        }}
-      >
-        DEV: Reset Progress
-      </button>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    }}>
+      {/* Admin Panel */}
+      <AdminPanel />
+
+      {/* 🎯 HAPPINESS TRACKER MODAL */}
+      {showHappinessTracker && (
+        <HappinessProgressTracker onClose={handleCloseHappinessTracker} />
+      )}
 
       {/* Assessment Popup */}
       {showAssessmentPopup && (
@@ -288,185 +238,580 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         />
       )}
 
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <Logo />
+      {/* 🎯 HEADER WITH HAPPINESS POINTS */}
+      <header style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        padding: '16px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1 style={{
+            margin: 0,
+            fontSize: 'clamp(18px, 4vw, 28px)',
+            fontWeight: '700',
+            color: 'white',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+          }}>
+            Welcome{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}
+          </h1>
         </div>
-        <h1>Welcome{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}</h1>
+        
+        {/* 🎯 HAPPINESS POINTS IN CENTER */}
+        <div 
+          onClick={handleHappinessPointsClick}
+          style={{
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%)',
+            padding: '12px 24px',
+            borderRadius: '50px',
+            color: 'white',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+            textAlign: 'center',
+            minWidth: '120px',
+            border: '2px solid rgba(255, 255, 255, 0.2)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+          }}
+        >
+          <div style={{
+            fontSize: '24px',
+            fontWeight: 'bold',
+            marginBottom: '2px'
+          }}>
+            😊 {happinessPoints}
+          </div>
+          <div style={{
+            fontSize: '11px',
+            opacity: 0.9,
+            fontWeight: '500'
+          }}>
+            Happiness Points
+          </div>
+        </div>
+        
+        {/* Quick Stats */}
+        <div style={{
+          display: 'flex',
+          gap: '16px',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          marginTop: '8px'
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            padding: '8px 12px',
+            borderRadius: '12px',
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: '600'
+          }}>
+            🔥 {streak} day streak
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            padding: '8px 12px',
+            borderRadius: '12px',
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: '600'
+          }}>
+            ⏱️ {totalHours}h total
+          </div>
+        </div>
       </header>
 
-      <main className="dashboard-content">
-        <section className="stage-indicator">
-          <h2>Your Journey</h2>
-          <div className="stage-progress">
-            {/* Progress bar */}
-            <div className="journey-progress-bar">
+      {/* Main Content */}
+      <main style={{
+        padding: '20px',
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
+        {/* Journey Section */}
+        <section style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '20px',
+          padding: 'clamp(20px, 5vw, 32px)',
+          marginBottom: '24px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.3)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '24px'
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: 'clamp(20px, 4vw, 28px)',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Your Journey
+            </h2>
+            <div style={{
+              marginLeft: 'auto',
+              padding: '6px 12px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}>
+              Stage {currentStage}/6
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div style={{
+            background: 'linear-gradient(90deg, #f1f3f4 0%, #e8eaed 100%)',
+            height: '8px',
+            borderRadius: '4px',
+            marginBottom: '32px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              height: '100%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              width: `${Math.min(100, (currentStage / 6) * 100)}%`,
+              borderRadius: '4px',
+              transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+            }} />
+          </div>
+
+          {/* Stages Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '20px'
+          }}>
+            {/* Stage 1 with Dropdown */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+              borderRadius: '16px',
+              padding: '20px',
+              border: '2px solid rgba(102, 126, 234, 0.2)',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0px)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}>
               <div 
-                className="progress-fill" 
-                style={{ width: `${Math.min(100, (currentStage / 6) * 100)}%` }}
-              />
-            </div>
-
-            {/* Stages list */}
-            <div className="stages-list">
-              {/* Stage 1 */}
-              <div className="stage-item">
-                <div 
-                  className={`stage-number ${(sessionStorage.getItem('t5Completed') === 'true' || 
-                    localStorage.getItem('t5Completed') === 'true') ? 'completed' : currentStage > 1 ? 'completed' : currentStage === 1 ? 'current' : 'locked'}`}
-                  onClick={() => handleStageClick(1)}
-                >
-                  1
-                </div>
-                <div className={`practitioner-level ${(sessionStorage.getItem('t5Completed') === 'true' || 
-                    localStorage.getItem('t5Completed') === 'true') ? '' : currentStage === 1 ? 'current' : currentStage < 1 ? 'locked' : ''}`}>
-                  Seeker
+                onClick={() => handleStageClick(1)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: showT1T5Dropdown ? '16px' : '0'
+                }}
+              >
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: (sessionStorage.getItem('t5Completed') === 'true' || 
+                    localStorage.getItem('t5Completed') === 'true') 
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                    : currentStage === 1 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    : 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  marginRight: '16px'
+                }}>
                   {(sessionStorage.getItem('t5Completed') === 'true' || 
-                    localStorage.getItem('t5Completed') === 'true' || 
-                    currentStage > 1) && 
-                    <div className="completion-status">Completed ✓</div>}
+                    localStorage.getItem('t5Completed') === 'true') ? '✓' : '1'}
                 </div>
-                {/* Connector line to next stage */}
-                <div 
-                  className={`stage-connector ${(sessionStorage.getItem('t5Completed') === 'true' || 
-                    localStorage.getItem('t5Completed') === 'true') ? 'completed' : currentStage > 1 ? 'completed' : ''}`}
-                  style={{ width: '100%' }}
-                />
+                <div style={{ flex: 1 }}>
+                  <h3 style={{
+                    margin: '0 0 4px 0',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#1f2937'
+                  }}>
+                    Seeker
+                  </h3>
+                  <p style={{
+                    margin: 0,
+                    fontSize: '14px',
+                    color: '#6b7280'
+                  }}>
+                    Physical stillness training
+                  </p>
+                </div>
+                <div style={{
+                  fontSize: '16px',
+                  color: '#667eea',
+                  transform: showT1T5Dropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.3s ease'
+                }}>
+                  ▼
+                </div>
               </div>
 
-              {/* Stage 2 - Always shows number 2 and is clickable with proper circle styling */}
-              <div className="stage-item">
-                <div 
-                  className={`stage-number ${currentStage > 2 ? 'completed' : currentStage === 2 ? 'current' : 'locked'}`}
-                  onClick={() => handleStageClick(2)}
-                >
-                  2
+              {/* T1-T5 Dropdown */}
+              {showT1T5Dropdown && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)',
+                  animation: 'slideDown 0.3s ease-out'
+                }}>
+                  <div style={{
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '12px',
+                    textAlign: 'center'
+                  }}>
+                    Choose Your Training Level
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gap: '8px'
+                  }}>
+                    {tLevels.map((tLevel) => (
+                      <button
+                        key={tLevel.level}
+                        onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          borderRadius: '8px',
+                          color: 'white',
+                          padding: '12px 16px',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.transform = 'translateX(0px)';
+                        }}
+                      >
+                        {tLevel.title}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className={`practitioner-level ${currentStage === 2 ? 'current' : currentStage < 2 ? 'locked' : ''}`}>
-                  PAHM Trainee
-                </div>
-                {/* Connector line to next stage */}
-                <div 
-                  className={`stage-connector ${currentStage > 2 ? 'completed' : ''}`}
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              {/* Stage 3 */}
-              <div className="stage-item">
-                <div 
-                  className={`stage-number ${currentStage > 3 ? 'completed' : currentStage === 3 ? 'current' : 'locked'}`}
-                  onClick={() => handleStageClick(3)}
-                >
-                  3
-                </div>
-                <div className={`practitioner-level ${currentStage === 3 ? 'current' : currentStage < 3 ? 'locked' : ''}`}>
-                  PAHM Beginner
-                </div>
-                {/* Connector line to next stage */}
-                <div 
-                  className={`stage-connector ${currentStage > 3 ? 'completed' : ''}`}
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              {/* Stage 4 */}
-              <div className="stage-item">
-                <div 
-                  className={`stage-number ${currentStage > 4 ? 'completed' : currentStage === 4 ? 'current' : 'locked'}`}
-                  onClick={() => handleStageClick(4)}
-                >
-                  4
-                </div>
-                <div className={`practitioner-level ${currentStage === 4 ? 'current' : currentStage < 4 ? 'locked' : ''}`}>
-                  PAHM Practitioner
-                </div>
-                {/* Connector line to next stage */}
-                <div 
-                  className={`stage-connector ${currentStage > 4 ? 'completed' : ''}`}
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              {/* Stage 5 */}
-              <div className="stage-item">
-                <div 
-                  className={`stage-number ${currentStage > 5 ? 'completed' : currentStage === 5 ? 'current' : 'locked'}`}
-                  onClick={() => handleStageClick(5)}
-                >
-                  5
-                </div>
-                <div className={`practitioner-level ${currentStage === 5 ? 'current' : currentStage < 5 ? 'locked' : ''}`}>
-                  PAHM Master
-                </div>
-                {/* Connector line to next stage */}
-                <div 
-                  className={`stage-connector ${currentStage > 5 ? 'completed' : ''}`}
-                  style={{ width: '100%' }}
-                />
-              </div>
-            
-              {/* Stage 6 */}
-              <div className="stage-item">
-                <div 
-                  className={`stage-number ${currentStage > 6 ? 'completed' : currentStage === 6 ? 'current' : 'locked'}`}
-                  onClick={() => handleStageClick(6)}
-                >
-                  6
-                </div>
-                <div className={`practitioner-level ${currentStage === 6 ? 'current' : currentStage < 6 ? 'locked' : ''}`}>
-                  PAHM Illuminator
-                </div>
-              </div>
+              )}
             </div>
+
+            {/* PAHM Stages 2-6 */}
+            {stageData.map((stage) => (
+              <div
+                key={stage.num}
+                onClick={() => handleStageClick(stage.num)}
+                style={{
+                  background: currentStage >= stage.num 
+                    ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)'
+                    : 'linear-gradient(135deg, rgba(209, 213, 219, 0.08) 0%, rgba(156, 163, 175, 0.08) 100%)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  border: currentStage >= stage.num 
+                    ? '2px solid rgba(102, 126, 234, 0.2)'
+                    : '2px solid rgba(209, 213, 219, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  opacity: currentStage >= stage.num ? 1 : 0.6
+                }}
+                onMouseEnter={(e) => {
+                  if (currentStage >= stage.num) {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: currentStage >= stage.num 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                    marginRight: '16px'
+                  }}>
+                    {stage.num}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      color: currentStage >= stage.num ? '#1f2937' : '#9ca3af'
+                    }}>
+                      {stage.title}
+                    </h3>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '14px',
+                      color: currentStage >= stage.num ? '#6b7280' : '#9ca3af'
+                    }}>
+                      {stage.desc}
+                    </p>
+                  </div>
+                  {currentStage < stage.num && (
+                    <div style={{
+                      fontSize: '16px',
+                      color: '#9ca3af'
+                    }}>
+                      🔒
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
-        
-        {/* Stage One T1-T5 Progression */}
-        {currentStage === 1 && (
-          <StageOneProgression 
-            currentLevel={currentTLevel} 
-            onLevelClick={handleTLevelClick} 
-          />
-        )}
-        
-        {/* Practice button removed as requested */}
-        
-        <section className="learning-resources">
-          <div className="section-header">
-            <h2>Learning Resources</h2>
-            <button className="text-button" onClick={onViewLearning}>View All</button>
+
+        {/* Quick Actions */}
+        <section style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '20px',
+          marginBottom: '24px'
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '20px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '20px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Quick Actions
+            </h3>
+            <div style={{
+              display: 'grid',
+              gap: '12px'
+            }}>
+              <button
+                onClick={onViewProgress}
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                }}
+              >
+                📊 View Progress
+              </button>
+              <button
+                onClick={() => navigate('/notes')}
+                style={{
+                  background: 'rgba(102, 126, 234, 0.1)',
+                  color: '#667eea',
+                  border: '2px solid rgba(102, 126, 234, 0.2)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}
+              >
+                📝 Daily Notes
+              </button>
+              <button
+                onClick={() => navigate('/mind-recovery')}
+                style={{
+                  background: 'rgba(102, 126, 234, 0.1)',
+                  color: '#667eea',
+                  border: '2px solid rgba(102, 126, 234, 0.2)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}
+              >
+                🧠 Mind Recovery
+              </button>
+            </div>
           </div>
-          
-          <div className="resource-cards">
-            <div className="resource-card" onClick={onViewLearning}>
-              <div className="resource-icon">📖</div>
-              <div className="resource-title">Stage {currentStage} Guide</div>
-              <div className="resource-description">
-                Learn about your current stage and practice techniques
-              </div>
-            </div>
-            <div className="resource-card" onClick={onShowPostureGuide}>
-              <div className="resource-icon">🧘</div>
-              <div className="resource-title">Posture Guide</div>
-              <div className="resource-description">
-                Find the optimal meditation posture for your practice
-              </div>
-            </div>
-            <div className="resource-card" onClick={onShowPAHMExplanation}>
-              <div className="resource-icon">🔍</div>
-              <div className="resource-title">PAHM Matrix Explained</div>
-              <div className="resource-description">
-                Understand the Present Attention and Happiness Matrix
-              </div>
+
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '20px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '20px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Learning Resources
+            </h3>
+            <div style={{
+              display: 'grid',
+              gap: '12px'
+            }}>
+              {resourceData.map((resource, index) => (
+                <button
+                  key={index}
+                  onClick={resource.onClick}
+                  style={{
+                    background: 'rgba(102, 126, 234, 0.05)',
+                    border: '1px solid rgba(102, 126, 234, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{
+                      fontSize: '20px',
+                      marginRight: '12px'
+                    }}>
+                      {resource.icon}
+                    </span>
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#1f2937'
+                    }}>
+                      {resource.title}
+                    </span>
+                  </div>
+                  <p style={{
+                    margin: 0,
+                    fontSize: '14px',
+                    color: '#6b7280',
+                    lineHeight: '1.4'
+                  }}>
+                    {resource.desc}
+                  </p>
+                </button>
+              ))}
             </div>
           </div>
         </section>
       </main>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 export default HomeDashboard;
-
-

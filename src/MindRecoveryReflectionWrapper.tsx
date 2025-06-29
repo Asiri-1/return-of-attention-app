@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MindRecoveryTimer from './MindRecoveryTimer';
 import MindRecoveryReflection from './MindRecoveryReflection';
-import MindRecoveryPostureSelection from './MindRecoveryPostureSelection';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection'; // ← FIXED: Use Universal Component
 
 const MindRecoveryTimerWrapper: React.FC = () => {
   const { practiceType } = useParams<{ practiceType: string }>();
@@ -46,7 +46,8 @@ const MindRecoveryTimerWrapper: React.FC = () => {
     }
   };
 
-  const handlePostureSelect = (posture: string) => {
+  // ← FIXED: Renamed to match UniversalPostureSelection interface
+  const handleStartPractice = (posture: string) => {
     setSelectedPosture(posture);
     setCurrentStep('timer');
   };
@@ -57,8 +58,9 @@ const MindRecoveryTimerWrapper: React.FC = () => {
 
   if (currentStep === 'posture') {
     return (
-      <MindRecoveryPostureSelection
-        onSelectPosture={handlePostureSelect}
+      <UniversalPostureSelection
+        sessionType="mind_recovery"  // ← ADDED: Configure for mind recovery
+        onStartPractice={handleStartPractice}  // ← FIXED: Use correct prop name
         onBack={handleBack}
       />
     );
@@ -92,5 +94,3 @@ const MindRecoveryTimerWrapper: React.FC = () => {
 };
 
 export default MindRecoveryTimerWrapper;
-
-

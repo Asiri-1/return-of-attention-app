@@ -7,16 +7,19 @@ const SeekerPracticeTimerWrapper: React.FC = () => {
   const { level } = useParams();
   const location = useLocation();
   
-  // Get duration from location state or use default based on level
-  const levelDurations: Record<string, number> = {
-    't1': 10,
-    't2': 15,
-    't3': 20,
-    't4': 25,
-    't5': 30
+  // 🔒 LOCKED T-Level durations - cannot be overridden
+  const getTLevelDuration = (tLevel: string): number => {
+    const lockedDurations: Record<string, number> = {
+      't1': 10,  // T1: Always 10 minutes
+      't2': 15,  // T2: Always 15 minutes  
+      't3': 20,  // T3: Always 20 minutes
+      't4': 25,  // T4: Always 25 minutes
+      't5': 30   // T5: Always 30 minutes
+    };
+    return lockedDurations[tLevel.toLowerCase()] || 10;
   };
   
-  // Use state from navigation if available, otherwise use defaults
+  // Get state from navigation
   const state = location.state as { 
     level?: string; 
     duration?: number; 
@@ -24,48 +27,55 @@ const SeekerPracticeTimerWrapper: React.FC = () => {
     posture?: string 
   } || {};
   
-  // Ensure level is properly normalized to lowercase for lookup
-  const normalizedLevel = level?.toLowerCase() || 't1';
+  // Normalize the T-level
+  const normalizedLevel = (level || state.level || 't1').toLowerCase();
   
-  // Get duration from state, level parameter, or default to 10
-  const duration = state.duration || levelDurations[normalizedLevel] || 10;
+  // 🔒 ALWAYS use locked duration - ignore any passed duration for T-levels
+  const lockedDuration = getTLevelDuration(normalizedLevel);
   
-  // Ensure T-level is properly formatted for display
-  const tLevel = level?.toUpperCase() || 'T1';
+  // Format T-level for display
+  const tLevel = normalizedLevel.toUpperCase();
   
-  // Get stage level from state or construct it
-  const stageLevel = state.stageLevel || `${tLevel}: Physical Stillness for ${duration} minutes`;
+  // 🔒 LOCKED stage level - built from locked duration
+  const lockedStageLevel = `${tLevel}: Physical Stillness for ${lockedDuration} minutes`;
   
-  // Get posture from state, session storage, or default
-  const posture = state.posture || sessionStorage.getItem('currentPosture') || 'unknown';
+  // Get posture from state or default
+  const posture = state.posture || sessionStorage.getItem('currentPosture') || 'chair';
   
-  // Store the current level in sessionStorage for future reference
+  // Store current T-level for session tracking
   sessionStorage.setItem('currentTLevel', normalizedLevel);
+  sessionStorage.setItem('currentDuration', lockedDuration.toString());
   
-  // Also update the user's current T-level in localStorage for returning users
-  const updateUserTLevel = () => {
-    const currentUserData = localStorage.getItem('currentUser');
-    if (currentUserData) {
-      const currentUser = JSON.parse(currentUserData);
-      currentUser.currentTLevel = normalizedLevel;
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    }
-  };
-  
-  // Update user data when component mounts
+  // Update user's current T-level progress
   React.useEffect(() => {
+    const updateUserTLevel = () => {
+      const currentUserData = localStorage.getItem('currentUser');
+      if (currentUserData) {
+        const currentUser = JSON.parse(currentUserData);
+        currentUser.currentTLevel = normalizedLevel;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      }
+    };
     updateUserTLevel();
-  }, []);
+  }, [normalizedLevel]);
+  
+  // 🔍 Debug logging to verify locked durations
+  console.log('🔒 T-Level Practice Timer:');
+  console.log('- T-Level:', tLevel);
+  console.log('- LOCKED Duration:', lockedDuration, 'minutes');
+  console.log('- Stage Level:', lockedStageLevel);
+  console.log('- Posture:', posture);
   
   return (
     <PracticeTimer 
-      initialMinutes={duration}
-      stageLevel={stageLevel}
+      initialMinutes={lockedDuration}  // 🔒 Always use locked duration
+      stageLevel={lockedStageLevel}     // 🔒 Always use locked stage level
       onComplete={() => navigate('/seeker-practice-complete', { 
         state: { 
-          duration,
+          duration: lockedDuration,  // Pass locked duration to completion
           level: tLevel,
-          posture // Include posture data in the session
+          posture,
+          stageLevel: lockedStageLevel
         } 
       })}
       onBack={() => navigate('/home')}

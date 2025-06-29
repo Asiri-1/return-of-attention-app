@@ -41,7 +41,8 @@
       "port": 8081
     },
     "functions": {
-      "port": 5001
+      "port": 5001,
+      "host": "0.0.0.0"  // <--- Added this line
     },
     "ui": {
       "port": 4000
