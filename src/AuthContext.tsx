@@ -8,9 +8,8 @@ import {
   updateProfile,
   User
 } from 'firebase/auth';
-import { apiService } from './services/api';
+// 🔧 REMOVED: import { apiService } from './services/api';
 
-// 🏆 ENHANCED USER INTERFACE - Backward Compatible + TypeScript Fixed
 export interface AppUser {
   uid: string;
   email: string;
@@ -25,7 +24,6 @@ export interface AppUser {
   questionnaireAnswers?: any;
   selfAssessmentData?: any;
   
-  // 🔥 FIXED: Enhanced data structure (properly typed)
   enhancedProfile?: {
     onboardingData: {
       questionnaireAnswers: any;
@@ -67,13 +65,9 @@ interface AuthContextType {
   signup: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUserProfileInContext: (updates: Partial<AppUser>) => void;
-  
-  // 🔥 NEW: Enhanced methods for better data management
   syncWithLocalData: (localData: any) => void;
   getUserStorageKey: () => string;
-  
-  // 🔥 BACKWARD COMPATIBILITY: Keep existing interface
-  firebaseUser: User | null; // Access to Firebase user object
+  firebaseUser: User | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -93,21 +87,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 🔥 GET USER-SPECIFIC STORAGE KEY
+  // 🔧 ADMIN EMAIL CONSTANT
+  const ADMIN_EMAIL = 'asiriamarasinghe35@gmail.com';
+
+  // Get user-specific storage key
   const getUserStorageKey = (): string => {
     return firebaseUser?.uid ? `userProfile_${firebaseUser.uid}` : 'userProfile';
   };
 
-  // 🔥 FIXED: Update user profile with proper TypeScript handling
+  // 🔧 HELPER: Check if user is admin
+  const isAdminUser = (email: string): boolean => {
+    return email === ADMIN_EMAIL;
+  };
+
+  // 🔧 HELPER: Get completion status with admin bypass
+  const getCompletionStatus = (user: User, savedProfile?: any): { questionnaireCompleted: boolean; assessmentCompleted: boolean } => {
+    // Admin users automatically have everything completed
+    if (isAdminUser(user.email || '')) {
+      console.log('🔑 Admin user detected - marking all as completed');
+      return {
+        questionnaireCompleted: true,
+        assessmentCompleted: true
+      };
+    }
+
+    // For regular users, check saved profile or default to false
+    if (savedProfile) {
+      return {
+        questionnaireCompleted: savedProfile.questionnaireCompleted || false,
+        assessmentCompleted: savedProfile.assessmentCompleted || false
+      };
+    }
+
+    // New user defaults
+    return {
+      questionnaireCompleted: false,
+      assessmentCompleted: false
+    };
+  };
+
+  // Update user profile in context
   const updateUserProfileInContext = (updates: Partial<AppUser>): void => {
     if (currentUser) {
-      // Create a properly typed updated user
+      console.log('🔄 Updating user profile with:', updates);
+      
       const updatedUser: AppUser = { 
         ...currentUser, 
         ...updates 
       };
       
-      // 🔥 FIXED: Handle enhancedProfile updates properly
+      // Handle enhanced profile updates
       if (updates.questionnaireAnswers !== undefined || updates.selfAssessmentData !== undefined) {
         const defaultPreferences = {
           defaultSessionDuration: 20,
@@ -132,7 +161,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           averagePresentPercentage: 0
         };
 
-        // 🔥 FIXED: Ensure preferences and currentProgress are always defined
         updatedUser.enhancedProfile = {
           onboardingData: {
             questionnaireAnswers: updates.questionnaireAnswers ?? currentUser.questionnaireAnswers,
@@ -149,16 +177,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setCurrentUser(updatedUser);
+      setIsAuthenticated(true);
       
-      // Save to user-specific localStorage key
+      // Save to localStorage
       const storageKey = getUserStorageKey();
       localStorage.setItem(storageKey, JSON.stringify(updatedUser));
+      localStorage.setItem('userProfile', JSON.stringify(updatedUser)); // Backup
       
-      console.log('✅ User profile updated in AuthContext');
+      console.log('✅ User profile updated successfully');
     }
   };
 
-  // 🔥 FIXED: Sync with LocalDataContext - Better error handling
+  // Sync with local data
   const syncWithLocalData = (localData: any): void => {
     if (!currentUser || !localData) {
       console.log('⚠️ Cannot sync - missing currentUser or localData');
@@ -166,14 +196,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Simple sync without complex enhanced profile - avoid TypeScript issues
       const syncedUser: AppUser = {
         ...currentUser,
-        // Only sync basic data to avoid type conflicts
         currentStage: localData.profile?.currentProgress?.currentStage?.toString() || currentUser.currentStage,
         experienceLevel: localData.profile?.currentProgress?.currentTLevel || currentUser.experienceLevel,
         
-        // 🔥 FIXED: Properly sync enhancedProfile if it exists
         enhancedProfile: currentUser.enhancedProfile ? {
           ...currentUser.enhancedProfile,
           currentProgress: {
@@ -188,6 +215,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       setCurrentUser(syncedUser);
+      
       const storageKey = getUserStorageKey();
       localStorage.setItem(storageKey, JSON.stringify(syncedUser));
       
@@ -197,47 +225,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🔥 ENHANCED LOGIN - Better data handling + Error handling
+  // Enhanced login - 🔧 REMOVED API CALLS, KEEP ALL OTHER LOGIC
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     setError('');
+    
     try {
+      console.log('🔄 Attempting login for:', email);
+      
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       setFirebaseUser(user);
       
-      // Get user profile from API
-      const userProfile = await apiService.getUserProfile();
-      
-      // Check for saved profile in user-specific localStorage
+      // Check for saved profile
       const userStorageKey = `userProfile_${user.uid}`;
       const savedProfile = localStorage.getItem(userStorageKey) || localStorage.getItem('userProfile');
-      let mergedProfile = userProfile.data;
+      let userProfile: AppUser | null = null;
       
       if (savedProfile) {
         try {
-          const parsedSavedProfile = JSON.parse(savedProfile);
-          mergedProfile = {
-            ...userProfile.data,
-            questionnaireCompleted: parsedSavedProfile.questionnaireCompleted || userProfile.data.questionnaireCompleted,
-            assessmentCompleted: parsedSavedProfile.assessmentCompleted || userProfile.data.assessmentCompleted,
-            questionnaireAnswers: parsedSavedProfile.questionnaireAnswers || userProfile.data.questionnaireAnswers,
-            selfAssessmentData: parsedSavedProfile.selfAssessmentData || userProfile.data.selfAssessmentData,
-            enhancedProfile: parsedSavedProfile.enhancedProfile || undefined
+          const parsedProfile = JSON.parse(savedProfile);
+          const completionStatus = getCompletionStatus(user, parsedProfile);
+          
+          userProfile = {
+            ...parsedProfile,
+            // 🔧 PRESERVE completion status but apply admin bypass
+            questionnaireCompleted: completionStatus.questionnaireCompleted,
+            assessmentCompleted: completionStatus.assessmentCompleted
           };
+          
+          console.log('✅ User profile loaded from localStorage');
         } catch (parseError) {
-          console.error('Error parsing saved profile:', parseError);
-          // Continue with API data if parsing fails
+          console.error('❌ Error parsing saved profile:', parseError);
         }
       }
       
-      setCurrentUser(mergedProfile as AppUser);
+      // 🔧 REMOVED: API fallback, but keep the minimal profile creation logic
+      if (!userProfile) {
+        console.log('📝 No saved profile found, creating minimal profile for existing user');
+        
+        // Minimal profile fallback (for existing users who somehow lost their localStorage)
+        const completionStatus = getCompletionStatus(user);
+        
+        userProfile = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || 'User',
+          experienceLevel: '',
+          goals: [],
+          practiceTime: 0,
+          frequency: '',
+          assessmentCompleted: completionStatus.assessmentCompleted,
+          currentStage: completionStatus.questionnaireCompleted ? '1' : 'questionnaire',
+          questionnaireCompleted: completionStatus.questionnaireCompleted,
+          questionnaireAnswers: null,
+          selfAssessmentData: null
+        };
+      }
+      
+      setCurrentUser(userProfile);
       setIsAuthenticated(true);
       setIsLoading(false);
       
-      console.log('✅ User logged in successfully');
+      // Save final profile
+      const storageKey = getUserStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(userProfile));
+      
+      console.log('✅ Login successful for:', email, { 
+        questionnaire: userProfile.questionnaireCompleted, 
+        assessment: userProfile.assessmentCompleted 
+      });
+      
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("❌ Login error:", error);
       setError(error.message || 'Failed to sign in');
       setCurrentUser(null);
       setFirebaseUser(null);
@@ -247,18 +307,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🔥 ENHANCED SIGNUP - Better data structure + Better error handling
+  // Enhanced signup - 🔧 REMOVED API CALLS, KEEP ALL OTHER LOGIC
   const signup = async (email: string, password: string, displayName: string): Promise<void> => {
     setIsLoading(true);
     setError('');
+    
     try {
+      console.log('🔄 Creating new user:', email);
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       setFirebaseUser(user);
       
       await updateProfile(user, { displayName });
       
-      // 🔥 ENHANCED: Create user with better structure - TYPESCRIPT SAFE
+      // Get completion status (admin bypass applies here too)
+      const completionStatus = getCompletionStatus(user);
+      
       const newUserProfile: AppUser = {
         uid: user.uid,
         email: user.email || '',
@@ -267,20 +332,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         goals: [],
         practiceTime: 0,
         frequency: '',
-        assessmentCompleted: false,
-        currentStage: 'questionnaire',
-        questionnaireCompleted: false,
+        assessmentCompleted: completionStatus.assessmentCompleted,
+        currentStage: completionStatus.questionnaireCompleted ? '1' : 'questionnaire',
+        questionnaireCompleted: completionStatus.questionnaireCompleted,
         questionnaireAnswers: null,
         selfAssessmentData: null,
         
-        // 🔥 FIXED: Enhanced profile structure - FULLY DEFINED with proper types
         enhancedProfile: {
           onboardingData: {
             questionnaireAnswers: null,
             selfAssessmentResults: null,
-            questionnaireCompleted: false,
-            assessmentCompleted: false,
-            onboardingCompletedAt: null
+            questionnaireCompleted: completionStatus.questionnaireCompleted,
+            assessmentCompleted: completionStatus.assessmentCompleted,
+            onboardingCompletedAt: (completionStatus.questionnaireCompleted && completionStatus.assessmentCompleted) ? new Date().toISOString() : null
           },
           preferences: {
             defaultSessionDuration: 20,
@@ -306,21 +370,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       };
       
-      // 🔥 FIXED: Handle API errors gracefully
-      try {
-        await apiService.createUserProfile(newUserProfile);
-      } catch (apiError) {
-        console.error('API error creating profile, continuing with local data:', apiError);
-        // Continue even if API fails - user can still use the app
-      }
+      // 🔧 REMOVED: API call to save profile, just save locally
+      console.log('💾 Saving user profile to localStorage only');
       
       setCurrentUser(newUserProfile);
       setIsAuthenticated(true);
       setIsLoading(false);
       
-      console.log('✅ User signed up successfully');
+      // Save to localStorage
+      const storageKey = getUserStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(newUserProfile));
+      localStorage.setItem('userProfile', JSON.stringify(newUserProfile)); // Backup
+      
+      console.log('✅ Signup successful for:', email, { 
+        questionnaire: newUserProfile.questionnaireCompleted, 
+        assessment: newUserProfile.assessmentCompleted 
+      });
+      
     } catch (error: any) {
-      console.error("Signup error:", error);
+      console.error("❌ Signup error:", error);
       setError(error.message || 'Failed to create account');
       setCurrentUser(null);
       setFirebaseUser(null);
@@ -330,12 +398,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🔥 ENHANCED LOGOUT - Clean user-specific data + Better error handling
+  // Logout
   const logout = async (): Promise<void> => {
     try {
       await signOut(auth);
       
-      // Clean up user-specific storage but keep the general key for backward compatibility
+      // Clean up storage
       if (firebaseUser?.uid) {
         localStorage.removeItem(`userProfile_${firebaseUser.uid}`);
       }
@@ -345,82 +413,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setFirebaseUser(null);
       setIsAuthenticated(false);
       
-      console.log('✅ User logged out successfully');
+      console.log('✅ Logout successful');
     } catch (error) {
-      console.error("Logout error:", error);
-      // Force logout locally even if Firebase logout fails
+      console.error("❌ Logout error:", error);
+      // Force local logout even if Firebase fails
       setCurrentUser(null);
       setFirebaseUser(null);
       setIsAuthenticated(false);
     }
   };
 
-  // 🔥 ENHANCED AUTH STATE LISTENER - Better error handling
+  // 🔧 SIMPLIFIED AUTH STATE LISTENER
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+      console.log('🔥 Auth state changed:', { user: user ? 'EXISTS' : 'NULL', email: user?.email });
+      
       if (user) {
         setFirebaseUser(user);
-        try {
-          // Check user-specific localStorage first
-          const userStorageKey = `userProfile_${user.uid}`;
-          const savedProfile = localStorage.getItem(userStorageKey) || localStorage.getItem('userProfile');
-          
-          if (savedProfile) {
-            try {
+        
+        // Only load user if we don't already have one (avoid conflicts)
+        if (!currentUser) {
+          try {
+            const userStorageKey = `userProfile_${user.uid}`;
+            const savedProfile = localStorage.getItem(userStorageKey) || localStorage.getItem('userProfile');
+            
+            if (savedProfile) {
               const parsedProfile = JSON.parse(savedProfile);
-              setCurrentUser(parsedProfile);
-              setIsAuthenticated(true);
-              console.log('✅ User profile loaded from localStorage');
-            } catch (parseError) {
-              console.error('Error parsing saved profile, falling back to API:', parseError);
-              // Fall through to API call
-              throw parseError;
-            }
-          } else {
-            // Fallback to API
-            try {
-              const userProfile = await apiService.getUserProfile();
-              setCurrentUser(userProfile.data as AppUser);
-              setIsAuthenticated(true);
-              console.log('✅ User profile loaded from API');
-            } catch (apiError) {
-              console.error('Error loading from API, creating minimal profile:', apiError);
-              // Create minimal profile if API fails
-              const minimalProfile: AppUser = {
-                uid: user.uid,
-                email: user.email || '',
-                displayName: user.displayName || 'User',
-                experienceLevel: '',
-                goals: [],
-                practiceTime: 0,
-                frequency: '',
-                assessmentCompleted: false,
-                currentStage: 'questionnaire',
-                questionnaireCompleted: false,
-                questionnaireAnswers: null,
-                selfAssessmentData: null
+              const completionStatus = getCompletionStatus(user, parsedProfile);
+              
+              const userProfile = {
+                ...parsedProfile,
+                questionnaireCompleted: completionStatus.questionnaireCompleted,
+                assessmentCompleted: completionStatus.assessmentCompleted
               };
-              setCurrentUser(minimalProfile);
+              
+              setCurrentUser(userProfile);
               setIsAuthenticated(true);
+              console.log('✅ User restored from localStorage');
             }
+          } catch (error) {
+            console.error('❌ Error restoring user:', error);
           }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          setCurrentUser(null);
-          setIsAuthenticated(false);
         }
       } else {
         setCurrentUser(null);
         setFirebaseUser(null);
         setIsAuthenticated(false);
+        console.log('✅ User signed out');
       }
+      
       setIsLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, []); // Empty dependency array to avoid loops
 
-  // 🎯 CONTEXT VALUE - Enhanced but backward compatible
   const value: AuthContextType = {
     currentUser,
     isAuthenticated,
@@ -430,8 +477,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     logout,
     updateUserProfileInContext,
-    
-    // 🔥 NEW: Enhanced methods
     syncWithLocalData,
     getUserStorageKey,
     firebaseUser
@@ -443,5 +488,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-
-export default AuthProvider;

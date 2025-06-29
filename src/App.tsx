@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import PageViewTracker from './components/PageViewTracker';
 import './App.css';
 import { AuthProvider, useAuth } from './AuthContext';
-import { AdminProvider } from './AdminContext'; // Already imported
-import DevPanelToggle from './DevPanelToggle';
+import { AdminProvider } from './AdminContext';
+import AdminPanel from './components/AdminPanel';
 import MainNavigation from './MainNavigation';
 import DailyEmotionalNotesWrapper from './DailyEmotionalNotesWrapper';
 import AnalyticsBoardWrapper from './AnalyticsBoardWrapper';
@@ -22,34 +22,22 @@ import Stage6Wrapper from './Stage6Wrapper';
 import WhatIsPAHMWrapper from './WhatIsPAHMWrapper';
 import SeekerPracticeTimerWrapper from './SeekerPracticeTimerWrapper';
 import SeekerPracticeCompleteWrapper from './SeekerPracticeCompleteWrapper';
-
-// 🎯 ADDED: Import ImmediateReflectionWrapper
 import ImmediateReflectionWrapper from './ImmediateReflectionWrapper';
-
-// Import Chat with Guru components
 import ChatInterface from './components/Chatwithguru/ChatInterface';
-
-// Import Landing Page
 import LandingPage from './LandingPage';
-
-// Authentication components
 import SignIn from './SignIn';
 import SignUp from './SignUp';
-
-// Import Introduction and SelfAssessment components
 import Introduction from './Introduction';
 import SelfAssessment from './SelfAssessment';
 import SelfAssessmentCompletion from './SelfAssessmentCompletion';
 import PostureGuide from './PostureGuide';
 import UserProfile from './UserProfile';
-
-// Import the Questionnaire component
 import Questionnaire from './Questionnaire';
 
 // Import Knowledge Base Components
 import { LocalDataProvider } from './contexts/LocalDataContext';
 import { EnhancedLocalStorageManager } from './services/EnhancedLocalStorageManager';
-import { apiService } from './services/api'; // For backend persistence
+import { apiService } from './services/api';
 
 // Helper component to wrap authenticated pages with navigation
 const AuthenticatedPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -184,19 +172,18 @@ const AppContent: React.FC = () => {
     navigate('/stage6');
   };
   
-  // Handle logout from dashboard - UPDATED TO USE FIREBASE AUTH
+  // Handle logout from dashboard
   const handleLogout = async () => {
     try {
       await logout();
       navigate('/');
     } catch (error) {
       console.error("Error during logout:", error);
-      // Even if logout fails, redirect to landing page
       navigate('/');
     }
   };
 
-  // Handle sign-up with proper flow to introduction - UPDATED TO USE FIREBASE AUTH
+  // Handle sign-up - Always go to questionnaire first
   const handleSignUp = async (email: string, password: string, name: string) => {
     try {
       await signup(email, password, name);
@@ -212,11 +199,11 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Handle sign-in
+  // 🔧 FIXED: Handle sign-in - Don't immediately navigate, let useEffect handle it
   const handleSignIn = async (email: string, password: string) => {
     try {
       await login(email, password);
-      navigate('/home');
+      // Don't navigate here - let the redirect logic handle it
     } catch (error: any) {
       console.error("Sign-in error:", error);
       alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
@@ -232,29 +219,80 @@ const AppContent: React.FC = () => {
     navigate('/introduction');
   };
 
-  // 🔥 SIMPLE FIX: Just mark assessment as completed and navigate to home
+  // Handle self-assessment completion - Go through completion page
   const handleSelfAssessmentComplete = (data?: any) => {
-    console.log('🔍 Self-assessment completed, marking as done and navigating to home');
+    console.log('🔍 Self-assessment completed, updating profile with data');
     
-    // Update user profile to mark assessment as completed
     updateUserProfileInContext({ 
+      selfAssessmentData: data,
       assessmentCompleted: true,
       currentStage: '1'
     });
     
-    // Navigate directly to home
+    navigate('/self-assessment-completion');
+  };
+
+  // Handle final completion - Now go to home
+  const handleFinalCompletion = () => {
+    console.log('🎉 Onboarding complete, navigating to home');
     navigate('/home');
   };
+
+  // 🔧 FIXED: Simplified redirect logic with admin bypass
+  const getRedirectPath = (): string => {
+    if (!isAuthenticated || !currentUser) return '/signin';
+    
+    // Admin bypass - always allow access to home
+    if (currentUser.email === 'asiriamarasinghe35@gmail.com') {
+      return '/home';
+    }
+    
+    // Check completion status in order
+    if (!currentUser.questionnaireCompleted) {
+      return '/questionnaire';
+    }
+    
+    if (!currentUser.assessmentCompleted) {
+      return '/introduction';
+    }
+    
+    // Both completed - go to home
+    return '/home';
+  };
+
+  // 🔧 FIXED: Auto-redirect after login
+  useEffect(() => {
+    if (isAuthenticated && currentUser && !isLoading) {
+      const targetPath = getRedirectPath();
+      const currentPath = window.location.pathname;
+      
+      // Only redirect from certain paths to avoid interfering with normal navigation
+      const shouldRedirect = ['/signin', '/signup', '/'].includes(currentPath) || currentPath === '/home';
+      
+      if (shouldRedirect && currentPath !== targetPath) {
+        console.log(`🔄 Auto-redirecting from ${currentPath} to ${targetPath}`);
+        navigate(targetPath, { replace: true });
+      }
+    }
+  }, [isAuthenticated, currentUser, isLoading, navigate]);
 
   // Check if user should see introduction flow
   const shouldShowIntroductionFlow = (): boolean => {
     if (!isAuthenticated || !currentUser) return false;
+    
+    // Admin bypass
+    if (currentUser.email === 'asiriamarasinghe35@gmail.com') return false;
+    
     return !currentUser.assessmentCompleted;
   };
 
   // Check if user should see questionnaire flow
   const shouldShowQuestionnaireFlow = (): boolean => {
     if (!isAuthenticated || !currentUser) return false;
+    
+    // Admin bypass
+    if (currentUser.email === 'asiriamarasinghe35@gmail.com') return false;
+    
     return !currentUser.questionnaireCompleted;
   };
 
@@ -273,10 +311,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="app-container">
-      <DevPanelToggle />
+      <AdminPanel />
       <PageViewTracker />
       
-      {/* Show loading spinner while authentication state is being determined */}
       {isLoading ? (
         <div style={{
           display: 'flex',
@@ -297,7 +334,7 @@ const AppContent: React.FC = () => {
             path="/signin" 
             element={
               isAuthenticated ? (
-                <Navigate to="/home" replace />
+                <Navigate to={getRedirectPath()} replace />
               ) : (
                 <SignIn 
                   onSignIn={handleSignIn}
@@ -313,7 +350,7 @@ const AppContent: React.FC = () => {
             path="/signup" 
             element={
               isAuthenticated ? (
-                <Navigate to="/home" replace />
+                <Navigate to={getRedirectPath()} replace />
               ) : (
                 <SignUp 
                   onSignUp={handleSignUp}
@@ -325,7 +362,7 @@ const AppContent: React.FC = () => {
             }
           />
 
-          {/* Questionnaire Route - Fixed: Removed onSkip prop */}
+          {/* Questionnaire Route */}
           <Route 
             path="/questionnaire" 
             element={
@@ -359,7 +396,7 @@ const AppContent: React.FC = () => {
             element={
               isAuthenticated ? (
                 <SelfAssessment 
-                  onComplete={() => navigate('/self-assessment-completion')} 
+                  onComplete={handleSelfAssessmentComplete}
                   onBack={() => navigate('/introduction')} 
                 />
               ) : (
@@ -368,13 +405,13 @@ const AppContent: React.FC = () => {
             }
           />
 
-          {/* 🔥 FIXED: Self-assessment completion now navigates to HOME */}
+          {/* Self-assessment completion */}
           <Route 
             path="/self-assessment-completion" 
             element={
               isAuthenticated ? (
                 <SelfAssessmentCompletion 
-                  onGetStarted={handleSelfAssessmentComplete}
+                  onGetStarted={handleFinalCompletion}
                   onBack={() => navigate('/self-assessment')} 
                 />
               ) : (
@@ -393,30 +430,24 @@ const AppContent: React.FC = () => {
                 onLearnClick={handleViewLearning}
               >
                 <Routes>
-                  {/* Home Dashboard with conditional redirects */}
+                  {/* 🔧 FIXED: Simplified home route - no complex conditional redirects */}
                   <Route 
                     path="/home" 
                     element={
-                      shouldShowQuestionnaireFlow() ? (
-                        <Navigate to="/questionnaire" replace />
-                      ) : shouldShowIntroductionFlow() ? (
-                        <Navigate to="/introduction" replace />
-                      ) : (
-                        <HomeDashboard 
-                          onStartPractice={handleStartPracticeWrapper}
-                          onStartStage2={handleStartStage2}
-                          onStartStage3={handleStartStage3}
-                          onStartStage4={handleStartStage4}
-                          onStartStage5={handleStartStage5}
-                          onStartStage6={handleStartStage6}
-                          onViewProgress={handleViewProgress}
-                          onViewLearning={handleViewLearning}
-                          onShowPostureGuide={handleShowPostureGuide}
-                          onShowPAHMExplanation={handleShowPAHMExplanation}
-                          onShowWhatIsPAHM={handleShowWhatIsPAHM}
-                          onLogout={handleLogout}
-                        />
-                      )
+                      <HomeDashboard 
+                        onStartPractice={handleStartPracticeWrapper}
+                        onStartStage2={handleStartStage2}
+                        onStartStage3={handleStartStage3}
+                        onStartStage4={handleStartStage4}
+                        onStartStage5={handleStartStage5}
+                        onStartStage6={handleStartStage6}
+                        onViewProgress={handleViewProgress}
+                        onViewLearning={handleViewLearning}
+                        onShowPostureGuide={handleShowPostureGuide}
+                        onShowPAHMExplanation={handleShowPAHMExplanation}
+                        onShowWhatIsPAHM={handleShowWhatIsPAHM}
+                        onLogout={handleLogout}
+                      />
                     } 
                   />
                   
@@ -428,7 +459,6 @@ const AppContent: React.FC = () => {
                   <Route path="/stage5" element={<Stage5Wrapper />} />
                   <Route path="/stage6" element={<Stage6Wrapper />} />
                   
-                  {/* 🎯 ADDED: Immediate Reflection Route */}
                   <Route path="/immediate-reflection" element={<ImmediateReflectionWrapper />} />
                   
                   {/* Learning Routes */}
@@ -493,7 +523,6 @@ const AppContent: React.FC = () => {
   );
 };
 
-// 🔥 MAIN APP COMPONENT - Updated with AdminProvider
 const App: React.FC = () => {
   return (
     <BrowserRouter>

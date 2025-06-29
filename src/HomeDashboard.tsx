@@ -47,6 +47,24 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const [showHappinessTracker, setShowHappinessTracker] = useState(false);
   const [happinessPoints, setHappinessPoints] = useState(342);
 
+  // 🔥 REMOVED: All redirect logic - Let App.tsx handle redirects
+  // Assessment popup state
+  const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
+
+  // 🔥 SIMPLIFIED: Check for assessment popup ONLY (no redirects)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Only show assessment popup if questionnaire is completed but assessment is not
+    const questionnaireCompleted = currentUser.questionnaireCompleted;
+    const assessmentCompleted = currentUser.assessmentCompleted;
+    
+    if (questionnaireCompleted && !assessmentCompleted) {
+      console.log('📊 Showing assessment popup');
+      setShowAssessmentPopup(true);
+    }
+  }, [currentUser]); // Removed navigate and location.state dependencies
+
   // Fetch user data on component mount
   useEffect(() => {
     // Check if T5 is completed
@@ -108,8 +126,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [location]);
 
-  const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
-
   const handleStageClick = (stageNumber: number) => {
     const savedStage = localStorage.getItem('devCurrentStage');
     const highestStage = savedStage ? parseInt(savedStage, 10) : 1;
@@ -151,25 +167,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   const handleCloseAssessmentPopup = () => {
     setShowAssessmentPopup(false);
-  };
-
-  const handleResetProgress = () => {
-    localStorage.removeItem('devCurrentStage');
-    sessionStorage.removeItem('stageProgress');
-    sessionStorage.removeItem('returnFromStage1');
-    sessionStorage.removeItem('currentTLevel');
-
-    for (let i = 1; i <= 6; i++) {
-      sessionStorage.removeItem(`pahmCounts${i}`);
-    }
-
-    for (let i = 1; i <= 5; i++) {
-      sessionStorage.removeItem(`t${i}Completed`);
-    }
-
-    setCurrentStage(1);
-    setShowT1T5Dropdown(false);
-    window.location.reload();
   };
 
   // 🎯 HAPPINESS TRACKER HANDLERS
@@ -231,38 +228,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       {showHappinessTracker && (
         <HappinessProgressTracker onClose={handleCloseHappinessTracker} />
       )}
-
-      {/* Development Reset Button */}
-      <button 
-        onClick={handleResetProgress}
-        style={{
-          position: 'fixed',
-          bottom: '16px',
-          left: '16px',
-          backgroundColor: '#ef4444',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '8px',
-          border: 'none',
-          fontSize: '11px',
-          fontWeight: '600',
-          cursor: 'pointer',
-          zIndex: 1000,
-          opacity: 0.8,
-          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
-          transition: 'all 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = '1';
-          e.currentTarget.style.transform = 'translateY(-2px)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = '0.8';
-          e.currentTarget.style.transform = 'translateY(0px)';
-        }}
-      >
-        DEV: Reset Progress
-      </button>
 
       {/* Assessment Popup */}
       {showAssessmentPopup && (
