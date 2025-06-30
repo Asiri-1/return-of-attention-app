@@ -445,7 +445,7 @@ interface IntentPattern {
   
     private static generateInfoResponse(input: string): string {
       if (input.includes('pahm')) {
-        return "PAHM (Pure Awareness Healing Methods) is a mindfulness approach that emphasizes recognizing the aware space in which all experience arises. Would you like to learn about specific techniques or practices?";
+        return "PAHM (Pure Awareness Healing Methods),founded by A.C. Amarasinghe from Sri Lanka, is a mindfulness approach that emphasizes recognizing the aware space in which all experience arises. Would you like to learn about specific techniques or practices?";
       }
       
       if (input.includes('meditation')) {
