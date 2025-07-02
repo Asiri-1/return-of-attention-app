@@ -11,6 +11,9 @@ import AnalyticsBoardWrapper from './AnalyticsBoardWrapper';
 import MindRecoverySelectionWrapper from './MindRecoverySelectionWrapper';
 import MindRecoveryTimerWrapper from './MindRecoveryTimerWrapper';
 
+// 🔒 NEW: Import LogoutWarning component
+import LogoutWarning from './components/LogoutWarning';
+
 // Import components
 import HomeDashboard from './HomeDashboard';
 import Stage1Wrapper from './Stage1Wrapper';
@@ -49,7 +52,7 @@ const AppContent: React.FC = () => {
   const { login, signup, isAuthenticated, currentUser, updateUserProfileInContext, logout, isLoading } = useAuth();
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(false);
 
-  // Initialize knowledge base when app loads
+  // ✅ PRESERVED: Your existing knowledge base initialization
   useEffect(() => {
     const initializeKnowledgeBase = () => {
       const bookContent = localStorage.getItem('roa_book_content');
@@ -70,7 +73,7 @@ const AppContent: React.FC = () => {
     initializeKnowledgeBase();
   }, []);
 
-  // Auto-redirect after login
+  // ✅ PRESERVED: Your existing auto-redirect logic
   useEffect(() => {
     if (isAuthenticated && currentUser && !isLoading) {
       const getRedirectPath = (): string => {
@@ -92,7 +95,7 @@ const AppContent: React.FC = () => {
     }
   }, [isAuthenticated, currentUser, isLoading, navigate]);
 
-  // Helper function for routes
+  // ✅ PRESERVED: Your existing getRedirectPath helper
   const getRedirectPath = (): string => {
     if (!isAuthenticated || !currentUser) return '/signin';
     if (currentUser.email === 'asiriamarasinghe35@gmail.com') return '/home';
@@ -101,6 +104,7 @@ const AppContent: React.FC = () => {
     return '/home';
   };
 
+  // ✅ PRESERVED: All your existing handlers
   const handleStartPracticeWrapper = () => {
     if (!currentUser?.assessmentCompleted) {
       alert('Please complete your self-assessment first before starting practice sessions.');
@@ -131,9 +135,10 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleSignUp = async (email: string, password: string, name: string) => {
+  // 🔒 ENHANCED: Your existing handleSignUp with optional rememberMe
+  const handleSignUp = async (email: string, password: string, name: string, rememberMe: boolean = false) => {
     try {
-      await signup(email, password, name);
+      await signup(email, password, name, rememberMe);
       navigate('/questionnaire');
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -146,15 +151,17 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleSignIn = async (email: string, password: string) => {
+  // 🔒 ENHANCED: Your existing handleSignIn with optional rememberMe
+  const handleSignIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
     } catch (error: any) {
       console.error("Sign-in error:", error);
       alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
     }
   };
 
+  // ✅ PRESERVED: All your existing handlers
   const handleQuestionnaireComplete = (answers: any) => {
     updateUserProfileInContext({ 
       questionnaireAnswers: answers, 
@@ -182,16 +189,21 @@ const AppContent: React.FC = () => {
       <AdminPanel />
       <PageViewTracker />
       
+      {/* 🔒 NEW: LogoutWarning component */}
+      <LogoutWarning />
+      
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px' }}>
           Loading...
         </div>
       ) : (
         <Routes>
+          {/* ✅ PRESERVED: Your existing public routes */}
           <Route path="/" element={<PublicLandingHero />} />
           <Route path="/about" element={<AboutMethod />} />
           <Route path="/faq" element={<PublicFAQ />} />
 
+          {/* ✅ PRESERVED: Your existing signin route */}
           <Route 
             path="/signin" 
             element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : (
@@ -205,6 +217,7 @@ const AppContent: React.FC = () => {
             )}
           />
 
+          {/* ✅ PRESERVED: Your existing signup route */}
           <Route 
             path="/signup" 
             element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : (
@@ -217,6 +230,7 @@ const AppContent: React.FC = () => {
             )}
           />
 
+          {/* ✅ PRESERVED: All your existing protected routes */}
           <Route 
             path="/questionnaire" 
             element={isAuthenticated ? <Questionnaire onComplete={handleQuestionnaireComplete} /> : <Navigate to="/signin" replace />}
@@ -252,6 +266,7 @@ const AppContent: React.FC = () => {
             ) : <Navigate to="/signin" replace />}
           />
 
+          {/* ✅ PRESERVED: Your existing MainNavigation wrapper and all nested routes */}
           <Route
             path="/*"
             element={isAuthenticated ? (
@@ -316,6 +331,7 @@ const AppContent: React.FC = () => {
   );
 };
 
+// ✅ PRESERVED: Your existing App component structure
 const App: React.FC = () => {
   return (
     <BrowserRouter>
