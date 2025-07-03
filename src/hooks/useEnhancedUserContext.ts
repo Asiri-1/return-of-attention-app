@@ -215,11 +215,10 @@ export const useSessionRecommendations = () => {
   if (streak === 0) {
     recommendations.optimalDuration = Math.min(recommendations.optimalDuration, 10);
     recommendations.reasoning.push('Shorter session recommended to rebuild practice habit');
-  } else if (streak > 30) {
-    recommendations.optimalDuration = Math.min(recommendations.optimalDuration + 10, 45);
-    recommendations.reasoning.push('Extended session available due to strong practice consistency');
-  }
-
+} else if (streak > 30) {
+  recommendations.optimalDuration = Math.min(recommendations.optimalDuration + 10, 45);
+  recommendations.reasoning.push('Extended session available due to strong practice consistency');
+}
   return recommendations;
 };
 
