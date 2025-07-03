@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import './SignIn.css';
 
 interface SignInProps {
-  onSignIn: (email: string, password: string) => Promise<void>;
+  onSignIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>; // 🔒 ENHANCED: Added optional rememberMe
   onGoogleSignIn: () => Promise<void>;
   onAppleSignIn: () => Promise<void>;
   onSignUp: () => void;
@@ -19,6 +19,7 @@ const SignIn: React.FC<SignInProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false); // 🔒 NEW: Remember me state
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,8 @@ const SignIn: React.FC<SignInProps> = ({
     setError('');
 
     try {
-      await onSignIn(email, password);
+      // 🔒 ENHANCED: Pass rememberMe to your existing onSignIn handler
+      await onSignIn(email, password, rememberMe);
     } catch (error: any) {
       setError(error.message || 'Failed to sign in');
     } finally {
@@ -96,10 +98,33 @@ const SignIn: React.FC<SignInProps> = ({
               />
             </div>
 
+            {/* 🔒 ENHANCED: Your existing remember-me with functionality */}
             <div className="remember-me">
-              <input type="checkbox" id="remember" />
+              <input 
+                type="checkbox" 
+                id="remember" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={loading}
+              />
               <label htmlFor="remember">Remember me</label>
             </div>
+
+            {/* 🔒 NEW: Security information based on remember me choice */}
+            {rememberMe && (
+              <div style={{
+                fontSize: '12px',
+                color: '#ff6b35',
+                marginBottom: '15px',
+                padding: '8px',
+                background: '#fff3cd',
+                border: '1px solid #ffeaa7',
+                borderRadius: '4px'
+              }}>
+                ⚠️ <strong>Security Note:</strong> Only check "Remember me" on your personal devices. 
+                Sessions still expire after 6 hours for security.
+              </div>
+            )}
 
             <div className="forgot-password">
               <button type="button" onClick={onForgotPassword} className="forgot-link">
@@ -122,6 +147,38 @@ const SignIn: React.FC<SignInProps> = ({
               )}
             </button>
           </form>
+
+          {/* 🔒 NEW: Security features info */}
+          <div style={{
+            fontSize: '11px',
+            color: '#666',
+            marginTop: '15px',
+            padding: '10px',
+            background: '#f8f9fa',
+            borderRadius: '4px',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+              <span>🔒</span>
+              <div>
+                <strong>Security Features:</strong>
+                <ul style={{ margin: '4px 0 0 0', paddingLeft: '12px', fontSize: '10px' }}>
+                  <li><strong>Auto-logout:</strong> Sessions expire after 6 hours</li>
+                  <li><strong>Activity tracking:</strong> Timer resets when you use the app</li>
+                  <li><strong>Warning system:</strong> 5-minute warning before logout</li>
+                  {rememberMe ? (
+                    <li style={{ color: '#28a745' }}>
+                      <strong>Remember Me:</strong> ✅ Stay logged in between sessions
+                    </li>
+                  ) : (
+                    <li style={{ color: '#dc3545' }}>
+                      <strong>Session Only:</strong> ❌ Logout when browser closes
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
 
           <div className="social-signin-options">
             <p>Or sign in with</p>
@@ -163,5 +220,3 @@ const SignIn: React.FC<SignInProps> = ({
 };
 
 export default SignIn;
-
-
