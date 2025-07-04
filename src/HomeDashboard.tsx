@@ -43,19 +43,99 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🎯 HAPPINESS TRACKER STATE
+  // 🎯 SIMPLE: Just display happiness points - don't calculate
   const [showHappinessTracker, setShowHappinessTracker] = useState(false);
-  const [happinessPoints, setHappinessPoints] = useState(342);
+  const [happinessPoints, setHappinessPoints] = useState<number | null>(null);
+  const [userLevel, setUserLevel] = useState('Seeker');
 
-  // 🔥 REMOVED: All redirect logic - Let App.tsx handle redirects
   // Assessment popup state
   const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
 
-  // 🔥 SIMPLIFIED: Check for assessment popup ONLY (no redirects)
+  // 🔧 SIMPLE: Just read from localStorage - no calculation needed
+  const loadHappinessPoints = () => {
+    if (!currentUser) {
+      console.log('❌ No current user, using default happiness');
+      setHappinessPoints(50);
+      setUserLevel('Seeker');
+      return;
+    }
+
+    try {
+      console.log('📈 HomeDashboard: Loading happiness points from storage...');
+      
+      // Just read from localStorage - HappinessProgressTracker does the calculation
+      const savedPoints = localStorage.getItem('happiness_points');
+      const savedLevel = localStorage.getItem('user_level');
+      
+      if (savedPoints && savedLevel) {
+        const points = parseInt(savedPoints, 10);
+        if (!isNaN(points)) {
+          console.log('✅ HomeDashboard: Using saved happiness points:', points);
+          setHappinessPoints(points);
+          setUserLevel(savedLevel);
+          return;
+        }
+      }
+
+      // Default values if nothing saved
+      console.log('⚠️ HomeDashboard: No saved happiness data, using defaults');
+      setHappinessPoints(50);
+      setUserLevel('Seeker');
+      
+    } catch (error) {
+      console.error('❌ Error loading happiness points:', error);
+      setHappinessPoints(50);
+      setUserLevel('Seeker');
+    }
+  };
+
+  // 🔧 Listen for happiness updates from HappinessProgressTracker
+  useEffect(() => {
+    const handleHappinessUpdate = (event: any) => {
+      console.log('🎯 HomeDashboard: Received happiness update event:', event.detail);
+      if (event.detail?.happiness_points) {
+        setHappinessPoints(event.detail.happiness_points);
+      }
+      if (event.detail?.user_level) {
+        setUserLevel(event.detail.user_level);
+      }
+    };
+
+    // Listen for custom happiness update events
+    window.addEventListener('happinessUpdated', handleHappinessUpdate);
+    
+    // Also listen for storage events (in case another tab updates)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'happiness_points' && e.newValue) {
+        const points = parseInt(e.newValue, 10);
+        if (!isNaN(points)) {
+          setHappinessPoints(points);
+          console.log('📈 HomeDashboard: Happiness points updated from storage:', points);
+        }
+      }
+      if (e.key === 'user_level' && e.newValue) {
+        setUserLevel(e.newValue);
+        console.log('🏆 HomeDashboard: User level updated from storage:', e.newValue);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Initial load when currentUser changes
+    if (currentUser) {
+      loadHappinessPoints();
+    }
+
+    return () => {
+      window.removeEventListener('happinessUpdated', handleHappinessUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [currentUser]);
+
+  // Check for assessment popup
   useEffect(() => {
     if (!currentUser) return;
 
-    // Only show assessment popup if questionnaire is completed but assessment is not
     const questionnaireCompleted = currentUser.questionnaireCompleted;
     const assessmentCompleted = currentUser.assessmentCompleted;
     
@@ -63,7 +143,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       console.log('📊 Showing assessment popup');
       setShowAssessmentPopup(true);
     }
-  }, [currentUser]); // Removed navigate and location.state dependencies
+  }, [currentUser]);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -118,12 +198,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
     setStreak(3);
     setTotalHours(12.5);
-
-    // 🎯 Load happiness points from localStorage
-    const savedHappinessPoints = localStorage.getItem('happiness_points');
-    if (savedHappinessPoints) {
-      setHappinessPoints(parseInt(savedHappinessPoints));
-    }
   }, [location]);
 
   const handleStageClick = (stageNumber: number) => {
@@ -176,6 +250,24 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   const handleCloseHappinessTracker = () => {
     setShowHappinessTracker(false);
+    // Refresh happiness points after closing tracker
+    setTimeout(() => {
+      loadHappinessPoints();
+    }, 100);
+  };
+
+  // Debug function for happiness points
+  const handleHappinessDebug = () => {
+    console.log('🔍 HAPPINESS DEBUG INFO:');
+    console.log('Current happiness points:', happinessPoints);
+    console.log('Current user level:', userLevel);
+    console.log('localStorage happiness_points:', localStorage.getItem('happiness_points'));
+    console.log('localStorage user_level:', localStorage.getItem('user_level'));
+    console.log('Current user:', currentUser);
+    
+    // Force reload from storage
+    console.log('🔄 RELOADING FROM STORAGE...');
+    loadHappinessPoints();
   };
 
   const tLevels = [
@@ -215,6 +307,9 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   ];
 
+  // Get display happiness points (handle null state)
+  const displayHappinessPoints = happinessPoints !== null ? happinessPoints : 50;
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -238,7 +333,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         />
       )}
 
-      {/* 🎯 HEADER WITH HAPPINESS POINTS */}
+      {/* Header with Happiness Points Display */}
       <header style={{
         background: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
@@ -261,11 +356,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </h1>
         </div>
         
-        {/* 🎯 HAPPINESS POINTS IN CENTER */}
+        {/* 🎯 HAPPINESS POINTS DISPLAY */}
         <div 
           onClick={handleHappinessPointsClick}
+          onDoubleClick={handleHappinessDebug}
           style={{
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%)',
+            background: displayHappinessPoints > 400 
+              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'  // Green for good scores
+              : displayHappinessPoints > 200
+              ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'  // Orange for medium scores
+              : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red for low scores
             padding: '12px 24px',
             borderRadius: '50px',
             color: 'white',
@@ -274,7 +374,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
             textAlign: 'center',
             minWidth: '120px',
-            border: '2px solid rgba(255, 255, 255, 0.2)'
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            position: 'relative'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
@@ -290,7 +391,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             fontWeight: 'bold',
             marginBottom: '2px'
           }}>
-            😊 {happinessPoints}
+            😊 {displayHappinessPoints}
           </div>
           <div style={{
             fontSize: '11px',
@@ -299,6 +400,24 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           }}>
             Happiness Points
           </div>
+          {displayHappinessPoints > 400 && (
+            <div style={{
+              position: 'absolute',
+              top: '-5px',
+              right: '-5px',
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: '#10b981',
+              border: '2px solid white',
+              fontSize: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              ✨
+            </div>
+          )}
         </div>
         
         {/* Quick Stats */}
@@ -328,6 +447,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             fontWeight: '600'
           }}>
             ⏱️ {totalHours}h total
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            padding: '8px 12px',
+            borderRadius: '12px',
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: '600'
+          }}>
+            🏆 {userLevel}
           </div>
         </div>
       </header>

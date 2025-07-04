@@ -5,380 +5,452 @@ import { useLocalData } from '../contexts/LocalDataContext';
 
 function AdminPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState('admin');
-  const [resetStatus, setResetStatus] = useState('');
-  
-  // Use AdminContext for consistent admin checking
+  const [activeTab, setActiveTab] = useState('overview');
+  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    averageHappiness: 0,
+    completedAssessments: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
+
   const { isAdmin, isLoading: adminLoading } = useAdmin();
   const { currentUser } = useAuth();
-  const { clearAllData } = useLocalData();
+  const { getAllUsers, isLocalMode } = useLocalData();
 
-  // 🔒 STRICT ADMIN CHECK - Only exact email match
+  // Admin email for fallback checking
   const ADMIN_EMAIL = 'asiriamarasinghe35@gmail.com';
-  
-  const isActualAdmin = () => {
-    // Must meet ALL criteria:
-    // 1. AdminContext says isAdmin = true
-    // 2. currentUser exists and email matches exactly
-    // 3. Not in loading state
-    
-    if (adminLoading) return false;
-    if (!isAdmin) return false;
-    if (!currentUser) return false;
-    if (currentUser.email !== ADMIN_EMAIL) return false;
-    
-    return true;
-  };
 
-  // 🔒 COMPLETELY HIDE for non-admin users
-  if (!isActualAdmin()) {
-    return null; // Completely invisible to non-admins
+  // Enhanced admin detection with multiple fallbacks
+  const isUserAdmin = React.useMemo(() => {
+    console.log('🔍 AdminPanel: Checking admin status', {
+      isAdmin,
+      adminLoading,
+      currentUserEmail: currentUser?.email,
+      directEmailCheck: currentUser?.email === ADMIN_EMAIL,
+      timestamp: new Date().toISOString()
+    });
+
+    // Primary check: AdminContext
+    if (!adminLoading && isAdmin) {
+      console.log('✅ AdminPanel: Admin confirmed via AdminContext');
+      return true;
+    }
+
+    // Fallback check: Direct email comparison
+    if (currentUser?.email === ADMIN_EMAIL) {
+      console.log('✅ AdminPanel: Admin confirmed via direct email check');
+      return true;
+    }
+
+    console.log('❌ AdminPanel: Admin status not confirmed');
+    return false;
+  }, [isAdmin, adminLoading, currentUser?.email]);
+
+  // Load admin data
+  useEffect(() => {
+    if (!isUserAdmin) {
+      setIsLoading(false);
+      return;
+    }
+
+    const loadAdminData = async () => {
+      try {
+        console.log('📊 AdminPanel: Loading admin data...');
+        setIsLoading(true);
+
+        if (isLocalMode && getAllUsers) {
+          const allUsers = getAllUsers();
+          const userData = Object.values(allUsers).map((user) => {
+            // Safe type conversion without TypeScript
+            return {
+              uid: String(user.uid || ''),
+              email: String(user.email || ''),
+              displayName: String(user.displayName || 'Unknown'),
+              happiness_points: Number(user.happiness_points) || 0,
+              user_level: String(user.user_level || 'Seeker'),
+              questionnaireCompleted: Boolean(user.questionnaireCompleted),
+              assessmentCompleted: Boolean(user.assessmentCompleted),
+              lastLogin: String(user.lastLogin || new Date().toISOString()),
+              joinDate: String(user.joinDate || new Date().toISOString()),
+              questionnaireAnswers: user.questionnaireAnswers || {},
+              selfAssessmentData: user.selfAssessmentData || {}
+            };
+          });
+
+          setUsers(userData);
+
+          // Calculate stats
+          const totalUsers = userData.length;
+          const activeUsers = userData.filter(user => {
+            const lastLogin = new Date(user.lastLogin);
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            return lastLogin > weekAgo;
+          }).length;
+
+          const averageHappiness = totalUsers > 0 
+            ? userData.reduce((sum, user) => sum + user.happiness_points, 0) / totalUsers 
+            : 0;
+
+          const completedAssessments = userData.filter(user => 
+            user.questionnaireCompleted && user.assessmentCompleted
+          ).length;
+
+          setStats({
+            totalUsers,
+            activeUsers,
+            averageHappiness: Math.round(averageHappiness),
+            completedAssessments
+          });
+
+          console.log('✅ AdminPanel: Data loaded successfully', {
+            totalUsers,
+            activeUsers,
+            averageHappiness,
+            completedAssessments
+          });
+        }
+      } catch (error) {
+        console.error('❌ AdminPanel: Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAdminData();
+  }, [isUserAdmin, isLocalMode, getAllUsers]);
+
+  // Don't render if not admin and not loading
+  if (!adminLoading && !isUserAdmin) {
+    // Show debug info if needed
+    if (debugMode) {
+      return (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: '#FFA500',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          zIndex: 1000,
+          border: '2px solid #FF8C00'
+        }}>
+          ⚠️ Admin Debug
+          <div style={{ fontSize: '12px', marginTop: '8px' }}>
+            Current: {currentUser?.email || 'No user'}<br/>
+            Admin Context: {String(isAdmin)}<br/>
+            Loading: {String(adminLoading)}
+          </div>
+        </div>
+      );
+    }
+    return null;
   }
 
-  console.log('🔧 AdminPanel Active for:', currentUser.email);
+  // Show loading state
+  if (adminLoading || isLoading) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '12px 20px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: 'bold',
+        zIndex: 1000
+      }}>
+        ⏳ Loading Admin...
+      </div>
+    );
+  }
 
-  // Development Tools Functions
-  const resetToStage = (stageNumber) => {
-    try {
-      const currentStageValue = localStorage.getItem('devCurrentStage');
-      const currentStage = currentStageValue ? parseInt(currentStageValue, 10) : 1;
-      
-      console.log(`🔄 Resetting from stage ${currentStage} to stage ${stageNumber}`);
-      
-      localStorage.setItem('devCurrentStage', stageNumber.toString());
-      localStorage.setItem('userCurrentStage', stageNumber.toString());
-      
-      setResetStatus(`✅ Reset to Stage ${stageNumber} completed`);
-      setTimeout(() => setResetStatus(''), 3000);
-      
-      window.location.reload();
-    } catch (error) {
-      console.error('❌ Error resetting stage:', error);
-      setResetStatus('❌ Error resetting stage');
-      setTimeout(() => setResetStatus(''), 3000);
-    }
-  };
-
-  const resetOnboarding = () => {
-    try {
-      console.log('🔄 Resetting onboarding flow...');
-      
-      // Reset onboarding flags
-      localStorage.removeItem('questionnaireCompleted');
-      localStorage.removeItem('assessmentCompleted');
-      localStorage.removeItem('introductionCompleted');
-      localStorage.removeItem('userProfile');
-      
-      // Reset stages
-      localStorage.setItem('devCurrentStage', '1');
-      localStorage.setItem('userCurrentStage', '1');
-      
-      setResetStatus('✅ Onboarding reset completed');
-      setTimeout(() => setResetStatus(''), 3000);
-      
-      // Reload to apply changes
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (error) {
-      console.error('❌ Error resetting onboarding:', error);
-      setResetStatus('❌ Error resetting onboarding');
-      setTimeout(() => setResetStatus(''), 3000);
-    }
-  };
-
-  const resetTimerData = () => {
-    try {
-      console.log('🔄 Resetting timer and practice data...');
-      
-      // Reset timer-related data
-      localStorage.removeItem('practiceSession');
-      localStorage.removeItem('timerData');
-      localStorage.removeItem('sessionData');
-      localStorage.removeItem('practiceHistory');
-      localStorage.removeItem('mindRecoveryHistory');
-      
-      setResetStatus('✅ Timer data reset completed');
-      setTimeout(() => setResetStatus(''), 3000);
-    } catch (error) {
-      console.error('❌ Error resetting timer data:', error);
-      setResetStatus('❌ Error resetting timer data');
-      setTimeout(() => setResetStatus(''), 3000);
-    }
-  };
-
-  const resetAllData = () => {
-    if (window.confirm('⚠️ This will delete ALL application data. Are you sure?')) {
-      try {
-        console.log('🔄 Resetting ALL application data...');
-        
-        // Use LocalDataContext method if available
-        if (clearAllData) {
-          clearAllData();
-        }
-        
-        // Additional localStorage cleanup
-        const keysToKeep = ['roa_book_content']; // Keep knowledge base
-        const allKeys = Object.keys(localStorage);
-        
-        allKeys.forEach(key => {
-          if (!keysToKeep.includes(key)) {
-            localStorage.removeItem(key);
-          }
-        });
-        
-        setResetStatus('✅ All data reset completed');
-        setTimeout(() => setResetStatus(''), 3000);
-        
-        // Reload to apply changes
-        setTimeout(() => window.location.reload(), 1000);
-      } catch (error) {
-        console.error('❌ Error resetting all data:', error);
-        setResetStatus('❌ Error resetting all data');
-        setTimeout(() => setResetStatus(''), 3000);
-      }
-    }
-  };
-
-  const clearAnalyticsData = () => {
-    try {
-      console.log('🔄 Clearing analytics data...');
-      
-      localStorage.removeItem('analyticsData');
-      localStorage.removeItem('progressData');
-      localStorage.removeItem('happinessData');
-      localStorage.removeItem('emotionalNotes');
-      
-      setResetStatus('✅ Analytics data cleared');
-      setTimeout(() => setResetStatus(''), 3000);
-    } catch (error) {
-      console.error('❌ Error clearing analytics:', error);
-      setResetStatus('❌ Error clearing analytics');
-      setTimeout(() => setResetStatus(''), 3000);
-    }
-  };
-
+  // Render admin panel
   return (
-    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999 }}>
-      <div
-        style={{
-          background: 'rgba(0, 128, 0, 0.9)', 
-          color: 'white',
-          padding: '12px 16px', 
-          borderRadius: '12px',
-          cursor: 'pointer', 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-        }}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <span>⚙️</span>
-        <span>Admin</span>
-        <span>{isExpanded ? '▼' : '▶'}</span>
+    <>
+      {/* Admin Toggle Button */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: 1000
+      }}>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          style={{
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>⚙️</span>
+          <span>Admin</span>
+          <span style={{ 
+            fontSize: '12px',
+            opacity: 0.8,
+            marginLeft: '4px'
+          }}>
+            ({stats.totalUsers} users)
+          </span>
+        </button>
       </div>
 
+      {/* Admin Panel */}
       {isExpanded && (
         <div style={{
-          background: 'rgba(0, 128, 0, 0.9)', 
-          color: 'white',
-          padding: '20px', 
-          borderRadius: '12px', 
-          marginTop: '5px',
-          minWidth: '320px',
-          maxHeight: '70vh',
-          overflowY: 'auto',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+          position: 'fixed',
+          top: '70px',
+          right: '20px',
+          width: '600px',
+          maxHeight: '80vh',
+          background: 'white',
+          borderRadius: '15px',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+          zIndex: 999,
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden'
         }}>
-          <h3 style={{ margin: '0 0 15px 0' }}>📊 Admin Panel</h3>
-          <p>✅ Admin access granted!</p>
-          <p><strong>Email:</strong> {currentUser.email}</p>
-          <p><strong>Source:</strong> AdminContext</p>
-          
-          {/* Tab Navigation */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-            <button
-              onClick={() => setActiveTab('admin')}
-              style={{
-                background: activeTab === 'admin' ? '#4ade80' : 'rgba(255,255,255,0.2)',
-                color: activeTab === 'admin' ? 'black' : 'white',
-                border: 'none',
-                padding: '8px 15px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                flex: 1
-              }}
-            >
-              Admin Tools
-            </button>
-            <button
-              onClick={() => setActiveTab('dev')}
-              style={{
-                background: activeTab === 'dev' ? '#60a5fa' : 'rgba(255,255,255,0.2)',
-                color: activeTab === 'dev' ? 'white' : 'white',
-                border: 'none',
-                padding: '8px 15px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                flex: 1
-              }}
-            >
-              Dev Tools
-            </button>
+          {/* Header */}
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '18px' }}>
+              🛠️ Admin Dashboard
+            </h3>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                onClick={() => setDebugMode(!debugMode)}
+                style={{
+                  background: debugMode ? '#FFA500' : 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                {debugMode ? 'Debug ON' : 'Debug'}
+              </button>
+              <button
+                onClick={() => setIsExpanded(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '0',
+                  width: '24px',
+                  height: '24px'
+                }}
+              >
+                ×
+              </button>
+            </div>
           </div>
 
-          {/* Admin Tab Content */}
-          {activeTab === 'admin' && (
-            <div>
+          {/* Tabs */}
+          <div style={{
+            display: 'flex',
+            borderBottom: '1px solid #e2e8f0'
+          }}>
+            {[
+              { id: 'overview', label: '📊 Overview', icon: '📊' },
+              { id: 'users', label: '👥 Users', icon: '👥' },
+              { id: 'analytics', label: '📈 Analytics', icon: '📈' }
+            ].map(tab => (
               <button
-                onClick={() => window.open('/analytics', '_blank')}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
                 style={{
-                  background: '#4ade80', 
-                  color: 'black',
-                  border: 'none', 
-                  padding: '10px 15px',
-                  borderRadius: '6px', 
-                  cursor: 'pointer', 
-                  marginBottom: '10px',
-                  width: '100%'
-                }}
-              >
-                📈 View Analytics
-              </button>
-              
-              <button
-                onClick={() => {
-                  console.log('Admin Debug Data:', {
-                    isAdmin,
-                    adminLoading,
-                    currentUser,
-                    email: currentUser?.email,
-                    exactMatch: currentUser?.email === ADMIN_EMAIL,
-                    timestamp: new Date().toISOString()
-                  });
-                  alert('Admin debug data logged to console');
-                }}
-                style={{
-                  background: '#60a5fa', 
-                  color: 'white',
-                  border: 'none', 
-                  padding: '10px 15px',
-                  borderRadius: '6px', 
+                  flex: 1,
+                  padding: '15px',
+                  border: 'none',
+                  background: activeTab === tab.id ? '#f8fafc' : 'white',
+                  color: activeTab === tab.id ? '#667eea' : '#4a5568',
+                  fontSize: '14px',
+                  fontWeight: activeTab === tab.id ? '600' : '400',
                   cursor: 'pointer',
-                  width: '100%'
+                  borderBottom: activeTab === tab.id ? '2px solid #667eea' : 'none'
                 }}
               >
-                🔍 Debug User Data
+                {tab.label}
               </button>
-            </div>
-          )}
+            ))}
+          </div>
 
-          {/* Dev Tools Tab Content */}
-          {activeTab === 'dev' && (
-            <div>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>🚀 Stage Controls</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
-                {[1, 2, 3, 4, 5, 6].map(stage => (
-                  <button
-                    key={stage}
-                    onClick={() => resetToStage(stage)}
-                    style={{
-                      background: 'rgba(255,255,255,0.2)',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: '4px',
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      color: 'white',
-                      textAlign: 'center'
-                    }}
-                  >
-                    Stage {stage}
-                  </button>
-                ))}
+          {/* Content */}
+          <div style={{
+            padding: '20px',
+            maxHeight: '400px',
+            overflowY: 'auto'
+          }}>
+            {activeTab === 'overview' && (
+              <div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '15px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{
+                    background: '#f8fafc',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                      {stats.totalUsers}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#4a5568' }}>Total Users</div>
+                  </div>
+                  <div style={{
+                    background: '#f8fafc',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10B981' }}>
+                      {stats.activeUsers}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#4a5568' }}>Active Users</div>
+                  </div>
+                  <div style={{
+                    background: '#f8fafc',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#F59E0B' }}>
+                      {stats.averageHappiness}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#4a5568' }}>Avg Happiness</div>
+                  </div>
+                  <div style={{
+                    background: '#f8fafc',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#8B5CF6' }}>
+                      {stats.completedAssessments}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#4a5568' }}>Completed</div>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  fontSize: '14px'
+                }}>
+                  <strong>System Status:</strong>
+                  <div style={{ marginTop: '8px', lineHeight: '1.5' }}>
+                    🟢 Database: {isLocalMode ? 'Local Storage' : 'Firebase'}<br/>
+                    🟢 Authentication: Active<br/>
+                    🟢 Admin Panel: Operational
+                  </div>
+                </div>
               </div>
+            )}
 
-              <h4 style={{ margin: '15px 0 10px 0', fontSize: '14px' }}>🔄 Reset Controls</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-                <button
-                  onClick={resetOnboarding}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    color: 'white'
-                  }}
-                >
-                  Reset Onboarding
-                </button>
-                
-                <button
-                  onClick={resetTimerData}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    color: 'white'
-                  }}
-                >
-                  Reset Timer Data
-                </button>
-                
-                <button
-                  onClick={clearAnalyticsData}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    color: 'white'
-                  }}
-                >
-                  Clear Analytics
-                </button>
-                
-                <button
-                  onClick={resetAllData}
-                  style={{
-                    background: 'rgba(220, 38, 127, 0.8)',
-                    border: '1px solid rgba(220, 38, 127, 1)',
-                    borderRadius: '4px',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    color: 'white'
-                  }}
-                >
-                  ⚠️ Reset All Data
-                </button>
+            {activeTab === 'users' && (
+              <div>
+                <div style={{ marginBottom: '15px', fontSize: '14px', color: '#4a5568' }}>
+                  <strong>{users.length} Registered Users</strong>
+                </div>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {users.map((user, index) => (
+                    <div key={user.uid || index} style={{
+                      padding: '12px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      marginBottom: '10px',
+                      fontSize: '14px'
+                    }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                        {user.displayName || 'Unknown User'}
+                      </div>
+                      <div style={{ color: '#666', fontSize: '12px' }}>
+                        📧 {user.email}<br/>
+                        🎯 {user.happiness_points} points ({user.user_level})<br/>
+                        ✅ Q: {user.questionnaireCompleted ? 'Yes' : 'No'} | 
+                        A: {user.assessmentCompleted ? 'Yes' : 'No'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Status Message */}
-          {resetStatus && (
-            <div style={{
-              marginTop: '15px',
-              padding: '10px',
-              background: resetStatus.includes('❌') ? 'rgba(220, 38, 127, 0.3)' : 'rgba(34, 197, 94, 0.3)',
-              border: `1px solid ${resetStatus.includes('❌') ? 'rgba(220, 38, 127, 0.5)' : 'rgba(34, 197, 94, 0.5)'}`,
-              borderRadius: '4px',
-              color: 'white',
-              fontSize: '14px'
-            }}>
-              {resetStatus}
-            </div>
-          )}
+            {activeTab === 'analytics' && (
+              <div>
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  marginBottom: '15px'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
+                    📊 Happiness Distribution
+                  </div>
+                  <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                    {users.length > 0 ? (
+                      <>
+                        🟢 High (400+): {users.filter(u => u.happiness_points >= 400).length} users<br/>
+                        🟡 Medium (100-399): {users.filter(u => u.happiness_points >= 100 && u.happiness_points < 400).length} users<br/>
+                        🔴 Low (0-99): {users.filter(u => u.happiness_points < 100).length} users
+                      </>
+                    ) : (
+                      'No user data available'
+                    )}
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '15px',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
+                    📈 Completion Rates
+                  </div>
+                  <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                    Questionnaire: {users.length > 0 ? Math.round((users.filter(u => u.questionnaireCompleted).length / users.length) * 100) : 0}%<br/>
+                    Self-Assessment: {users.length > 0 ? Math.round((users.filter(u => u.assessmentCompleted).length / users.length) * 100) : 0}%<br/>
+                    Both Complete: {users.length > 0 ? Math.round((stats.completedAssessments / users.length) * 100) : 0}%
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
