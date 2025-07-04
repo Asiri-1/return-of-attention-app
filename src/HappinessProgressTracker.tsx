@@ -1,6 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { useLocalData } from './contexts/LocalDataContext';
+
+// ============================================================================
+// COMPLETE CALCULATION SYSTEM - NO DEMO DATA, REAL LOGIC ONLY
+// ============================================================================
+
+interface AttachmentResult {
+  penaltyPoints: number;
+  nonAttachmentBonus: number;
+  level: string;
+  debugInfo: any;
+}
+
+interface HappinessBreakdown {
+  baseHappiness: number;
+  questionnaireBonus: number;
+  attachmentPenalty: number;
+  nonAttachmentBonus: number;
+  pahmMasteryBonus: number;
+  sessionQualityBonus: number;
+  emotionalStabilityBonus: number;
+  mindRecoveryBonus: number;
+  environmentBonus: number;
+  consistencyBonus: number;
+}
+
+interface HappinessResult {
+  happiness_points: number;
+  current_level: string;
+  breakdown: HappinessBreakdown;
+}
 
 interface UserProgress {
   happiness_points: number;
@@ -8,907 +36,1102 @@ interface UserProgress {
   habit_change_score: number;
   practice_streak: number;
   current_level: string;
-  breakdown?: {
-    baseHappiness: number;
-    pahmMasteryBonus: number;
-    sessionQualityBonus: number;
-    emotionalStabilityBonus: number;        // Updated: was emotionalProcessingBonus
-    mindRecoveryBonus: number;
-    environmentBonus: number;
-    attachmentPenalty: number;
-    questionnaireBonus: number;
-    consistencyBonus: number;
-  };
+  breakdown?: HappinessBreakdown;
 }
 
-const HappinessProgressTracker: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { currentUser } = useAuth();
-  
-  const {
-    getPracticeSessions,
-    getDailyEmotionalNotes, 
-    getMindRecoverySessions,
-    getMeditationSessions,
-    getAnalyticsData,
-    getPAHMData,
-    getEnvironmentData,
-    getMindRecoveryAnalytics,
-    refreshTrigger
-  } = useLocalData();
+export interface HappinessProgressTrackerProps {
+  onClose?: () => void;
+  // Real data props - pass your actual data here
+  currentUser?: any;
+  practiceHistory?: any[];
+  emotionalNotes?: any[];
+  mindRecoveryHistory?: any[];
+  pahmData?: any;
+  environmentData?: any;
+  analytics?: any;
+}
 
+// ============================================================================
+// QUESTIONNAIRE CALCULATIONS
+// ============================================================================
+
+const calculateBaseHappiness = (questionnaire: any): number => {
+  if (!questionnaire) {
+    console.log('📋 No questionnaire data - using minimum baseline');
+    return 150;
+  }
+
+  console.log('📋 Processing questionnaire:', questionnaire);
+  
+  let baseline = 200;
+  
+  const experience = questionnaire.experience_level || 
+                    questionnaire.experienceLevel || 
+                    questionnaire.mindfulnessExperience || 0;
+  
+  const goals = questionnaire.goals || [];
+  
+  const sleepQuality = questionnaire.sleep_pattern || 
+                      questionnaire.sleepQuality || 
+                      questionnaire.sleep || 5;
+  
+  const frequency = questionnaire.practice_frequency || 
+                   questionnaire.frequency || 
+                   questionnaire.meditationFrequency || 3;
+  
+  // Apply bonuses
+  if (experience >= 8) baseline += 100;
+  else if (experience >= 6) baseline += 60;
+  else if (experience >= 4) baseline += 30;
+  else if (experience >= 2) baseline += 15;
+  
+  baseline += Math.round((sleepQuality - 5) * 8);
+  baseline += (Array.isArray(goals) ? goals.length : 0) * 10;
+  baseline += frequency * 5;
+  
+  const finalBaseline = Math.max(150, baseline);
+  
+  console.log('📋 Base happiness result:', {
+    experience,
+    sleepQuality,
+    frequency,
+    goalCount: Array.isArray(goals) ? goals.length : 0,
+    baseline,
+    finalBaseline
+  });
+  
+  return finalBaseline;
+};
+
+const calculateQuestionnaireBonus = (questionnaire: any): number => {
+  if (!questionnaire) return 0;
+  
+  let bonus = 0;
+  
+  const experience = questionnaire.experience_level || 
+                    questionnaire.experienceLevel || 
+                    questionnaire.mindfulnessExperience || 0;
+  
+  const sleepQuality = questionnaire.sleep_pattern || 
+                      questionnaire.sleepQuality || 
+                      questionnaire.sleep || 0;
+  
+  const frequency = questionnaire.practice_frequency || 
+                   questionnaire.frequency || 
+                   questionnaire.meditationFrequency || 0;
+  
+  const stressLevel = questionnaire.stress_level || 
+                     questionnaire.stressLevel || 5;
+  
+  // Experience bonus
+  if (experience >= 8) bonus += 40;
+  else if (experience >= 6) bonus += 25;
+  else if (experience >= 4) bonus += 15;
+  
+  // Sleep bonus
+  if (sleepQuality >= 9) bonus += 30;
+  else if (sleepQuality >= 7) bonus += 20;
+  else if (sleepQuality >= 5) bonus += 10;
+  
+  // Frequency bonus
+  if (frequency >= 6) bonus += 25;
+  else if (frequency >= 4) bonus += 15;
+  else if (frequency >= 2) bonus += 8;
+  
+  // Stress management bonus (lower stress = higher bonus)
+  if (stressLevel <= 2) bonus += 20;
+  else if (stressLevel <= 4) bonus += 10;
+  
+  console.log('📋 Questionnaire bonus result:', {
+    experience,
+    sleepQuality,
+    frequency,
+    stressLevel,
+    bonus
+  });
+  
+  return bonus;
+};
+
+// ============================================================================
+// ATTACHMENT PENALTY CALCULATIONS - COMPLETE LOGIC
+// ============================================================================
+
+const calculateAttachmentPenalty = (selfAssessment: any): AttachmentResult => {
+  console.log('🔍 FIXED: Starting attachment penalty calculation...');
+  console.log('🔍 FIXED: Self-assessment input:', selfAssessment);
+  
+  const debugInfo = {
+    inputExists: !!selfAssessment,
+    inputType: typeof selfAssessment,
+    inputKeys: selfAssessment ? Object.keys(selfAssessment) : [],
+    detectionPath: 'none'
+  };
+  
+  // No data case
+  if (!selfAssessment) {
+    console.log('❌ No self-assessment data provided');
+    debugInfo.detectionPath = 'no-data';
+    return {
+      penaltyPoints: 0,
+      nonAttachmentBonus: 0,
+      level: 'no-data',
+      debugInfo
+    };
+  }
+  
+  // Intent-based format (exact match required)
+  if (selfAssessment.intentBased === true && selfAssessment.format === 'levels' && selfAssessment.responses) {
+    return calculateIntentBasedPenalty(selfAssessment, debugInfo);
+  }
+  
+  // Handle responses object (your current format) - THIS IS THE KEY FIX!
+  if (selfAssessment.responses && typeof selfAssessment.responses === 'object') {
+    console.log('🔧 FIXED: Processing responses object (current format)');
+    debugInfo.detectionPath = 'responses-object';
+    return calculateResponsesBasedPenalty(selfAssessment, debugInfo);
+  }
+  
+  // Old format detection
+  if (selfAssessment.sixSenses || selfAssessment.summary) {
+    console.log('⚠️ Old self-assessment format detected');
+    debugInfo.detectionPath = 'old-format-detected';
+    return calculateOldFormatPenalty(selfAssessment, debugInfo);
+  }
+  
+  // Unknown format
+  console.log('❌ Unknown self-assessment format');
+  debugInfo.detectionPath = 'unknown-format';
+  return {
+    penaltyPoints: 0,
+    nonAttachmentBonus: 0,
+    level: 'unknown-format',
+    debugInfo
+  };
+};
+
+const calculateResponsesBasedPenalty = (selfAssessment: any, debugInfo: any): AttachmentResult => {
+  console.log('🔧 FIXED: Processing responses object (current format)...');
+  debugInfo.detectionPath = 'responses-object';
+  
+  const responses = selfAssessment.responses;
+  let noneCount = 0;
+  let someCount = 0;
+  let strongCount = 0;
+  let totalCategories = 0;
+  
+  console.log('🔍 Processing responses:', responses);
+  console.log('🔍 Response keys:', Object.keys(responses));
+  
+  // Count attachment levels from responses
+  Object.entries(responses).forEach(([category, response]: [string, any]) => {
+    console.log(`📝 Processing ${category}:`, response);
+    
+    if (response && response.level) {
+      totalCategories++;
+      
+      switch (response.level) {
+        case 'none':
+          noneCount++;
+          console.log(`✨ ${category}: Non-attachment detected`);
+          break;
+        case 'some':
+          someCount++;
+          console.log(`⚖️ ${category}: Some attachment detected`);
+          break;
+        case 'strong':
+          strongCount++;
+          console.log(`🔥 ${category}: Strong attachment detected`);
+          break;
+        default:
+          console.log(`⚠️ ${category}: Unknown level "${response.level}"`);
+      }
+    } else {
+      console.log(`⚠️ ${category}: Invalid response format`, response);
+    }
+  });
+  
+  // Calculate penalty: some = 25 points, strong = 75 points
+  const penaltyPoints = (someCount * 25) + (strongCount * 75);
+  
+  // Calculate non-attachment bonus
+  const nonAttachmentPercentage = totalCategories > 0 ? (noneCount / totalCategories) * 100 : 0;
+  let nonAttachmentBonus = 0;
+  
+  if (nonAttachmentPercentage >= 80) nonAttachmentBonus = 120;
+  else if (nonAttachmentPercentage >= 60) nonAttachmentBonus = 80;
+  else if (nonAttachmentPercentage >= 40) nonAttachmentBonus = 40;
+  else if (nonAttachmentPercentage >= 20) nonAttachmentBonus = 20;
+  
+  // Determine attachment level
+  let level = 'unknown';
+  if (strongCount >= 4) level = 'very-high';
+  else if (strongCount >= 2 || someCount >= 4) level = 'high';
+  else if (strongCount >= 1 || someCount >= 2) level = 'medium';
+  else if (someCount >= 1) level = 'low';
+  else if (noneCount === totalCategories) level = 'non-attached';
+  else level = 'very-low';
+  
+  const result = {
+    penaltyPoints,
+    nonAttachmentBonus,
+    level,
+    debugInfo: {
+      ...debugInfo,
+      totalCategories,
+      noneCount,
+      someCount,
+      strongCount,
+      nonAttachmentPercentage: nonAttachmentPercentage.toFixed(1),
+      calculation: `${someCount} × 25 + ${strongCount} × 75 = ${penaltyPoints}`
+    }
+  };
+  
+  console.log('✅ Responses-based calculation result:', result);
+  
+  return result;
+};
+
+const calculateIntentBasedPenalty = (selfAssessment: any, debugInfo: any): AttachmentResult => {
+  console.log('✅ Processing intent-based self-assessment...');
+  debugInfo.detectionPath = 'intent-based';
+  
+  const responses = selfAssessment.responses;
+  let noneCount = 0;
+  let someCount = 0;
+  let strongCount = 0;
+  let totalCategories = 0;
+  
+  Object.entries(responses).forEach(([category, response]: [string, any]) => {
+    if (response && response.level) {
+      totalCategories++;
+      
+      switch (response.level) {
+        case 'none':
+          noneCount++;
+          break;
+        case 'some':
+          someCount++;
+          break;
+        case 'strong':
+          strongCount++;
+          break;
+      }
+    }
+  });
+  
+  const penaltyPoints = (someCount * 25) + (strongCount * 75);
+  const nonAttachmentPercentage = totalCategories > 0 ? (noneCount / totalCategories) * 100 : 0;
+  let nonAttachmentBonus = 0;
+  
+  if (nonAttachmentPercentage >= 80) nonAttachmentBonus = 120;
+  else if (nonAttachmentPercentage >= 60) nonAttachmentBonus = 80;
+  else if (nonAttachmentPercentage >= 40) nonAttachmentBonus = 40;
+  else if (nonAttachmentPercentage >= 20) nonAttachmentBonus = 20;
+  
+  let level = 'unknown';
+  if (strongCount >= 4) level = 'very-high';
+  else if (strongCount >= 2 || someCount >= 4) level = 'high';
+  else if (strongCount >= 1 || someCount >= 2) level = 'medium';
+  else if (someCount >= 1) level = 'low';
+  else if (noneCount === totalCategories) level = 'non-attached';
+  else level = 'very-low';
+  
+  return {
+    penaltyPoints,
+    nonAttachmentBonus,
+    level,
+    debugInfo: {
+      ...debugInfo,
+      totalCategories,
+      noneCount,
+      someCount,
+      strongCount,
+      nonAttachmentPercentage: nonAttachmentPercentage.toFixed(1),
+      calculation: `${someCount} × 25 + ${strongCount} × 75 = ${penaltyPoints}`
+    }
+  };
+};
+
+const calculateOldFormatPenalty = (selfAssessment: any, debugInfo: any): AttachmentResult => {
+  console.log('⚠️ Processing old format self-assessment...');
+  debugInfo.detectionPath = 'old-format';
+  
+  let penaltyPoints = 0;
+  let nonAttachmentBonus = 0;
+  
+  if (selfAssessment.summary) {
+    penaltyPoints = 100; // Default penalty for old format
+  }
+  
+  return {
+    penaltyPoints,
+    nonAttachmentBonus,
+    level: 'old-format',
+    debugInfo
+  };
+};
+
+// ============================================================================
+// ADVANCED HAPPINESS CALCULATIONS
+// ============================================================================
+
+const calculatePahmMasteryBonus = (questionnaire: any, practiceHistory: any[]): number => {
+  if (!questionnaire && (!practiceHistory || practiceHistory.length === 0)) return 0;
+  
+  let bonus = 0;
+  
+  // PAHM understanding bonus
+  const experience = questionnaire?.experience_level || questionnaire?.experienceLevel || 0;
+  if (experience >= 8) bonus += 50;
+  else if (experience >= 6) bonus += 30;
+  else if (experience >= 4) bonus += 15;
+  
+  // Practice consistency bonus
+  if (practiceHistory && practiceHistory.length > 0) {
+    const totalSessions = practiceHistory.length;
+    if (totalSessions >= 100) bonus += 40;
+    else if (totalSessions >= 50) bonus += 25;
+    else if (totalSessions >= 20) bonus += 15;
+    else if (totalSessions >= 5) bonus += 8;
+    
+    // PAHM awareness bonus
+    const sessionsWithPAHM = practiceHistory.filter(session => session.pahmCounts).length;
+    const pahmAwarenessPercentage = totalSessions > 0 ? (sessionsWithPAHM / totalSessions) * 100 : 0;
+    
+    if (pahmAwarenessPercentage >= 80) bonus += 30;
+    else if (pahmAwarenessPercentage >= 60) bonus += 20;
+    else if (pahmAwarenessPercentage >= 40) bonus += 10;
+    
+    console.log('🧘 PAHM Mastery includes awareness bonus:', { sessionsWithPAHM, pahmAwarenessPercentage: pahmAwarenessPercentage.toFixed(1) });
+  }
+  
+  console.log('🧘 PAHM Mastery Bonus:', bonus);
+  return bonus;
+};
+
+const calculateSessionQualityBonus = (practiceHistory: any[]): number => {
+  if (!practiceHistory || practiceHistory.length === 0) return 0;
+  
+  const recentSessions = practiceHistory.slice(-10);
+  const avgRating = recentSessions.reduce((sum, session) => sum + (session.rating || 7), 0) / recentSessions.length;
+  const avgPresent = recentSessions.reduce((sum, session) => sum + (session.presentPercentage || 70), 0) / recentSessions.length;
+  
+  let bonus = 0;
+  
+  // Rating bonus
+  if (avgRating >= 9) bonus += 30;
+  else if (avgRating >= 8) bonus += 20;
+  else if (avgRating >= 7) bonus += 10;
+  
+  // Present percentage bonus
+  if (avgPresent >= 90) bonus += 25;
+  else if (avgPresent >= 80) bonus += 15;
+  else if (avgPresent >= 70) bonus += 8;
+  
+  console.log('⭐ Session Quality Bonus:', bonus, { avgRating: avgRating.toFixed(1), avgPresent: avgPresent.toFixed(1) });
+  return bonus;
+};
+
+const calculateEmotionalStabilityBonus = (questionnaire: any, practiceHistory: any[]): number => {
+  if (!questionnaire) return 0;
+  
+  let bonus = 0;
+  
+  const stressLevel = questionnaire.stress_level || questionnaire.stressLevel || 5;
+  const moodStability = questionnaire.mood_stability || questionnaire.moodStability || 5;
+  const emotionalAwareness = questionnaire.emotional_awareness || questionnaire.emotionalAwareness || 5;
+  
+  // Stress management bonus (lower stress = higher bonus)
+  if (stressLevel <= 2) bonus += 35;
+  else if (stressLevel <= 3) bonus += 25;
+  else if (stressLevel <= 4) bonus += 15;
+  
+  // Mood stability bonus
+  if (moodStability >= 8) bonus += 30;
+  else if (moodStability >= 6) bonus += 20;
+  else if (moodStability >= 4) bonus += 10;
+  
+  // Emotional awareness bonus
+  if (emotionalAwareness >= 8) bonus += 25;
+  else if (emotionalAwareness >= 6) bonus += 15;
+  else if (emotionalAwareness >= 4) bonus += 8;
+  
+  console.log('😌 Emotional Stability Bonus:', bonus, { stressLevel, moodStability, emotionalAwareness });
+  return bonus;
+};
+
+const calculateMindRecoveryBonus = (questionnaire: any, practiceHistory: any[]): number => {
+  if (!questionnaire) return 0;
+  
+  let bonus = 0;
+  
+  const sleepQuality = questionnaire.sleep_pattern || questionnaire.sleepQuality || questionnaire.sleep || 5;
+  const restfulness = questionnaire.restfulness || questionnaire.energyLevel || 5;
+  
+  // Sleep quality bonus
+  if (sleepQuality >= 9) bonus += 40;
+  else if (sleepQuality >= 7) bonus += 25;
+  else if (sleepQuality >= 5) bonus += 12;
+  
+  // Restfulness bonus
+  if (restfulness >= 8) bonus += 30;
+  else if (restfulness >= 6) bonus += 18;
+  else if (restfulness >= 4) bonus += 8;
+  
+  // Mind recovery sessions bonus
+  if (practiceHistory && practiceHistory.length > 0) {
+    const mindRecoverySessions = practiceHistory.filter(session => session.sessionType === 'mind_recovery');
+    const mindRecoveryUsage = practiceHistory.length > 0 ? (mindRecoverySessions.length / practiceHistory.length) * 100 : 0;
+    
+    if (mindRecoveryUsage >= 30) bonus += 25;
+    else if (mindRecoveryUsage >= 20) bonus += 15;
+    else if (mindRecoveryUsage >= 10) bonus += 8;
+    
+    // Recovery metrics bonus
+    const sessionsWithMetrics = mindRecoverySessions.filter(session => session.recoveryMetrics);
+    if (sessionsWithMetrics.length > 0) {
+      const avgStressReduction = sessionsWithMetrics.reduce((sum, session) => 
+        sum + (session.recoveryMetrics?.stressReduction || 0), 0) / sessionsWithMetrics.length;
+      
+      if (avgStressReduction >= 8) bonus += 20;
+      else if (avgStressReduction >= 6) bonus += 12;
+      else if (avgStressReduction >= 4) bonus += 6;
+      
+      console.log('🌙 Mind Recovery includes metrics bonus:', { avgStressReduction: avgStressReduction.toFixed(1) });
+    }
+    
+    console.log('🌙 Mind Recovery usage:', { mindRecoveryUsage: mindRecoveryUsage.toFixed(1) });
+  }
+  
+  console.log('🌙 Mind Recovery Bonus:', bonus, { sleepQuality, restfulness });
+  return bonus;
+};
+
+const calculateEnvironmentBonus = (questionnaire: any, practiceHistory?: any[]): number => {
+  let bonus = 0;
+  
+  // Questionnaire-based environment bonus
+  if (questionnaire) {
+    const practiceEnvironment = questionnaire.practice_environment || questionnaire.environment || 'mixed';
+    const distractionLevel = questionnaire.distraction_level || questionnaire.distractions || 5;
+    const supportSystem = questionnaire.support_system || questionnaire.socialSupport || 5;
+    
+    // Environment bonus
+    if (practiceEnvironment === 'dedicated_space') bonus += 25;
+    else if (practiceEnvironment === 'quiet_room') bonus += 18;
+    else if (practiceEnvironment === 'nature') bonus += 20;
+    else if (practiceEnvironment === 'outdoor') bonus += 15;
+    
+    // Low distraction bonus
+    if (distractionLevel <= 2) bonus += 20;
+    else if (distractionLevel <= 3) bonus += 12;
+    else if (distractionLevel <= 4) bonus += 6;
+    
+    // Support system bonus
+    if (supportSystem >= 8) bonus += 25;
+    else if (supportSystem >= 6) bonus += 15;
+    else if (supportSystem >= 4) bonus += 8;
+  }
+  
+  // Session-based environment bonus
+  if (practiceHistory && practiceHistory.length > 0) {
+    const sessionsWithEnv = practiceHistory.filter(session => session.environment);
+    const envUsagePercentage = practiceHistory.length > 0 ? (sessionsWithEnv.length / practiceHistory.length) * 100 : 0;
+    
+    if (envUsagePercentage >= 80) bonus += 15;
+    else if (envUsagePercentage >= 60) bonus += 10;
+    else if (envUsagePercentage >= 40) bonus += 5;
+    
+    // Optimal environment bonus
+    const outdoorSessions = sessionsWithEnv.filter(session => 
+      session.environment?.location?.toLowerCase().includes('outdoor') ||
+      session.environment?.location?.toLowerCase().includes('nature')
+    ).length;
+    
+    if (outdoorSessions >= 5) bonus += 10;
+    
+    console.log('🏡 Environment tracking bonus:', { envUsagePercentage: envUsagePercentage.toFixed(1), outdoorSessions });
+  }
+  
+  console.log('🏡 Environment Bonus:', bonus);
+  return bonus;
+};
+
+const calculateConsistencyBonus = (practiceHistory: any[]): number => {
+  if (!practiceHistory || practiceHistory.length === 0) return 0;
+  
+  let bonus = 0;
+  
+  // Calculate practice streak
+  const sortedSessions = [...practiceHistory].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  
+  let streak = 0;
+  let currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
+  
+  for (const session of sortedSessions) {
+    const sessionDate = new Date(session.timestamp);
+    sessionDate.setHours(0, 0, 0, 0);
+    
+    const daysDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff === streak) {
+      streak++;
+    } else if (daysDiff > streak) {
+      break;
+    }
+  }
+  
+  // Streak bonus
+  if (streak >= 30) bonus += 60;
+  else if (streak >= 14) bonus += 40;
+  else if (streak >= 7) bonus += 25;
+  else if (streak >= 3) bonus += 12;
+  
+  // Weekly consistency bonus
+  const weeklyConsistency = calculateWeeklyConsistency(practiceHistory);
+  if (weeklyConsistency >= 0.8) bonus += 30;
+  else if (weeklyConsistency >= 0.6) bonus += 20;
+  else if (weeklyConsistency >= 0.4) bonus += 10;
+  
+  console.log('📅 Consistency Bonus:', bonus, { streak, weeklyConsistency: (weeklyConsistency * 100).toFixed(1) + '%' });
+  return bonus;
+};
+
+const calculateWeeklyConsistency = (practiceHistory: any[]): number => {
+  if (!practiceHistory || practiceHistory.length === 0) return 0;
+  
+  const weeks = Math.ceil(practiceHistory.length / 7);
+  if (weeks === 0) return 0;
+  
+  const practicesByWeek: { [key: string]: number } = {};
+  
+  practiceHistory.forEach(session => {
+    const date = new Date(session.timestamp);
+    const weekKey = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
+    practicesByWeek[weekKey] = (practicesByWeek[weekKey] || 0) + 1;
+  });
+  
+  const weeksWithPractice = Object.keys(practicesByWeek).length;
+  return weeksWithPractice / weeks;
+};
+
+// ============================================================================
+// MAIN HAPPINESS CALCULATION - NO DEMO DATA
+// ============================================================================
+
+const calculateHappiness = (
+  questionnaire: any,
+  selfAssessment: any,
+  practiceHistory: any[] = []
+): HappinessResult => {
+  
+  console.log('🧠 Starting comprehensive happiness calculation...');
+  console.log('📊 Input data summary:', {
+    hasQuestionnaire: !!questionnaire,
+    hasSelfAssessment: !!selfAssessment,
+    practiceSessionCount: practiceHistory.length,
+    selfAssessmentKeys: selfAssessment ? Object.keys(selfAssessment) : [],
+    practiceSessionsWithPAHM: practiceHistory.filter(s => s.pahmCounts).length,
+    mindRecoverySessions: practiceHistory.filter(s => s.sessionType === 'mind_recovery').length
+  });
+  
+  // NEW USERS GET MINIMAL POINTS
+  if (!questionnaire && !selfAssessment && practiceHistory.length === 0) {
+    console.log('🆕 NEW USER: No data available, returning minimal baseline');
+    return {
+      happiness_points: 50,
+      current_level: 'Newcomer',
+      breakdown: {
+        baseHappiness: 50,
+        questionnaireBonus: 0,
+        attachmentPenalty: 0,
+        nonAttachmentBonus: 0,
+        pahmMasteryBonus: 0,
+        sessionQualityBonus: 0,
+        emotionalStabilityBonus: 0,
+        mindRecoveryBonus: 0,
+        environmentBonus: 0,
+        consistencyBonus: 0
+      }
+    };
+  }
+  
+  // Calculate all components ONLY if data exists
+  const baseHappiness = calculateBaseHappiness(questionnaire);
+  const questionnaireBonus = calculateQuestionnaireBonus(questionnaire);
+  const attachmentResult = calculateAttachmentPenalty(selfAssessment);
+  
+  // Advanced bonuses - ALL 10 COMPONENTS
+  const pahmMasteryBonus = calculatePahmMasteryBonus(questionnaire, practiceHistory);
+  const sessionQualityBonus = calculateSessionQualityBonus(practiceHistory);
+  const emotionalStabilityBonus = calculateEmotionalStabilityBonus(questionnaire, practiceHistory);
+  const mindRecoveryBonus = calculateMindRecoveryBonus(questionnaire, practiceHistory);
+  const environmentBonus = calculateEnvironmentBonus(questionnaire, practiceHistory);
+  const consistencyBonus = calculateConsistencyBonus(practiceHistory);
+  
+  // Final calculation with ALL components
+  const finalHappiness = Math.max(50,
+    baseHappiness +
+    questionnaireBonus +
+    pahmMasteryBonus +
+    sessionQualityBonus +
+    emotionalStabilityBonus +
+    mindRecoveryBonus +
+    environmentBonus +
+    consistencyBonus +
+    attachmentResult.nonAttachmentBonus -
+    attachmentResult.penaltyPoints
+  );
+  
+  // Determine level
+  let currentLevel = 'Newcomer';
+  if (finalHappiness >= 1200) currentLevel = 'Master';
+  else if (finalHappiness >= 1000) currentLevel = 'Expert';
+  else if (finalHappiness >= 800) currentLevel = 'Advanced';
+  else if (finalHappiness >= 600) currentLevel = 'Intermediate';
+  else if (finalHappiness >= 400) currentLevel = 'Beginner';
+  
+  const breakdown: HappinessBreakdown = {
+    baseHappiness,
+    questionnaireBonus,
+    attachmentPenalty: attachmentResult.penaltyPoints,
+    nonAttachmentBonus: attachmentResult.nonAttachmentBonus,
+    pahmMasteryBonus,
+    sessionQualityBonus,
+    emotionalStabilityBonus,
+    mindRecoveryBonus,
+    environmentBonus,
+    consistencyBonus
+  };
+  
+  const result: HappinessResult = {
+    happiness_points: finalHappiness,
+    current_level: currentLevel,
+    breakdown
+  };
+  
+  console.log('🧠 Final comprehensive happiness calculation result:', {
+    ...breakdown,
+    finalHappiness,
+    currentLevel,
+    formula: `${baseHappiness} + ${questionnaireBonus} + ${pahmMasteryBonus} + ${sessionQualityBonus} + ${emotionalStabilityBonus} + ${mindRecoveryBonus} + ${environmentBonus} + ${consistencyBonus} + ${attachmentResult.nonAttachmentBonus} - ${attachmentResult.penaltyPoints} = ${finalHappiness}`,
+    attachmentDebugInfo: attachmentResult.debugInfo
+  });
+  
+  return result;
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({ 
+  onClose,
+  currentUser,
+  practiceHistory = [],
+  emotionalNotes = [],
+  mindRecoveryHistory = [],
+  pahmData,
+  environmentData,
+  analytics
+}) => {
   const [userProgress, setUserProgress] = useState<UserProgress>({
-    happiness_points: 342,
-    focus_ability: 67,
-    habit_change_score: 58,
-    practice_streak: 1,
-    current_level: 'Intermediate'
+    happiness_points: 50,
+    focus_ability: 0,
+    habit_change_score: 0,
+    practice_streak: 0,
+    current_level: 'Newcomer'
   });
 
-  // 🎯 COMPREHENSIVE HAPPINESS CALCULATION ENGINE
-  const calculateComprehensiveHappiness = () => {
-    try {
-      console.log('🧠 Starting Comprehensive Happiness Calculation...');
-      
-      // Get ALL real-time data from your app
-      const practiceHistory = getPracticeSessions();
-      const meditationSessions = getMeditationSessions();
-      const emotionalNotes = getDailyEmotionalNotes();
-      const mindRecoveryHistory = getMindRecoverySessions();
-      const analytics = getAnalyticsData();
-      const pahmData = getPAHMData();
-      const environmentData = getEnvironmentData();
-      const mindRecoveryAnalytics = getMindRecoveryAnalytics();
-      
-      // Auth context data
-      const selfAssessment = currentUser?.selfAssessmentData;
-      const questionnaire = currentUser?.questionnaireAnswers;
+  const [showDebug, setShowDebug] = useState(false);
 
-      console.log('📊 Real-time Data Summary:', {
-        totalSessions: practiceHistory.length,
-        meditationSessions: meditationSessions.length,
-        mindRecoverySessions: mindRecoveryHistory.length,
-        emotionalNotes: emotionalNotes.length,
-        hasPAHMData: !!pahmData,
-        hasEnvironmentData: environmentData ? Object.keys(environmentData).length > 0 : false,
-        selfAssessment: selfAssessment ? 'Available' : 'Missing',
-        questionnaire: questionnaire ? 'Available' : 'Missing'
-      });
-
-      // Initialize calculation components
-      let baseHappiness = 200;
-      let pahmMasteryBonus = 0;
-      let sessionQualityBonus = 0;
-      let emotionalStabilityBonus = 0;        // Updated: was emotionalProcessingBonus
-      let mindRecoveryBonus = 0;
-      let environmentBonus = 0;
-      let attachmentPenalty = 0;
-      let questionnaireBonus = 0;
-      let consistencyBonus = 0;
-
-      // 1. 📈 BASE HAPPINESS from total practice engagement
-      if (practiceHistory.length > 0) {
-        const totalSessions = practiceHistory.length;
-        const totalMinutes = practiceHistory.reduce((sum, session) => sum + session.duration, 0);
-        const avgQuality = practiceHistory.reduce((sum, session) => sum + (session.rating ?? 7), 0) / practiceHistory.length;
-        
-        // Enhanced base calculation
-        baseHappiness = Math.round(
-          (totalSessions * 12) + 
-          (totalMinutes * 0.8) + 
-          (avgQuality * 15) +
-          Math.min(totalSessions * 2, 100) // Engagement bonus, capped at 100
-        );
-        
-        console.log('📈 Base Happiness:', {
-          totalSessions,
-          totalMinutes,
-          avgQuality: avgQuality.toFixed(1),
-          baseHappiness
-        });
-      }
-
-      // 2. 🧠 PAHM MASTERY BONUS (Core teaching: Present + Neutral)
-      if (pahmData && pahmData.totalCounts > 0) {
-        const presentNeutralCount = pahmData.totalPAHM.present_neutral;
-        const presentNeutralPercentage = (presentNeutralCount / pahmData.totalCounts) * 100;
-        
-        // Exponential bonus for Present+Neutral mastery
-        if (presentNeutralPercentage >= 70) {
-          pahmMasteryBonus = 150 + Math.round((presentNeutralPercentage - 70) * 3);
-        } else if (presentNeutralPercentage >= 50) {
-          pahmMasteryBonus = 80 + Math.round((presentNeutralPercentage - 50) * 3.5);
-        } else if (presentNeutralPercentage >= 30) {
-          pahmMasteryBonus = 30 + Math.round((presentNeutralPercentage - 30) * 2.5);
-        } else if (presentNeutralPercentage >= 15) {
-          pahmMasteryBonus = Math.round(presentNeutralPercentage * 2);
-        }
-        
-        // Additional bonus for high present moment awareness
-        const presentTotalPercentage = pahmData.presentPercentage;
-        if (presentTotalPercentage >= 80) {
-          pahmMasteryBonus += 40;
-        } else if (presentTotalPercentage >= 60) {
-          pahmMasteryBonus += 20;
-        }
-        
-        console.log('🧠 PAHM Mastery Analysis:', {
-          presentNeutralPercentage: presentNeutralPercentage.toFixed(1),
-          presentTotalPercentage,
-          totalObservations: pahmData.totalCounts,
-          masteryBonus: pahmMasteryBonus
-        });
-      }
-
-      // 3. ⭐ SESSION QUALITY BONUS
-      if (practiceHistory.length > 0) {
-        const recentSessions = practiceHistory.slice(-10); // Last 10 sessions
-        const avgRecentQuality = recentSessions.reduce((sum, s) => sum + (s.rating ?? 7), 0) / recentSessions.length;
-        const highQualitySessions = recentSessions.filter(s => (s.rating ?? 7) >= 8).length;
-        
-        sessionQualityBonus = Math.round(
-          (avgRecentQuality - 5) * 20 + // Base quality bonus
-          (highQualitySessions * 8) + // High quality session bonus
-          (avgRecentQuality >= 9 ? 25 : 0) // Excellence bonus
-        );
-        
-        sessionQualityBonus = Math.max(0, sessionQualityBonus);
-        
-        console.log('⭐ Session Quality Analysis:', {
-          avgRecentQuality: avgRecentQuality.toFixed(1),
-          highQualitySessions,
-          qualityBonus: sessionQualityBonus
-        });
-      }
-
-      // 4. 💝 EMOTIONAL STABILITY PROGRESSION (Abhidhamma-Based)
-      if (emotionalNotes.length > 0) {
-        const isWithinDays = (timestamp: string, days: number, startDays = 0) => {
-          const noteDate = new Date(timestamp);
-          const endDate = new Date(Date.now() - startDays * 24 * 60 * 60 * 1000);
-          const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-          return noteDate >= startDate && noteDate <= endDate;
-        };
-
-        const recentNotes = emotionalNotes.filter(note => isWithinDays(note.timestamp, 30));
-        const olderNotes = emotionalNotes.filter(note => isWithinDays(note.timestamp, 60, 30));
-        
-        // 1. EMOTIONAL STABILITY PROGRESSION (fewer disturbances = progress)
-        const neutralEmotions = ['neutral', 'peaceful', 'calm', 'serene', 'content', 'equanimous', 'balanced'];
-        const recentInstability = recentNotes.filter(note => 
-          !neutralEmotions.includes(note.emotion.toLowerCase())
-        ).length;
-        const olderInstability = olderNotes.length > 0 ? 
-          olderNotes.filter(note => !neutralEmotions.includes(note.emotion.toLowerCase())).length : 
-          recentInstability;
-        
-        const stabilityImprovement = Math.max(0, (olderInstability - recentInstability) * 15);
-        
-        // 2. NEUTRALITY MASTERY BONUS (core Abhidhamma goal)
-        const totalNotes = emotionalNotes.length;
-        const neutralCount = emotionalNotes.filter(note => 
-          neutralEmotions.includes(note.emotion.toLowerCase())
-        ).length;
-        const neutralityPercentage = (neutralCount / totalNotes) * 100;
-        
-        let neutralityBonus = 0;
-        if (neutralityPercentage >= 80) {
-          neutralityBonus = 100 + (neutralityPercentage - 80) * 5; // Master level
-        } else if (neutralityPercentage >= 60) {
-          neutralityBonus = 60 + (neutralityPercentage - 60) * 2;  // Advanced level
-        } else if (neutralityPercentage >= 40) {
-          neutralityBonus = 20 + (neutralityPercentage - 40) * 2;  // Intermediate level
-        } else if (neutralityPercentage >= 20) {
-          neutralityBonus = neutralityPercentage;                   // Beginner level
-        }
-        
-        // 3. TRACKING CONSISTENCY BONUS (commitment to self-observation)
-        const last30Days = Array.from({length: 30}, (_, i) => {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          return date.toDateString();
-        });
-        const trackedDays = last30Days.filter(day => 
-          emotionalNotes.some(note => new Date(note.timestamp).toDateString() === day)
-        ).length;
-        const consistencyTrackingBonus = Math.round(trackedDays * 2); // Up to 60 points
-        
-        // 4. ENERGY STABILITY BONUS (stable energy = emotional mastery)
-        const notesWithEnergy = emotionalNotes.filter(note => note.energyLevel !== undefined);
-        let energyStabilityBonus = 0;
-        if (notesWithEnergy.length >= 5) {
-          const energyLevels = notesWithEnergy.map(note => note.energyLevel!);
-          const avgEnergy = energyLevels.reduce((sum, level) => sum + level, 0) / energyLevels.length;
-          const variance = energyLevels.reduce((sum, level) => sum + Math.pow(level - avgEnergy, 2), 0) / energyLevels.length;
-          const standardDeviation = Math.sqrt(variance);
-          
-          const stabilityScore = Math.max(0, 3 - standardDeviation); // Lower deviation = more stable
-          const energyScore = Math.max(0, avgEnergy - 5); // Bonus for energy above 5
-          energyStabilityBonus = Math.round((stabilityScore * 10) + (energyScore * 2));
-        }
-        
-        emotionalStabilityBonus = Math.round(
-          stabilityImprovement + 
-          neutralityBonus + 
-          consistencyTrackingBonus + 
-          energyStabilityBonus
-        );
-        
-        console.log('💝 Emotional Stability Analysis (Abhidhamma):', {
-          totalNotes: emotionalNotes.length,
-          neutralityPercentage: neutralityPercentage.toFixed(1),
-          stabilityImprovement,
-          neutralityBonus: Math.round(neutralityBonus),
-          consistencyTracking: trackedDays,
-          emotionalStabilityScore: emotionalStabilityBonus
-        });
-      }
-
-      // 5. 🕐 MIND RECOVERY INTEGRATION (Split Analysis)
-      if (mindRecoveryHistory.length > 0) {
-        const isWithinDays = (timestamp: string, days: number, startDays = 0) => {
-          const sessionDate = new Date(timestamp);
-          const endDate = new Date(Date.now() - startDays * 24 * 60 * 60 * 1000);
-          const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-          return sessionDate >= startDate && sessionDate <= endDate;
-        };
-
-        // CATEGORY A: General Mind Recovery (Wellness/Lifestyle)
-        const generalRecoverySessions = mindRecoveryHistory.filter(session => 
-          session.mindRecoveryContext !== 'emotional-reset'
-        );
-        
-        // CATEGORY B: Emotional Reset Sessions (Reactivity Management)
-        const emotionalResetSessions = mindRecoveryHistory.filter(session => 
-          session.mindRecoveryContext === 'emotional-reset'
-        );
-        
-        let generalMindRecoveryBonus = 0;
-        let emotionalResetEffectivenessBonus = 0;
-        let emotionalMasteryBonus = 0;
-        
-        // GENERAL MIND RECOVERY CALCULATION
-        if (generalRecoverySessions.length > 0) {
-          const baseBonus = Math.min(generalRecoverySessions.length * 6, 80);
-          const avgRating = generalRecoverySessions.reduce((sum, s) => sum + (s.rating || 6), 0) / generalRecoverySessions.length;
-          const qualityBonus = avgRating >= 8 ? 30 : (avgRating >= 6 ? 15 : 0);
-          
-          // Variety bonus for different recovery techniques
-          const uniqueContexts = new Set(generalRecoverySessions.map(s => s.mindRecoveryContext)).size;
-          const varietyBonus = Math.min(uniqueContexts * 8, 40);
-          
-          // Integration bonus for optimal duration
-          const avgDuration = generalRecoverySessions.reduce((sum, s) => sum + s.duration, 0) / generalRecoverySessions.length;
-          const integrationBonus = (avgDuration >= 3 && avgDuration <= 10) ? 20 : 0;
-          
-          generalMindRecoveryBonus = baseBonus + qualityBonus + varietyBonus + integrationBonus;
-        }
-        
-        // EMOTIONAL RESET EFFECTIVENESS CALCULATION
-        if (emotionalResetSessions.length === 0) {
-          // No emotional resets needed = excellent emotional stability
-          emotionalResetEffectivenessBonus = 100; // High bonus for not needing emotional interventions
-        } else {
-          // Analyze frequency trend (fewer over time = progress)
-          const recentResets = emotionalResetSessions.filter(s => isWithinDays(s.timestamp, 30));
-          const olderResets = emotionalResetSessions.filter(s => isWithinDays(s.timestamp, 60, 30));
-          
-          const recentFrequency = recentResets.length;
-          const olderFrequency = olderResets.length || recentFrequency; // Fallback for new users
-          
-          // Progress bonus: fewer recent resets compared to older period
-          const progressBonus = Math.max(0, (olderFrequency - recentFrequency) * 10);
-          
-          // Effectiveness bonus: when you do need resets, how effective are they?
-          const avgEffectiveness = emotionalResetSessions.reduce((sum, session) => {
-            const stressReduction = session.recoveryMetrics?.stressReduction || 0;
-            const rating = session.rating || 0;
-            return sum + Math.max(stressReduction * 10, rating * 8);
-          }, 0) / emotionalResetSessions.length;
-          
-          const effectivenessBonus = Math.round(avgEffectiveness * 0.5); // Max ~40 points
-          
-          // Frequency penalty: too many resets indicates emotional instability
-          const frequencyPenalty = Math.min(recentFrequency * 5, 50); // Up to -50 for high reactivity
-          
-          // Speed bonus: quick emotional recovery
-          const avgDuration = emotionalResetSessions.reduce((sum, s) => sum + s.duration, 0) / emotionalResetSessions.length;
-          const speedBonus = avgDuration <= 5 ? 15 : (avgDuration <= 10 ? 8 : 0);
-          
-          emotionalResetEffectivenessBonus = Math.max(0, progressBonus + effectivenessBonus + speedBonus - frequencyPenalty);
-        }
-        
-        // EMOTIONAL MASTERY BONUS (Advanced Practitioner Recognition)
-        const recentResets = emotionalResetSessions.filter(s => isWithinDays(s.timestamp, 90));
-        const recentEmotionalDisturbances = emotionalNotes.filter(note => 
-          isWithinDays(note.timestamp, 90) && 
-          ['angry', 'frustrated', 'irritated', 'upset', 'anxious', 'worried'].includes(note.emotion.toLowerCase())
-        );
-        
-        // Master level: No emotional resets AND minimal emotional disturbances
-        if (recentResets.length === 0 && recentEmotionalDisturbances.length <= 2) {
-          emotionalMasteryBonus = 75; // Exceptional emotional mastery bonus
-        } else if (recentResets.length <= 1 && recentEmotionalDisturbances.length <= 5) {
-          emotionalMasteryBonus = 40; // Advanced emotional stability bonus
-        }
-        
-        mindRecoveryBonus = Math.round(generalMindRecoveryBonus + emotionalResetEffectivenessBonus + emotionalMasteryBonus);
-        
-        console.log('🕐 Mind Recovery Analysis (Split Categories):', {
-          generalSessions: generalRecoverySessions.length,
-          emotionalResetSessions: emotionalResetSessions.length,
-          generalBonus: Math.round(generalMindRecoveryBonus),
-          resetEffectivenessBonus: Math.round(emotionalResetEffectivenessBonus),
-          masteryBonus: emotionalMasteryBonus,
-          totalRecoveryBonus: mindRecoveryBonus
-        });
-      }
-
-      // 6. 🌿 ENVIRONMENT OPTIMIZATION BONUS
-      if (environmentData) {
-        let optimalEnvironments = 0;
-        let totalEnvironmentFactors = 0;
-        
-        ['posture', 'location', 'lighting', 'sounds'].forEach(factor => {
-          const factorData = environmentData[factor as keyof typeof environmentData];
-          if (Array.isArray(factorData) && factorData.length > 0) {
-            totalEnvironmentFactors++;
-            const bestOption = factorData.find(option => option.avgRating >= 8);
-            if (bestOption) optimalEnvironments++;
-          }
-        });
-        
-        if (totalEnvironmentFactors > 0) {
-          const optimizationRatio = optimalEnvironments / totalEnvironmentFactors;
-          environmentBonus = Math.round(optimizationRatio * 35 + totalEnvironmentFactors * 5);
-        }
-        
-        console.log('🌿 Environment Analysis:', {
-          totalFactors: totalEnvironmentFactors,
-          optimalEnvironments,
-          environmentBonus
-        });
-      }
-
-      // 7. 🧘 SELF-ASSESSMENT PENALTY (Buddhist Detachment Principle)
-      if (selfAssessment) {
-        let totalAttachment = 0;
-        let sensesCount = 0;
-        
-        // Handle multiple possible data structures
-        if (selfAssessment.sixSenses) {
-          const senses = selfAssessment.sixSenses;
-          const senseValues = Object.values(senses).filter(val => typeof val === 'number');
-          if (senseValues.length > 0) {
-            totalAttachment = senseValues.reduce((sum: number, val: any) => sum + val, 0) / senseValues.length;
-            sensesCount = senseValues.length;
-          }
-        } else if (Array.isArray(selfAssessment.scores)) {
-          const scores = selfAssessment.scores.filter((score: any) => typeof score === 'number');
-          if (scores.length > 0) {
-            totalAttachment = scores.reduce((sum: number, score: number) => sum + score, 0) / scores.length;
-            sensesCount = scores.length;
-          }
-        } else if (typeof selfAssessment.averageAttachment === 'number') {
-          totalAttachment = selfAssessment.averageAttachment;
-          sensesCount = 6;
-        }
-        
-        if (sensesCount > 0) {
-          // Progressive penalty: higher attachment = exponentially more penalty
-          if (totalAttachment >= 8) {
-            attachmentPenalty = Math.round(totalAttachment * 18);
-          } else if (totalAttachment >= 6) {
-            attachmentPenalty = Math.round(totalAttachment * 14);
-          } else if (totalAttachment >= 4) {
-            attachmentPenalty = Math.round(totalAttachment * 10);
-          } else {
-            attachmentPenalty = Math.round(totalAttachment * 6);
-          }
-          
-          console.log('🧘 Detachment Analysis:', {
-            averageAttachment: totalAttachment.toFixed(1),
-            attachmentPenalty,
-            sensesAnalyzed: sensesCount
-          });
-        }
-      }
-
-      // 8. 📋 LIFESTYLE & MINDFULNESS QUESTIONNAIRE BONUS
-      if (questionnaire) {
-        // Experience level bonus
-        const experience = questionnaire.mindfulnessExperience || questionnaire.experienceLevel || 0;
-        if (experience >= 8) questionnaireBonus += 40;
-        else if (experience >= 6) questionnaireBonus += 25;
-        else if (experience >= 4) questionnaireBonus += 15;
-        
-        // Sleep quality bonus
-        const sleepQuality = questionnaire.sleepQuality || questionnaire.sleep || 0;
-        if (sleepQuality >= 9) questionnaireBonus += 30;
-        else if (sleepQuality >= 7) questionnaireBonus += 20;
-        else if (sleepQuality >= 5) questionnaireBonus += 10;
-        
-        // Stress management bonus
-        const stressLevel = questionnaire.stressLevel || questionnaire.stress || 10;
-        if (stressLevel <= 2) questionnaireBonus += 35;
-        else if (stressLevel <= 4) questionnaireBonus += 25;
-        else if (stressLevel <= 6) questionnaireBonus += 15;
-        
-        // Physical activity bonus
-        const physicalActivity = questionnaire.physicalActivity || questionnaire.exercise || 0;
-        if (physicalActivity >= 8) questionnaireBonus += 25;
-        else if (physicalActivity >= 6) questionnaireBonus += 15;
-        else if (physicalActivity >= 4) questionnaireBonus += 10;
-        
-        // Goal clarity bonus
-        if (questionnaire.goals && Array.isArray(questionnaire.goals) && questionnaire.goals.length >= 2) {
-          questionnaireBonus += 15;
-        } else if (questionnaire.goals && Array.isArray(questionnaire.goals) && questionnaire.goals.length >= 1) {
-          questionnaireBonus += 8;
-        }
-        
-        console.log('📋 Lifestyle Assessment Bonus:', {
-          totalBonus: questionnaireBonus,
-          experience,
-          sleepQuality,
-          stressLevel,
-          physicalActivity
-        });
-      }
-
-      // 9. 📅 CONSISTENCY & COMMITMENT BONUS
-      if (analytics) {
-        const streakBonus = Math.min(analytics.currentStreak * 5, 75);
-        const frequencyBonus = analytics.totalSessions >= 20 ? 25 : 
-                              analytics.totalSessions >= 10 ? 15 : 
-                              analytics.totalSessions >= 5 ? 8 : 0;
-        
-        consistencyBonus = streakBonus + frequencyBonus;
-        
-        // Long-term commitment bonus
-        if (analytics.totalSessions >= 50) consistencyBonus += 30;
-        else if (analytics.totalSessions >= 30) consistencyBonus += 20;
-        
-        console.log('📅 Consistency Analysis:', {
-          currentStreak: analytics.currentStreak,
-          totalSessions: analytics.totalSessions,
-          consistencyBonus
-        });
-      }
-
-      // 🎯 FINAL HAPPINESS CALCULATION
-      const finalHappiness = Math.max(50,
-        baseHappiness +
-        pahmMasteryBonus +
-        sessionQualityBonus +
-        emotionalStabilityBonus +        // Updated: was emotionalProcessingBonus
-        mindRecoveryBonus +
-        environmentBonus +
-        questionnaireBonus +
-        consistencyBonus -
-        attachmentPenalty
-      );
-
-      // Determine level based on happiness points
-      let currentLevel = 'Newcomer';
-      if (finalHappiness >= 1200) currentLevel = 'Master';
-      else if (finalHappiness >= 1000) currentLevel = 'Expert';
-      else if (finalHappiness >= 800) currentLevel = 'Advanced';
-      else if (finalHappiness >= 600) currentLevel = 'Intermediate';
-      else if (finalHappiness >= 400) currentLevel = 'Beginner';
-
-      console.log('🎯 Final Happiness Calculation:', {
-        baseHappiness,
-        pahmMasteryBonus,
-        sessionQualityBonus,
-        emotionalStabilityBonus,         // Updated: was emotionalProcessingBonus
-        mindRecoveryBonus,
-        environmentBonus,
-        questionnaireBonus,
-        consistencyBonus,
-        attachmentPenalty: -attachmentPenalty,
-        finalHappiness,
-        level: currentLevel
-      });
-
-      return {
-        happiness_points: finalHappiness,
-        current_level: currentLevel,
-        breakdown: {
-          baseHappiness,
-          pahmMasteryBonus,
-          sessionQualityBonus,
-          emotionalStabilityBonus,       // Updated: was emotionalProcessingBonus
-          mindRecoveryBonus,
-          environmentBonus,
-          attachmentPenalty,
-          questionnaireBonus,
-          consistencyBonus
-        }
-      };
-
-    } catch (error) {
-      console.error('❌ Error in comprehensive happiness calculation:', error);
-      return {
-        happiness_points: 200,
-        current_level: 'Newcomer',
-        breakdown: {
-          baseHappiness: 200,
-          pahmMasteryBonus: 0,
-          sessionQualityBonus: 0,
-          emotionalStabilityBonus: 0,    // Updated: was emotionalProcessingBonus
-          mindRecoveryBonus: 0,
-          environmentBonus: 0,
-          attachmentPenalty: 0,
-          questionnaireBonus: 0,
-          consistencyBonus: 0
-        }
-      };
-    }
-  };
-
-  // 🎯 REAL-TIME DATA LOADING WITH ENHANCED CALCULATIONS
+  // Calculate happiness using real data
   useEffect(() => {
-    loadRealTimeData();
-  }, [refreshTrigger]);
+    console.log('🔄 Calculating happiness with real data...');
+    
+    // Extract real data
+    const questionnaire = currentUser?.questionnaireAnswers;
+    const selfAssessment = currentUser?.selfAssessmentData;
+    
+    console.log('📊 Real Data Summary:', {
+      hasQuestionnaire: !!questionnaire,
+      hasSelfAssessment: !!selfAssessment,
+      questionnaire,
+      selfAssessment,
+      practiceSessionCount: practiceHistory.length,
+      emotionalNotesCount: emotionalNotes.length,
+      mindRecoveryCount: mindRecoveryHistory.length
+    });
+    
+    // Calculate happiness with real data
+    const happinessResult = calculateHappiness(questionnaire, selfAssessment, practiceHistory);
+    
+    // Calculate other metrics
+    let calculatedProgress: UserProgress = {
+      happiness_points: happinessResult.happiness_points,
+      current_level: happinessResult.current_level,
+      focus_ability: 0,
+      habit_change_score: 0,
+      practice_streak: 0,
+      breakdown: happinessResult.breakdown
+    };
 
-  const loadRealTimeData = () => {
-    try {
-      console.log('🔄 Loading real-time data and calculating comprehensive metrics...');
+    // Calculate focus ability from practice sessions
+    if (practiceHistory.length > 0) {
+      const recentSessions = practiceHistory.slice(-7);
+      const avgPresentMoment = recentSessions.reduce((sum, session) => {
+        const presentPercentage = session.presentPercentage || (session.rating ? session.rating * 10 : 70);
+        return sum + presentPercentage;
+      }, 0) / recentSessions.length;
       
-      // Get comprehensive happiness data
-      const happinessData = calculateComprehensiveHappiness();
+      const avgQuality = recentSessions.reduce((sum, session) => {
+        return sum + (session.rating || 7);
+      }, 0) / recentSessions.length;
       
-      // Get current analytics for other metrics
-      const practiceHistory = getPracticeSessions();
-      const mindRecoveryHistory = getMindRecoverySessions();
-      const analytics = getAnalyticsData();
-      
-      let calculatedProgress: UserProgress = {
-        happiness_points: happinessData.happiness_points,
-        current_level: happinessData.current_level,
-        focus_ability: 67,
-        habit_change_score: 58,
-        practice_streak: 1,
-        breakdown: happinessData.breakdown
-      };
-
-      // Calculate focus ability from recent session quality and present moment awareness
-      if (practiceHistory.length > 0) {
-        const recentSessions = practiceHistory.slice(-7); // Last week
-        const avgPresentMoment = recentSessions.reduce((sum, session) => {
-          const presentPercentage = session.presentPercentage || 
-                                   (session.rating ? session.rating * 10 : 70);
-          return sum + presentPercentage;
-        }, 0) / recentSessions.length;
-        
-        const avgQuality = recentSessions.reduce((sum, session) => {
-          return sum + (session.rating || 7);
-        }, 0) / recentSessions.length;
-        
-        // Combined focus score from present moment and quality
-        calculatedProgress.focus_ability = Math.round(
-          Math.min(100, (avgPresentMoment * 0.6) + (avgQuality * 10 * 0.4))
-        );
-      }
-
-      // Calculate habit change from mind recovery effectiveness
-      if (mindRecoveryHistory.length > 0) {
-        const recentRecoveries = mindRecoveryHistory.slice(-10);
-        const avgEffectiveness = recentRecoveries.reduce((sum, session) => {
-          const rating = session.rating || 6;
-          const stressReduction = session.recoveryMetrics?.stressReduction || 0;
-          const effectiveness = stressReduction > 0 ? 
-                               (stressReduction * 10 + rating * 5) / 2 : 
-                               rating * 10;
-          return sum + effectiveness;
-        }, 0) / recentRecoveries.length;
-        
-        calculatedProgress.habit_change_score = Math.round(Math.min(100, avgEffectiveness));
-      }
-
-      // Get practice streak from analytics
-      if (analytics) {
-        calculatedProgress.practice_streak = analytics.currentStreak || 0;
-      }
-
-      setUserProgress(calculatedProgress);
-
-      // Save happiness points for header display
-      localStorage.setItem('happiness_points', calculatedProgress.happiness_points.toString());
-      localStorage.setItem('user_level', calculatedProgress.current_level);
-
-      console.log('✅ Real-time data loaded successfully:', calculatedProgress);
-
-    } catch (error) {
-      console.error('❌ Error loading real-time data:', error);
+      calculatedProgress.focus_ability = Math.round(
+        Math.min(100, (avgPresentMoment * 0.6) + (avgQuality * 10 * 0.4))
+      );
     }
-  };
 
-  // Get current data for display
-  const practiceHistory = getPracticeSessions();
-  const emotionalNotes = getDailyEmotionalNotes();
-  const mindRecoveryHistory = getMindRecoverySessions();
-  const pahmData = getPAHMData();
+    // Calculate habit change from mind recovery effectiveness
+    if (mindRecoveryHistory.length > 0) {
+      const recentRecoveries = mindRecoveryHistory.slice(-10);
+      const avgEffectiveness = recentRecoveries.reduce((sum, session) => {
+        const rating = session.rating || 6;
+        const stressReduction = session.recoveryMetrics?.stressReduction || 0;
+        const effectiveness = stressReduction > 0 ? 
+                             (stressReduction * 10 + rating * 5) / 2 : 
+                             rating * 10;
+        return sum + effectiveness;
+      }, 0) / recentRecoveries.length;
+      
+      calculatedProgress.habit_change_score = Math.round(Math.min(100, avgEffectiveness));
+    }
+
+    // Get practice streak from analytics
+    if (analytics) {
+      calculatedProgress.practice_streak = analytics.currentStreak || 0;
+    }
+
+    setUserProgress(calculatedProgress);
+    console.log('✅ Real happiness calculation completed:', calculatedProgress);
+
+  }, [currentUser, practiceHistory, emotionalNotes, mindRecoveryHistory, analytics]);
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+    <div style={{ 
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      minHeight: '100vh',
       padding: '20px'
     }}>
+      {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
         borderRadius: '20px',
-        width: '100%',
-        maxWidth: '1200px',
-        maxHeight: '90vh',
-        overflow: 'hidden',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        padding: '20px',
+        marginBottom: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        {/* Header */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <h1 style={{
-            margin: 0,
-            fontSize: '24px',
-            fontWeight: '700',
-            color: 'white'
-          }}>
-            😊 Comprehensive Happiness Analysis
-          </h1>
-          <button
-            onClick={onClose}
+        <h1 style={{ margin: 0, color: 'white', fontSize: '24px' }}>
+          😊 Your Mindfulness Journey
+        </h1>
+        <div>
+          <button 
+            onClick={() => setShowDebug(!showDebug)}
             style={{
               background: 'rgba(255, 255, 255, 0.2)',
               border: 'none',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
+              borderRadius: '10px',
+              padding: '10px 15px',
               color: 'white',
-              fontSize: '20px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              marginRight: '10px',
+              cursor: 'pointer'
             }}
           >
-            ×
+            {showDebug ? 'Hide Debug' : 'Show Debug'}
           </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                color: 'white',
+                fontSize: '20px',
+                cursor: 'pointer'
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{
+        background: 'white',
+        borderRadius: '20px',
+        padding: '30px'
+      }}>
+        {/* Main Happiness Score */}
+        <div style={{
+          textAlign: 'center',
+          padding: '40px',
+          background: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 50%, #32cd32 100%)',
+          color: 'white',
+          borderRadius: '20px',
+          marginBottom: '30px'
+        }}>
+          <div style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '10px' }}>
+            {userProgress.happiness_points}
+          </div>
+          <div style={{ fontSize: '1.5rem', marginBottom: '15px' }}>
+            Happiness Points
+          </div>
+          <div style={{ 
+            fontSize: '1.3rem', 
+            marginBottom: '10px',
+            padding: '10px 20px', 
+            background: 'rgba(255,255,255,0.2)', 
+            borderRadius: '10px',
+            fontWeight: 'bold',
+            display: 'inline-block'
+          }}>
+            {userProgress.current_level}
+          </div>
+          <div style={{ fontSize: '1rem', opacity: 0.9 }}>
+            Based on {practiceHistory.length} sessions, {emotionalNotes.length} notes, {mindRecoveryHistory.length} recovery sessions
+          </div>
         </div>
 
-        {/* Content */}
-        <div style={{
-          background: 'white',
-          margin: '20px',
-          borderRadius: '20px',
-          padding: '30px',
-          maxHeight: 'calc(90vh - 120px)',
-          overflowY: 'auto'
-        }}>
-          {/* Main Happiness Score */}
-          <div style={{
-            textAlign: 'center',
-            padding: '40px',
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 50%, #32cd32 100%)',
-            color: 'white',
-            borderRadius: '20px',
-            marginBottom: '30px'
-          }}>
-            <div style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '10px' }}>
-              {userProgress.happiness_points}
-            </div>
-            <div style={{ fontSize: '1.5rem', marginBottom: '15px' }}>
-              Comprehensive Happiness Points
-            </div>
-            <div style={{ 
-              fontSize: '1.3rem', 
-              marginBottom: '10px',
-              padding: '10px 20px', 
-              background: 'rgba(255,255,255,0.2)', 
-              borderRadius: '10px',
-              fontWeight: 'bold',
-              display: 'inline-block'
+        {/* Detailed Breakdown */}
+        {userProgress.breakdown && (
+          <div style={{ marginBottom: '30px' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
+              Happiness Components Breakdown
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '15px'
             }}>
-              {userProgress.current_level}
-            </div>
-            <div style={{ fontSize: '1rem', opacity: 0.9 }}>
-              Based on {practiceHistory.length} sessions, {pahmData?.totalCounts || 0} PAHM observations, 
-              {emotionalNotes.length} notes, {mindRecoveryHistory.length} recovery sessions
-            </div>
-          </div>
-
-          {/* Detailed Breakdown */}
-          {userProgress.breakdown && (
-            <div style={{ marginBottom: '30px' }}>
-              <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
-                Happiness Components Breakdown
-              </h3>
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                gap: '15px'
+                background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
               }}>
-                <div style={{
-                  background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    +{userProgress.breakdown.baseHappiness}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Base Practice</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.baseHappiness}
                 </div>
-                
-                <div style={{
-                  background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    +{userProgress.breakdown.pahmMasteryBonus}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>PAHM Mastery</div>
-                </div>
-                
-                <div style={{
-                  background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    +{userProgress.breakdown.sessionQualityBonus}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Session Quality</div>
-                </div>
-                
-                <div style={{
-                  background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    +{userProgress.breakdown.emotionalStabilityBonus}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Emotional Stability</div>
-                </div>
-                
-                <div style={{
-                  background: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    +{userProgress.breakdown.mindRecoveryBonus}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Mind Recovery</div>
-                </div>
-                
-                <div style={{
-                  background: 'linear-gradient(135deg, #16a085 0%, #1abc9c 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    -{userProgress.breakdown.attachmentPenalty}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Attachment Penalty</div>
-                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Base Practice</div>
               </div>
-            </div>
-          )}
+              
+              <div style={{
+                background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.pahmMasteryBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>PAHM Mastery</div>
+              </div>
+              
+              <div style={{
+                background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.sessionQualityBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Session Quality</div>
+              </div>
+              
+              <div style={{
+                background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.emotionalStabilityBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Emotional Stability</div>
+              </div>
+              
+              <div style={{
+                background: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.mindRecoveryBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Mind Recovery</div>
+              </div>
+              
+              <div style={{
+                background: 'linear-gradient(135deg, #16a085 0%, #1abc9c 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  -{userProgress.breakdown.attachmentPenalty}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Attachment Penalty</div>
+              </div>
 
-          {/* Other Metrics */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '20px',
-            marginBottom: '20px'
-          }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)',
-              color: 'white',
-              padding: '24px',
-              borderRadius: '15px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                {userProgress.focus_ability}%
+              <div style={{
+                background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.nonAttachmentBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Non-Attachment Bonus</div>
               </div>
-              <div style={{ fontSize: '1rem', opacity: 0.9 }}>Focus Ability</div>
-            </div>
-            
-            <div style={{
-              background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-              color: 'white',
-              padding: '24px',
-              borderRadius: '15px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                {userProgress.habit_change_score}%
+
+              <div style={{
+                background: 'linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.questionnaireBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Questionnaire Bonus</div>
               </div>
-              <div style={{ fontSize: '1rem', opacity: 0.9 }}>Habit Change</div>
-            </div>
-            
-            <div style={{
-              background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-              color: 'white',
-              padding: '24px',
-              borderRadius: '15px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                {userProgress.practice_streak}
+
+              <div style={{
+                background: 'linear-gradient(135deg, #d35400 0%, #e67e22 100%)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  +{userProgress.breakdown.consistencyBonus}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Consistency Bonus</div>
               </div>
-              <div style={{ fontSize: '1rem', opacity: 0.9 }}>Day Streak</div>
             </div>
           </div>
+        )}
 
-          {/* PAHM Insight */}
-          {pahmData && (
-            <div style={{
-              background: '#e8f4fd',
-              padding: '20px',
-              borderRadius: '15px',
-              borderLeft: '5px solid #3498db',
-              marginTop: '20px'
-            }}>
-              <h4 style={{ color: '#2980b9', marginBottom: '10px' }}>
-                🧠 PAHM Analysis: Present + Neutral Mastery
-              </h4>
-              <p style={{ color: '#34495e', fontSize: '14px', margin: 0 }}>
-                Present+Neutral: {Math.round((pahmData.totalPAHM.present_neutral / pahmData.totalCounts) * 100)}% of {pahmData.totalCounts} total observations. 
-                This is the only non-poisonous position in the mind - all other mental positions involve suffering.
-              </p>
-            </div>
-          )}
-
-          {/* Abhidhamma-Based Emotional Progress Note */}
+        {/* Other Metrics */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '20px',
+          marginBottom: '20px'
+        }}>
           <div style={{
-            background: '#fff3cd',
+            background: 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)',
+            color: 'white',
+            padding: '24px',
+            borderRadius: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>
+              {userProgress.focus_ability}%
+            </div>
+            <div style={{ fontSize: '1rem', opacity: 0.9 }}>Focus Ability</div>
+          </div>
+          
+          <div style={{
+            background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+            color: 'white',
+            padding: '24px',
+            borderRadius: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>
+              {userProgress.habit_change_score}%
+            </div>
+            <div style={{ fontSize: '1rem', opacity: 0.9 }}>Habit Change</div>
+          </div>
+          
+          <div style={{
+            background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+            color: 'white',
+            padding: '24px',
+            borderRadius: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>
+              {userProgress.practice_streak}
+            </div>
+            <div style={{ fontSize: '1rem', opacity: 0.9 }}>Day Streak</div>
+          </div>
+        </div>
+
+        {/* Debug Panel */}
+        {showDebug && userProgress.breakdown && (
+          <div style={{
+            background: '#f8f9fa',
             padding: '20px',
             borderRadius: '15px',
-            borderLeft: '5px solid #ffc107',
+            border: '2px solid #e9ecef',
             marginTop: '20px'
           }}>
-            <h4 style={{ color: '#856404', marginBottom: '10px' }}>
-              🧘 Abhidhamma-Based Progress Tracking
-            </h4>
-            <p style={{ color: '#664d03', fontSize: '14px', margin: 0 }}>
-              <strong>Emotional Stability:</strong> Advanced practitioners experience fewer emotional fluctuations and more neutral states. 
-              Progress is measured by increased emotional neutrality, not emotional variety.<br/>
-              <strong>Mind Recovery:</strong> Needing fewer "emotional reset" sessions indicates better emotional mastery. 
-              General recovery sessions support daily wellness integration.
-            </p>
+            <h4 style={{ color: '#333', marginBottom: '15px' }}>🔍 Debug Information</h4>
+            <div style={{ fontFamily: 'monospace', fontSize: '14px' }}>
+              <div style={{ marginBottom: '10px' }}>
+                <strong>Data Sources:</strong>
+                <br />• Questionnaire: {currentUser?.questionnaireAnswers ? '✅ Available' : '❌ Missing'}
+                <br />• Self-Assessment: {currentUser?.selfAssessmentData ? '✅ Available' : '❌ Missing'}
+                <br />• Practice Sessions: {practiceHistory.length} sessions
+                <br />• Emotional Notes: {emotionalNotes.length} notes
+                <br />• Mind Recovery: {mindRecoveryHistory.length} sessions
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <strong>Calculation Formula:</strong>
+                <br />Base ({userProgress.breakdown.baseHappiness}) + Questionnaire ({userProgress.breakdown.questionnaireBonus}) + PAHM ({userProgress.breakdown.pahmMasteryBonus}) + Quality ({userProgress.breakdown.sessionQualityBonus}) + Emotional ({userProgress.breakdown.emotionalStabilityBonus}) + Recovery ({userProgress.breakdown.mindRecoveryBonus}) + Environment ({userProgress.breakdown.environmentBonus}) + Consistency ({userProgress.breakdown.consistencyBonus}) + Non-Attachment ({userProgress.breakdown.nonAttachmentBonus}) - Attachment Penalty ({userProgress.breakdown.attachmentPenalty}) = <strong>{userProgress.happiness_points}</strong>
+              </div>
+              {currentUser?.selfAssessmentData && (
+                <div>
+                  <strong>Self-Assessment Debug:</strong>
+                  <br />• Format: {currentUser.selfAssessmentData.format || 'unknown'}
+                  <br />• Intent-Based: {currentUser.selfAssessmentData.intentBased ? 'true' : 'false'}
+                  <br />• Has Responses: {currentUser.selfAssessmentData.responses ? 'true' : 'false'}
+                  {currentUser.selfAssessmentData.responses && (
+                    <div>
+                      <br />• Response Keys: {Object.keys(currentUser.selfAssessmentData.responses).join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

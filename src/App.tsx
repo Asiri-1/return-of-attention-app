@@ -11,7 +11,7 @@ import AnalyticsBoardWrapper from './AnalyticsBoardWrapper';
 import MindRecoverySelectionWrapper from './MindRecoverySelectionWrapper';
 import MindRecoveryTimerWrapper from './MindRecoveryTimerWrapper';
 
-// 🔒 NEW: Import LogoutWarning component
+// Import LogoutWarning component
 import LogoutWarning from './components/LogoutWarning';
 
 // Import components
@@ -43,16 +43,36 @@ import PostureGuide from './PostureGuide';
 import UserProfile from './UserProfile';
 import Questionnaire from './Questionnaire';
 
+// 🔧 ENABLED: Import the happiness test page
+import HappinessTrackerPage from './components/HappinessTrackerPage';
+
 // Import Knowledge Base Components
 import { LocalDataProvider } from './contexts/LocalDataContext';
 import { EnhancedLocalStorageManager } from './services/AdaptiveWisdomEngine';
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
-  const { login, signup, isAuthenticated, currentUser, updateUserProfileInContext, logout, isLoading } = useAuth();
+  const { 
+    // 🔧 FIXED: Use the new AuthContext methods
+    signIn, 
+    signUp, 
+    logout,
+    currentUser, 
+    userProfile,
+    updateUserProfile,
+    markQuestionnaireComplete,
+    markSelfAssessmentComplete,
+    isQuestionnaireCompleted,
+    isSelfAssessmentCompleted,
+    isLoading 
+  } = useAuth();
+  
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(false);
 
-  // ✅ PRESERVED: Your existing knowledge base initialization
+  // Helper to check if user is authenticated
+  const isAuthenticated = !!currentUser;
+
+  // Knowledge base initialization
   useEffect(() => {
     const initializeKnowledgeBase = () => {
       const bookContent = localStorage.getItem('roa_book_content');
@@ -73,40 +93,49 @@ const AppContent: React.FC = () => {
     initializeKnowledgeBase();
   }, []);
 
-  // ✅ PRESERVED: Your existing auto-redirect logic
+  // 🔧 FIXED: Auto-redirect logic with proper completion checking
   useEffect(() => {
-    if (isAuthenticated && currentUser && !isLoading) {
-      const getRedirectPath = (): string => {
-        if (!isAuthenticated || !currentUser) return '/signin';
-        if (currentUser.email === 'asiriamarasinghe35@gmail.com') return '/home';
-        if (!currentUser.questionnaireCompleted) return '/questionnaire';
-        if (!currentUser.assessmentCompleted) return '/introduction';
-        return '/home';
-      };
-
-      const targetPath = getRedirectPath();
+    if (isAuthenticated && userProfile && !isLoading) {
       const currentPath = window.location.pathname;
-      const shouldRedirect = ['/signin', '/signup', '/'].includes(currentPath) || currentPath === '/home';
+      console.log('🔍 FIXED: Navigation check:', {
+        currentPath,
+        questionnaireCompleted: isQuestionnaireCompleted(),
+        selfAssessmentCompleted: isSelfAssessmentCompleted(),
+        email: currentUser?.email
+      });
+
+      // Only redirect from entry points, not during normal app usage
+      const isEntryPoint = ['/signin', '/signup', '/'].includes(currentPath);
       
-      if (shouldRedirect && currentPath !== targetPath) {
-        console.log(`🔄 Auto-redirecting from ${currentPath} to ${targetPath}`);
-        navigate(targetPath, { replace: true });
+      if (isEntryPoint) {
+        const getRedirectPath = (): string => {
+          if (currentUser?.email === 'asiriamarasinghe35@gmail.com') return '/home';
+          if (!isQuestionnaireCompleted()) return '/questionnaire';
+          if (!isSelfAssessmentCompleted()) return '/introduction';
+          return '/home';
+        };
+
+        const targetPath = getRedirectPath();
+        if (currentPath !== targetPath) {
+          console.log(`🔄 FIXED: Redirecting from ${currentPath} to ${targetPath}`);
+          navigate(targetPath, { replace: true });
+        }
       }
     }
-  }, [isAuthenticated, currentUser, isLoading, navigate]);
+  }, [isAuthenticated, userProfile, isLoading, navigate, currentUser, isQuestionnaireCompleted, isSelfAssessmentCompleted]);
 
-  // ✅ PRESERVED: Your existing getRedirectPath helper
+  // 🔧 FIXED: Helper function for redirect path
   const getRedirectPath = (): string => {
-    if (!isAuthenticated || !currentUser) return '/signin';
-    if (currentUser.email === 'asiriamarasinghe35@gmail.com') return '/home';
-    if (!currentUser.questionnaireCompleted) return '/questionnaire';
-    if (!currentUser.assessmentCompleted) return '/introduction';
+    if (!isAuthenticated || !userProfile) return '/signin';
+    if (currentUser?.email === 'asiriamarasinghe35@gmail.com') return '/home';
+    if (!isQuestionnaireCompleted()) return '/questionnaire';
+    if (!isSelfAssessmentCompleted()) return '/introduction';
     return '/home';
   };
 
-  // ✅ PRESERVED: All your existing handlers
+  // Event handlers
   const handleStartPracticeWrapper = () => {
-    if (!currentUser?.assessmentCompleted) {
+    if (!isSelfAssessmentCompleted()) {
       alert('Please complete your self-assessment first before starting practice sessions.');
       navigate('/self-assessment');
       return;
@@ -135,10 +164,11 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // 🔒 ENHANCED: Your existing handleSignUp with optional rememberMe
+  // 🔧 FIXED: Sign up handler with new AuthContext
   const handleSignUp = async (email: string, password: string, name: string, rememberMe: boolean = false) => {
     try {
-      await signup(email, password, name, rememberMe);
+      await signUp(email, password, name);
+      console.log('🔧 FIXED: Sign up successful, redirecting to questionnaire');
       navigate('/questionnaire');
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -151,35 +181,51 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // 🔒 ENHANCED: Your existing handleSignIn with optional rememberMe
+  // 🔧 FIXED: Sign in handler with new AuthContext
   const handleSignIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      await login(email, password, rememberMe);
+      await signIn(email, password, rememberMe);
+      console.log('🔧 FIXED: Sign in successful');
     } catch (error: any) {
       console.error("Sign-in error:", error);
       alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
     }
   };
 
-  // ✅ PRESERVED: All your existing handlers
-  const handleQuestionnaireComplete = (answers: any) => {
-    updateUserProfileInContext({ 
-      questionnaireAnswers: answers, 
-      questionnaireCompleted: true 
-    });
-    navigate('/introduction');
+  // 🔧 FIXED: Questionnaire completion handler
+  const handleQuestionnaireComplete = async (answers: any) => {
+    console.log('📝 FIXED: Questionnaire completed');
+    
+    try {
+      // Use the new markQuestionnaireComplete method
+      await markQuestionnaireComplete(answers);
+      console.log('🔧 FIXED: Questionnaire marked as complete, navigating to introduction');
+      navigate('/introduction');
+    } catch (error) {
+      console.error('🔧 Error completing questionnaire:', error);
+    }
   };
 
-  const handleSelfAssessmentComplete = (data?: any) => {
-    updateUserProfileInContext({ 
-      selfAssessmentData: data,
-      assessmentCompleted: true,
-      currentStage: '1'
-    });
-    navigate('/self-assessment-completion');
+  // 🔧 FIXED: Self-assessment completion handler
+  const handleSelfAssessmentComplete = async (data?: any) => {
+    console.log('🎯 FIXED: Self-assessment completed');
+    
+    try {
+      // Use the new markSelfAssessmentComplete method
+      await markSelfAssessmentComplete(data);
+      
+      // Also update any additional profile data
+      await updateUserProfile({ 
+        currentStage: '1'
+      });
+      
+      console.log('🔧 FIXED: Self-assessment marked as complete, navigating to completion page');
+      navigate('/self-assessment-completion');
+    } catch (error) {
+      console.error('🔧 Error completing self-assessment:', error);
+    }
   };
 
-  const handleFinalCompletion = () => navigate('/home');
   const handleGoogleAuth = async () => alert("Google authentication not yet implemented with Firebase.");
   const handleAppleAuth = async () => alert("Apple authentication not yet implemented with Firebase.");
   const handleForgotPassword = () => alert("Forgot password functionality will be implemented soon.");
@@ -188,8 +234,6 @@ const AppContent: React.FC = () => {
     <div className="app-container">
       <AdminPanel />
       <PageViewTracker />
-      
-      {/* 🔒 NEW: LogoutWarning component */}
       <LogoutWarning />
       
       {isLoading ? (
@@ -198,12 +242,12 @@ const AppContent: React.FC = () => {
         </div>
       ) : (
         <Routes>
-          {/* ✅ PRESERVED: Your existing public routes */}
+          {/* Public routes */}
           <Route path="/" element={<PublicLandingHero />} />
           <Route path="/about" element={<AboutMethod />} />
           <Route path="/faq" element={<PublicFAQ />} />
 
-          {/* ✅ PRESERVED: Your existing signin route */}
+          {/* Authentication routes */}
           <Route 
             path="/signin" 
             element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : (
@@ -217,7 +261,6 @@ const AppContent: React.FC = () => {
             )}
           />
 
-          {/* ✅ PRESERVED: Your existing signup route */}
           <Route 
             path="/signup" 
             element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : (
@@ -230,7 +273,7 @@ const AppContent: React.FC = () => {
             )}
           />
 
-          {/* ✅ PRESERVED: All your existing protected routes */}
+          {/* Onboarding routes */}
           <Route 
             path="/questionnaire" 
             element={isAuthenticated ? <Questionnaire onComplete={handleQuestionnaireComplete} /> : <Navigate to="/signin" replace />}
@@ -256,17 +299,29 @@ const AppContent: React.FC = () => {
             ) : <Navigate to="/signin" replace />}
           />
 
+          {/* 🔧 FIXED: Self-assessment completion with proper navigation */}
           <Route 
             path="/self-assessment-completion" 
             element={isAuthenticated ? (
               <SelfAssessmentCompletion 
-                onGetStarted={handleFinalCompletion}
+                onGetStarted={async (data) => {
+                  console.log('🎉 FIXED: Start Your Journey clicked!');
+                  
+                  // Update any final data
+                  if (data) {
+                    await updateUserProfile(data);
+                  }
+                  
+                  // Navigate to home
+                  console.log('🚀 FIXED: Navigating to home dashboard');
+                  navigate('/home');
+                }}
                 onBack={() => navigate('/self-assessment')} 
               />
             ) : <Navigate to="/signin" replace />}
           />
 
-          {/* ✅ PRESERVED: Your existing MainNavigation wrapper and all nested routes */}
+          {/* Main app routes with navigation wrapper */}
           <Route
             path="/*"
             element={isAuthenticated ? (
@@ -320,6 +375,10 @@ const AppContent: React.FC = () => {
                       </div>
                     )} 
                   />
+                  
+                  {/* 🔧 ENABLED: Happiness test route */}
+                  <Route path="/happiness-test" element={<HappinessTrackerPage />} />
+                  
                   <Route path="*" element={<Navigate to="/home" replace />} />
                 </Routes>
               </MainNavigation>
@@ -331,7 +390,7 @@ const AppContent: React.FC = () => {
   );
 };
 
-// ✅ PRESERVED: Your existing App component structure
+// Main App component with all providers
 const App: React.FC = () => {
   return (
     <BrowserRouter>
