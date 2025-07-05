@@ -379,9 +379,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       localStorage.setItem(getStorageKey(), JSON.stringify(data));
       console.log('💾 Data auto-saved to storage');
       
-      // Auto-sync with auth context
+      // 🔧 FIXED: Auto-sync with auth context - removed parameter
       if (currentUser && syncWithLocalData) {
-        syncWithLocalData(data);
+        syncWithLocalData();
       }
       
       // ✅ CRITICAL: Trigger auto-refresh AFTER save to ensure components update
@@ -1194,9 +1194,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 🔄 AUTH INTEGRATION
   const syncWithAuthContext = useCallback(() => {
     if (currentUser && syncWithLocalData) {
-      syncWithLocalData(userData);
+      // 🔧 FIXED: Removed parameter from syncWithLocalData call
+      syncWithLocalData();
     }
-  }, [currentUser, syncWithLocalData, userData]);
+  }, [currentUser, syncWithLocalData]);
 
   const getOnboardingStatusFromAuth = useCallback(() => {
     return {
@@ -1213,7 +1214,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 🔄 AUTOMATIC DATA SYNC
   useEffect(() => {
     if (userData && currentUser && syncWithLocalData) {
-      syncWithLocalData(userData);
+      // 🔧 FIXED: Removed parameter from syncWithLocalData call
+      syncWithLocalData();
     }
   }, [userData, currentUser, syncWithLocalData]);
 

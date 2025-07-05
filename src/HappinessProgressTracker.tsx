@@ -461,50 +461,71 @@ const calculateEmotionalStabilityBonus = (questionnaire: any, practiceHistory: a
   return bonus;
 };
 
+// ✅ FIXED: Mind Recovery Bonus - Only for users who have actually done mind recovery sessions
 const calculateMindRecoveryBonus = (questionnaire: any, practiceHistory: any[]): number => {
-  if (!questionnaire) return 0;
+  // ✅ FIXED: Only give mind recovery bonus if user has actually done mind recovery sessions
+  if (!practiceHistory || practiceHistory.length === 0) {
+    console.log('🌙 No practice history - no mind recovery bonus');
+    return 0;
+  }
+  
+  // Check if user has actually done mind recovery sessions
+  const mindRecoverySessions = practiceHistory.filter(session => 
+    session.sessionType === 'mind_recovery' || 
+    session.type === 'mind_recovery' ||
+    session.recoveryMetrics
+  );
+  
+  if (mindRecoverySessions.length === 0) {
+    console.log('🌙 No mind recovery sessions found - no bonus');
+    return 0;
+  }
+  
+  console.log(`🌙 Found ${mindRecoverySessions.length} mind recovery sessions - calculating bonus`);
   
   let bonus = 0;
   
-  const sleepQuality = questionnaire.sleep_pattern || questionnaire.sleepQuality || questionnaire.sleep || 5;
-  const restfulness = questionnaire.restfulness || questionnaire.energyLevel || 5;
-  
-  // Sleep quality bonus
-  if (sleepQuality >= 9) bonus += 40;
-  else if (sleepQuality >= 7) bonus += 25;
-  else if (sleepQuality >= 5) bonus += 12;
-  
-  // Restfulness bonus
-  if (restfulness >= 8) bonus += 30;
-  else if (restfulness >= 6) bonus += 18;
-  else if (restfulness >= 4) bonus += 8;
-  
-  // Mind recovery sessions bonus
-  if (practiceHistory && practiceHistory.length > 0) {
-    const mindRecoverySessions = practiceHistory.filter(session => session.sessionType === 'mind_recovery');
-    const mindRecoveryUsage = practiceHistory.length > 0 ? (mindRecoverySessions.length / practiceHistory.length) * 100 : 0;
+  // ✅ FIXED: Only give questionnaire-based bonus if user has done mind recovery practice
+  if (questionnaire && mindRecoverySessions.length > 0) {
+    const sleepQuality = questionnaire.sleep_pattern || questionnaire.sleepQuality || questionnaire.sleep || 5;
+    const restfulness = questionnaire.restfulness || questionnaire.energyLevel || 5;
     
-    if (mindRecoveryUsage >= 30) bonus += 25;
-    else if (mindRecoveryUsage >= 20) bonus += 15;
-    else if (mindRecoveryUsage >= 10) bonus += 8;
+    // Sleep quality bonus (only if they've practiced mind recovery)
+    if (sleepQuality >= 9) bonus += 40;
+    else if (sleepQuality >= 7) bonus += 25;
+    else if (sleepQuality >= 5) bonus += 12;
     
-    // Recovery metrics bonus
-    const sessionsWithMetrics = mindRecoverySessions.filter(session => session.recoveryMetrics);
-    if (sessionsWithMetrics.length > 0) {
-      const avgStressReduction = sessionsWithMetrics.reduce((sum, session) => 
-        sum + (session.recoveryMetrics?.stressReduction || 0), 0) / sessionsWithMetrics.length;
-      
-      if (avgStressReduction >= 8) bonus += 20;
-      else if (avgStressReduction >= 6) bonus += 12;
-      else if (avgStressReduction >= 4) bonus += 6;
-      
-      console.log('🌙 Mind Recovery includes metrics bonus:', { avgStressReduction: avgStressReduction.toFixed(1) });
-    }
-    
-    console.log('🌙 Mind Recovery usage:', { mindRecoveryUsage: mindRecoveryUsage.toFixed(1) });
+    // Restfulness bonus (only if they've practiced mind recovery)
+    if (restfulness >= 8) bonus += 30;
+    else if (restfulness >= 6) bonus += 18;
+    else if (restfulness >= 4) bonus += 8;
   }
   
-  console.log('🌙 Mind Recovery Bonus:', bonus, { sleepQuality, restfulness });
+  // Mind recovery sessions bonus (based on actual practice)
+  const mindRecoveryUsage = practiceHistory.length > 0 ? (mindRecoverySessions.length / practiceHistory.length) * 100 : 0;
+  
+  if (mindRecoveryUsage >= 30) bonus += 25;
+  else if (mindRecoveryUsage >= 20) bonus += 15;
+  else if (mindRecoveryUsage >= 10) bonus += 8;
+  
+  // Recovery effectiveness bonus (based on actual results)
+  const sessionsWithMetrics = mindRecoverySessions.filter(session => session.recoveryMetrics);
+  if (sessionsWithMetrics.length > 0) {
+    const avgStressReduction = sessionsWithMetrics.reduce((sum, session) => 
+      sum + (session.recoveryMetrics?.stressReduction || 0), 0) / sessionsWithMetrics.length;
+    
+    if (avgStressReduction >= 8) bonus += 20;
+    else if (avgStressReduction >= 6) bonus += 12;
+    else if (avgStressReduction >= 4) bonus += 6;
+    
+    console.log('🌙 Mind Recovery includes metrics bonus:', { avgStressReduction: avgStressReduction.toFixed(1) });
+  }
+  
+  console.log('🌙 Mind Recovery Bonus (FIXED):', bonus, { 
+    mindRecoverySessionCount: mindRecoverySessions.length,
+    usagePercentage: mindRecoveryUsage.toFixed(1)
+  });
+  
   return bonus;
 };
 
@@ -769,6 +790,24 @@ const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({
     
     // Calculate happiness with real data
     const happinessResult = calculateHappiness(questionnaire, selfAssessment, practiceHistory);
+    
+    // ✅ FIXED: Save happiness results to localStorage for other components
+    localStorage.setItem('happiness_points', happinessResult.happiness_points.toString());
+    localStorage.setItem('user_level', happinessResult.current_level);
+    
+    // ✅ FIXED: Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('happinessUpdated', {
+      detail: {
+        happiness_points: happinessResult.happiness_points,
+        user_level: happinessResult.current_level,
+        breakdown: happinessResult.breakdown
+      }
+    }));
+    
+    console.log('✅ Happiness results saved to localStorage:', {
+      happiness_points: happinessResult.happiness_points,
+      user_level: happinessResult.current_level
+    });
     
     // Calculate other metrics
     let calculatedProgress: UserProgress = {

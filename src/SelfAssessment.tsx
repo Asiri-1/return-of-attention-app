@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import './SelfAssessment.css';
 
@@ -19,52 +19,109 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
   const { currentUser, markSelfAssessmentComplete } = useAuth();
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, any>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [animateTransition, setAnimateTransition] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  const categories: Category[] = [
-    {
-      id: 'taste',
-      title: 'Food & Taste',
-      question: 'How would you describe your relationship with food and flavors?',
-      description: 'Think about your eating habits, favorite foods, and how much you think about taste',
-      icon: '🍽️'
-    },
-    {
-      id: 'smell',
-      title: 'Scents & Aromas',
-      question: 'How do you feel about different scents and fragrances?',
-      description: 'Consider perfumes, cooking smells, nature scents, and how they affect you',
-      icon: '👃'
-    },
-    {
-      id: 'sound',
-      title: 'Sounds & Music',
-      question: 'What\'s your relationship with sounds, music, and audio?',
-      description: 'Think about music preferences, environmental sounds, and audio experiences',
-      icon: '🎵'
-    },
-    {
-      id: 'sight',
-      title: 'Visual & Beauty',
-      question: 'How do you respond to visual beauty, colors, and sights?',
-      description: 'Consider art, nature, design, colors, and visual experiences that move you',
-      icon: '👁️'
-    },
-    {
-      id: 'touch',
-      title: 'Touch & Textures',
-      question: 'How do you feel about different textures and physical sensations?',
-      description: 'Think about fabrics, temperatures, physical comfort, and tactile experiences',
-      icon: '✋'
-    },
-    {
-      id: 'mind',
-      title: 'Thoughts & Mental Images',
-      question: 'What\'s your relationship with thoughts, ideas, and mental imagery?',
-      description: 'Consider daydreaming, planning, fantasizing, and mental scenarios',
-      icon: '🧠'
+  // Animation effect when changing categories
+  useEffect(() => {
+    if (animateTransition) {
+      const timer = setTimeout(() => {
+        setAnimateTransition(false);
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  ];
+  }, [animateTransition]);
 
+  // Scroll to top when changing categories
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [currentCategoryIndex]);
+
+  // Load saved responses if available
+  useEffect(() => {
+    const savedResponses = localStorage.getItem('tempSelfAssessmentResponses');
+    if (savedResponses) {
+      try {
+        const parsed = JSON.parse(savedResponses);
+        setResponses(parsed);
+        
+        // Find the first incomplete category
+        const categories = getCategories();
+        const firstIncompleteIndex = categories.findIndex(cat => {
+          return !parsed[cat.id] || !parsed[cat.id].level;
+        });
+        
+        if (firstIncompleteIndex >= 0) {
+          setCurrentCategoryIndex(firstIncompleteIndex);
+        } else if (Object.keys(parsed).length === categories.length) {
+          // All categories completed, go to last one
+          setCurrentCategoryIndex(categories.length - 1);
+        }
+      } catch (e) {
+        console.error('Error loading saved responses:', e);
+      }
+    }
+  }, []);
+
+  // Save responses to localStorage when they change
+  useEffect(() => {
+    if (Object.keys(responses).length > 0) {
+      localStorage.setItem('tempSelfAssessmentResponses', JSON.stringify(responses));
+    }
+  }, [responses]);
+
+  const getCategories = (): Category[] => {
+    return [
+      {
+        id: 'taste',
+        title: 'Food & Taste',
+        question: 'How would you describe your relationship with food and flavors?',
+        description: 'Think about your eating habits, favorite foods, and how much you think about taste',
+        icon: '🍽️'
+      },
+      {
+        id: 'smell',
+        title: 'Scents & Aromas',
+        question: 'How do you feel about different scents and fragrances?',
+        description: 'Consider perfumes, cooking smells, nature scents, and how they affect you',
+        icon: '👃'
+      },
+      {
+        id: 'sound',
+        title: 'Sounds & Music',
+        question: 'What\'s your relationship with sounds, music, and audio?',
+        description: 'Think about music preferences, environmental sounds, and audio experiences',
+        icon: '🎵'
+      },
+      {
+        id: 'sight',
+        title: 'Visual & Beauty',
+        question: 'How do you respond to visual beauty, colors, and sights?',
+        description: 'Consider art, nature, design, colors, and visual experiences that move you',
+        icon: '👁️'
+      },
+      {
+        id: 'touch',
+        title: 'Touch & Textures',
+        question: 'How do you feel about different textures and physical sensations?',
+        description: 'Think about fabrics, temperatures, physical comfort, and tactile experiences',
+        icon: '✋'
+      },
+      {
+        id: 'mind',
+        title: 'Thoughts & Mental Images',
+        question: 'What\'s your relationship with thoughts, ideas, and mental imagery?',
+        description: 'Consider daydreaming, planning, fantasizing, and mental scenarios',
+        icon: '🧠'
+      }
+    ];
+  };
+
+  const categories = getCategories();
   const currentCategory = categories[currentCategoryIndex];
 
   const handleResponse = (level: string, details?: string) => {
@@ -87,7 +144,10 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     }
 
     if (currentCategoryIndex < categories.length - 1) {
-      setCurrentCategoryIndex(prev => prev + 1);
+      setAnimateTransition(true);
+      setTimeout(() => {
+        setCurrentCategoryIndex(prev => prev + 1);
+      }, 300);
     } else {
       processAssessment();
     }
@@ -95,12 +155,21 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
 
   const handlePrevious = () => {
     if (currentCategoryIndex > 0) {
-      setCurrentCategoryIndex(prev => prev - 1);
+      setAnimateTransition(true);
+      setTimeout(() => {
+        setCurrentCategoryIndex(prev => prev - 1);
+      }, 300);
+    } else {
+      // First category, go back
+      onBack();
     }
   };
 
   const processAssessment = async () => {
-    console.log('🎯 SIMPLE FIX: Processing self-assessment with simple format:', responses);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    console.log('🔄 Processing self-assessment with responses:', responses);
 
     // Check if all categories are completed
     const incompleteCategories = categories.filter(cat => {
@@ -110,12 +179,24 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
 
     if (incompleteCategories.length > 0) {
       alert(`Please complete all categories. Missing: ${incompleteCategories.map(cat => cat.title).join(', ')}`);
+      setIsSubmitting(false);
       return;
     }
 
-    // 🎯 SIMPLE FIX: Save in EXACT same format as questionnaire - FLAT STRUCTURE
-    const simpleAssessmentData = {
-      // Direct answers - same format as questionnaire
+    // Show confetti animation
+    setShowConfetti(true);
+    
+    // Wait for animation
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // ===== THIS IS THE FIXED PART - STANDARDIZED DATA FORMAT =====
+    // Create standardized format that works with ALL components
+    const standardizedData = {
+      // Format identifier - helps with detection
+      format: 'standard',
+      version: '2.0',
+      
+      // Direct category values - for UserProfile and simple calculations
       taste: responses.taste?.level || 'none',
       smell: responses.smell?.level || 'none', 
       sound: responses.sound?.level || 'none',
@@ -123,42 +204,53 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       touch: responses.touch?.level || 'none',
       mind: responses.mind?.level || 'none',
       
-      // Simple scoring for happiness calculation
+      // Responses object - for happiness calculator
+      responses: {
+        taste: { level: responses.taste?.level || 'none', details: responses.taste?.details || '', category: 'taste' },
+        smell: { level: responses.smell?.level || 'none', details: responses.smell?.details || '', category: 'smell' },
+        sound: { level: responses.sound?.level || 'none', details: responses.sound?.details || '', category: 'sound' },
+        sight: { level: responses.sight?.level || 'none', details: responses.sight?.details || '', category: 'sight' },
+        touch: { level: responses.touch?.level || 'none', details: responses.touch?.details || '', category: 'touch' },
+        mind: { level: responses.mind?.level || 'none', details: responses.mind?.details || '', category: 'mind' }
+      },
+      
+      // Pre-calculated scores - for quick access
       attachmentScore: calculateAttachmentScore(responses),
       nonAttachmentCount: Object.values(responses).filter((r: any) => r.level === 'none').length,
       
-      // Metadata - same as questionnaire
+      // Metadata
       completedAt: new Date().toISOString(),
-      version: '1.0',
       type: 'selfAssessment'
     };
+    // ===== END OF FIXED PART =====
 
-    console.log('✅ SIMPLE FIX: Simple assessment data (questionnaire format):', simpleAssessmentData);
-    console.log('✅ SIMPLE FIX: Attachment score (negative points):', simpleAssessmentData.attachmentScore);
-    console.log('✅ SIMPLE FIX: Non-attachment count (zero points):', simpleAssessmentData.nonAttachmentCount);
+    console.log('✅ Standardized assessment data:', standardizedData);
 
     try {
-      // 🎯 SIMPLE FIX: Use AuthContext method with SIMPLE data structure
-      console.log('🔄 SIMPLE FIX: Calling markSelfAssessmentComplete with simple format...');
+      // Use AuthContext method with standardized data
+      console.log('🔄 Calling markSelfAssessmentComplete with standardized format...');
       
-      await markSelfAssessmentComplete(simpleAssessmentData);
+      await markSelfAssessmentComplete(standardizedData);
       
-      console.log('✅ SIMPLE FIX: Self-assessment saved successfully in simple format!');
+      console.log('✅ Self-assessment saved successfully in standardized format!');
+      
+      // Clear temporary storage
+      localStorage.removeItem('tempSelfAssessmentResponses');
       
       // Call onComplete to proceed to next step
-      onComplete(simpleAssessmentData);
+      onComplete(standardizedData);
       
     } catch (error) {
-      console.error('❌ SIMPLE FIX: Error saving through AuthContext:', error);
+      console.error('❌ Error saving through AuthContext:', error);
       
-      // Fallback: Save directly to storage in simple format
-      console.log('🔄 SIMPLE FIX: Attempting fallback save in simple format...');
+      // Fallback: Save directly to storage in standardized format
+      console.log('🔄 Attempting fallback save in standardized format...');
       
       try {
         const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
         const updatedProfile = {
           ...userProfile,
-          selfAssessmentData: simpleAssessmentData, // Simple format
+          selfAssessmentData: standardizedData,
           assessmentCompleted: true,
           lastUpdated: new Date().toISOString()
         };
@@ -170,18 +262,24 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
           localStorage.setItem(`userProfile_${currentUser.uid}`, JSON.stringify(updatedProfile));
         }
 
-        console.log('✅ SIMPLE FIX: Fallback save successful in simple format!');
-        onComplete(simpleAssessmentData);
+        console.log('✅ Fallback save successful in standardized format!');
+        
+        // Clear temporary storage
+        localStorage.removeItem('tempSelfAssessmentResponses');
+        
+        onComplete(standardizedData);
         
       } catch (fallbackError) {
-        console.error('❌ SIMPLE FIX: Fallback save failed:', fallbackError);
+        console.error('❌ Fallback save failed:', fallbackError);
         // Still call onComplete to not block user progress
-        onComplete(simpleAssessmentData);
+        onComplete(standardizedData);
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // 🎯 SIMPLE SCORING: Attachment = minus points, Non-attachment = zero points
+  // Attachment = minus points, Non-attachment = zero points
   const calculateAttachmentScore = (responses: Record<string, any>): number => {
     let attachmentPenalty = 0;
     
@@ -194,21 +292,57 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       // 'none' = 0 points (no penalty for non-attachment)
     });
     
-    console.log('🎯 SIMPLE SCORING: Attachment penalty calculated:', attachmentPenalty);
+    console.log('🔧 Attachment penalty calculated:', attachmentPenalty);
     return attachmentPenalty;
+  };
+
+  const getAttachmentLevel = (score: number): string => {
+    if (score >= -10) return 'Very Low';
+    if (score >= -30) return 'Low';
+    if (score >= -50) return 'Moderate';
+    if (score >= -70) return 'High';
+    return 'Very High';
+  };
+
+  const getAttachmentColor = (score: number): string => {
+    if (score >= -10) return '#10b981'; // Green
+    if (score >= -30) return '#60a5fa'; // Blue
+    if (score >= -50) return '#f59e0b'; // Yellow
+    if (score >= -70) return '#f97316'; // Orange
+    return '#ef4444'; // Red
   };
 
   const currentResponse = responses[currentCategory.id];
   const completedCategories = Object.keys(responses).filter(key => responses[key]?.level).length;
   const progressPercentage = (completedCategories / categories.length) * 100;
+  const attachmentScore = calculateAttachmentScore(responses);
+  const attachmentLevel = getAttachmentLevel(attachmentScore);
+  const attachmentColor = getAttachmentColor(attachmentScore);
 
   return (
     <div className="self-assessment-container">
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <div className="confetti-container">
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div 
+              key={i}
+              className="confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="assessment-header">
-        {currentCategoryIndex > 0 && (
-          <button className="back-button" onClick={handlePrevious}>← Back</button>
-        )}
+        <button className="back-button" onClick={handlePrevious}>
+          ← {currentCategoryIndex === 0 ? 'Exit' : 'Back'}
+        </button>
         <div className="progress-indicator">
           {currentCategory.icon} {currentCategoryIndex + 1} of {categories.length}
         </div>
@@ -228,7 +362,10 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       </div>
 
       {/* Main Content */}
-      <div className="assessment-content">
+      <div 
+        ref={contentRef}
+        className={`assessment-content ${animateTransition ? 'fade-out' : 'fade-in'}`}
+      >
         <div className="category-header">
           <div className="category-icon">{currentCategory.icon}</div>
           <h2>{currentCategory.title}</h2>
@@ -343,8 +480,11 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             {Object.keys(responses).length > 0 && (
               <div className="total-score">
                 <strong>
-                  Total Attachment Penalty: {calculateAttachmentScore(responses)} points
+                  Total Attachment Penalty: {attachmentScore} points
                 </strong>
+                <div className="attachment-level" style={{ color: attachmentColor }}>
+                  Attachment Level: {attachmentLevel}
+                </div>
               </div>
             )}
           </div>
@@ -363,10 +503,10 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
           ) : (
             <button 
               onClick={processAssessment}
-              className={`complete-button ${!currentResponse?.level ? 'disabled' : ''}`}
-              disabled={!currentResponse?.level}
+              className={`complete-button ${!currentResponse?.level || isSubmitting ? 'disabled' : ''}`}
+              disabled={!currentResponse?.level || isSubmitting}
             >
-              Complete Assessment ✓
+              {isSubmitting ? 'Saving...' : 'Complete Assessment ✓'}
             </button>
           )}
         </div>
@@ -384,6 +524,14 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
                 <div 
                   key={category.id} 
                   className={`category-item ${isCompleted ? 'completed' : 'pending'} ${isCurrent ? 'current' : ''}`}
+                  onClick={() => {
+                    if (isCompleted || index <= completedCategories) {
+                      setAnimateTransition(true);
+                      setTimeout(() => {
+                        setCurrentCategoryIndex(index);
+                      }, 300);
+                    }
+                  }}
                 >
                   <span className="category-icon-small">{category.icon}</span>
                   <span className="category-name">{category.title}</span>
@@ -401,461 +549,49 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             })}
           </div>
         </div>
+
+        {/* Help Section */}
+        <div className="help-section">
+          <div className="help-toggle">
+            <details>
+              <summary>Need help understanding this assessment?</summary>
+              <div className="help-content">
+                <h4>About Attachment & Non-Attachment</h4>
+                <p>
+                  This assessment measures your level of attachment to sensory experiences and mental patterns.
+                  In mindfulness practice, non-attachment (being content with whatever arises) is associated with
+                  greater peace and happiness.
+                </p>
+                
+                <h4>Scoring Explained</h4>
+                <ul>
+                  <li><strong>No particular preferences (0 points):</strong> Non-attachment, associated with flexibility and contentment</li>
+                  <li><strong>Some preferences (-7 points):</strong> Moderate attachment, some specific likes and dislikes</li>
+                  <li><strong>Strong preferences (-15 points):</strong> Strong attachment, very specific requirements for happiness</li>
+                </ul>
+                
+                <p>
+                  Your total score reflects your overall attachment level. Higher scores (closer to 0)
+                  indicate greater non-attachment and potentially more stable happiness.
+                </p>
+                
+                <p>
+                  <strong>Note:</strong> This is not about suppressing preferences, but recognizing how they
+                  affect your happiness. There are no "right" or "wrong" answers - just honest self-reflection.
+                </p>
+              </div>
+            </details>
+          </div>
+        </div>
       </div>
 
-      {/* Enhanced Styles with Scoring */}
-      <style>{`
-        .self-assessment-container {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 20px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-          min-height: 100vh;
-        }
-
-        .assessment-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: white;
-          padding: 20px 30px;
-          border-radius: 15px;
-          margin-bottom: 20px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .back-button {
-          background: #e2e8f0;
-          color: #4a5568;
-          border: none;
-          padding: 12px 20px;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .back-button:hover {
-          background: #cbd5e0;
-          transform: translateY(-1px);
-        }
-
-        .progress-indicator {
-          font-size: 18px;
-          font-weight: 700;
-          color: #2d3748;
-        }
-
-        .category-progress {
-          font-size: 14px;
-          color: #667eea;
-          font-weight: 600;
-        }
-
-        .progress-bar-container {
-          background: white;
-          padding: 15px 30px;
-          border-radius: 15px;
-          margin-bottom: 25px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .progress-bar {
-          width: 100%;
-          height: 8px;
-          background-color: #e2e8f0;
-          border-radius: 4px;
-          overflow: hidden;
-        }
-
-        .progress-fill {
-          height: 100%;
-          background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-          border-radius: 4px;
-          transition: width 0.5s ease;
-        }
-
-        .assessment-content {
-          background: white;
-          border-radius: 20px;
-          padding: 40px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-
-        .category-header {
-          text-align: center;
-          margin-bottom: 40px;
-        }
-
-        .category-icon {
-          font-size: 4rem;
-          margin-bottom: 15px;
-        }
-
-        .category-header h2 {
-          font-size: 2.2rem;
-          color: #2d3748;
-          margin-bottom: 15px;
-          font-weight: 700;
-        }
-
-        .category-question {
-          font-size: 1.3rem;
-          color: #4a5568;
-          margin-bottom: 10px;
-          font-weight: 600;
-        }
-
-        .category-description {
-          font-size: 1rem;
-          color: #718096;
-          line-height: 1.6;
-          max-width: 600px;
-          margin: 0 auto;
-        }
-
-        .response-options {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-          margin-bottom: 40px;
-        }
-
-        .response-option {
-          display: flex;
-          align-items: flex-start;
-          gap: 15px;
-          padding: 25px;
-          border: 2px solid #e2e8f0;
-          border-radius: 15px;
-          cursor: pointer;
-          background: #fafafa;
-          transition: all 0.3s ease;
-          position: relative;
-        }
-
-        .response-option:hover {
-          border-color: #667eea;
-          background: #f8fbff;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-        }
-
-        .response-option.selected {
-          border-color: #667eea;
-          background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
-        }
-
-        .response-option input[type="radio"] {
-          width: 20px;
-          height: 20px;
-          margin-top: 2px;
-          accent-color: #667eea;
-        }
-
-        .option-content {
-          flex: 1;
-        }
-
-        .option-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 8px;
-        }
-
-        .option-icon {
-          font-size: 1.5rem;
-        }
-
-        .option-header strong {
-          font-size: 1.1rem;
-          color: #2d3748;
-          font-weight: 600;
-        }
-
-        .option-description {
-          color: #4a5568;
-          font-size: 0.95rem;
-          line-height: 1.5;
-          margin-left: 3rem;
-        }
-
-        .details-section {
-          margin-top: 25px;
-          padding: 20px;
-          background: #f8fafc;
-          border-radius: 12px;
-          border: 1px solid #e2e8f0;
-        }
-
-        .details-label {
-          display: block;
-          margin-bottom: 10px;
-          font-size: 0.9rem;
-          color: #2d3748;
-          font-weight: 500;
-        }
-
-        .details-textarea {
-          width: 100%;
-          padding: 12px;
-          border: 2px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 0.9rem;
-          font-family: inherit;
-          resize: vertical;
-          transition: border-color 0.2s;
-          color: #2d3748;
-          background: white;
-        }
-
-        .details-textarea:focus {
-          outline: none;
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .details-textarea::placeholder {
-          color: #a0aec0;
-          font-style: italic;
-        }
-
-        /* NEW: Scoring Preview Styles */
-        .scoring-preview {
-          margin: 30px 0;
-          padding: 25px;
-          background: #f0f9ff;
-          border-radius: 15px;
-          border: 2px solid #0ea5e9;
-        }
-
-        .scoring-preview h4 {
-          margin-bottom: 15px;
-          color: #0c4a6e;
-          text-align: center;
-          font-size: 1.1rem;
-        }
-
-        .score-breakdown {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .score-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 15px;
-          background: white;
-          border-radius: 8px;
-          font-size: 0.9rem;
-        }
-
-        .total-score {
-          margin-top: 15px;
-          padding: 15px;
-          background: #1e40af;
-          color: white;
-          border-radius: 8px;
-          text-align: center;
-          font-size: 1rem;
-        }
-
-        .navigation-buttons {
-          display: flex;
-          justify-content: center;
-          margin: 40px 0;
-        }
-
-        .next-button, .complete-button {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 15px 30px;
-          border-radius: 12px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          min-width: 180px;
-        }
-
-        .next-button.disabled, .complete-button.disabled {
-          background: #d1d5db;
-          color: #9ca3af;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .complete-button:not(.disabled) {
-          background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        }
-
-        .next-button:not(.disabled):hover, .complete-button:not(.disabled):hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .overall-progress {
-          margin-top: 30px;
-          padding: 25px;
-          background: #f8fafc;
-          border-radius: 15px;
-          border: 1px solid #e2e8f0;
-        }
-
-        .overall-progress h4 {
-          margin-bottom: 20px;
-          color: #2d3748;
-          text-align: center;
-          font-size: 1.1rem;
-        }
-
-        .categories-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 15px;
-        }
-
-        .category-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 15px;
-          background: white;
-          border-radius: 10px;
-          border: 2px solid #e2e8f0;
-          transition: all 0.3s ease;
-        }
-
-        .category-item.completed {
-          border-color: #10b981;
-          background: #ecfdf5;
-        }
-
-        .category-item.current {
-          border-color: #667eea;
-          background: #eff6ff;
-          font-weight: 600;
-          transform: scale(1.02);
-        }
-
-        .category-icon-small {
-          font-size: 1.5rem;
-        }
-
-        .category-name {
-          flex: 1;
-          font-size: 0.9rem;
-          color: #4a5568;
-        }
-
-        .category-status {
-          font-size: 1.2rem;
-          color: #10b981;
-        }
-
-        .response-level {
-          font-size: 0.8rem;
-          margin-left: 5px;
-          font-weight: 600;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-          .self-assessment-container {
-            padding: 15px;
-          }
-
-          .assessment-content {
-            padding: 25px 20px;
-          }
-
-          .category-header h2 {
-            font-size: 1.8rem;
-          }
-
-          .category-question {
-            font-size: 1.1rem;
-          }
-
-          .response-option {
-            padding: 20px 15px;
-          }
-
-          .option-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 8px;
-          }
-
-          .option-description {
-            margin-left: 0;
-            margin-top: 5px;
-          }
-
-          .categories-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .assessment-header {
-            padding: 15px 20px;
-            flex-direction: column;
-            gap: 10px;
-          }
-
-          .back-button {
-            width: 100%;
-          }
-
-          .score-breakdown {
-            gap: 8px;
-          }
-
-          .score-item {
-            font-size: 0.8rem;
-            padding: 8px 12px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .self-assessment-container {
-            padding: 10px;
-          }
-
-          .assessment-content {
-            padding: 20px 15px;
-          }
-
-          .category-icon {
-            font-size: 3rem;
-          }
-
-          .category-header h2 {
-            font-size: 1.6rem;
-          }
-
-          .response-option {
-            padding: 15px;
-          }
-
-          .option-header strong {
-            font-size: 1rem;
-          }
-
-          .next-button, .complete-button {
-            width: 100%;
-            padding: 15px;
-          }
-        }
-      `}</style>
+      {/* Privacy Notice */}
+      <div className="privacy-notice">
+        Your responses are stored locally and used only to personalize your experience.
+      </div>
     </div>
   );
 };
 
 export default SelfAssessment;
+
