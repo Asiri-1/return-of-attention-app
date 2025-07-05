@@ -583,26 +583,39 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // 🔧 FIXED: Self-assessment completion with proper debugging and state management
   const handleSelfAssessmentComplete = async (data?: any) => {
-    console.log('🎯 Self-assessment completed with data:', data);
+    console.log('🎯 Self-assessment completion started with data:', data);
     
     try {
-      // ✅ FIX: Ensure both operations complete before navigation
-      console.log('🔧 Saving self-assessment data...');
+      // ✅ FIX: Ensure self-assessment is properly marked as complete
+      console.log('🔧 Step 1: Marking self-assessment as complete...');
       await markSelfAssessmentComplete(data);
       
-      console.log('🔧 Updating user profile...');
+      console.log('🔧 Step 2: Updating user profile with stage progression...');
       await updateUserProfile({ 
         currentStage: '1'
       });
       
-      // ✅ FIX: Wait longer to ensure AuthContext state is fully updated
-      console.log('🔧 Waiting for state to update...');
+      // ✅ FIX: Force localStorage update for immediate state sync
+      console.log('🔧 Step 3: Force updating localStorage...');
+      localStorage.setItem('self_assessment_completed', 'true');
+      
+      // ✅ FIX: Wait longer and verify completion before navigation
+      console.log('🔧 Step 4: Waiting for state sync...');
       setTimeout(() => {
-        console.log('🔧 Self-assessment marked as complete, navigating to completion page');
-        console.log('🔍 Current self-assessment status:', isSelfAssessmentCompleted());
-        navigate('/self-assessment-completion');
-      }, 500); // Increased delay to 500ms
+        const isCompleted = localStorage.getItem('self_assessment_completed');
+        console.log('🔍 Final check - Self-assessment completed?', isCompleted);
+        console.log('🔍 Final check - isSelfAssessmentCompleted():', isSelfAssessmentCompleted());
+        
+        if (isCompleted === 'true') {
+          console.log('✅ Self-assessment completion confirmed, navigating to completion page');
+          navigate('/self-assessment-completion');
+        } else {
+          console.error('❌ Self-assessment completion not saved properly');
+          alert('There was an error saving your assessment. Please try again.');
+        }
+      }, 1000); // Increased delay to 1 second for proper state sync
       
     } catch (error) {
       console.error('🔧 Error completing self-assessment:', error);

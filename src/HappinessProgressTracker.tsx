@@ -376,37 +376,54 @@ const calculateOldFormatPenalty = (selfAssessment: any, debugInfo: any): Attachm
 // ADVANCED HAPPINESS CALCULATIONS
 // ============================================================================
 
+// ✅ FIXED: PAHM Mastery Bonus - Only for users who actually practiced PAHM
 const calculatePahmMasteryBonus = (questionnaire: any, practiceHistory: any[]): number => {
-  if (!questionnaire && (!practiceHistory || practiceHistory.length === 0)) return 0;
+  // ✅ FIXED: No practice history = no PAHM mastery bonus, period
+  if (!practiceHistory || practiceHistory.length === 0) {
+    console.log('🧘 No practice history - no PAHM mastery bonus');
+    return 0;
+  }
   
   let bonus = 0;
   
-  // PAHM understanding bonus
-  const experience = questionnaire?.experience_level || questionnaire?.experienceLevel || 0;
-  if (experience >= 8) bonus += 50;
-  else if (experience >= 6) bonus += 30;
-  else if (experience >= 4) bonus += 15;
-  
-  // Practice consistency bonus
-  if (practiceHistory && practiceHistory.length > 0) {
-    const totalSessions = practiceHistory.length;
-    if (totalSessions >= 100) bonus += 40;
-    else if (totalSessions >= 50) bonus += 25;
-    else if (totalSessions >= 20) bonus += 15;
-    else if (totalSessions >= 5) bonus += 8;
+  // ✅ FIXED: Only give questionnaire-based bonus if user has actually practiced
+  if (questionnaire && practiceHistory.length > 0) {
+    const experience = questionnaire?.experience_level || questionnaire?.experienceLevel || 0;
     
-    // PAHM awareness bonus
-    const sessionsWithPAHM = practiceHistory.filter(session => session.pahmCounts).length;
-    const pahmAwarenessPercentage = totalSessions > 0 ? (sessionsWithPAHM / totalSessions) * 100 : 0;
-    
-    if (pahmAwarenessPercentage >= 80) bonus += 30;
-    else if (pahmAwarenessPercentage >= 60) bonus += 20;
-    else if (pahmAwarenessPercentage >= 40) bonus += 10;
-    
-    console.log('🧘 PAHM Mastery includes awareness bonus:', { sessionsWithPAHM, pahmAwarenessPercentage: pahmAwarenessPercentage.toFixed(1) });
+    // Experience bonus (only if they've practiced in the app)
+    if (experience >= 8) bonus += 50;
+    else if (experience >= 6) bonus += 30;
+    else if (experience >= 4) bonus += 15;
   }
   
-  console.log('🧘 PAHM Mastery Bonus:', bonus);
+  // Practice consistency bonus (based on actual sessions)
+  const totalSessions = practiceHistory.length;
+  if (totalSessions >= 100) bonus += 40;
+  else if (totalSessions >= 50) bonus += 25;
+  else if (totalSessions >= 20) bonus += 15;
+  else if (totalSessions >= 5) bonus += 8;
+  
+  // ✅ FIXED: PAHM awareness bonus (based on actual PAHM practice)
+  const sessionsWithPAHM = practiceHistory.filter(session => 
+    session.pahmCounts || 
+    session.pahmData || 
+    session.attachmentWork ||
+    session.mindfulnessMetrics
+  ).length;
+  
+  const pahmAwarenessPercentage = totalSessions > 0 ? (sessionsWithPAHM / totalSessions) * 100 : 0;
+  
+  if (pahmAwarenessPercentage >= 80) bonus += 30;
+  else if (pahmAwarenessPercentage >= 60) bonus += 20;
+  else if (pahmAwarenessPercentage >= 40) bonus += 10;
+  
+  console.log('🧘 PAHM Mastery Bonus (FIXED):', bonus, { 
+    totalSessions,
+    sessionsWithPAHM,
+    pahmAwarenessPercentage: pahmAwarenessPercentage.toFixed(1),
+    hasQuestionnaire: !!questionnaire
+  });
+  
   return bonus;
 };
 
