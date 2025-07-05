@@ -3,7 +3,6 @@ import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AssessmentPopup from './AssessmentPopup';
 import AdminPanel from './components/AdminPanel';
-import HappinessProgressTracker from './HappinessProgressTracker';
 
 interface HomeDashboardProps {
   onStartPractice: () => void;
@@ -43,27 +42,98 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🎯 SIMPLE: Just display happiness points - don't calculate
-  const [showHappinessTracker, setShowHappinessTracker] = useState(false);
-  const [happinessPoints, setHappinessPoints] = useState<number | null>(null);
+  // ✅ FIXED: Read happiness points from localStorage (where HappinessProgressTracker saves them)
+  const [happinessPoints, setHappinessPoints] = useState<number>(50);
   const [userLevel, setUserLevel] = useState('Seeker');
 
   // Assessment popup state
   const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
 
-  // 🔧 SIMPLE: Just read from localStorage - no calculation needed
-  const loadHappinessPoints = () => {
+  // Calculate real user stats instead of hardcoded values
+  const calculateUserStats = () => {
     if (!currentUser) {
-      console.log('❌ No current user, using default happiness');
-      setHappinessPoints(50);
-      setUserLevel('Seeker');
+      console.log('❌ No current user, using default stats');
+      setStreak(0);
+      setTotalHours(0);
       return;
     }
 
     try {
-      console.log('📈 HomeDashboard: Loading happiness points from storage...');
+      console.log('📊 Calculating real user stats...');
       
-      // Just read from localStorage - HappinessProgressTracker does the calculation
+      // Calculate streak from practice sessions
+      const today = new Date();
+      let currentStreak = 0;
+      let totalPracticeHours = 0;
+
+      // Check localStorage for practice session data
+      const practiceData = JSON.parse(localStorage.getItem('practiceSessionData') || '[]');
+      
+      if (Array.isArray(practiceData) && practiceData.length > 0) {
+        // Calculate total hours from all sessions
+        totalPracticeHours = practiceData.reduce((total: number, session: any) => {
+          const duration = session.duration || 0;
+          return total + (duration / 60); // Convert minutes to hours
+        }, 0);
+
+        // Calculate streak (consecutive days with practice)
+        const sortedSessions = practiceData
+          .map((session: any) => new Date(session.timestamp || session.date))
+          .sort((a: Date, b: Date) => b.getTime() - a.getTime());
+
+        if (sortedSessions.length > 0) {
+          let streakCount = 0;
+          let currentDate = new Date(today);
+          currentDate.setHours(0, 0, 0, 0);
+
+          for (let i = 0; i < sortedSessions.length; i++) {
+            const sessionDate = new Date(sortedSessions[i]);
+            sessionDate.setHours(0, 0, 0, 0);
+
+            const diffDays = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            if (diffDays === streakCount) {
+              streakCount++;
+              currentDate.setDate(currentDate.getDate() - 1);
+            } else {
+              break;
+            }
+          }
+          currentStreak = streakCount;
+        }
+      }
+
+      // Alternative: Check user profile for basic stats
+      const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      if (userProfile.practiceStats) {
+        totalPracticeHours = userProfile.practiceStats.totalHours || totalPracticeHours;
+        currentStreak = userProfile.practiceStats.streak || currentStreak;
+      }
+
+      // Set calculated values
+      setStreak(currentStreak);
+      setTotalHours(Math.round(totalPracticeHours * 10) / 10); // Round to 1 decimal
+
+      console.log('✅ Real user stats calculated:', {
+        streak: currentStreak,
+        totalHours: totalPracticeHours,
+        sessionsFound: practiceData.length
+      });
+
+    } catch (error) {
+      console.error('❌ Error calculating user stats:', error);
+      // Fallback to defaults for new users
+      setStreak(0);
+      setTotalHours(0);
+    }
+  };
+
+  // ✅ FIXED: Read happiness points from localStorage where HappinessProgressTracker saves them
+  const loadHappinessPoints = () => {
+    try {
+      console.log('📈 HomeDashboard: Loading happiness points from localStorage...');
+      
+      // Read from localStorage where HappinessProgressTracker saves the results
       const savedPoints = localStorage.getItem('happiness_points');
       const savedLevel = localStorage.getItem('user_level');
       
@@ -77,8 +147,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         }
       }
 
-      // Default values if nothing saved
-      console.log('⚠️ HomeDashboard: No saved happiness data, using defaults');
+      // Default values if nothing saved (new users)
+      console.log('⚠️ HomeDashboard: No saved happiness data, using defaults for new user');
       setHappinessPoints(50);
       setUserLevel('Seeker');
       
@@ -89,19 +159,21 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   };
 
-  // 🔧 Listen for happiness updates from HappinessProgressTracker
+  // ✅ FIXED: Listen for happiness updates from HappinessProgressTracker
   useEffect(() => {
     const handleHappinessUpdate = (event: any) => {
       console.log('🎯 HomeDashboard: Received happiness update event:', event.detail);
       if (event.detail?.happiness_points) {
         setHappinessPoints(event.detail.happiness_points);
+        console.log('📈 HomeDashboard: Updated happiness points to:', event.detail.happiness_points);
       }
       if (event.detail?.user_level) {
         setUserLevel(event.detail.user_level);
+        console.log('🏆 HomeDashboard: Updated user level to:', event.detail.user_level);
       }
     };
 
-    // Listen for custom happiness update events
+    // Listen for custom happiness update events from HappinessProgressTracker
     window.addEventListener('happinessUpdated', handleHappinessUpdate);
     
     // Also listen for storage events (in case another tab updates)
@@ -124,6 +196,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     // Initial load when currentUser changes
     if (currentUser) {
       loadHappinessPoints();
+      calculateUserStats();
     }
 
     return () => {
@@ -196,8 +269,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       window.location.reload();
     }
 
-    setStreak(3);
-    setTotalHours(12.5);
+    // Calculate real stats instead
+    calculateUserStats();
   }, [location]);
 
   const handleStageClick = (stageNumber: number) => {
@@ -243,31 +316,10 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     setShowAssessmentPopup(false);
   };
 
-  // 🎯 HAPPINESS TRACKER HANDLERS
+  // Navigate to dedicated happiness page instead of showing modal
   const handleHappinessPointsClick = () => {
-    setShowHappinessTracker(true);
-  };
-
-  const handleCloseHappinessTracker = () => {
-    setShowHappinessTracker(false);
-    // Refresh happiness points after closing tracker
-    setTimeout(() => {
-      loadHappinessPoints();
-    }, 100);
-  };
-
-  // Debug function for happiness points
-  const handleHappinessDebug = () => {
-    console.log('🔍 HAPPINESS DEBUG INFO:');
-    console.log('Current happiness points:', happinessPoints);
-    console.log('Current user level:', userLevel);
-    console.log('localStorage happiness_points:', localStorage.getItem('happiness_points'));
-    console.log('localStorage user_level:', localStorage.getItem('user_level'));
-    console.log('Current user:', currentUser);
-    
-    // Force reload from storage
-    console.log('🔄 RELOADING FROM STORAGE...');
-    loadHappinessPoints();
+    console.log('🎯 Navigating to dedicated happiness tracker page');
+    navigate('/happiness-tracker');
   };
 
   const tLevels = [
@@ -307,9 +359,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   ];
 
-  // Get display happiness points (handle null state)
-  const displayHappinessPoints = happinessPoints !== null ? happinessPoints : 50;
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -318,11 +367,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }}>
       {/* Admin Panel */}
       <AdminPanel />
-
-      {/* 🎯 HAPPINESS TRACKER MODAL */}
-      {showHappinessTracker && (
-        <HappinessProgressTracker onClose={handleCloseHappinessTracker} />
-      )}
 
       {/* Assessment Popup */}
       {showAssessmentPopup && (
@@ -333,49 +377,63 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         />
       )}
 
-      {/* Header with Happiness Points Display */}
+      {/* MOBILE RESPONSIVE HEADER */}
       <header style={{
         background: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
-        padding: '16px 20px',
+        padding: 'clamp(12px, 3vw, 20px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        gap: '12px',
+        WebkitBackdropFilter: 'blur(20px)',
+        position: 'relative',
+        zIndex: 10
       }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Title - Mobile Responsive */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          minWidth: 0,
+          flex: '1 1 auto'
+        }}>
           <h1 style={{
             margin: 0,
-            fontSize: 'clamp(18px, 4vw, 28px)',
+            fontSize: 'clamp(16px, 5vw, 28px)',
             fontWeight: '700',
             color: 'white',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '100%'
           }}>
-            Welcome{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}
+            Welcome{currentUser?.displayName ? `, ${currentUser.displayName.split(' ')[0]}` : ''}
           </h1>
         </div>
         
-        {/* 🎯 HAPPINESS POINTS DISPLAY */}
+        {/* ✅ FIXED: MOBILE RESPONSIVE HAPPINESS POINTS - Now shows correct value from localStorage */}
         <div 
           onClick={handleHappinessPointsClick}
-          onDoubleClick={handleHappinessDebug}
           style={{
-            background: displayHappinessPoints > 400 
-              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'  // Green for good scores
-              : displayHappinessPoints > 200
-              ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'  // Orange for medium scores
-              : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red for low scores
-            padding: '12px 24px',
+            background: happinessPoints > 400 
+              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+              : happinessPoints > 200
+              ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+              : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 24px)',
             borderRadius: '50px',
             color: 'white',
             cursor: 'pointer',
             transition: 'all 0.3s ease',
             boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
             textAlign: 'center',
-            minWidth: '120px',
+            minWidth: 'clamp(100px, 25vw, 120px)',
             border: '2px solid rgba(255, 255, 255, 0.2)',
-            position: 'relative'
+            position: 'relative',
+            flexShrink: 0
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
@@ -387,20 +445,20 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           }}
         >
           <div style={{
-            fontSize: '24px',
+            fontSize: 'clamp(18px, 5vw, 24px)',
             fontWeight: 'bold',
             marginBottom: '2px'
           }}>
-            😊 {displayHappinessPoints}
+            😊 {happinessPoints}
           </div>
           <div style={{
-            fontSize: '11px',
+            fontSize: 'clamp(9px, 2.5vw, 11px)',
             opacity: 0.9,
             fontWeight: '500'
           }}>
             Happiness Points
           </div>
-          {displayHappinessPoints > 400 && (
+          {happinessPoints > 400 && (
             <div style={{
               position: 'absolute',
               top: '-5px',
@@ -420,87 +478,96 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           )}
         </div>
         
-        {/* Quick Stats */}
+        {/* MOBILE RESPONSIVE QUICK STATS */}
         <div style={{
           display: 'flex',
-          gap: '16px',
+          gap: 'clamp(8px, 2vw, 16px)',
           alignItems: 'center',
           flexWrap: 'wrap',
+          justifyContent: 'center',
+          width: '100%',
           marginTop: '8px'
         }}>
           <div style={{
             background: 'rgba(255, 255, 255, 0.15)',
-            padding: '8px 12px',
+            padding: 'clamp(6px, 1.5vw, 8px) clamp(8px, 2vw, 12px)',
             borderRadius: '12px',
             color: 'white',
-            fontSize: '12px',
-            fontWeight: '600'
+            fontSize: 'clamp(10px, 2.5vw, 12px)',
+            fontWeight: '600',
+            whiteSpace: 'nowrap'
           }}>
-            🔥 {streak} day streak
+            🔥 {streak} day{streak !== 1 ? 's' : ''} streak
           </div>
           <div style={{
             background: 'rgba(255, 255, 255, 0.15)',
-            padding: '8px 12px',
+            padding: 'clamp(6px, 1.5vw, 8px) clamp(8px, 2vw, 12px)',
             borderRadius: '12px',
             color: 'white',
-            fontSize: '12px',
-            fontWeight: '600'
+            fontSize: 'clamp(10px, 2.5vw, 12px)',
+            fontWeight: '600',
+            whiteSpace: 'nowrap'
           }}>
             ⏱️ {totalHours}h total
           </div>
           <div style={{
             background: 'rgba(255, 255, 255, 0.15)',
-            padding: '8px 12px',
+            padding: 'clamp(6px, 1.5vw, 8px) clamp(8px, 2vw, 12px)',
             borderRadius: '12px',
             color: 'white',
-            fontSize: '12px',
-            fontWeight: '600'
+            fontSize: 'clamp(10px, 2.5vw, 12px)',
+            fontWeight: '600',
+            whiteSpace: 'nowrap'
           }}>
             🏆 {userLevel}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* MOBILE RESPONSIVE MAIN CONTENT */}
       <main style={{
-        padding: '20px',
+        padding: 'clamp(16px, 4vw, 20px)',
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
         {/* Journey Section */}
         <section style={{
           background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '20px',
+          borderRadius: 'clamp(16px, 4vw, 20px)',
           padding: 'clamp(20px, 5vw, 32px)',
           marginBottom: '24px',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
           backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.3)'
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            marginBottom: '24px'
+            marginBottom: '24px',
+            flexWrap: 'wrap',
+            gap: '12px'
           }}>
             <h2 style={{
               margin: 0,
-              fontSize: 'clamp(20px, 4vw, 28px)',
+              fontSize: 'clamp(20px, 5vw, 28px)',
               fontWeight: '700',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+              backgroundClip: 'text',
+              flex: '1 1 auto'
             }}>
               Your Journey
             </h2>
             <div style={{
-              marginLeft: 'auto',
               padding: '6px 12px',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '600'
+              fontSize: 'clamp(10px, 2.5vw, 12px)',
+              fontWeight: '600',
+              flexShrink: 0
             }}>
               Stage {currentStage}/6
             </div>
@@ -509,8 +576,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           {/* Progress Bar */}
           <div style={{
             background: 'linear-gradient(90deg, #f1f3f4 0%, #e8eaed 100%)',
-            height: '8px',
-            borderRadius: '4px',
+            height: 'clamp(6px, 1.5vw, 8px)',
+            borderRadius: 'clamp(3px, 1vw, 4px)',
             marginBottom: '32px',
             overflow: 'hidden'
           }}>
@@ -518,23 +585,23 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               height: '100%',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               width: `${Math.min(100, (currentStage / 6) * 100)}%`,
-              borderRadius: '4px',
+              borderRadius: 'clamp(3px, 1vw, 4px)',
               transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
               boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
             }} />
           </div>
 
-          {/* Stages Grid */}
+          {/* MOBILE RESPONSIVE STAGES GRID */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+            gap: 'clamp(16px, 4vw, 20px)'
           }}>
             {/* Stage 1 with Dropdown */}
             <div style={{
               background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-              borderRadius: '16px',
-              padding: '20px',
+              borderRadius: 'clamp(12px, 3vw, 16px)',
+              padding: 'clamp(16px, 4vw, 20px)',
               border: '2px solid rgba(102, 126, 234, 0.2)',
               transition: 'all 0.3s ease',
               cursor: 'pointer'
@@ -556,8 +623,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 }}
               >
                 <div style={{
-                  width: '48px',
-                  height: '48px',
+                  width: 'clamp(40px, 10vw, 48px)',
+                  height: 'clamp(40px, 10vw, 48px)',
                   borderRadius: '50%',
                   background: (sessionStorage.getItem('t5Completed') === 'true' || 
                     localStorage.getItem('t5Completed') === 'true') 
@@ -569,18 +636,19 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '18px',
+                  fontSize: 'clamp(14px, 4vw, 18px)',
                   fontWeight: '700',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  marginRight: '16px'
+                  marginRight: 'clamp(12px, 3vw, 16px)',
+                  flexShrink: 0
                 }}>
                   {(sessionStorage.getItem('t5Completed') === 'true' || 
                     localStorage.getItem('t5Completed') === 'true') ? '✓' : '1'}
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <h3 style={{
                     margin: '0 0 4px 0',
-                    fontSize: '18px',
+                    fontSize: 'clamp(16px, 4vw, 18px)',
                     fontWeight: '700',
                     color: '#1f2937'
                   }}>
@@ -588,34 +656,36 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   </h3>
                   <p style={{
                     margin: 0,
-                    fontSize: '14px',
-                    color: '#6b7280'
+                    fontSize: 'clamp(12px, 3vw, 14px)',
+                    color: '#6b7280',
+                    lineHeight: '1.4'
                   }}>
                     Physical stillness training
                   </p>
                 </div>
                 <div style={{
-                  fontSize: '16px',
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
                   color: '#667eea',
                   transform: showT1T5Dropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.3s ease'
+                  transition: 'transform 0.3s ease',
+                  flexShrink: 0
                 }}>
                   ▼
                 </div>
               </div>
 
-              {/* T1-T5 Dropdown */}
+              {/* T1-T5 Dropdown - Mobile Responsive */}
               {showT1T5Dropdown && (
                 <div style={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: '12px',
-                  padding: '16px',
+                  borderRadius: 'clamp(8px, 2vw, 12px)',
+                  padding: 'clamp(12px, 3vw, 16px)',
                   boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)',
                   animation: 'slideDown 0.3s ease-out'
                 }}>
                   <div style={{
                     color: 'white',
-                    fontSize: '14px',
+                    fontSize: 'clamp(12px, 3vw, 14px)',
                     fontWeight: '600',
                     marginBottom: '12px',
                     textAlign: 'center'
@@ -624,7 +694,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   </div>
                   <div style={{
                     display: 'grid',
-                    gap: '8px'
+                    gap: 'clamp(6px, 1.5vw, 8px)'
                   }}>
                     {tLevels.map((tLevel) => (
                       <button
@@ -633,14 +703,15 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                         style={{
                           background: 'rgba(255, 255, 255, 0.15)',
                           border: '1px solid rgba(255, 255, 255, 0.25)',
-                          borderRadius: '8px',
+                          borderRadius: 'clamp(6px, 1.5vw, 8px)',
                           color: 'white',
-                          padding: '12px 16px',
-                          fontSize: '13px',
+                          padding: 'clamp(10px, 2.5vw, 12px) clamp(12px, 3vw, 16px)',
+                          fontSize: 'clamp(11px, 2.5vw, 13px)',
                           fontWeight: '500',
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          textAlign: 'left'
+                          textAlign: 'left',
+                          width: '100%'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
@@ -659,7 +730,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               )}
             </div>
 
-            {/* PAHM Stages 2-6 */}
+            {/* PAHM Stages 2-6 - Mobile Responsive */}
             {stageData.map((stage) => (
               <div
                 key={stage.num}
@@ -668,8 +739,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   background: currentStage >= stage.num 
                     ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)'
                     : 'linear-gradient(135deg, rgba(209, 213, 219, 0.08) 0%, rgba(156, 163, 175, 0.08) 100%)',
-                  borderRadius: '16px',
-                  padding: '20px',
+                  borderRadius: 'clamp(12px, 3vw, 16px)',
+                  padding: 'clamp(16px, 4vw, 20px)',
                   border: currentStage >= stage.num 
                     ? '2px solid rgba(102, 126, 234, 0.2)'
                     : '2px solid rgba(209, 213, 219, 0.2)',
@@ -693,8 +764,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   alignItems: 'center'
                 }}>
                   <div style={{
-                    width: '48px',
-                    height: '48px',
+                    width: 'clamp(40px, 10vw, 48px)',
+                    height: 'clamp(40px, 10vw, 48px)',
                     borderRadius: '50%',
                     background: currentStage >= stage.num 
                       ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
@@ -703,17 +774,18 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '18px',
+                    fontSize: 'clamp(14px, 4vw, 18px)',
                     fontWeight: '700',
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                    marginRight: '16px'
+                    marginRight: 'clamp(12px, 3vw, 16px)',
+                    flexShrink: 0
                   }}>
                     {stage.num}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <h3 style={{
                       margin: '0 0 4px 0',
-                      fontSize: '18px',
+                      fontSize: 'clamp(16px, 4vw, 18px)',
                       fontWeight: '700',
                       color: currentStage >= stage.num ? '#1f2937' : '#9ca3af'
                     }}>
@@ -721,16 +793,18 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     </h3>
                     <p style={{
                       margin: 0,
-                      fontSize: '14px',
-                      color: currentStage >= stage.num ? '#6b7280' : '#9ca3af'
+                      fontSize: 'clamp(12px, 3vw, 14px)',
+                      color: currentStage >= stage.num ? '#6b7280' : '#9ca3af',
+                      lineHeight: '1.4'
                     }}>
                       {stage.desc}
                     </p>
                   </div>
                   {currentStage < stage.num && (
                     <div style={{
-                      fontSize: '16px',
-                      color: '#9ca3af'
+                      fontSize: 'clamp(14px, 3.5vw, 16px)',
+                      color: '#9ca3af',
+                      flexShrink: 0
                     }}>
                       🔒
                     </div>
@@ -741,24 +815,25 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* Quick Actions */}
+        {/* MOBILE RESPONSIVE QUICK ACTIONS */}
         <section style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+          gap: 'clamp(16px, 4vw, 20px)',
           marginBottom: '24px'
         }}>
           <div style={{
             background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '20px',
-            padding: '24px',
+            borderRadius: 'clamp(16px, 4vw, 20px)',
+            padding: 'clamp(20px, 5vw, 24px)',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
             backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(255, 255, 255, 0.3)'
           }}>
             <h3 style={{
               margin: '0 0 16px 0',
-              fontSize: '20px',
+              fontSize: 'clamp(18px, 4.5vw, 20px)',
               fontWeight: '700',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               WebkitBackgroundClip: 'text',
@@ -769,7 +844,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </h3>
             <div style={{
               display: 'grid',
-              gap: '12px'
+              gap: 'clamp(10px, 2.5vw, 12px)'
             }}>
               <button
                 onClick={onViewProgress}
@@ -777,13 +852,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '12px',
-                  padding: '16px 20px',
-                  fontSize: '16px',
+                  borderRadius: 'clamp(10px, 2.5vw, 12px)',
+                  padding: 'clamp(14px, 3.5vw, 16px) clamp(16px, 4vw, 20px)',
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  width: '100%'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
@@ -802,12 +878,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   background: 'rgba(102, 126, 234, 0.1)',
                   color: '#667eea',
                   border: '2px solid rgba(102, 126, 234, 0.2)',
-                  borderRadius: '12px',
-                  padding: '16px 20px',
-                  fontSize: '16px',
+                  borderRadius: 'clamp(10px, 2.5vw, 12px)',
+                  padding: 'clamp(14px, 3.5vw, 16px) clamp(16px, 4vw, 20px)',
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  width: '100%'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
@@ -826,12 +903,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   background: 'rgba(102, 126, 234, 0.1)',
                   color: '#667eea',
                   border: '2px solid rgba(102, 126, 234, 0.2)',
-                  borderRadius: '12px',
-                  padding: '16px 20px',
-                  fontSize: '16px',
+                  borderRadius: 'clamp(10px, 2.5vw, 12px)',
+                  padding: 'clamp(14px, 3.5vw, 16px) clamp(16px, 4vw, 20px)',
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  width: '100%'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
@@ -849,15 +927,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
           <div style={{
             background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '20px',
-            padding: '24px',
+            borderRadius: 'clamp(16px, 4vw, 20px)',
+            padding: 'clamp(20px, 5vw, 24px)',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
             backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(255, 255, 255, 0.3)'
           }}>
             <h3 style={{
               margin: '0 0 16px 0',
-              fontSize: '20px',
+              fontSize: 'clamp(18px, 4.5vw, 20px)',
               fontWeight: '700',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               WebkitBackgroundClip: 'text',
@@ -868,7 +947,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </h3>
             <div style={{
               display: 'grid',
-              gap: '12px'
+              gap: 'clamp(10px, 2.5vw, 12px)'
             }}>
               {resourceData.map((resource, index) => (
                 <button
@@ -877,11 +956,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   style={{
                     background: 'rgba(102, 126, 234, 0.05)',
                     border: '1px solid rgba(102, 126, 234, 0.1)',
-                    borderRadius: '12px',
-                    padding: '16px',
+                    borderRadius: 'clamp(10px, 2.5vw, 12px)',
+                    padding: 'clamp(12px, 3vw, 16px)',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
-                    textAlign: 'left'
+                    textAlign: 'left',
+                    width: '100%'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
@@ -898,13 +978,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     marginBottom: '8px'
                   }}>
                     <span style={{
-                      fontSize: '20px',
-                      marginRight: '12px'
+                      fontSize: 'clamp(16px, 4vw, 20px)',
+                      marginRight: 'clamp(8px, 2vw, 12px)'
                     }}>
                       {resource.icon}
                     </span>
                     <span style={{
-                      fontSize: '16px',
+                      fontSize: 'clamp(14px, 3.5vw, 16px)',
                       fontWeight: '600',
                       color: '#1f2937'
                     }}>
@@ -913,7 +993,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   </div>
                   <p style={{
                     margin: 0,
-                    fontSize: '14px',
+                    fontSize: 'clamp(12px, 3vw, 14px)',
                     color: '#6b7280',
                     lineHeight: '1.4'
                   }}>
@@ -936,6 +1016,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        /* Mobile viewport fixes */
+        @media screen and (max-width: 768px) {
+          body {
+            -webkit-text-size-adjust: 100%;
+            -webkit-font-smoothing: antialiased;
           }
         }
       `}</style>

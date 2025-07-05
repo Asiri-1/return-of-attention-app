@@ -18,7 +18,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
   const stageNumber = 1;
   const navigate = useNavigate();
   
-  const { updateUserProfileInContext, currentUser } = useAuth(); // ✅ ADD: Get currentUser to check state
+  const { updateUserProfileInContext, currentUser, userProfile } = useAuth(); // ✅ ADD: Get userProfile too
   
   // ✅ FIXED: Mark introduction AND assessment as completed with proper timing
   const markIntroCompleted = () => {
@@ -34,9 +34,12 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     
     console.log('🔍 DEBUG: About to update AuthContext...');
     
-    // ✅ CRITICAL: Update user assessment status in AuthContext
+    // 🔧 FIXED: Update user assessment status in AuthContext with correct property structure
     updateUserProfileInContext({ 
-      assessmentCompleted: true,
+      selfAssessment: {
+        ...userProfile?.selfAssessment, // Preserve existing selfAssessment data
+        completed: true
+      },
       currentStage: '1'
     });
     
