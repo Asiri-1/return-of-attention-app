@@ -22,9 +22,10 @@ import {
   updateDoc, 
   serverTimestamp,
   arrayUnion,
-  increment
+  increment,
+  FieldValue
 } from 'firebase/firestore';
-import app from './firebase'; // ✅ This is correct now
+import app from './firebase';
 import { useNavigate } from 'react-router-dom';
 
 // Enhanced Local Storage Manager
@@ -32,6 +33,7 @@ class EnhancedLocalStorageManager {
   setItem(key: string, value: string) {
     try {
       localStorage.setItem(key, value);
+      console.log(`✅ LocalStorage SET: ${key} = ${value}`);
     } catch (error) {
       console.error('Error setting localStorage item:', error);
     }
@@ -39,7 +41,9 @@ class EnhancedLocalStorageManager {
 
   getItem(key: string): string | null {
     try {
-      return localStorage.getItem(key);
+      const value = localStorage.getItem(key);
+      console.log(`📖 LocalStorage GET: ${key} = ${value}`);
+      return value;
     } catch (error) {
       console.error('Error getting localStorage item:', error);
       return null;
@@ -49,6 +53,7 @@ class EnhancedLocalStorageManager {
   removeItem(key: string) {
     try {
       localStorage.removeItem(key);
+      console.log(`🗑️ LocalStorage REMOVE: ${key}`);
     } catch (error) {
       console.error('Error removing localStorage item:', error);
     }
@@ -59,11 +64,10 @@ class EnhancedLocalStorageManager {
 class SmartIntentDetection {
   logUserAction(action: string, data: any) {
     console.log(`User action: ${action}`, data);
-    // Add your intent logging logic here
   }
 }
 
-// Extended User interface to include custom properties
+// Extended User interface
 interface User extends FirebaseUser {
   currentStage?: string;
   goals?: string[];
@@ -106,23 +110,14 @@ interface UserProfile {
   questionnaire?: {
     completed: boolean;
     responses?: any;
+    completedAt?: Date | null;
   };
   selfAssessment?: {
     completed: boolean;
     lastUpdated?: Date | null;
-    taste?: string;
-    smell?: string;
-    touch?: string;
-    sight?: string;
-    sound?: string;
-    thought?: string;
-    emotion?: string;
-    bodyAwareness?: string;
-    responses?: any;
-    format?: string;
-    version?: string;
-    attachmentScore?: number;
-    nonAttachmentCount?: number;
+    completedAt?: Date | null;
+    // 🔧 PRESERVE EXISTING FORMAT - Don't normalize, keep as-is
+    [key: string]: any;
   };
   happinessPoints: number;
   achievements: string[];
@@ -130,7 +125,27 @@ interface UserProfile {
   customFields?: Record<string, any>;
 }
 
-// 🔧 FIXED: Update AuthContext interface to match App.tsx expectations
+// FirestoreUserProfile interface for Firestore operations
+interface FirestoreUserProfile extends Omit<UserProfile, 'createdAt' | 'lastLoginAt' | 'memberSince' | 'practiceStats' | 'selfAssessment'> {
+  createdAt: FieldValue | null;
+  lastLoginAt: FieldValue | null;
+  memberSince: FieldValue | null;
+  practiceStats: {
+    totalSessions: number;
+    totalMinutes: number;
+    lastSessionDate: FieldValue | null;
+    streakDays: number;
+    longestStreak: number;
+  };
+  selfAssessment?: {
+    completed: boolean;
+    lastUpdated?: FieldValue | null;
+    completedAt?: FieldValue | null;
+    [key: string]: any;
+  };
+}
+
+// AuthContext interface
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -140,26 +155,26 @@ interface AuthContextType {
   
   // Authentication methods
   signup: (email: string, password: string, displayName: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>; // Alias
+  signUp: (email: string, password: string, displayName: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>; // Alias
+  signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   
   // Profile management
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
-  updateUserProfileInContext: (data: Partial<UserProfile>) => Promise<void>; // Alias
+  updateUserProfileInContext: (data: Partial<UserProfile>) => Promise<void>;
   updateUserEmail: (newEmail: string, password: string) => Promise<void>;
   updateUserPassword: (currentPassword: string, newPassword: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   
-  // 🔧 FIXED: Make these functions instead of boolean properties to match App.tsx usage
+  // 🔧 FIXED: Completion management
   completeQuestionnaire: (responses: any) => Promise<void>;
-  markQuestionnaireComplete: (responses: any) => Promise<void>; // Alias
+  markQuestionnaireComplete: (responses: any) => Promise<void>;
   completeSelfAssessment: (responses: any) => Promise<void>;
-  markSelfAssessmentComplete: (responses: any) => Promise<void>; // Alias
-  isQuestionnaireCompleted: () => boolean; // 🔧 FIXED: Function instead of boolean
-  isSelfAssessmentCompleted: () => boolean; // 🔧 FIXED: Function instead of boolean
+  markSelfAssessmentComplete: (responses: any) => Promise<void>;
+  isQuestionnaireCompleted: () => boolean;
+  isSelfAssessmentCompleted: () => boolean;
   
   // Session management
   showLogoutWarning: boolean;
@@ -200,16 +215,60 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Computed properties
   const isAuthenticated = !!currentUser;
   
-  // 🔧 FIXED: Convert to functions to match App.tsx expectations
+  // 🔧 FIXED: Convert to functions with proper localStorage checking
   const isQuestionnaireCompleted = useCallback((): boolean => {
-    return userProfile?.questionnaire?.completed || false;
-  }, [userProfile?.questionnaire?.completed]);
+    console.log('🔍 Checking questionnaire completion...');
+    
+    // Method 1: Check userProfile
+    if (userProfile?.questionnaire?.completed) {
+      console.log('✅ Questionnaire completed via userProfile');
+      return true;
+    }
+    
+    // Method 2: Check localStorage  
+    const localCompleted = localStorageManager.getItem('questionnaire_completed');
+    if (localCompleted === 'true') {
+      console.log('✅ Questionnaire completed via localStorage');
+      return true;
+    }
+    
+    // Method 3: Check currentUser extended properties
+    if (currentUser?.questionnaireCompleted) {
+      console.log('✅ Questionnaire completed via currentUser');
+      return true;
+    }
+    
+    console.log('❌ Questionnaire NOT completed');
+    return false;
+  }, [userProfile?.questionnaire?.completed, currentUser?.questionnaireCompleted]);
   
   const isSelfAssessmentCompleted = useCallback((): boolean => {
-    return userProfile?.selfAssessment?.completed || false;
-  }, [userProfile?.selfAssessment?.completed]);
+    console.log('🔍 Checking self-assessment completion...');
+    
+    // Method 1: Check userProfile
+    if (userProfile?.selfAssessment?.completed) {
+      console.log('✅ Self-assessment completed via userProfile');
+      return true;
+    }
+    
+    // Method 2: Check localStorage
+    const localCompleted = localStorageManager.getItem('self_assessment_completed');
+    if (localCompleted === 'true') {
+      console.log('✅ Self-assessment completed via localStorage');
+      return true;
+    }
+    
+    // Method 3: Check currentUser extended properties
+    if (currentUser?.assessmentCompleted) {
+      console.log('✅ Self-assessment completed via currentUser');
+      return true;
+    }
+    
+    console.log('❌ Self-assessment NOT completed');
+    return false;
+  }, [userProfile?.selfAssessment?.completed, currentUser?.assessmentCompleted]);
 
-  // ✅ FIX: Create missing user document helper function
+  // ✅ Create missing user document helper function
   const createUserDocument = async (user: FirebaseUser): Promise<UserProfile> => {
     console.log('🔧 Creating missing user document for:', user.email);
     
@@ -255,67 +314,85 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     // Save to Firestore
-    await setDoc(doc(db, 'users', user.uid), {
-      ...newUserProfile,
-      createdAt: serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-      memberSince: serverTimestamp(),
-      practiceStats: {
-        ...newUserProfile.practiceStats,
-        lastSessionDate: null
-      },
-      selfAssessment: {
-        ...newUserProfile.selfAssessment,
-        lastUpdated: null
-      }
-    });
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        ...newUserProfile,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        memberSince: serverTimestamp(),
+        practiceStats: {
+          ...newUserProfile.practiceStats,
+          lastSessionDate: null
+        },
+        selfAssessment: {
+          ...newUserProfile.selfAssessment,
+          lastUpdated: null
+        }
+      });
+      console.log('✅ User document created successfully');
+    } catch (error) {
+      console.error('❌ Error creating user document:', error);
+      // Continue with local profile even if Firebase fails
+    }
     
-    console.log('✅ User document created successfully');
     return newUserProfile;
   };
 
-  // ✅ FIX: Enhanced user profile loader with automatic document creation
+  // ✅ Enhanced user profile loader with automatic document creation
   const loadUserProfile = async (user: FirebaseUser) => {
     try {
       console.log('📊 Loading user profile for:', user.email);
       
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
       let profileData: UserProfile;
       
-      if (!userDoc.exists()) {
-        console.log('🔧 User document does not exist, creating new one...');
-        // ✅ FIX: Create missing document instead of throwing error
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          console.log('🔧 User document does not exist, creating new one...');
+          profileData = await createUserDocument(user);
+        } else {
+          console.log('✅ User document found, loading data...');
+          const userData = userDoc.data();
+          
+          // Convert timestamps to dates and create extended user object
+          profileData = {
+            ...userData,
+            createdAt: userData.createdAt ? userData.createdAt.toDate() : null,
+            lastLoginAt: userData.lastLoginAt ? userData.lastLoginAt.toDate() : null,
+            memberSince: userData.memberSince ? userData.memberSince.toDate() : null,
+            practiceStats: {
+              ...userData.practiceStats,
+              lastSessionDate: userData.practiceStats?.lastSessionDate 
+                ? userData.practiceStats.lastSessionDate.toDate() 
+                : null
+            },
+            selfAssessment: {
+              ...userData.selfAssessment,
+              lastUpdated: userData.selfAssessment?.lastUpdated 
+                ? userData.selfAssessment.lastUpdated.toDate() 
+                : null
+            }
+          } as UserProfile;
+          
+          // Update last login time for existing users
+          await updateDoc(userDocRef, {
+            lastLoginAt: serverTimestamp()
+          });
+        }
+      } catch (firebaseError) {
+        console.error('❌ Firebase error, creating local profile:', firebaseError);
+        // Create local profile if Firebase fails
         profileData = await createUserDocument(user);
-      } else {
-        console.log('✅ User document found, loading data...');
-        const userData = userDoc.data();
-        
-        // Convert timestamps to dates and create extended user object
-        profileData = {
-          ...userData,
-          createdAt: userData.createdAt ? userData.createdAt.toDate() : null,
-          lastLoginAt: userData.lastLoginAt ? userData.lastLoginAt.toDate() : null,
-          memberSince: userData.memberSince ? userData.memberSince.toDate() : null,
-          practiceStats: {
-            ...userData.practiceStats,
-            lastSessionDate: userData.practiceStats?.lastSessionDate 
-              ? userData.practiceStats.lastSessionDate.toDate() 
-              : null
-          },
-          selfAssessment: {
-            ...userData.selfAssessment,
-            lastUpdated: userData.selfAssessment?.lastUpdated 
-              ? userData.selfAssessment.lastUpdated.toDate() 
-              : null
-          }
-        } as UserProfile;
-        
-        // Update last login time for existing users
-        await updateDoc(userDocRef, {
-          lastLoginAt: serverTimestamp()
-        });
+      }
+      
+      // 🔧 FIXED: Store completion status in localStorage for reliability
+      if (profileData.questionnaire?.completed) {
+        localStorageManager.setItem('questionnaire_completed', 'true');
+      }
+      if (profileData.selfAssessment?.completed) {
+        localStorageManager.setItem('self_assessment_completed', 'true');
       }
       
       // Extend currentUser with custom properties
@@ -338,7 +415,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Log user intent
       intentDetection.logUserAction('profile_loaded', { userId: user.uid });
       
-      console.log('✅ User profile loaded successfully');
+      console.log('✅ User profile loaded successfully', {
+        questionnaireCompleted: profileData.questionnaire?.completed,
+        selfAssessmentCompleted: profileData.selfAssessment?.completed
+      });
       
     } catch (err) {
       console.error('❌ Error loading user profile:', err);
@@ -348,8 +428,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const cachedProfile = localStorageManager.getItem('userProfile');
       if (cachedProfile) {
         try {
-          setUserProfile(JSON.parse(cachedProfile));
-          console.log('✅ Loaded user profile from local storage fallback');
+          const parsedProfile = JSON.parse(cachedProfile);
+          setUserProfile(parsedProfile);
+          
+          // Also check localStorage for completion status
+          const questCompleted = localStorageManager.getItem('questionnaire_completed') === 'true';
+          const selfCompleted = localStorageManager.getItem('self_assessment_completed') === 'true';
+          
+          console.log('✅ Loaded user profile from local storage fallback', {
+            questionnaireCompleted: questCompleted,
+            selfAssessmentCompleted: selfCompleted
+          });
         } catch (parseErr) {
           console.error('❌ Error parsing cached profile:', parseErr);
         }
@@ -368,6 +457,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await loadUserProfile(user);
       } else {
         setUserProfile(null);
+        // Clear localStorage on logout
+        localStorageManager.removeItem('questionnaire_completed');
+        localStorageManager.removeItem('self_assessment_completed');
+        localStorageManager.removeItem('userProfile');
       }
       
       setIsLoading(false);
@@ -408,72 +501,95 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sign up function
   const signup = async (email: string, password: string, displayName: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      console.log('🔧 Starting signup process for:', email);
+      setIsLoading(true);
+      setError(null);
       
+      console.log('🔐 Creating new user account:', email);
+      
+      // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
+      // Update display name
       await updateProfile(user, { displayName });
-      await sendEmailVerification(user);
       
-      // Create user document (this will be handled by the auth state listener)
-      console.log('✅ Signup successful, user document will be created automatically');
+      // Create user document in Firestore
+      await createUserDocument(user);
       
-      // Navigate to questionnaire after successful signup
-      setTimeout(() => {
-        navigate('/questionnaire');
-      }, 1000);
+      // Log user intent
+      intentDetection.logUserAction('signup_completed', { userId: user.uid });
       
+      console.log('✅ User account created successfully:', user.email);
     } catch (err: any) {
-      console.error('❌ Signup error:', err);
-      setError(err.message || 'Failed to create account');
+      console.error('❌ Error creating user account:', err);
+      setError(err.message || 'Error creating account');
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // Alias for signup
+  const signUp = signup;
 
   // Login function
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      console.log('🔧 Starting login process for:', email);
+      setIsLoading(true);
+      setError(null);
       
+      console.log('🔐 Logging in user:', email);
+      
+      // Sign in with Firebase Auth
       await signInWithEmailAndPassword(auth, email, password);
-      intentDetection.logUserAction('login', { email });
       
-      console.log('✅ Login successful');
+      // Log user intent
+      intentDetection.logUserAction('login_completed', { email });
       
+      console.log('✅ User logged in successfully:', email);
     } catch (err: any) {
-      console.error('❌ Login error:', err);
-      setError(err.message || 'Failed to login');
+      console.error('❌ Error logging in:', err);
+      setError(err.message || 'Error logging in');
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // Alias for login
+  const signIn = login;
 
   // Logout function
   const logout = async () => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser) {
-        intentDetection.logUserAction('logout', { userId: currentUser.uid });
-      }
+      setIsLoading(true);
+      setError(null);
       
+      console.log('🔐 Logging out user');
+      
+      // Sign out from Firebase Auth
       await signOut(auth);
-      setShowLogoutWarning(false);
-      setSessionTimeRemaining(0);
-      navigate('/signin'); // 🔧 FIXED: Changed from '/login' to '/signin'
+      
+      // Clear local state
+      setCurrentUser(null);
+      setUserProfile(null);
+      
+      // Clear localStorage
+      localStorageManager.removeItem('questionnaire_completed');
+      localStorageManager.removeItem('self_assessment_completed');
+      localStorageManager.removeItem('userProfile');
+      
+      // Log user intent
+      intentDetection.logUserAction('logout_completed', {});
+      
+      console.log('✅ User logged out successfully');
+      
+      // Redirect to login page
+      navigate('/login');
     } catch (err: any) {
-      console.error('Logout error:', err);
-      setError(err.message || 'Failed to logout');
+      console.error('❌ Error logging out:', err);
+      setError(err.message || 'Error logging out');
     } finally {
       setIsLoading(false);
     }
@@ -481,69 +597,174 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Reset password function
   const resetPassword = async (email: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log('🔐 Sending password reset email to:', email);
+      
+      // Send password reset email
       await sendPasswordResetEmail(auth, email);
-      intentDetection.logUserAction('reset_password', { email });
+      
+      // Log user intent
+      intentDetection.logUserAction('password_reset_requested', { email });
+      
+      console.log('✅ Password reset email sent successfully');
     } catch (err: any) {
-      console.error('Reset password error:', err);
-      setError(err.message || 'Failed to send password reset email');
+      console.error('❌ Error sending password reset email:', err);
+      setError(err.message || 'Error sending password reset email');
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Send verification email function
-  const sendVerificationEmail = async () => {
-    setIsLoading(true);
-    setError(null);
-    
+  // Update user profile function
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
     try {
-      if (currentUser) {
-        await sendEmailVerification(currentUser);
-        intentDetection.logUserAction('send_verification', { userId: currentUser.uid });
-      } else {
-        throw new Error('No user is logged in');
+      setIsLoading(true);
+      setError(null);
+      
+      if (!currentUser || !userProfile) {
+        console.error('❌ Cannot update profile: No current user');
+        setError('User not authenticated');
+        return;
       }
+      
+      console.log('📝 Updating user profile:', data);
+      
+      // Update user profile in Firestore
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      
+      // Create a separate object for Firestore with proper types
+      const firestoreData: Record<string, any> = {};
+      
+      // Copy all fields from data to firestoreData
+      Object.keys(data).forEach(key => {
+        firestoreData[key] = data[key as keyof Partial<UserProfile>];
+      });
+      
+      // Convert Date objects to Firestore timestamps
+      if (data.lastLoginAt) {
+        firestoreData.lastLoginAt = serverTimestamp();
+      }
+      
+      if (data.selfAssessment?.lastUpdated) {
+        if (!firestoreData.selfAssessment) firestoreData.selfAssessment = {};
+        firestoreData.selfAssessment.lastUpdated = serverTimestamp();
+      }
+      
+      if (data.practiceStats?.lastSessionDate) {
+        if (!firestoreData.practiceStats) firestoreData.practiceStats = {};
+        firestoreData.practiceStats.lastSessionDate = serverTimestamp();
+      }
+      
+      await updateDoc(userDocRef, firestoreData);
+      
+      // Update local state
+      const updatedProfile = { ...userProfile, ...data };
+      setUserProfile(updatedProfile);
+      
+      // Update localStorage
+      localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
+      
+      // Update extended user properties if needed
+      if (data.currentStage && currentUser.currentStage !== data.currentStage) {
+        const extendedUser = { ...currentUser };
+        extendedUser.currentStage = data.currentStage;
+        setCurrentUser(extendedUser);
+      }
+      
+      if (data.selfAssessment?.completed && !currentUser.assessmentCompleted) {
+        const extendedUser = { ...currentUser };
+        extendedUser.assessmentCompleted = true;
+        setCurrentUser(extendedUser);
+        localStorageManager.setItem('self_assessment_completed', 'true');
+      }
+      
+      if (data.questionnaire?.completed && !currentUser.questionnaireCompleted) {
+        const extendedUser = { ...currentUser };
+        extendedUser.questionnaireCompleted = true;
+        setCurrentUser(extendedUser);
+        localStorageManager.setItem('questionnaire_completed', 'true');
+      }
+      
+      // Log user intent
+      intentDetection.logUserAction('profile_updated', { userId: currentUser.uid });
+      
+      console.log('✅ User profile updated successfully');
     } catch (err: any) {
-      console.error('Send verification email error:', err);
-      setError(err.message || 'Failed to send verification email');
+      console.error('❌ Error updating user profile:', err);
+      setError(err.message || 'Error updating profile');
+      
+      // Try to update localStorage even if Firestore fails
+      if (userProfile) {
+        const updatedProfile = { ...userProfile, ...data };
+        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
+        console.log('⚠️ Updated profile in localStorage as fallback');
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Update user profile in context only (no Firestore)
+  const updateUserProfileInContext = async (data: Partial<UserProfile>) => {
+    try {
+      if (!userProfile) {
+        console.error('❌ Cannot update profile in context: No user profile');
+        return;
+      }
+      
+      console.log('📝 Updating user profile in context:', data);
+      
+      // Update local state
+      const updatedProfile = { ...userProfile, ...data };
+      setUserProfile(updatedProfile);
+      
+      // Update localStorage
+      localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
+      
+      console.log('✅ User profile updated in context successfully');
+    } catch (err: any) {
+      console.error('❌ Error updating user profile in context:', err);
     }
   };
 
   // Update user email function
   const updateUserEmail = async (newEmail: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser && currentUser.email) {
-        const credential = EmailAuthProvider.credential(currentUser.email, password);
-        await reauthenticateWithCredential(currentUser, credential);
-        
-        await updateEmail(currentUser, newEmail);
-        
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          email: newEmail
-        });
-        
-        if (userProfile) {
-          const updatedProfile = { ...userProfile, email: newEmail };
-          setUserProfile(updatedProfile);
-          localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        }
-        
-        intentDetection.logUserAction('update_email', { userId: currentUser.uid });
-      } else {
-        throw new Error('No user is logged in');
+      setIsLoading(true);
+      setError(null);
+      
+      if (!currentUser) {
+        console.error('❌ Cannot update email: No current user');
+        setError('User not authenticated');
+        return;
       }
+      
+      console.log('📝 Updating user email to:', newEmail);
+      
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(currentUser.email!, password);
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update email
+      await updateEmail(currentUser, newEmail);
+      
+      // Update user profile
+      if (userProfile) {
+        await updateUserProfile({ email: newEmail });
+      }
+      
+      // Log user intent
+      intentDetection.logUserAction('email_updated', { userId: currentUser.uid });
+      
+      console.log('✅ User email updated successfully');
     } catch (err: any) {
-      console.error('Update email error:', err);
-      setError(err.message || 'Failed to update email');
+      console.error('❌ Error updating user email:', err);
+      setError(err.message || 'Error updating email');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -551,559 +772,526 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Update user password function
   const updateUserPassword = async (currentPassword: string, newPassword: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser && currentUser.email) {
-        const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
-        await reauthenticateWithCredential(currentUser, credential);
-        
-        await updatePassword(currentUser, newPassword);
-        
-        intentDetection.logUserAction('update_password', { userId: currentUser.uid });
-      } else {
-        throw new Error('No user is logged in');
+      setIsLoading(true);
+      setError(null);
+      
+      if (!currentUser) {
+        console.error('❌ Cannot update password: No current user');
+        setError('User not authenticated');
+        return;
       }
+      
+      console.log('🔐 Updating user password');
+      
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(currentUser.email!, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update password
+      await updatePassword(currentUser, newPassword);
+      
+      // Log user intent
+      intentDetection.logUserAction('password_updated', { userId: currentUser.uid });
+      
+      console.log('✅ User password updated successfully');
     } catch (err: any) {
-      console.error('Update password error:', err);
-      setError(err.message || 'Failed to update password');
+      console.error('❌ Error updating user password:', err);
+      setError(err.message || 'Error updating password');
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper function to normalize self-assessment data format
-  const normalizeSelfAssessmentData = (data: any) => {
-    if (data.format === 'standard' && data.version === '2.0') {
-      console.log('Data already in standardized format');
-      return data;
-    }
-    
-    const standardizedData: any = {
-      format: 'standard',
-      version: '2.0',
-      completed: true,
-      lastUpdated: new Date(),
-      taste: 'none',
-      smell: 'none',
-      touch: 'none',
-      sight: 'none',
-      sound: 'none',
-      thought: 'none',
-      emotion: 'none',
-      bodyAwareness: 'none',
-      responses: {}
-    };
-    
-    const allCategories = ['taste', 'smell', 'touch', 'sight', 'sound', 'thought', 'emotion', 'bodyAwareness'];
-    
-    if (data.taste || data.smell || data.touch) {
-      console.log('Detected Format 1: Simple object with direct properties');
-      
-      allCategories.forEach(category => {
-        if (data[category]) {
-          standardizedData[category] = data[category];
-          standardizedData.responses[category] = {
-            level: data[category],
-            details: data[`${category}Details`] || '',
-            category: category
-          };
-        }
-      });
-    } else if (data.responses) {
-      console.log('Detected Format 2: Object with responses property');
-      
-      standardizedData.responses = { ...data.responses };
-      
-      Object.keys(data.responses).forEach(category => {
-        const response = data.responses[category];
-        if (response) {
-          if (typeof response === 'object') {
-            standardizedData[category] = response.level || 'none';
-          } else {
-            standardizedData[category] = response || 'none';
-          }
-        }
-      });
-    } else if (data.intentBased) {
-      console.log('Detected Format 3: Legacy intentBased format');
-      
-      allCategories.forEach(category => {
-        const intentKey = `${category}Intent`;
-        if (data[intentKey]) {
-          standardizedData[category] = data[intentKey] === 'attached' ? 'high' : 
-                                      data[intentKey] === 'averse' ? 'low' : 'none';
-          
-          standardizedData.responses[category] = {
-            level: standardizedData[category],
-            details: data[`${category}Details`] || '',
-            category: category,
-            intent: data[intentKey]
-          };
-        }
-      });
-    }
-    
-    standardizedData.attachmentScore = calculateAttachmentScore(standardizedData);
-    standardizedData.nonAttachmentCount = calculateNonAttachmentCount(standardizedData);
-    
-    console.log('Normalized self-assessment data:', standardizedData);
-    return standardizedData;
-  };
-
-  // Helper function to calculate attachment score
-  const calculateAttachmentScore = (data: any): number => {
-    if (data.taste || data.smell || data.touch) {
-      const categories = ['taste', 'smell', 'touch', 'sight', 'sound', 'thought', 'emotion', 'bodyAwareness'];
-      let attachmentCount = 0;
-      let totalCategories = 0;
-      
-      categories.forEach(category => {
-        if (data[category]) {
-          totalCategories++;
-          if (data[category] === 'high' || data[category] === 'attached') {
-            attachmentCount++;
-          }
-        }
-      });
-      
-      return totalCategories > 0 ? Math.round((attachmentCount / totalCategories) * 100) : 0;
-    } else if (data.responses) {
-      const responses = data.responses;
-      let attachmentCount = 0;
-      let totalCategories = 0;
-      
-      Object.keys(responses).forEach(category => {
-        const response = responses[category];
-        if (response) {
-          totalCategories++;
-          const level = typeof response === 'object' ? response.level : response;
-          if (level === 'high' || level === 'attached') {
-            attachmentCount++;
-          }
-        }
-      });
-      
-      return totalCategories > 0 ? Math.round((attachmentCount / totalCategories) * 100) : 0;
-    }
-    
-    return 0;
-  };
-
-  // Helper function to calculate non-attachment count
-  const calculateNonAttachmentCount = (data: any): number => {
-    if (data.taste || data.smell || data.touch) {
-      const categories = ['taste', 'smell', 'touch', 'sight', 'sound', 'thought', 'emotion', 'bodyAwareness'];
-      let nonAttachmentCount = 0;
-      
-      categories.forEach(category => {
-        if (data[category] === 'none' || data[category] === 'neutral') {
-          nonAttachmentCount++;
-        }
-      });
-      
-      return nonAttachmentCount;
-    } else if (data.responses) {
-      const responses = data.responses;
-      let nonAttachmentCount = 0;
-      
-      Object.keys(responses).forEach(category => {
-        const response = responses[category];
-        if (response) {
-          const level = typeof response === 'object' ? response.level : response;
-          if (level === 'none' || level === 'neutral') {
-            nonAttachmentCount++;
-          }
-        }
-      });
-      
-      return nonAttachmentCount;
-    }
-    
-    return 0;
-  };
-
-  // Update user profile function
-  const updateUserProfile = async (data: Partial<UserProfile>) => {
-    setIsLoading(true);
-    setError(null);
-    
+  // Send verification email function
+  const sendVerificationEmail = async () => {
     try {
-      if (currentUser && userProfile) {
-        // Handle self-assessment data specially to fix format issues
-        if (data.selfAssessment) {
-          data.selfAssessment = normalizeSelfAssessmentData(data.selfAssessment);
-          localStorageManager.setItem('selfAssessment', JSON.stringify(data.selfAssessment));
-          localStorageManager.removeItem('happinessCache');
-        }
-        
-        // Update profile in Firestore
-        await updateDoc(doc(db, 'users', currentUser.uid), data);
-        
-        // Update local profile
-        const updatedProfile = { ...userProfile, ...data };
-        setUserProfile(updatedProfile);
-        
-        // Update extended currentUser
-        const extendedUser = { ...currentUser };
-        if (data.currentStage) extendedUser.currentStage = data.currentStage;
-        if (data.goals) extendedUser.goals = data.goals;
-        if (data.questionnaire?.completed !== undefined) extendedUser.questionnaireCompleted = data.questionnaire.completed;
-        if (data.selfAssessment?.completed !== undefined) extendedUser.assessmentCompleted = data.selfAssessment.completed;
-        setCurrentUser(extendedUser as User);
-        
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        
-        intentDetection.logUserAction('update_profile', { 
-          userId: currentUser.uid,
-          fields: Object.keys(data)
-        });
-      } else {
-        throw new Error('No user is logged in');
+      setIsLoading(true);
+      setError(null);
+      
+      if (!currentUser) {
+        console.error('❌ Cannot send verification email: No current user');
+        setError('User not authenticated');
+        return;
       }
+      
+      console.log('📧 Sending verification email to:', currentUser.email);
+      
+      // Send verification email
+      await sendEmailVerification(currentUser);
+      
+      // Log user intent
+      intentDetection.logUserAction('verification_email_sent', { userId: currentUser.uid });
+      
+      console.log('✅ Verification email sent successfully');
     } catch (err: any) {
-      console.error('Update profile error:', err);
-      setError(err.message || 'Failed to update profile');
+      console.error('❌ Error sending verification email:', err);
+      setError(err.message || 'Error sending verification email');
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Complete questionnaire function
-  const completeQuestionnaire = async (responses: any) => {
-    setIsLoading(true);
-    setError(null);
-    
+  // 🔧 FIXED: Complete questionnaire function
+  const completeQuestionnaire = async (responses: any): Promise<void> => {
     try {
-      if (currentUser && userProfile) {
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          'questionnaire.completed': true,
-          'questionnaire.responses': responses,
-          'questionnaire.completedAt': serverTimestamp()
-        });
-        
-        const updatedProfile = { 
-          ...userProfile, 
-          questionnaire: {
-            completed: true,
-            responses: responses
-          }
-        };
-        setUserProfile(updatedProfile);
-        
-        // Update extended currentUser
-        const extendedUser = { ...currentUser };
+      console.log('📝 Completing questionnaire:', responses);
+      
+      // Ensure we have a valid user profile
+      if (!userProfile) {
+        console.error('❌ Cannot complete questionnaire: No user profile');
+        setError('User profile not loaded');
+        return;
+      }
+      
+      // Update user profile with questionnaire data
+      const updatedProfile = {
+        ...userProfile,
+        questionnaire: {
+          completed: true,
+          responses: responses,
+          completedAt: new Date()
+        }
+      };
+      
+      // Save to Firestore
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await updateDoc(userDocRef, {
+            'questionnaire.completed': true,
+            'questionnaire.responses': responses,
+            'questionnaire.completedAt': serverTimestamp()
+          });
+          console.log('✅ Questionnaire saved to Firestore');
+        } catch (firestoreError) {
+          console.error('❌ Error saving to Firestore:', firestoreError);
+          // Continue with local updates even if Firestore fails
+        }
+      }
+      
+      // Update local state
+      setUserProfile(updatedProfile);
+      
+      // Set localStorage flag
+      localStorageManager.setItem('questionnaire_completed', 'true');
+      localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
+      
+      // Update extended user
+      if (currentUser) {
+        const extendedUser = {...currentUser} as User;
         extendedUser.questionnaireCompleted = true;
         extendedUser.questionnaireAnswers = responses;
-        setCurrentUser(extendedUser as User);
-        
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        
-        await addHappinessPoints(50, 'Completed initial questionnaire');
-        await addAchievement('questionnaire_completed');
-        
-        intentDetection.logUserAction('complete_questionnaire', { userId: currentUser.uid });
-      } else {
-        throw new Error('No user is logged in');
+        setCurrentUser(extendedUser);
       }
-    } catch (err: any) {
-      console.error('Complete questionnaire error:', err);
-      setError(err.message || 'Failed to save questionnaire');
-    } finally {
-      setIsLoading(false);
+      
+      console.log('✅ Questionnaire completed successfully');
+    } catch (err) {
+      console.error('❌ Error completing questionnaire:', err);
+      setError('Error completing questionnaire');
     }
   };
+  
+  // Alias for completeQuestionnaire
+  const markQuestionnaireComplete = completeQuestionnaire;
 
-  // Complete self-assessment function
-  const completeSelfAssessment = async (responses: any) => {
-    setIsLoading(true);
-    setError(null);
-    
+  // 🔧 FIXED: Complete self-assessment function
+  const completeSelfAssessment = async (responses: any): Promise<void> => {
     try {
-      if (currentUser && userProfile) {
-        const normalizedData = normalizeSelfAssessmentData(responses);
-        
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          'selfAssessment.completed': true,
-          'selfAssessment.lastUpdated': serverTimestamp(),
-          'selfAssessment': normalizedData
-        });
-        
-        const updatedProfile = { 
-          ...userProfile, 
-          selfAssessment: normalizedData
-        };
-        setUserProfile(updatedProfile);
-        
-        // Update extended currentUser
-        const extendedUser = { ...currentUser };
-        extendedUser.assessmentCompleted = true;
-        extendedUser.selfAssessmentData = normalizedData;
-        setCurrentUser(extendedUser as User);
-        
-        localStorageManager.setItem('selfAssessment', JSON.stringify(normalizedData));
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        localStorageManager.removeItem('happinessCache');
-        
-        const isFirstTime = !userProfile.selfAssessment?.completed;
-        if (isFirstTime) {
-          await addHappinessPoints(75, 'Completed first self-assessment');
-          await addAchievement('self_assessment_completed');
-        } else {
-          await addHappinessPoints(25, 'Updated self-assessment');
-        }
-        
-        intentDetection.logUserAction('complete_self_assessment', { 
-          userId: currentUser.uid,
-          isFirstTime
-        });
-      } else {
-        throw new Error('No user is logged in');
+      console.log('📝 Completing self-assessment:', responses);
+      
+      // Ensure we have a valid user profile
+      if (!userProfile) {
+        console.error('❌ Cannot complete self-assessment: No user profile');
+        setError('User profile not loaded');
+        return;
       }
-    } catch (err: any) {
-      console.error('Complete self-assessment error:', err);
-      setError(err.message || 'Failed to save self-assessment');
-    } finally {
-      setIsLoading(false);
+      
+      // FIXED: Ensure the completed flag is explicitly set to true
+      const selfAssessmentData = {
+        ...responses,
+        completed: true,
+        lastUpdated: new Date(),
+        completedAt: new Date()
+      };
+      
+      // Update user profile with self-assessment data
+      const updatedProfile = {
+        ...userProfile,
+        selfAssessment: selfAssessmentData
+      };
+      
+      // Save to Firestore
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await updateDoc(userDocRef, {
+            'selfAssessment': {
+              ...selfAssessmentData,
+              lastUpdated: serverTimestamp(),
+              completedAt: serverTimestamp()
+            }
+          });
+          console.log('✅ Self-assessment saved to Firestore');
+        } catch (firestoreError) {
+          console.error('❌ Error saving to Firestore:', firestoreError);
+          // Continue with local updates even if Firestore fails
+        }
+      }
+      
+      // Update local state
+      setUserProfile(updatedProfile);
+      
+      // CRITICAL: Set localStorage flags
+      localStorageManager.setItem('self_assessment_completed', 'true');
+      localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
+      
+      // Update extended user
+      if (currentUser) {
+        const extendedUser = {...currentUser} as User;
+        extendedUser.assessmentCompleted = true;
+        extendedUser.selfAssessmentData = responses;
+        setCurrentUser(extendedUser);
+      }
+      
+      // Clear happiness cache to force recalculation
+      localStorageManager.removeItem('happiness_points_cache');
+      
+      console.log('✅ Self-assessment completed successfully');
+    } catch (err) {
+      console.error('❌ Error completing self-assessment:', err);
+      setError('Error completing self-assessment');
+    }
+  };
+  
+  // Alias for completeSelfAssessment
+  const markSelfAssessmentComplete = completeSelfAssessment;
+
+  // Extend session function
+  const extendSession = () => {
+    setShowLogoutWarning(false);
+    console.log('⏱️ Session extended');
+  };
+
+  // Sync with local data function
+  const syncWithLocalData = async () => {
+    try {
+      console.log('🔄 Syncing with local data');
+      
+      // Check if we have a user profile
+      if (!userProfile || !currentUser) {
+        console.log('❌ Cannot sync: No user profile or current user');
+        return;
+      }
+      
+      // Load data from localStorage
+      const cachedProfile = localStorageManager.getItem('userProfile');
+      if (!cachedProfile) {
+        console.log('❌ No cached profile found');
+        return;
+      }
+      
+      const parsedProfile = JSON.parse(cachedProfile);
+      
+      // Check if cached profile is newer than current profile
+      const cachedLastUpdated = new Date(parsedProfile.lastLoginAt);
+      const currentLastUpdated = userProfile.lastLoginAt || new Date(0);
+      
+      if (cachedLastUpdated > currentLastUpdated) {
+        console.log('🔄 Cached profile is newer, updating...');
+        
+        // Update user profile in Firestore
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userDocRef, parsedProfile);
+        
+        // Update local state
+        setUserProfile(parsedProfile);
+        
+        console.log('✅ Synced with local data successfully');
+      } else {
+        console.log('✅ Current profile is up to date');
+      }
+    } catch (err) {
+      console.error('❌ Error syncing with local data:', err);
     }
   };
 
   // Add happiness points function
   const addHappinessPoints = async (points: number, reason: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser && userProfile) {
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          happinessPoints: increment(points)
-        });
-        
-        await setDoc(doc(db, 'users', currentUser.uid, 'happinessLog', Date.now().toString()), {
-          points,
-          reason,
-          timestamp: serverTimestamp()
-        });
-        
-        const updatedProfile = { 
-          ...userProfile, 
-          happinessPoints: (userProfile.happinessPoints || 0) + points
-        };
-        setUserProfile(updatedProfile);
-        
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        
-        intentDetection.logUserAction('add_happiness_points', { 
-          userId: currentUser.uid,
-          points,
-          reason
-        });
-      } else {
-        throw new Error('No user is logged in');
+      console.log(`📈 Adding ${points} happiness points for: ${reason}`);
+      
+      if (!userProfile) {
+        console.error('❌ Cannot add happiness points: No user profile');
+        return;
       }
-    } catch (err: any) {
-      console.error('Add happiness points error:', err);
-      setError(err.message || 'Failed to add happiness points');
-    } finally {
-      setIsLoading(false);
+      
+      // Calculate new total
+      const newTotal = userProfile.happinessPoints + points;
+      
+      // Update user profile
+      await updateUserProfile({
+        happinessPoints: newTotal
+      });
+      
+      // Update Firestore with increment
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await updateDoc(userDocRef, {
+            happinessPoints: increment(points)
+          });
+        } catch (firestoreError) {
+          console.error('❌ Error updating Firestore:', firestoreError);
+          // Continue with local updates even if Firestore fails
+        }
+      }
+      
+      // Log happiness points event
+      const event = {
+        userId: currentUser?.uid,
+        points,
+        reason,
+        timestamp: new Date()
+      };
+      
+      // Store in localStorage for offline tracking
+      const eventsKey = 'happiness_points_events';
+      const existingEvents = JSON.parse(localStorageManager.getItem(eventsKey) || '[]');
+      existingEvents.push(event);
+      localStorageManager.setItem(eventsKey, JSON.stringify(existingEvents));
+      
+      // Log user intent
+      intentDetection.logUserAction('happiness_points_added', event);
+      
+      console.log(`✅ Added ${points} happiness points, new total: ${newTotal}`);
+      
+      // Dispatch custom event for other components to listen
+      const customEvent = new CustomEvent('happinessUpdated', {
+        detail: {
+          happiness_points: newTotal,
+          points_added: points,
+          reason: reason
+        }
+      });
+      window.dispatchEvent(customEvent);
+      
+    } catch (err) {
+      console.error('❌ Error adding happiness points:', err);
     }
   };
 
   // Add achievement function
   const addAchievement = async (achievement: string) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser && userProfile) {
-        if (userProfile.achievements && userProfile.achievements.includes(achievement)) {
-          console.log('Achievement already earned:', achievement);
-          return;
-        }
-        
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          achievements: arrayUnion(achievement)
-        });
-        
-        await setDoc(doc(db, 'users', currentUser.uid, 'achievementsLog', Date.now().toString()), {
-          achievement,
-          timestamp: serverTimestamp()
-        });
-        
-        const updatedProfile = { 
-          ...userProfile, 
-          achievements: [...(userProfile.achievements || []), achievement]
-        };
-        setUserProfile(updatedProfile);
-        
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        
-        await addHappinessPoints(25, `Earned achievement: ${achievement}`);
-        
-        intentDetection.logUserAction('add_achievement', { 
-          userId: currentUser.uid,
-          achievement
-        });
-      } else {
-        throw new Error('No user is logged in');
+      console.log(`🏆 Adding achievement: ${achievement}`);
+      
+      if (!userProfile) {
+        console.error('❌ Cannot add achievement: No user profile');
+        return;
       }
-    } catch (err: any) {
-      console.error('Add achievement error:', err);
-      setError(err.message || 'Failed to add achievement');
-    } finally {
-      setIsLoading(false);
+      
+      // Check if achievement already exists
+      if (userProfile.achievements.includes(achievement)) {
+        console.log('⚠️ Achievement already exists, skipping');
+        return;
+      }
+      
+      // Update user profile
+      const updatedAchievements = [...userProfile.achievements, achievement];
+      await updateUserProfile({
+        achievements: updatedAchievements
+      });
+      
+      // Update Firestore with arrayUnion
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await updateDoc(userDocRef, {
+            achievements: arrayUnion(achievement)
+          });
+        } catch (firestoreError) {
+          console.error('❌ Error updating Firestore:', firestoreError);
+          // Continue with local updates even if Firestore fails
+        }
+      }
+      
+      // Log user intent
+      intentDetection.logUserAction('achievement_added', {
+        userId: currentUser?.uid,
+        achievement
+      });
+      
+      console.log(`✅ Achievement added: ${achievement}`);
+      
+      // Add happiness points for achievement
+      await addHappinessPoints(10, `Achievement unlocked: ${achievement}`);
+      
+    } catch (err) {
+      console.error('❌ Error adding achievement:', err);
     }
   };
 
   // Add note function
   const addNote = async (note: any) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser && userProfile) {
-        const noteWithTimestamp = {
-          ...note,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-        
-        const noteDocRef = doc(db, 'users', currentUser.uid, 'notes', Date.now().toString());
-        await setDoc(noteDocRef, noteWithTimestamp);
-        
-        const updatedProfile = { 
-          ...userProfile, 
-          notes: [...(userProfile.notes || []), { ...note, id: noteDocRef.id }]
-        };
-        setUserProfile(updatedProfile);
-        
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        
-        intentDetection.logUserAction('add_note', { 
-          userId: currentUser.uid,
-          noteType: note.type
-        });
-      } else {
-        throw new Error('No user is logged in');
+      console.log(`📝 Adding note:`, note);
+      
+      if (!userProfile) {
+        console.error('❌ Cannot add note: No user profile');
+        return;
       }
-    } catch (err: any) {
-      console.error('Add note error:', err);
-      setError(err.message || 'Failed to add note');
-    } finally {
-      setIsLoading(false);
+      
+      // Add timestamp to note
+      const noteWithTimestamp = {
+        ...note,
+        timestamp: new Date()
+      };
+      
+      // Update user profile
+      const updatedNotes = [...userProfile.notes, noteWithTimestamp];
+      await updateUserProfile({
+        notes: updatedNotes
+      });
+      
+      // Update Firestore with arrayUnion
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await updateDoc(userDocRef, {
+            notes: arrayUnion({
+              ...noteWithTimestamp,
+              timestamp: serverTimestamp()
+            })
+          });
+        } catch (firestoreError) {
+          console.error('❌ Error updating Firestore:', firestoreError);
+          // Continue with local updates even if Firestore fails
+        }
+      }
+      
+      // Log user intent
+      intentDetection.logUserAction('note_added', {
+        userId: currentUser?.uid,
+        noteId: noteWithTimestamp.id
+      });
+      
+      console.log(`✅ Note added successfully`);
+      
+    } catch (err) {
+      console.error('❌ Error adding note:', err);
     }
   };
 
   // Update last session function
   const updateLastSession = async (duration: number) => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      if (currentUser && userProfile) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        let streakDays = userProfile.practiceStats?.streakDays || 0;
-        let longestStreak = userProfile.practiceStats?.longestStreak || 0;
-        
-        const lastSessionDate = userProfile.practiceStats?.lastSessionDate;
-        if (lastSessionDate) {
-          const lastDate = new Date(lastSessionDate);
-          lastDate.setHours(0, 0, 0, 0);
-          
-          const diffTime = Math.abs(today.getTime() - lastDate.getTime());
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays === 1) {
-            streakDays++;
-            if (streakDays > longestStreak) {
-              longestStreak = streakDays;
-            }
-          } else if (diffDays > 1) {
-            streakDays = 1;
-          }
-        } else {
-          streakDays = 1;
-          longestStreak = 1;
-        }
-        
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          'practiceStats.totalSessions': increment(1),
-          'practiceStats.totalMinutes': increment(duration),
-          'practiceStats.lastSessionDate': serverTimestamp(),
-          'practiceStats.streakDays': streakDays,
-          'practiceStats.longestStreak': longestStreak
-        });
-        
-        await setDoc(doc(db, 'users', currentUser.uid, 'sessionLog', Date.now().toString()), {
-          duration,
-          timestamp: serverTimestamp()
-        });
-        
-        const updatedProfile = { 
-          ...userProfile, 
-          practiceStats: {
-            ...userProfile.practiceStats,
-            totalSessions: (userProfile.practiceStats?.totalSessions || 0) + 1,
-            totalMinutes: (userProfile.practiceStats?.totalMinutes || 0) + duration,
-            lastSessionDate: new Date(),
-            streakDays,
-            longestStreak
-          }
-        };
-        setUserProfile(updatedProfile);
-        
-        localStorageManager.setItem('userProfile', JSON.stringify(updatedProfile));
-        
-        await addHappinessPoints(duration * 2, `Completed ${duration} minute practice session`);
-        
-        // Check for streak achievements
-        if (streakDays === 3) {
-          await addAchievement('streak_3_days');
-        } else if (streakDays === 7) {
-          await addAchievement('streak_7_days');
-        } else if (streakDays === 30) {
-          await addAchievement('streak_30_days');
-        }
-        
-        // Check for session count achievements
-        const totalSessions = (userProfile.practiceStats?.totalSessions || 0) + 1;
-        if (totalSessions === 10) {
-          await addAchievement('sessions_10');
-        } else if (totalSessions === 50) {
-          await addAchievement('sessions_50');
-        } else if (totalSessions === 100) {
-          await addAchievement('sessions_100');
-        }
-        
-        intentDetection.logUserAction('complete_session', { 
-          userId: currentUser.uid,
-          duration,
-          streakDays
-        });
-      } else {
-        throw new Error('No user is logged in');
+      console.log(`⏱️ Updating last session: ${duration} minutes`);
+      
+      if (!userProfile) {
+        console.error('❌ Cannot update last session: No user profile');
+        return;
       }
-    } catch (err: any) {
-      console.error('Update last session error:', err);
-      setError(err.message || 'Failed to update session data');
-    } finally {
-      setIsLoading(false);
+      
+      // Calculate new stats
+      const totalSessions = userProfile.practiceStats.totalSessions + 1;
+      const totalMinutes = userProfile.practiceStats.totalMinutes + duration;
+      
+      // Calculate streak
+      let streakDays = userProfile.practiceStats.streakDays;
+      let longestStreak = userProfile.practiceStats.longestStreak;
+      
+      const lastSessionDate = userProfile.practiceStats.lastSessionDate;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (lastSessionDate) {
+        const lastDate = new Date(lastSessionDate);
+        lastDate.setHours(0, 0, 0, 0);
+        
+        const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          // Consecutive day
+          streakDays += 1;
+          if (streakDays > longestStreak) {
+            longestStreak = streakDays;
+          }
+        } else if (diffDays > 1) {
+          // Streak broken
+          streakDays = 1;
+        }
+        // If diffDays === 0, it's the same day, so don't change streak
+      } else {
+        // First session ever
+        streakDays = 1;
+        longestStreak = 1;
+      }
+      
+      // Update user profile
+      await updateUserProfile({
+        practiceStats: {
+          totalSessions,
+          totalMinutes,
+          lastSessionDate: new Date(),
+          streakDays,
+          longestStreak
+        }
+      });
+      
+      // Update Firestore
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          await updateDoc(userDocRef, {
+            'practiceStats.totalSessions': increment(1),
+            'practiceStats.totalMinutes': increment(duration),
+            'practiceStats.lastSessionDate': serverTimestamp(),
+            'practiceStats.streakDays': streakDays,
+            'practiceStats.longestStreak': longestStreak
+          });
+        } catch (firestoreError) {
+          console.error('❌ Error updating Firestore:', firestoreError);
+          // Continue with local updates even if Firestore fails
+        }
+      }
+      
+      // Log user intent
+      intentDetection.logUserAction('session_completed', {
+        userId: currentUser?.uid,
+        duration,
+        streakDays
+      });
+      
+      console.log(`✅ Last session updated successfully`);
+      
+      // Add happiness points for session
+      await addHappinessPoints(Math.ceil(duration / 5), `Completed ${duration} minute practice session`);
+      
+      // Check for streak achievements
+      if (streakDays === 3) {
+        await addAchievement('three_day_streak');
+      } else if (streakDays === 7) {
+        await addAchievement('seven_day_streak');
+      } else if (streakDays === 30) {
+        await addAchievement('thirty_day_streak');
+      }
+      
+      // Check for session count achievements
+      if (totalSessions === 10) {
+        await addAchievement('ten_sessions');
+      } else if (totalSessions === 50) {
+        await addAchievement('fifty_sessions');
+      } else if (totalSessions === 100) {
+        await addAchievement('hundred_sessions');
+      }
+      
+    } catch (err) {
+      console.error('❌ Error updating last session:', err);
     }
   };
-
-  // Session management functions
-  const extendSession = useCallback(() => {
-    setShowLogoutWarning(false);
-    setSessionTimeRemaining(0);
-  }, []);
-
-  const syncWithLocalData = useCallback(async () => {
-    // Sync logic here if needed
-    console.log('Syncing with local data...');
-  }, []);
 
   // Clear error function
   const clearError = () => {
@@ -1120,26 +1308,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Authentication methods
     signup,
-    signUp: signup, // Alias
+    signUp,
     login,
-    signIn: login, // Alias - 🔧 FIXED: Now maps to login function
+    signIn,
     logout,
     resetPassword,
     
     // Profile management
     updateUserProfile,
-    updateUserProfileInContext: updateUserProfile, // Alias
+    updateUserProfileInContext,
     updateUserEmail,
     updateUserPassword,
     sendVerificationEmail,
     
-    // Questionnaire and Assessment
+    // Completion management
     completeQuestionnaire,
-    markQuestionnaireComplete: completeQuestionnaire, // Alias
+    markQuestionnaireComplete,
     completeSelfAssessment,
-    markSelfAssessmentComplete: completeSelfAssessment, // Alias
-    isQuestionnaireCompleted, // 🔧 FIXED: Now a function
-    isSelfAssessmentCompleted, // 🔧 FIXED: Now a function
+    markSelfAssessmentComplete,
+    isQuestionnaireCompleted,
+    isSelfAssessmentCompleted,
     
     // Session management
     showLogoutWarning,
@@ -1172,3 +1360,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
