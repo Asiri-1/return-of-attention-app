@@ -1,895 +1,681 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { useLocalData } from './contexts/LocalDataContext';
 
 interface UserProfileProps {
   onBack: () => void;
   onLogout: () => void;
 }
 
+// ✅ FIXED: Proper TypeScript interfaces matching your LocalDataContext
+interface PracticeSession {
+  sessionId: string;
+  timestamp: string;
+  duration: number;
+  sessionType?: 'stage1' | 'stage2' | 'mind_recovery' | 'pahm_practice';
+  pahmCounts?: {
+    total: number;
+    [key: string]: number;
+  };
+  qualityRating?: number;
+  rating?: number;
+  environmentRating?: number;
+  recoveryMetrics?: {
+    stressReduction: number;
+    clarityImprovement: number;
+    emotionalBalance: number;
+  };
+}
+
+interface EmotionalNote {
+  id: string;
+  timestamp: string;
+  emotion: string;
+  intensity: number;
+  trigger?: string;
+  notes: string;
+}
+
+interface CategoryData {
+  level: 'none' | 'some' | 'strong';
+  details?: string;
+}
+
+interface SelfAssessmentData {
+  completed: boolean;
+  completedAt?: string;
+  categories: {
+    [key: string]: CategoryData;
+  };
+  metrics: {
+    nonAttachmentCount: number;
+    attachmentScore: number;
+    attachmentLevel: string;
+  };
+}
+
+interface QuestionnaireData {
+  completed: boolean;
+  completedAt?: string;
+  responses: {
+    experience_level: number;
+    age_range?: string;
+    location?: string;
+    occupation?: string;
+    education_level?: string;
+    sleep_pattern: number;
+    physical_activity?: string;
+    daily_routine?: string;
+    work_life_balance?: string;
+    stress_triggers?: string[];
+    mindfulness_experience: number;
+    meditation_background?: string;
+    practice_goals?: string;
+    preferred_duration?: number;
+    motivation?: string;
+    [key: string]: any;
+  };
+}
+
 const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
-  const { currentUser, userProfile } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const { currentUser } = useAuth();
+  const { 
+    comprehensiveUserData, 
+    practiceSessions, 
+    emotionalNotes 
+  } = useLocalData();
+  
+  const [loading, setLoading] = useState(true);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [happinessPoints, setHappinessPoints] = useState<number>(50);
+  const [userLevel, setUserLevel] = useState<string>('Newcomer');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+      
+      const savedPoints = localStorage.getItem('happiness_points');
+      const savedLevel = localStorage.getItem('user_level');
+      
+      if (savedPoints) {
+        const points = parseInt(savedPoints, 10);
+        if (!isNaN(points)) {
+          setHappinessPoints(points);
+        }
+      }
+      
+      if (savedLevel) {
+        setUserLevel(savedLevel);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleHappinessUpdate = (event: CustomEvent) => {
+      console.log('🎯 UserProfile: Received happiness update:', event.detail);
+      if (event.detail?.happiness_points) {
+        setHappinessPoints(event.detail.happiness_points);
+      }
+      if (event.detail?.user_level) {
+        setUserLevel(event.detail.user_level);
+      }
+    };
+
+    window.addEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
+    };
+  }, []);
 
   const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionId]: !prev[sectionId]
-    }));
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId);
+    } else {
+      newExpanded.add(sectionId);
+    }
+    setExpandedSections(newExpanded);
   };
 
   const handleLogout = async () => {
     try {
       onLogout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout error:', error);
     }
   };
 
-  // ✅ FIXED: Get proper happiness points from localStorage (where HappinessProgressTracker saves them)
-  const getHappinessPoints = () => {
-    try {
-      // Read from localStorage where HappinessProgressTracker saves the calculated results
-      const savedPoints = localStorage.getItem('happiness_points');
-      if (savedPoints) {
-        const points = parseInt(savedPoints, 10);
-        if (!isNaN(points)) {
-          console.log('✅ UserProfile: Using happiness points from localStorage:', points);
-          return points;
-        }
-      }
+  // ✅ FIXED: Proper type annotations for user stats calculation
+  const calculateUserStats = () => {
+    if (!practiceSessions || practiceSessions.length === 0) {
+      return {
+        totalSessions: 0,
+        totalHours: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        lastSessionDate: null as string | null
+      };
+    }
+
+    // ✅ FIXED: Type annotations for reduce function
+    const totalMinutes = practiceSessions.reduce((sum: number, session: any) => {
+      return sum + (session.duration || 0);
+    }, 0);
+    
+    const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const sortedSessions = [...practiceSessions]
+      .map((session: any) => {
+        const date = new Date(session.timestamp);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      })
+      .sort((a, b) => b.getTime() - a.getTime())
+      .filter((date, index, arr) => index === 0 || date.getTime() !== arr[index - 1].getTime());
+
+    let currentStreak = 0;
+    let checkDate = new Date(today);
+
+    for (const sessionDate of sortedSessions) {
+      const diffDays = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Fallback to userProfile if available
-      if (userProfile?.happinessPoints) {
-        console.log('⚠️ UserProfile: Using fallback happiness points from userProfile:', userProfile.happinessPoints);
-        return userProfile.happinessPoints;
+      if (diffDays === currentStreak) {
+        currentStreak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
       }
-      
-      // Default for new users
-      console.log('⚠️ UserProfile: Using default happiness points for new user');
-      return 50;
-    } catch (error) {
-      console.error('❌ Error getting happiness points:', error);
-      return 50;
     }
-  };
 
-  // Get proper experience level based on app's progression system
-  const getExperienceLevel = () => {
-    if (!currentUser) return 'Seeker';
-    
-    // Check enhanced profile first
-    if (userProfile?.experienceLevel) {
-      return userProfile.experienceLevel;
-    }
-    
-    // Check current stage to determine level
-    const stage = parseInt(userProfile?.currentStage || '1') || 1;
-    if (stage === 1) return 'Seeker';
-    if (stage === 2) return 'PAHM Trainee';
-    if (stage === 3) return 'PAHM Beginner';
-    if (stage === 4) return 'PAHM Practitioner';
-    if (stage === 5) return 'PAHM Master';
-    if (stage === 6) return 'PAHM Illuminator';
-    
-    // Fallback to stored experience level
-    return 'Seeker';
-  };
-
-  // Get proper join date from Firebase user creation
-  const getJoinDate = () => {
-    if (!userProfile) return new Date().toLocaleDateString();
-    
-    if (userProfile.memberSince) {
-      return new Date(userProfile.memberSince).toLocaleDateString();
-    }
-    
-    // Last resort: use a reasonable default
-    return new Date().toLocaleDateString();
-  };
-
-  // Generate membership ID from UID
-  const getMembershipId = () => {
-    if (!userProfile) return 'SP-UNKNOWN';
-    
-    if (userProfile.membershipId) {
-      return userProfile.membershipId;
-    }
-    
-    if (currentUser?.uid) {
-      // Create a readable membership ID from UID
-      const shortUid = currentUser.uid.substring(0, 8).toUpperCase();
-      return `SP-${shortUid}`;
-    }
-    
-    return 'SP-UNKNOWN';
-  };
-
-  // Get account type based on proper completion checking
-  const getAccountType = () => {
-    if (!userProfile) return 'New Member';
-    
-    if (userProfile.membershipType) {
-      return userProfile.membershipType === 'admin' ? 'Administrator' : 
-             userProfile.membershipType === 'premium' ? 'Premium Member' : 'Free Member';
-    }
-    
-    const isAdmin = currentUser?.email === 'asiriamarasinghe35@gmail.com';
-    if (isAdmin) return 'Administrator';
-    
-    // Check if onboarding is completed
-    const hasCompletedOnboarding = userProfile.questionnaire?.completed && userProfile.selfAssessment?.completed;
-    if (hasCompletedOnboarding) return 'Active Member';
-    
-    return 'New Member';
-  };
-
-  // Get current stage name
-  const getCurrentStageName = () => {
-    if (!userProfile) return 'Stage 1';
-    
-    const stage = parseInt(userProfile.currentStage || '1') || 1;
-    const stageNames = {
-      1: 'Seeker - Physical stillness training',
-      2: 'PAHM Trainee - Basic attention training', 
-      3: 'PAHM Beginner - Structured practice',
-      4: 'PAHM Practitioner - Advanced techniques',
-      5: 'PAHM Master - Refined awareness',
-      6: 'PAHM Illuminator - Complete mastery'
+    return {
+      totalSessions: practiceSessions.length,
+      totalHours,
+      currentStreak,
+      longestStreak: currentStreak,
+      lastSessionDate: practiceSessions.length > 0 ? practiceSessions[practiceSessions.length - 1].timestamp : null
     };
+  };
+
+  const userStats = calculateUserStats();
+
+  const renderQuestionnaireSection = () => {
+    // ✅ FIXED: Proper type checking for questionnaire data
+    const questionnaire = comprehensiveUserData?.questionnaire as QuestionnaireData | undefined;
     
-    return stageNames[stage as keyof typeof stageNames] || `Stage ${stage}`;
-  };
-
-  // Format goals function
-  const formatGoals = (goals: string[]) => {
-    if (!goals || goals.length === 0) return 'None specified';
-    return goals.map(goal => goal.replace('-', ' ')).join(', ');
-  };
-
-  // Format questionnaire responses for display - HANDLES CORRECT DATA STRUCTURE
-  const formatQuestionnaireResponses = (questionnaire: any) => {
-    if (!questionnaire) return null;
-
-    console.log('🔍 DEBUG: Full questionnaire data:', questionnaire);
-
-    const sections = [
-      {
-        id: 'demographics',
-        title: 'Demographics & Background',
-        data: questionnaire.demographics || {},
-        fallbackData: {
-          experience_level: questionnaire.experienceLevel || questionnaire.experience_level || questionnaire.mindfulnessExperience,
-          goals: questionnaire.goals,
-          age_range: questionnaire.ageRange || questionnaire.age_range,
-          location: questionnaire.location,
-          occupation: questionnaire.occupation
-        }
-      },
-      {
-        id: 'lifestyle',
-        title: 'Lifestyle Patterns',
-        data: questionnaire.lifestyle_patterns || {},
-        fallbackData: {
-          sleep_pattern: questionnaire.sleepQuality || questionnaire.sleep_pattern || questionnaire.sleep,
-          physical_activity: questionnaire.physicalActivity || questionnaire.exercise,
-          stress_triggers: questionnaire.stressTriggers || questionnaire.stress_triggers,
-          daily_routine: questionnaire.dailyRoutine || questionnaire.routine,
-          stress_level: questionnaire.stressLevel || questionnaire.stress_level
-        }
-      },
-      {
-        id: 'thinking',
-        title: 'Thinking Patterns',
-        data: questionnaire.thinking_patterns || {},
-        fallbackData: {
-          emotional_awareness: questionnaire.emotionalAwareness || questionnaire.emotional_awareness,
-          stress_response: questionnaire.stressResponse || questionnaire.stress_response,
-          decision_making: questionnaire.decisionMaking || questionnaire.decision_making,
-          self_reflection: questionnaire.selfReflection || questionnaire.self_reflection,
-          focus_ability: questionnaire.focusAbility || questionnaire.focus_ability,
-          mind_wandering: questionnaire.mindWandering || questionnaire.mind_wandering,
-          emotional_regulation: questionnaire.emotionalRegulation || questionnaire.emotional_regulation
-        }
-      },
-      {
-        id: 'mindfulness',
-        title: 'Mindfulness Experience',
-        data: questionnaire.mindfulness_specific || {},
-        fallbackData: {
-          mindfulness_experience: questionnaire.mindfulnessExperience || questionnaire.mindfulness_experience,
-          meditation_background: questionnaire.meditationBackground || questionnaire.meditation_background,
-          practice_goals: questionnaire.practiceGoals || questionnaire.practice_goals,
-          preferred_duration: questionnaire.preferredDuration || questionnaire.preferred_duration,
-          practice_frequency: questionnaire.practiceFrequency || questionnaire.practice_frequency || questionnaire.frequency,
-          current_practices: questionnaire.currentPractices || questionnaire.current_practices,
-          meditation_style: questionnaire.meditationStyle || questionnaire.meditation_style,
-          guidance_preference: questionnaire.guidancePreference || questionnaire.guidance_preference
-        }
-      }
-    ];
-
-    return sections.map(section => {
-      const data = Object.keys(section.data).length > 0 ? section.data : section.fallbackData;
-      
-      // FILTER OUT empty/null values
-      const filteredData = Object.fromEntries(
-        Object.entries(data).filter(([key, value]) => {
-          return value !== null && value !== undefined && value !== '' && 
-                 (Array.isArray(value) ? value.length > 0 : true);
-        })
-      );
-      
-      if (!filteredData || Object.keys(filteredData).length === 0) {
-        console.log(`⚠️ No data found for section: ${section.title}`);
-        return null;
-      }
-
-      console.log(`✅ Found data for section: ${section.title}`, filteredData);
-
+    if (!questionnaire?.completed || !questionnaire.responses) {
       return (
-        <div key={section.id} style={{ marginBottom: '20px' }}>
-          <button
-            onClick={() => toggleSection(section.id)}
-            style={{
-              width: '100%',
-              padding: '15px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '10px'
-            }}
-          >
-            <span>{section.title} ({Object.keys(filteredData).length} items)</span>
-            <span>{expandedSections[section.id] ? '▼' : '▶'}</span>
-          </button>
-          
-          {expandedSections[section.id] && (
-            <div style={{
-              background: '#f8f9fa',
-              border: '1px solid #e9ecef',
-              borderRadius: '8px',
-              padding: '20px'
-            }}>
-              {Object.entries(filteredData).map(([key, value]: [string, any]) => {
-                return (
-                  <div key={key} style={{ marginBottom: '15px' }}>
-                    <strong style={{ 
-                      color: '#495057', 
-                      textTransform: 'capitalize',
-                      display: 'block',
-                      marginBottom: '5px'
-                    }}>
-                      {key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').toLowerCase()}:
-                    </strong>
-                    <div style={{ 
-                      color: '#6c757d',
-                      fontSize: '14px',
-                      lineHeight: '1.4'
-                    }}>
-                      {Array.isArray(value) ? (
-                        <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-                          {value.map((item, index) => (
-                            <li key={index}>{String(item)}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span>{String(value)}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="text-center">
+            <div className="text-4xl mb-3">📝</div>
+            <h4 className="text-lg font-semibold text-yellow-800 mb-2">Questionnaire Incomplete</h4>
+            <p className="text-yellow-700 mb-4">Complete your questionnaire to unlock detailed insights about your mindfulness journey.</p>
+            <button 
+              onClick={() => window.location.href = '/questionnaire'}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+            >
+              Complete Questionnaire
+            </button>
+          </div>
         </div>
       );
-    }).filter(Boolean);
-  };
-
-  // Format self-assessment responses for display - HANDLES ALL FORMATS
-  const formatSelfAssessmentResponses = (selfAssessment: any) => {
-    if (!selfAssessment) {
-      console.log('⚠️ No self-assessment data found');
-      return null;
     }
 
-    console.log('🔍 DEBUG: Self-assessment data received:', selfAssessment);
-
-    // Define all possible categories
-    const allCategories = ['taste', 'smell', 'touch', 'sight', 'sound', 'thought', 'emotion', 'bodyAwareness'];
-    
-    // Check which format we're dealing with
-    const hasDirectProperties = allCategories.some(cat => selfAssessment[cat] !== undefined);
-    const hasResponsesObject = selfAssessment.responses && Object.keys(selfAssessment.responses).length > 0;
-    const hasStandardFormat = selfAssessment.format === 'standard';
-    
-    console.log(`Format detection: Direct properties: ${hasDirectProperties}, Responses object: ${hasResponsesObject}, Standard format: ${hasStandardFormat}`);
-    
-    // Prepare data for display based on available format
-    const displayData: Record<string, any> = {};
-    
-    // Category display information
-    const categoryInfo: Record<string, { icon: string, title: string }> = {
-      taste: { icon: '🍽️', title: 'Food & Taste' },
-      smell: { icon: '👃', title: 'Scents & Aromas' },
-      sound: { icon: '🎵', title: 'Sounds & Music' },
-      sight: { icon: '👁️', title: 'Visual & Beauty' },
-      touch: { icon: '✋', title: 'Touch & Textures' },
-      thought: { icon: '🧠', title: 'Thoughts & Ideas' },
-      emotion: { icon: '❤️', title: 'Emotions & Feelings' },
-      bodyAwareness: { icon: '🧘', title: 'Body Awareness' }
-    };
-    
-    // Process each category
-    allCategories.forEach(category => {
-      let level = 'none';
-      let details = '';
-      
-      // Try to get data from different possible formats
-      if (hasDirectProperties && selfAssessment[category] !== undefined) {
-        level = selfAssessment[category];
-        details = selfAssessment[`${category}Details`] || '';
-      } 
-      else if (hasResponsesObject && selfAssessment.responses[category]) {
-        const response = selfAssessment.responses[category];
-        if (typeof response === 'object') {
-          level = response.level || 'none';
-          details = response.details || '';
-        } else {
-          level = response || 'none';
-        }
-      }
-      
-      // Only add categories that have data
-      if (level !== undefined) {
-        displayData[category] = { level, details };
-      }
-    });
-    
-    // Calculate attachment metrics if not already provided
-    const attachmentScore = selfAssessment.attachmentScore !== undefined ? 
-      selfAssessment.attachmentScore : 
-      calculateAttachmentScore(displayData);
-      
-    const nonAttachmentCount = selfAssessment.nonAttachmentCount !== undefined ?
-      selfAssessment.nonAttachmentCount :
-      Object.values(displayData).filter((item: any) => item.level === 'none').length;
-    
-    const totalCategories = Object.keys(displayData).length;
-    const nonAttachmentPercentage = totalCategories > 0 ? 
-      Math.round((nonAttachmentCount / totalCategories) * 100) : 0;
-    
-    // Helper function to calculate attachment score
-    function calculateAttachmentScore(data: Record<string, any>): number {
-      let attachmentCount = 0;
-      let totalCategories = Object.keys(data).length;
-      
-      Object.values(data).forEach((item: any) => {
-        if (item.level === 'high' || item.level === 'strong' || item.level === 'attached') {
-          attachmentCount++;
-        }
-      });
-      
-      return totalCategories > 0 ? Math.round((attachmentCount / totalCategories) * 100) : 0;
-    }
-    
-    // Helper function to get level display text
-    function getLevelDisplayText(level: string): string {
-      switch(level) {
-        case 'none': return '✨ No particular preferences';
-        case 'some': return '⚖️ Some preferences, flexible';
-        case 'low': return '⚖️ Some preferences, flexible';
-        case 'high': return '🔥 Strong preferences';
-        case 'strong': return '🔥 Strong preferences';
-        case 'attached': return '🔥 Strong preferences';
-        case 'averse': return '⚠️ Strong aversion';
-        case 'neutral': return '✨ Neutral awareness';
-        default: return level;
-      }
-    }
-    
-    // Helper function to get level color
-    function getLevelColor(level: string): { bg: string, text: string } {
-      switch(level) {
-        case 'none':
-        case 'neutral':
-          return { bg: '#e8f5e8', text: '#2e7d32' };
-        case 'some':
-        case 'low':
-          return { bg: '#fff3cd', text: '#856404' };
-        case 'high':
-        case 'strong':
-        case 'attached':
-          return { bg: '#f8d7da', text: '#721c24' };
-        case 'averse':
-          return { bg: '#cce5ff', text: '#004085' };
-        default:
-          return { bg: '#f8f9fa', text: '#495057' };
-      }
-    }
-    
-    // Helper function to get points for a level
-    function getPointsForLevel(level: string): number {
-      switch(level) {
-        case 'none':
-        case 'neutral':
-          return 0;
-        case 'some':
-        case 'low':
-          return -7;
-        case 'high':
-        case 'strong':
-        case 'attached':
-          return -15;
-        case 'averse':
-          return -10;
-        default:
-          return 0;
-      }
-    }
+    const { responses, completedAt } = questionnaire;
 
     return (
-      <div>
-        {/* Header with summary information */}
-        <div style={{
-          background: '#e8f5e8',
-          border: '1px solid #4caf50',
-          borderRadius: '8px',
-          padding: '15px',
-          marginBottom: '20px'
-        }}>
-          <h4 style={{ color: '#2e7d32', margin: '0 0 10px 0' }}>
-            ✨ Self-Assessment Summary
-          </h4>
-          <p style={{ color: '#1b5e20', fontSize: '14px', margin: 0 }}>
-            Completed: {selfAssessment.lastUpdated ? new Date(selfAssessment.lastUpdated).toLocaleDateString() : 'Recently'}<br/>
-            Format: {selfAssessment.format || 'Standard'} | Version: {selfAssessment.version || '1.0'}
-          </p>
-          
-          {/* Show attachment scoring */}
-          <div style={{ 
-            marginTop: '10px', 
-            padding: '10px',
-            background: '#ffffff',
-            borderRadius: '6px',
-            fontSize: '14px'
-          }}>
-            <strong style={{ color: '#2e7d32' }}>📊 Scoring Summary:</strong>
-            <div style={{ marginTop: '5px', color: '#1b5e20' }}>
-              • Attachment Score: <strong>{attachmentScore}%</strong><br/>
-              • Non-attachment Count: <strong>{nonAttachmentCount}/{totalCategories} categories</strong><br/>
-              • Non-attachment Percentage: <strong>{nonAttachmentPercentage}%</strong>
-            </div>
+      <div className="space-y-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-green-800 font-semibold">✅ Questionnaire Completed</span>
+            <span className="text-green-600 text-sm">
+              {completedAt ? new Date(completedAt).toLocaleDateString() : 'Recently'}
+            </span>
           </div>
         </div>
 
-        {/* Display each category */}
-        {Object.entries(displayData).map(([category, data]: [string, any]) => {
-          const info = categoryInfo[category] || { icon: '📋', title: category };
-          const level = data.level;
-          const details = data.details;
-          const points = getPointsForLevel(level);
-          const colors = getLevelColor(level);
+        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => toggleSection('demographics')}
+            className="w-full flex justify-between items-center p-4 text-left bg-blue-100 hover:bg-blue-200 transition-colors"
+          >
+            <h4 className="font-semibold text-blue-800 flex items-center gap-2">
+              👤 Demographics & Background
+            </h4>
+            <span className="text-blue-600 text-xl">
+              {expandedSections.has('demographics') ? '▼' : '▶'}
+            </span>
+          </button>
           
-          return (
-            <div key={category} style={{
-              background: '#f8f9fa',
-              border: '1px solid #e9ecef',
-              borderRadius: '8px',
-              padding: '15px',
-              marginBottom: '15px'
-            }}>
-              <h4 style={{ 
-                color: '#495057',
-                margin: '0 0 10px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                {info.icon} {info.title}
-              </h4>
-              
-              <div style={{ marginBottom: '10px' }}>
-                <strong style={{ color: '#6c757d' }}>Preference Level: </strong>
-                <span style={{
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  background: colors.bg,
-                  color: colors.text
-                }}>
-                  {getLevelDisplayText(level)}
-                </span>
-                
-                {/* Show point value */}
-                <span style={{
-                  marginLeft: '10px',
-                  padding: '2px 8px',
-                  borderRadius: '8px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  background: points === 0 ? '#d4edda' : '#f8d7da',
-                  color: points === 0 ? '#155724' : '#721c24'
-                }}>
-                  {points >= 0 ? `+${points}` : `${points}`} pts
-                </span>
-              </div>
-              
-              {/* Show details if available */}
-              {details && (
-                <div style={{
-                  fontSize: '14px',
-                  color: '#6c757d',
-                  marginTop: '10px',
-                  padding: '10px',
-                  background: '#f8f9fa',
-                  borderRadius: '4px',
-                  border: '1px solid #e9ecef'
-                }}>
-                  <strong>Details:</strong> {details}
+          {expandedSections.has('demographics') && (
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded p-3">
+                  <strong className="text-blue-700">Experience Level:</strong>
+                  <div className="text-lg font-semibold text-blue-600">
+                    {responses.experience_level || 0}/10
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {(responses.experience_level || 0) >= 8 ? 'Expert' : 
+                     (responses.experience_level || 0) >= 6 ? 'Advanced' :
+                     (responses.experience_level || 0) >= 4 ? 'Intermediate' : 'Beginner'}
+                  </div>
                 </div>
-              )}
-              
-              <div style={{ fontSize: '12px', color: '#adb5bd', marginTop: '10px' }}>
-                Category: {category} | Value: {level}
+                <div className="bg-white rounded p-3">
+                  <strong className="text-blue-700">Age Range:</strong>
+                  <div className="text-gray-800">{responses.age_range || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-blue-700">Location:</strong>
+                  <div className="text-gray-800">{responses.location || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-blue-700">Occupation:</strong>
+                  <div className="text-gray-800">{responses.occupation || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-blue-700">Education:</strong>
+                  <div className="text-gray-800">{responses.education_level || 'Not specified'}</div>
+                </div>
               </div>
             </div>
-          );
-        })}
+          )}
+        </div>
+
+        <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => toggleSection('lifestyle')}
+            className="w-full flex justify-between items-center p-4 text-left bg-green-100 hover:bg-green-200 transition-colors"
+          >
+            <h4 className="font-semibold text-green-800 flex items-center gap-2">
+              🌱 Lifestyle Patterns
+            </h4>
+            <span className="text-green-600 text-xl">
+              {expandedSections.has('lifestyle') ? '▼' : '▶'}
+            </span>
+          </button>
+          
+          {expandedSections.has('lifestyle') && (
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Sleep Quality:</strong>
+                  <div className="text-lg font-semibold text-green-600">
+                    {responses.sleep_pattern || 0}/10
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {(responses.sleep_pattern || 0) >= 8 ? 'Excellent' : 
+                     (responses.sleep_pattern || 0) >= 6 ? 'Good' :
+                     (responses.sleep_pattern || 0) >= 4 ? 'Fair' : 'Poor'}
+                  </div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Physical Activity:</strong>
+                  <div className="text-gray-800 capitalize">{responses.physical_activity || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Daily Routine:</strong>
+                  <div className="text-gray-800 capitalize">{responses.daily_routine || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Work-Life Balance:</strong>
+                  <div className="text-gray-800 capitalize">{responses.work_life_balance || 'Not specified'}</div>
+                </div>
+              </div>
+              
+              {responses.stress_triggers && Array.isArray(responses.stress_triggers) && responses.stress_triggers.length > 0 && (
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Stress Triggers:</strong>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {responses.stress_triggers.map((trigger: string, index: number) => (
+                      <span key={index} className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
+                        {trigger}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => toggleSection('mindfulness')}
+            className="w-full flex justify-between items-center p-4 text-left bg-purple-100 hover:bg-purple-200 transition-colors"
+          >
+            <h4 className="font-semibold text-purple-800 flex items-center gap-2">
+              🧘 Mindfulness Experience
+            </h4>
+            <span className="text-purple-600 text-xl">
+              {expandedSections.has('mindfulness') ? '▼' : '▶'}
+            </span>
+          </button>
+          
+          {expandedSections.has('mindfulness') && (
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Mindfulness Experience:</strong>
+                  <div className="text-lg font-semibold text-purple-600">
+                    {responses.mindfulness_experience || 0}/10
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {(responses.mindfulness_experience || 0) >= 8 ? 'Expert' : 
+                     (responses.mindfulness_experience || 0) >= 6 ? 'Advanced' :
+                     (responses.mindfulness_experience || 0) >= 4 ? 'Intermediate' : 'Beginner'}
+                  </div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Meditation Background:</strong>
+                  <div className="text-gray-800 capitalize">{responses.meditation_background || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Practice Goals:</strong>
+                  <div className="text-gray-800 capitalize">{responses.practice_goals || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Preferred Duration:</strong>
+                  <div className="text-gray-800">{responses.preferred_duration || 'Not specified'} minutes</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Motivation:</strong>
+                  <div className="text-gray-800 capitalize">{responses.motivation || 'Not specified'}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
 
+  const renderSelfAssessmentSection = () => {
+    // ✅ FIXED: Proper type checking for self-assessment data
+    const selfAssessment = comprehensiveUserData?.selfAssessment as SelfAssessmentData | undefined;
+    
+    if (!selfAssessment?.completed || !selfAssessment.categories) {
+      return (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+          <div className="text-center">
+            <div className="text-4xl mb-3">🧠</div>
+            <h4 className="text-lg font-semibold text-orange-800 mb-2">Self-Assessment Incomplete</h4>
+            <p className="text-orange-700 mb-4">Complete your self-assessment to see your attachment analysis and mindfulness insights.</p>
+            <button 
+              onClick={() => window.location.href = '/self-assessment'}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+            >
+              Complete Self-Assessment
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const { categories, metrics, completedAt } = selfAssessment;
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-green-800 font-semibold">✅ Self-Assessment Completed</span>
+            <span className="text-green-600 text-sm">
+              {completedAt ? new Date(completedAt).toLocaleDateString() : 'Recently'}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-6">
+          <h4 className="font-semibold mb-4 text-xl">Attachment Assessment Summary</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold">{metrics.nonAttachmentCount}/6</div>
+              <div className="text-sm opacity-90">Non-Attachment Categories</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">{metrics.attachmentScore}</div>
+              <div className="text-sm opacity-90">Attachment Score</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">{metrics.attachmentLevel}</div>
+              <div className="text-sm opacity-90">Level</div>
+            </div>
+          </div>
+          
+          <div className="mt-4 bg-white bg-opacity-20 rounded-full h-3">
+            <div 
+              className="bg-white h-3 rounded-full transition-all duration-1000"
+              style={{ width: `${Math.min((metrics.nonAttachmentCount / 6) * 100, 100)}%` }}
+            ></div>
+          </div>
+          <div className="text-sm mt-2 opacity-90">
+            Progress toward complete non-attachment
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          {Object.entries(categories).map(([category, data]) => {
+            const categoryInfo: { [key: string]: { icon: string; title: string } } = {
+              taste: { icon: '🍽️', title: 'Food & Taste' },
+              smell: { icon: '👃', title: 'Scents & Aromas' },
+              sound: { icon: '🎵', title: 'Sounds & Music' },
+              sight: { icon: '👁️', title: 'Visual & Beauty' },
+              touch: { icon: '✋', title: 'Touch & Textures' },
+              mind: { icon: '🧠', title: 'Thoughts & Mental Images' },
+            };
+            
+            const info = categoryInfo[category] || { icon: '❓', title: category };
+            
+            // ✅ FIXED: Proper type checking and indexing
+            const levelColors: { [key in 'none' | 'some' | 'strong']: string } = {
+              none: 'bg-green-100 text-green-800 border-green-200',
+              some: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+              strong: 'bg-red-100 text-red-800 border-red-200',
+            };
+            
+            const levelTexts: { [key in 'none' | 'some' | 'strong']: string } = {
+              none: '✨ No particular preferences',
+              some: '⚖️ Some preferences, flexible',
+              strong: '🔥 Strong preferences',
+            };
+            
+            // ✅ FIXED: Type assertion with validation
+            const categoryData = data as CategoryData;
+            const level = categoryData.level || 'none';
+            
+            return (
+              <div key={category} className={`border rounded-lg ${levelColors[level]}`}>
+                <div className="p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-lg">
+                      {info.icon} {info.title}
+                    </span>
+                    <span className="text-sm font-semibold">
+                      {levelTexts[level]}
+                    </span>
+                  </div>
+                  {categoryData.details && (
+                    <div className="mt-3 text-sm opacity-80">
+                      <strong>Details:</strong> {categoryData.details}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-8 shadow-lg text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <h3 className="text-lg font-semibold text-gray-700">Loading your profile...</h3>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-8 shadow-lg text-center">
+          <h3 className="text-lg font-semibold text-gray-700">Please sign in to view your profile</h3>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      maxWidth: '800px',
-      margin: '0 auto',
-      padding: '20px',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <button 
-        onClick={onBack}
-        style={{
-          background: 'rgba(255, 255, 255, 0.2)',
-          color: '#333',
-          border: '2px solid #333',
-          borderRadius: '25px',
-          padding: '8px 16px',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          marginBottom: '20px'
-        }}
-      >
-        ← Back
-      </button>
-      
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '30px'
-      }}>
-        <h1 style={{ margin: 0 }}>User Profile</h1>
-        <button 
-          onClick={handleLogout}
-          style={{
-            background: '#f44336',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            padding: '8px 16px',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-        >
-          Logout
-        </button>
-      </div>
-      
-      {/* Account Status */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        borderRadius: '10px',
-        padding: '20px',
-        marginBottom: '30px'
-      }}>
-        <h2 style={{ 
-          margin: '0 0 20px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          <span style={{
-            background: '#8a2be2',
-            borderRadius: '50%',
-            width: '30px',
-            height: '30px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px'
-          }}>👤</span>
-          Account Status
-        </h2>
-        
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '20px'
-        }}>
-          <div>
-            <div style={{ fontSize: '14px', opacity: 0.8, marginBottom: '5px' }}>Account Type:</div>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              padding: '8px 12px',
-              borderRadius: '5px',
-              fontWeight: 'bold'
-            }}>
-              {getAccountType()}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+          
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-8 text-center">
+            <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+              👤
+            </div>
+            <h1 className="text-3xl font-bold mb-2">
+              {currentUser.displayName || currentUser.email?.split('@')[0] || 'Mindful Practitioner'}
+            </h1>
+            <p className="text-xl opacity-90 mb-1">{userLevel}</p>
+            <p className="text-sm opacity-80">
+              Member since {new Date().toLocaleDateString()}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 bg-gray-100">
+            <div className="bg-white p-6 text-center">
+              <div className="text-2xl font-bold text-indigo-600">{happinessPoints}</div>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Happiness Points</div>
+            </div>
+            <div className="bg-white p-6 text-center">
+              <div className="text-2xl font-bold text-green-600">{userStats.totalSessions}</div>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Sessions</div>
+            </div>
+            <div className="bg-white p-6 text-center">
+              <div className="text-2xl font-bold text-yellow-600">{userStats.currentStreak}</div>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Day Streak</div>
+            </div>
+            <div className="bg-white p-6 text-center">
+              <div className="text-2xl font-bold text-red-600">{userStats.totalHours}h</div>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Total Practice</div>
             </div>
           </div>
-          
-          <div>
-            <div style={{ fontSize: '14px', opacity: 0.8, marginBottom: '5px' }}>Membership ID:</div>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              padding: '8px 12px',
-              borderRadius: '5px',
-              fontWeight: 'bold'
-            }}>
-              {getMembershipId()}
-            </div>
-          </div>
-          
-          <div>
-            <div style={{ fontSize: '14px', opacity: 0.8, marginBottom: '5px' }}>Member Since:</div>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              padding: '8px 12px',
-              borderRadius: '5px',
-              fontWeight: 'bold'
-            }}>
-              {getJoinDate()}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Questionnaire Responses */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ 
-          margin: '0 0 20px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          color: '#333'
-        }}>
-          <span style={{
-            background: '#f0f0f0',
-            borderRadius: '50%',
-            width: '30px',
-            height: '30px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px'
-          }}>📋</span>
-          Questionnaire Responses
-        </h2>
-        
-        {userProfile?.questionnaire?.completed ? (
-          formatQuestionnaireResponses(userProfile.questionnaire.responses)
-        ) : (
-          <div style={{
-            background: '#f8d7da',
-            color: '#721c24',
-            padding: '15px',
-            borderRadius: '5px',
-            textAlign: 'center'
-          }}>
-            No questionnaire responses found. Please complete the questionnaire.
-          </div>
-        )}
-      </div>
-      
-      {/* Self-Assessment Responses */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ 
-          margin: '0 0 20px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          color: '#333'
-        }}>
-          <span style={{
-            background: '#f0f0f0',
-            borderRadius: '50%',
-            width: '30px',
-            height: '30px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '16px'
-          }}>🧠</span>
-          Self-Assessment Responses
-        </h2>
-        
-        {userProfile?.selfAssessment?.completed ? (
-          formatSelfAssessmentResponses(userProfile.selfAssessment)
-        ) : (
-          <div style={{
-            background: '#f8d7da',
-            color: '#721c24',
-            padding: '15px',
-            borderRadius: '5px',
-            textAlign: 'center'
-          }}>
-            No self-assessment responses found. Please complete the self-assessment.
-          </div>
-        )}
-      </div>
-      
-      {/* Practice Stats */}
-      {userProfile?.practiceStats && (
-        <div style={{ marginBottom: '30px' }}>
-          <h2 style={{ 
-            margin: '0 0 20px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: '#333'
-          }}>
-            <span style={{
-              background: '#f0f0f0',
-              borderRadius: '50%',
-              width: '30px',
-              height: '30px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px'
-            }}>📊</span>
-            Practice Statistics
-          </h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '15px'
-          }}>
-            <div style={{
-              background: '#e8f5e8',
-              padding: '15px',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '14px', color: '#2e7d32', marginBottom: '5px' }}>Total Sessions</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1b5e20' }}>
-                {userProfile.practiceStats.totalSessions || 0}
+
+          <div className="p-8 space-y-8">
+            
+            <div>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">👤</span>
+                Account Information
+              </h2>
+              
+              <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="font-semibold text-gray-700">Email:</span>
+                  <span className="text-gray-600">{currentUser.email}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="font-semibold text-gray-700">User ID:</span>
+                  <span className="text-gray-600 font-mono text-sm">{currentUser.uid.substring(0, 8)}...</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="font-semibold text-gray-700">Account Type:</span>
+                  <span className="text-gray-600">
+                    {currentUser.email === 'asiriamarasinghe35@gmail.com' ? 'Administrator' : 'Standard User'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="font-semibold text-gray-700">Current Level:</span>
+                  <span className="text-gray-600">{userLevel}</span>
+                </div>
               </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">📝</span>
+                Questionnaire Responses
+              </h2>
+              {renderQuestionnaireSection()}
             </div>
             
-            <div style={{
-              background: '#e3f2fd',
-              padding: '15px',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '14px', color: '#0d47a1', marginBottom: '5px' }}>Total Minutes</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#0d47a1' }}>
-                {userProfile.practiceStats.totalMinutes || 0}
+            <div>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">🧠</span>
+                Self-Assessment Results
+              </h2>
+              {renderSelfAssessmentSection()}
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">📊</span>
+                Practice Statistics
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600 mb-1">{userStats.totalSessions}</div>
+                  <div className="text-sm text-green-700">Total Sessions</div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600 mb-1">{userStats.totalHours}h</div>
+                  <div className="text-sm text-blue-700">Total Practice Time</div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-600 mb-1">{userStats.currentStreak}</div>
+                  <div className="text-sm text-yellow-700">Current Streak</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-600 mb-1">{emotionalNotes?.length || 0}</div>
+                  <div className="text-sm text-purple-700">Emotional Notes</div>
+                </div>
+              </div>
+              
+              {userStats.lastSessionDate && (
+                <div className="text-center text-sm text-gray-600 mt-4">
+                  Last practice session: {new Date(userStats.lastSessionDate).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-lg p-6 text-center">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Current Happiness Points</h3>
+              <div className="text-4xl font-bold text-purple-600 mb-2">{happinessPoints}</div>
+              <div className="text-gray-600 mb-4">Level: {userLevel}</div>
+              <div className="text-sm text-gray-600">
+                Earn points by completing practices, reducing attachments, and maintaining consistency
               </div>
             </div>
-            
-            <div style={{
-              background: '#fff3cd',
-              padding: '15px',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '14px', color: '#856404', marginBottom: '5px' }}>Current Streak</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#856404' }}>
-                {userProfile.practiceStats.streakDays || 0} days
-              </div>
-            </div>
-            
-            <div style={{
-              background: '#f8d7da',
-              padding: '15px',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '14px', color: '#721c24', marginBottom: '5px' }}>Longest Streak</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#721c24' }}>
-                {userProfile.practiceStats.longestStreak || 0} days
-              </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
+              <button
+                onClick={onBack}
+                className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:-translate-y-1"
+              >
+                ← Back to Dashboard
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                className="flex-1 bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 transition-all duration-200 transform hover:-translate-y-1"
+              >
+                🚪 Logout
+              </button>
             </div>
           </div>
-          
-          {userProfile.practiceStats.lastSessionDate && (
-            <div style={{
-              marginTop: '15px',
-              textAlign: 'center',
-              fontSize: '14px',
-              color: '#6c757d'
-            }}>
-              Last session: {new Date(userProfile.practiceStats.lastSessionDate).toLocaleDateString()}
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* ✅ FIXED: Happiness Points - Now reads from localStorage */}
-      <div style={{
-        background: 'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)',
-        color: '#721c24',
-        borderRadius: '10px',
-        padding: '20px',
-        marginBottom: '30px',
-        textAlign: 'center'
-      }}>
-        <h2 style={{ margin: '0 0 10px 0' }}>Happiness Points</h2>
-        <div style={{ fontSize: '36px', fontWeight: 'bold' }}>
-          {getHappinessPoints()}
-        </div>
-        <div style={{ fontSize: '14px', marginTop: '10px' }}>
-          Earn points by completing practices and reducing attachments
         </div>
       </div>
-      
-      {/* Achievements */}
-      {userProfile?.achievements && userProfile.achievements.length > 0 && (
-        <div style={{ marginBottom: '30px' }}>
-          <h2 style={{ 
-            margin: '0 0 20px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: '#333'
-          }}>
-            <span style={{
-              background: '#f0f0f0',
-              borderRadius: '50%',
-              width: '30px',
-              height: '30px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px'
-            }}>🏆</span>
-            Achievements
-          </h2>
-          
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px'
-          }}>
-            {userProfile.achievements.map((achievement, index) => (
-              <div key={index} style={{
-                background: '#f8f9fa',
-                border: '1px solid #e9ecef',
-                borderRadius: '20px',
-                padding: '8px 15px',
-                fontSize: '14px',
-                color: '#495057'
-              }}>
-                {achievement.replace(/_/g, ' ')}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import AssessmentPopup from './AssessmentPopup';
+import { useLocalData } from './contexts/LocalDataContext';
 import AdminPanel from './components/AdminPanel';
+// ✅ FIXED: Import from your existing shared happiness calculation
+import { calculateHappiness, HappinessResult } from './happinessCalculations';
 
+// ✅ FIXED: Correct interface for HomeDashboard component
 interface HomeDashboardProps {
   onStartPractice: () => void;
   onViewProgress: () => void;
@@ -19,6 +22,7 @@ interface HomeDashboardProps {
   onShowWhatIsPAHM: () => void;
 }
 
+// ✅ FIXED: Ensure HomeDashboard uses correct props interface
 const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onStartPractice,
   onViewProgress,
@@ -34,193 +38,160 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onShowWhatIsPAHM
 }) => {
   const { currentUser } = useAuth();
+  
+  // ✅ FIXED: Get data from LocalDataContext only
+  const { 
+    practiceSessions, 
+    getQuestionnaire,
+    getSelfAssessment
+  } = useLocalData();
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [currentStage, setCurrentStage] = useState<number>(1);
   const [streak, setStreak] = useState<number>(0);
   const [totalHours, setTotalHours] = useState<number>(0);
   const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+  
+  // ✅ FIXED: Use shared happiness calculation result
+  const [happinessData, setHappinessData] = useState<HappinessResult>({
+    happiness_points: 50,
+    current_level: 'Newcomer',
+    breakdown: {
+      baseHappiness: 50,
+      questionnaireBonus: 0,
+      attachmentPenalty: 0,
+      nonAttachmentBonus: 0,
+      pahmMasteryBonus: 0,
+      sessionQualityBonus: 0,
+      emotionalStabilityBonus: 0,
+      mindRecoveryBonus: 0,
+      environmentBonus: 0,
+      consistencyBonus: 0,
+    }
+  });
 
-  // ✅ FIXED: Read happiness points from localStorage (where HappinessProgressTracker saves them)
-  const [happinessPoints, setHappinessPoints] = useState<number>(50);
-  const [userLevel, setUserLevel] = useState('Seeker');
+  const [isCalculating, setIsCalculating] = useState(true);
 
-  // Assessment popup state
-  const [showAssessmentPopup, setShowAssessmentPopup] = useState(false);
-
-  // Calculate real user stats instead of hardcoded values
-  const calculateUserStats = () => {
-    if (!currentUser) {
-      console.log('❌ No current user, using default stats');
+  // ✅ SIMPLIFIED: Calculate user stats only (no happiness calculation here)
+  const calculateUserStats = useCallback(() => {
+    if (!currentUser || !practiceSessions) {
       setStreak(0);
       setTotalHours(0);
       return;
     }
 
     try {
-      console.log('📊 Calculating real user stats...');
-      
-      // Calculate streak from practice sessions
-      const today = new Date();
+      // Calculate total practice hours
+      const totalPracticeHours = practiceSessions.reduce((total: number, session: any) => {
+        const duration = session.duration || 0;
+        return total + (duration / 60);
+      }, 0);
+
+      // Calculate current streak
       let currentStreak = 0;
-      let totalPracticeHours = 0;
+      if (practiceSessions.length > 0) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const sortedSessions = [...practiceSessions]
+          .map(session => {
+            const date = new Date(session.timestamp);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })
+          .sort((a, b) => b.getTime() - a.getTime())
+          .filter((date, index, arr) => index === 0 || date.getTime() !== arr[index - 1].getTime());
 
-      // Check localStorage for practice session data
-      const practiceData = JSON.parse(localStorage.getItem('practiceSessionData') || '[]');
-      
-      if (Array.isArray(practiceData) && practiceData.length > 0) {
-        // Calculate total hours from all sessions
-        totalPracticeHours = practiceData.reduce((total: number, session: any) => {
-          const duration = session.duration || 0;
-          return total + (duration / 60); // Convert minutes to hours
-        }, 0);
+        let streakCount = 0;
+        let checkDate = new Date(today);
 
-        // Calculate streak (consecutive days with practice)
-        const sortedSessions = practiceData
-          .map((session: any) => new Date(session.timestamp || session.date))
-          .sort((a: Date, b: Date) => b.getTime() - a.getTime());
-
-        if (sortedSessions.length > 0) {
-          let streakCount = 0;
-          let currentDate = new Date(today);
-          currentDate.setHours(0, 0, 0, 0);
-
-          for (let i = 0; i < sortedSessions.length; i++) {
-            const sessionDate = new Date(sortedSessions[i]);
-            sessionDate.setHours(0, 0, 0, 0);
-
-            const diffDays = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-
-            if (diffDays === streakCount) {
-              streakCount++;
-              currentDate.setDate(currentDate.getDate() - 1);
-            } else {
-              break;
-            }
+        for (const sessionDate of sortedSessions) {
+          const diffDays = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (diffDays === streakCount) {
+            streakCount++;
+            checkDate.setDate(checkDate.getDate() - 1);
+          } else {
+            break;
           }
-          currentStreak = streakCount;
         }
+        
+        currentStreak = streakCount;
       }
 
-      // Alternative: Check user profile for basic stats
-      const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-      if (userProfile.practiceStats) {
-        totalPracticeHours = userProfile.practiceStats.totalHours || totalPracticeHours;
-        currentStreak = userProfile.practiceStats.streak || currentStreak;
-      }
-
-      // Set calculated values
       setStreak(currentStreak);
-      setTotalHours(Math.round(totalPracticeHours * 10) / 10); // Round to 1 decimal
-
-      console.log('✅ Real user stats calculated:', {
-        streak: currentStreak,
-        totalHours: totalPracticeHours,
-        sessionsFound: practiceData.length
-      });
+      setTotalHours(Math.round(totalPracticeHours * 10) / 10);
 
     } catch (error) {
       console.error('❌ Error calculating user stats:', error);
-      // Fallback to defaults for new users
       setStreak(0);
       setTotalHours(0);
     }
-  };
+  }, [currentUser, practiceSessions]);
 
-  // ✅ FIXED: Read happiness points from localStorage where HappinessProgressTracker saves them
-  const loadHappinessPoints = () => {
+  // ✅ FIXED: Use your existing shared happiness calculation
+  useEffect(() => {
+    if (!currentUser) {
+      setIsCalculating(false);
+      return;
+    }
+
     try {
-      console.log('📈 HomeDashboard: Loading happiness points from localStorage...');
-      
-      // Read from localStorage where HappinessProgressTracker saves the results
-      const savedPoints = localStorage.getItem('happiness_points');
-      const savedLevel = localStorage.getItem('user_level');
-      
-      if (savedPoints && savedLevel) {
-        const points = parseInt(savedPoints, 10);
-        if (!isNaN(points)) {
-          console.log('✅ HomeDashboard: Using saved happiness points:', points);
-          setHappinessPoints(points);
-          setUserLevel(savedLevel);
-          return;
-        }
-      }
+      console.log('🔄 HomeDashboard: Using shared happiness calculation...');
+      setIsCalculating(true);
 
-      // Default values if nothing saved (new users)
-      console.log('⚠️ HomeDashboard: No saved happiness data, using defaults for new user');
-      setHappinessPoints(50);
-      setUserLevel('Seeker');
+      // Get data from LocalDataContext
+      const questionnaire = getQuestionnaire();
+      const selfAssessment = getSelfAssessment();
       
+      console.log('📊 HomeDashboard input data:', {
+        hasQuestionnaire: !!questionnaire,
+        hasSelfAssessment: !!selfAssessment,
+        practiceSessionsCount: practiceSessions?.length || 0
+      });
+
+      // ✅ FIXED: Use your existing shared happiness calculation utility
+      const result = calculateHappiness(
+        questionnaire?.responses || questionnaire, 
+        selfAssessment, 
+        practiceSessions || []
+      );
+
+      setHappinessData(result);
+
+      // Save to localStorage for consistency
+      localStorage.setItem('happiness_points', result.happiness_points.toString());
+      localStorage.setItem('user_level', result.current_level);
+      localStorage.setItem('happiness_last_calculated', Date.now().toString());
+
+      // Dispatch event for other components
+      window.dispatchEvent(new CustomEvent('happinessUpdated', {
+        detail: {
+          happiness_points: result.happiness_points,
+          user_level: result.current_level,
+          breakdown: result.breakdown
+        }
+      }));
+
+      console.log('✅ HomeDashboard happiness calculation completed:', {
+        happiness_points: result.happiness_points,
+        current_level: result.current_level
+      });
+
     } catch (error) {
-      console.error('❌ Error loading happiness points:', error);
-      setHappinessPoints(50);
-      setUserLevel('Seeker');
+      console.error('❌ Error calculating happiness points:', error);
+    } finally {
+      setIsCalculating(false);
     }
-  };
+  }, [currentUser, practiceSessions, getQuestionnaire, getSelfAssessment]);
 
-  // ✅ FIXED: Listen for happiness updates from HappinessProgressTracker
   useEffect(() => {
-    const handleHappinessUpdate = (event: any) => {
-      console.log('🎯 HomeDashboard: Received happiness update event:', event.detail);
-      if (event.detail?.happiness_points) {
-        setHappinessPoints(event.detail.happiness_points);
-        console.log('📈 HomeDashboard: Updated happiness points to:', event.detail.happiness_points);
-      }
-      if (event.detail?.user_level) {
-        setUserLevel(event.detail.user_level);
-        console.log('🏆 HomeDashboard: Updated user level to:', event.detail.user_level);
-      }
-    };
+    calculateUserStats();
+  }, [calculateUserStats]);
 
-    // Listen for custom happiness update events from HappinessProgressTracker
-    window.addEventListener('happinessUpdated', handleHappinessUpdate);
-    
-    // Also listen for storage events (in case another tab updates)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'happiness_points' && e.newValue) {
-        const points = parseInt(e.newValue, 10);
-        if (!isNaN(points)) {
-          setHappinessPoints(points);
-          console.log('📈 HomeDashboard: Happiness points updated from storage:', points);
-        }
-      }
-      if (e.key === 'user_level' && e.newValue) {
-        setUserLevel(e.newValue);
-        console.log('🏆 HomeDashboard: User level updated from storage:', e.newValue);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    // Initial load when currentUser changes
-    if (currentUser) {
-      loadHappinessPoints();
-      calculateUserStats();
-    }
-
-    return () => {
-      window.removeEventListener('happinessUpdated', handleHappinessUpdate);
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [currentUser]);
-
-  // Check for assessment popup
   useEffect(() => {
-    if (!currentUser) return;
-
-    const questionnaireCompleted = currentUser.questionnaireCompleted;
-    const assessmentCompleted = currentUser.assessmentCompleted;
-    
-    if (questionnaireCompleted && !assessmentCompleted) {
-      console.log('📊 Showing assessment popup');
-      setShowAssessmentPopup(true);
-    }
-  }, [currentUser]);
-
-  // Fetch user data on component mount
-  useEffect(() => {
-    // Check if T5 is completed
     const t5Completed = sessionStorage.getItem('t5Completed') === 'true' ||
                         localStorage.getItem('t5Completed') === 'true';
 
@@ -261,16 +232,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       sessionStorage.removeItem('returnFromStage1');
     }
 
-    if (location.state && location.state.fromT5Completion) {
+    if (location.state && (location.state as any).fromT5Completion) {
       console.log('Coming from T5 completion, updating stage progress');
       setCurrentStage(2);
       localStorage.setItem('devCurrentStage', '2');
       sessionStorage.setItem('stageProgress', '2');
       window.location.reload();
     }
-
-    // Calculate real stats instead
-    calculateUserStats();
   }, [location]);
 
   const handleStageClick = (stageNumber: number) => {
@@ -307,16 +275,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     });
   };
 
-  const handleGoToAssessment = () => {
-    setShowAssessmentPopup(false);
-    navigate('/self-assessment');
-  };
-
-  const handleCloseAssessmentPopup = () => {
-    setShowAssessmentPopup(false);
-  };
-
-  // Navigate to dedicated happiness page instead of showing modal
   const handleHappinessPointsClick = () => {
     console.log('🎯 Navigating to dedicated happiness tracker page');
     navigate('/happiness-tracker');
@@ -359,25 +317,53 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   ];
 
+  if (isCalculating) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '20px',
+          padding: '40px',
+          textAlign: 'center',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 20px'
+          }}></div>
+          <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>
+            Calculating your happiness points...
+          </h3>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
-      {/* Admin Panel */}
       <AdminPanel />
 
-      {/* Assessment Popup */}
-      {showAssessmentPopup && (
-        <AssessmentPopup
-          isOpen={showAssessmentPopup}
-          onClose={handleCloseAssessmentPopup}
-          onGoToAssessment={handleGoToAssessment}
-        />
-      )}
-
-      {/* MOBILE RESPONSIVE HEADER */}
       <header style={{
         background: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
@@ -392,7 +378,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         position: 'relative',
         zIndex: 10
       }}>
-        {/* Title - Mobile Responsive */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center',
@@ -414,13 +399,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </h1>
         </div>
         
-        {/* ✅ FIXED: MOBILE RESPONSIVE HAPPINESS POINTS - Now shows correct value from localStorage */}
         <div 
           onClick={handleHappinessPointsClick}
           style={{
-            background: happinessPoints > 400 
+            background: happinessData.happiness_points > 400 
               ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-              : happinessPoints > 200
+              : happinessData.happiness_points > 200
               ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
               : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
             padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 24px)',
@@ -449,7 +433,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             fontWeight: 'bold',
             marginBottom: '2px'
           }}>
-            😊 {happinessPoints}
+            😊 {happinessData.happiness_points}
           </div>
           <div style={{
             fontSize: 'clamp(9px, 2.5vw, 11px)',
@@ -458,7 +442,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           }}>
             Happiness Points
           </div>
-          {happinessPoints > 400 && (
+          {happinessData.happiness_points > 400 && (
             <div style={{
               position: 'absolute',
               top: '-5px',
@@ -478,7 +462,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           )}
         </div>
         
-        {/* MOBILE RESPONSIVE QUICK STATS */}
         <div style={{
           display: 'flex',
           gap: 'clamp(8px, 2vw, 16px)',
@@ -519,494 +502,392 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             fontWeight: '600',
             whiteSpace: 'nowrap'
           }}>
-            🏆 {userLevel}
+            🏆 {happinessData.current_level}
           </div>
         </div>
       </header>
 
-      {/* MOBILE RESPONSIVE MAIN CONTENT */}
       <main style={{
         padding: 'clamp(16px, 4vw, 20px)',
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {/* Journey Section */}
+        {/* Welcome Section */}
         <section style={{
           background: 'rgba(255, 255, 255, 0.95)',
           borderRadius: 'clamp(16px, 4vw, 20px)',
           padding: 'clamp(20px, 5vw, 32px)',
           marginBottom: '24px',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)'
+          textAlign: 'center'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            gap: '12px'
+          <h2 style={{ 
+            fontSize: '24px', 
+            marginBottom: '20px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
           }}>
-            <h2 style={{
-              margin: 0,
-              fontSize: 'clamp(20px, 5vw, 28px)',
-              fontWeight: '700',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              flex: '1 1 auto'
-            }}>
-              Your Journey
-            </h2>
-            <div style={{
-              padding: '6px 12px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              borderRadius: '20px',
-              fontSize: 'clamp(10px, 2.5vw, 12px)',
-              fontWeight: '600',
-              flexShrink: 0
-            }}>
-              Stage {currentStage}/6
-            </div>
+            Your Mindfulness Journey
+          </h2>
+          <p style={{ fontSize: '16px', color: '#666', marginBottom: '30px' }}>
+            Welcome back! Your happiness points: <strong>{happinessData.happiness_points}</strong>
+          </p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+            <button
+              onClick={onViewProgress}
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+            >
+              📊 View Progress
+            </button>
+            <button
+              onClick={() => navigate('/notes')}
+              style={{
+                background: 'rgba(102, 126, 234, 0.1)',
+                color: '#667eea',
+                border: '2px solid rgba(102, 126, 234, 0.2)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+            >
+              📝 Daily Notes
+            </button>
+            <button
+              onClick={() => navigate('/chatwithguru')}
+              style={{
+                background: 'rgba(102, 126, 234, 0.1)',
+                color: '#667eea',
+                border: '2px solid rgba(102, 126, 234, 0.2)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+            >
+              🧘 Chat with Guru
+            </button>
           </div>
+        </section>
 
-          {/* Progress Bar */}
-          <div style={{
-            background: 'linear-gradient(90deg, #f1f3f4 0%, #e8eaed 100%)',
-            height: 'clamp(6px, 1.5vw, 8px)',
-            borderRadius: 'clamp(3px, 1vw, 4px)',
-            marginBottom: '32px',
-            overflow: 'hidden'
+        {/* Stages Section */}
+        <section style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: 'clamp(16px, 4vw, 20px)',
+          padding: 'clamp(20px, 5vw, 32px)',
+          marginBottom: '24px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h2 style={{ 
+            fontSize: '24px', 
+            marginBottom: '8px',
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
           }}>
-            <div style={{
-              height: '100%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              width: `${Math.min(100, (currentStage / 6) * 100)}%`,
-              borderRadius: 'clamp(3px, 1vw, 4px)',
-              transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-            }} />
-          </div>
+            Practice Stages
+          </h2>
+          <p style={{ 
+            fontSize: '14px', 
+            color: '#666', 
+            textAlign: 'center',
+            marginBottom: '24px' 
+          }}>
+            Choose your practice stage and begin your mindfulness journey
+          </p>
 
-          {/* MOBILE RESPONSIVE STAGES GRID */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
-            gap: 'clamp(16px, 4vw, 20px)'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '16px',
+            marginBottom: '20px'
           }}>
-            {/* Stage 1 with Dropdown */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-              borderRadius: 'clamp(12px, 3vw, 16px)',
-              padding: 'clamp(16px, 4vw, 20px)',
-              border: '2px solid rgba(102, 126, 234, 0.2)',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0px)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}>
-              <div 
+            {/* Stage 1 - Special handling with T-levels dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
                 onClick={() => handleStageClick(1)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginBottom: showT1T5Dropdown ? '16px' : '0'
-                }}
-              >
-                <div style={{
-                  width: 'clamp(40px, 10vw, 48px)',
-                  height: 'clamp(40px, 10vw, 48px)',
-                  borderRadius: '50%',
-                  background: (sessionStorage.getItem('t5Completed') === 'true' || 
-                    localStorage.getItem('t5Completed') === 'true') 
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                    : currentStage === 1 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                    : 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 'clamp(14px, 4vw, 18px)',
-                  fontWeight: '700',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  marginRight: 'clamp(12px, 3vw, 16px)',
-                  flexShrink: 0
-                }}>
-                  {(sessionStorage.getItem('t5Completed') === 'true' || 
-                    localStorage.getItem('t5Completed') === 'true') ? '✓' : '1'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{
-                    margin: '0 0 4px 0',
-                    fontSize: 'clamp(16px, 4vw, 18px)',
-                    fontWeight: '700',
-                    color: '#1f2937'
-                  }}>
-                    Seeker
-                  </h3>
-                  <p style={{
-                    margin: 0,
-                    fontSize: 'clamp(12px, 3vw, 14px)',
-                    color: '#6b7280',
-                    lineHeight: '1.4'
-                  }}>
-                    Physical stillness training
-                  </p>
-                </div>
-                <div style={{
-                  fontSize: 'clamp(14px, 3.5vw, 16px)',
-                  color: '#667eea',
-                  transform: showT1T5Dropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.3s ease',
-                  flexShrink: 0
-                }}>
-                  ▼
-                </div>
-              </div>
-
-              {/* T1-T5 Dropdown - Mobile Responsive */}
-              {showT1T5Dropdown && (
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 'clamp(8px, 2vw, 12px)',
-                  padding: 'clamp(12px, 3vw, 16px)',
-                  boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)',
-                  animation: 'slideDown 0.3s ease-out'
-                }}>
-                  <div style={{
-                    color: 'white',
-                    fontSize: 'clamp(12px, 3vw, 14px)',
-                    fontWeight: '600',
-                    marginBottom: '12px',
-                    textAlign: 'center'
-                  }}>
-                    Choose Your Training Level
-                  </div>
-                  <div style={{
-                    display: 'grid',
-                    gap: 'clamp(6px, 1.5vw, 8px)'
-                  }}>
-                    {tLevels.map((tLevel) => (
-                      <button
-                        key={tLevel.level}
-                        onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.15)',
-                          border: '1px solid rgba(255, 255, 255, 0.25)',
-                          borderRadius: 'clamp(6px, 1.5vw, 8px)',
-                          color: 'white',
-                          padding: 'clamp(10px, 2.5vw, 12px) clamp(12px, 3vw, 16px)',
-                          fontSize: 'clamp(11px, 2.5vw, 13px)',
-                          fontWeight: '500',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          textAlign: 'left',
-                          width: '100%'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                          e.currentTarget.style.transform = 'translateX(4px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                          e.currentTarget.style.transform = 'translateX(0px)';
-                        }}
-                      >
-                        {tLevel.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* PAHM Stages 2-6 - Mobile Responsive */}
-            {stageData.map((stage) => (
-              <div
-                key={stage.num}
-                onClick={() => handleStageClick(stage.num)}
-                style={{
-                  background: currentStage >= stage.num 
-                    ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)'
-                    : 'linear-gradient(135deg, rgba(209, 213, 219, 0.08) 0%, rgba(156, 163, 175, 0.08) 100%)',
-                  borderRadius: 'clamp(12px, 3vw, 16px)',
-                  padding: 'clamp(16px, 4vw, 20px)',
-                  border: currentStage >= stage.num 
-                    ? '2px solid rgba(102, 126, 234, 0.2)'
-                    : '2px solid rgba(209, 213, 219, 0.2)',
+                  width: '100%',
+                  background: currentStage === 1 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : 'rgba(102, 126, 234, 0.1)',
+                  color: currentStage === 1 ? 'white' : '#667eea',
+                  border: '2px solid rgba(102, 126, 234, 0.2)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  opacity: currentStage >= stage.num ? 1 : 0.6
+                  textAlign: 'left',
+                  position: 'relative'
                 }}
                 onMouseEnter={(e) => {
-                  if (currentStage >= stage.num) {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
-                  }
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.3)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0px)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center'
-                }}>
-                  <div style={{
-                    width: 'clamp(40px, 10vw, 48px)',
-                    height: 'clamp(40px, 10vw, 48px)',
-                    borderRadius: '50%',
-                    background: currentStage >= stage.num 
-                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      : 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 'clamp(14px, 4vw, 18px)',
-                    fontWeight: '700',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                    marginRight: 'clamp(12px, 3vw, 16px)',
-                    flexShrink: 0
-                  }}>
-                    {stage.num}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{
-                      margin: '0 0 4px 0',
-                      fontSize: 'clamp(16px, 4vw, 18px)',
-                      fontWeight: '700',
-                      color: currentStage >= stage.num ? '#1f2937' : '#9ca3af'
-                    }}>
-                      {stage.title}
-                    </h3>
-                    <p style={{
-                      margin: 0,
-                      fontSize: 'clamp(12px, 3vw, 14px)',
-                      color: currentStage >= stage.num ? '#6b7280' : '#9ca3af',
-                      lineHeight: '1.4'
-                    }}>
-                      {stage.desc}
-                    </p>
-                  </div>
-                  {currentStage < stage.num && (
-                    <div style={{
-                      fontSize: 'clamp(14px, 3.5vw, 16px)',
-                      color: '#9ca3af',
-                      flexShrink: 0
-                    }}>
-                      🔒
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>
+                      🧘‍♂️ Stage 1: Seeker
                     </div>
-                  )}
+                    <div style={{ fontSize: '14px', opacity: 0.8 }}>
+                      Physical Stillness (T1-T5)
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '18px' }}>
+                    {showT1T5Dropdown ? '🔽' : '▶️'}
+                  </div>
                 </div>
-              </div>
+              </button>
+
+              {/* T-Levels Dropdown */}
+              {showT1T5Dropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'white',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+                  zIndex: 10,
+                  marginTop: '8px',
+                  border: '1px solid rgba(102, 126, 234, 0.2)',
+                  animation: 'slideDown 0.3s ease'
+                }}>
+                  {tLevels.map((tLevel, index) => (
+                    <button
+                      key={tLevel.level}
+                      onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
+                      style={{
+                        width: '100%',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#333',
+                        borderBottom: index < tLevels.length - 1 ? '1px solid #f0f0f0' : 'none',
+                        borderRadius: index === 0 ? '12px 12px 0 0' : index === tLevels.length - 1 ? '0 0 12px 12px' : '0',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                        {tLevel.level}: {tLevel.duration} minutes
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        Physical Stillness Practice
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Stages 2-6 */}
+            {stageData.map((stage) => (
+              <button
+                key={stage.num}
+                onClick={() => handleStageClick(stage.num)}
+                disabled={stage.num > currentStage + 1}
+                style={{
+                  background: currentStage >= stage.num 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : stage.num === currentStage + 1
+                    ? 'rgba(102, 126, 234, 0.1)'
+                    : 'rgba(200, 200, 200, 0.1)',
+                  color: currentStage >= stage.num ? 'white' : stage.num === currentStage + 1 ? '#667eea' : '#999',
+                  border: `2px solid ${currentStage >= stage.num ? 'transparent' : stage.num === currentStage + 1 ? 'rgba(102, 126, 234, 0.2)' : 'rgba(200, 200, 200, 0.2)'}`,
+                  borderRadius: '16px',
+                  padding: '20px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: stage.num <= currentStage + 1 ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'left',
+                  opacity: stage.num <= currentStage + 1 ? 1 : 0.6
+                }}
+                onMouseEnter={(e) => {
+                  if (stage.num <= currentStage + 1) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (stage.num <= currentStage + 1) {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>
+                      {stage.num === 2 ? '👁️' : stage.num === 3 ? '🎯' : stage.num === 4 ? '⚡' : stage.num === 5 ? '✨' : '🌟'} Stage {stage.num}: {stage.title}
+                    </div>
+                    <div style={{ fontSize: '14px', opacity: 0.8 }}>
+                      {stage.desc}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '18px' }}>
+                    {currentStage >= stage.num ? '✅' : stage.num === currentStage + 1 ? '▶️' : '🔒'}
+                  </div>
+                </div>
+              </button>
             ))}
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px',
+            marginTop: '20px'
+          }}>
+            <button
+              onClick={() => navigate('/mind-recovery')}
+              style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
+                border: '2px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '12px',
+                padding: '16px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+              }}
+            >
+              🌱 Mind Recovery
+            </button>
+            <button
+              onClick={onShowWhatIsPAHM}
+              style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#f59e0b',
+                border: '2px solid rgba(245, 158, 11, 0.2)',
+                borderRadius: '12px',
+                padding: '16px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
+              }}
+            >
+              🔍 What is PAHM?
+            </button>
           </div>
         </section>
 
-        {/* MOBILE RESPONSIVE QUICK ACTIONS */}
+        {/* Resources Section */}
         <section style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
-          gap: 'clamp(16px, 4vw, 20px)',
-          marginBottom: '24px'
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: 'clamp(16px, 4vw, 20px)',
+          padding: 'clamp(20px, 5vw, 32px)',
+          marginBottom: '24px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
         }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 'clamp(16px, 4vw, 20px)',
-            padding: 'clamp(20px, 5vw, 24px)',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)'
+          <h3 style={{ 
+            fontSize: '20px', 
+            marginBottom: '16px',
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
           }}>
-            <h3 style={{
-              margin: '0 0 16px 0',
-              fontSize: 'clamp(18px, 4.5vw, 20px)',
-              fontWeight: '700',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              Quick Actions
-            </h3>
-            <div style={{
-              display: 'grid',
-              gap: 'clamp(10px, 2.5vw, 12px)'
-            }}>
-              <button
-                onClick={onViewProgress}
-                style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'clamp(10px, 2.5vw, 12px)',
-                  padding: 'clamp(14px, 3.5vw, 16px) clamp(16px, 4vw, 20px)',
-                  fontSize: 'clamp(14px, 3.5vw, 16px)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                  width: '100%'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                }}
-              >
-                📊 View Progress
-              </button>
-              <button
-                onClick={() => navigate('/notes')}
-                style={{
-                  background: 'rgba(102, 126, 234, 0.1)',
-                  color: '#667eea',
-                  border: '2px solid rgba(102, 126, 234, 0.2)',
-                  borderRadius: 'clamp(10px, 2.5vw, 12px)',
-                  padding: 'clamp(14px, 3.5vw, 16px) clamp(16px, 4vw, 20px)',
-                  fontSize: 'clamp(14px, 3.5vw, 16px)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  width: '100%'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                }}
-              >
-                📝 Daily Notes
-              </button>
-              <button
-                onClick={() => navigate('/mind-recovery')}
-                style={{
-                  background: 'rgba(102, 126, 234, 0.1)',
-                  color: '#667eea',
-                  border: '2px solid rgba(102, 126, 234, 0.2)',
-                  borderRadius: 'clamp(10px, 2.5vw, 12px)',
-                  padding: 'clamp(14px, 3.5vw, 16px) clamp(16px, 4vw, 20px)',
-                  fontSize: 'clamp(14px, 3.5vw, 16px)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  width: '100%'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                }}
-              >
-                🧠 Mind Recovery
-              </button>
-            </div>
-          </div>
-
+            Learning Resources
+          </h3>
+          
           <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 'clamp(16px, 4vw, 20px)',
-            padding: 'clamp(20px, 5vw, 24px)',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '16px'
           }}>
-            <h3 style={{
-              margin: '0 0 16px 0',
-              fontSize: 'clamp(18px, 4.5vw, 20px)',
-              fontWeight: '700',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              Learning Resources
-            </h3>
-            <div style={{
-              display: 'grid',
-              gap: 'clamp(10px, 2.5vw, 12px)'
-            }}>
-              {resourceData.map((resource, index) => (
-                <button
-                  key={index}
-                  onClick={resource.onClick}
-                  style={{
-                    background: 'rgba(102, 126, 234, 0.05)',
-                    border: '1px solid rgba(102, 126, 234, 0.1)',
-                    borderRadius: 'clamp(10px, 2.5vw, 12px)',
-                    padding: 'clamp(12px, 3vw, 16px)',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    textAlign: 'left',
-                    width: '100%'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '8px'
-                  }}>
-                    <span style={{
-                      fontSize: 'clamp(16px, 4vw, 20px)',
-                      marginRight: 'clamp(8px, 2vw, 12px)'
-                    }}>
-                      {resource.icon}
-                    </span>
-                    <span style={{
-                      fontSize: 'clamp(14px, 3.5vw, 16px)',
-                      fontWeight: '600',
-                      color: '#1f2937'
-                    }}>
-                      {resource.title}
-                    </span>
-                  </div>
-                  <p style={{
-                    margin: 0,
-                    fontSize: 'clamp(12px, 3vw, 14px)',
-                    color: '#6b7280',
-                    lineHeight: '1.4'
-                  }}>
-                    {resource.desc}
-                  </p>
-                </button>
-              ))}
-            </div>
+            {resourceData.map((resource, index) => (
+              <button
+                key={index}
+                onClick={resource.onClick}
+                style={{
+                  background: 'rgba(102, 126, 234, 0.05)',
+                  border: '1px solid rgba(102, 126, 234, 0.1)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}
+              >
+                <div style={{ fontSize: '24px', marginBottom: '8px' }}>
+                  {resource.icon}
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px', color: '#333' }}>
+                  {resource.title}
+                </div>
+                <div style={{ fontSize: '14px', color: '#666' }}>
+                  {resource.desc}
+                </div>
+              </button>
+            ))}
           </div>
         </section>
       </main>
 
-      {/* CSS Animations */}
       <style>{`
         @keyframes slideDown {
           from {
@@ -1019,7 +900,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           }
         }
 
-        /* Mobile viewport fixes */
         @media screen and (max-width: 768px) {
           body {
             -webkit-text-size-adjust: 100%;
@@ -1031,4 +911,5 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   );
 };
 
+// ✅ FIXED: Ensure proper export of HomeDashboard component
 export default HomeDashboard;

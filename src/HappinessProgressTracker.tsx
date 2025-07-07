@@ -39,16 +39,21 @@ interface UserProgress {
   breakdown?: HappinessBreakdown;
 }
 
+// ✅ FIXED: Updated props interface to match LocalDataContext data
 export interface HappinessProgressTrackerProps {
   onClose?: () => void;
-  // Real data props - pass your actual data here
+  // Real data props from LocalDataContext
   currentUser?: any;
   practiceHistory?: any[];
   emotionalNotes?: any[];
   mindRecoveryHistory?: any[];
   pahmData?: any;
   environmentData?: any;
-  analytics?: any;
+  analyticsData?: any;  // ✅ FIXED: Changed from analytics to analyticsData
+  happinessPoints?: number;
+  achievements?: string[];
+  questionnaire?: any;
+  selfAssessment?: any;
 }
 
 // ============================================================================
@@ -180,16 +185,23 @@ const calculateAttachmentPenalty = (selfAssessment: any): AttachmentResult => {
     };
   }
   
+  // ✅ FIXED: Handle LocalDataContext self-assessment format
+  if (selfAssessment.categories && typeof selfAssessment.categories === 'object') {
+    console.log('🔧 FIXED: Processing LocalDataContext self-assessment format');
+    debugInfo.detectionPath = 'localdatacontext-categories';
+    return calculateCategoriesBasedPenalty(selfAssessment, debugInfo);
+  }
+  
+  // Handle responses object (your current format)
+  if (selfAssessment.responses && typeof selfAssessment.responses === 'object') {
+    console.log('🔧 FIXED: Processing responses object format');
+    debugInfo.detectionPath = 'responses-object';
+    return calculateResponsesBasedPenalty(selfAssessment, debugInfo);
+  }
+  
   // Intent-based format (exact match required)
   if (selfAssessment.intentBased === true && selfAssessment.format === 'levels' && selfAssessment.responses) {
     return calculateIntentBasedPenalty(selfAssessment, debugInfo);
-  }
-  
-  // Handle responses object (your current format) - THIS IS THE KEY FIX!
-  if (selfAssessment.responses && typeof selfAssessment.responses === 'object') {
-    console.log('🔧 FIXED: Processing responses object (current format)');
-    debugInfo.detectionPath = 'responses-object';
-    return calculateResponsesBasedPenalty(selfAssessment, debugInfo);
   }
   
   // Old format detection
@@ -208,6 +220,89 @@ const calculateAttachmentPenalty = (selfAssessment: any): AttachmentResult => {
     level: 'unknown-format',
     debugInfo
   };
+};
+
+// ✅ NEW: Handle LocalDataContext categories format
+const calculateCategoriesBasedPenalty = (selfAssessment: any, debugInfo: any): AttachmentResult => {
+  console.log('🔧 NEW: Processing LocalDataContext categories format...');
+  debugInfo.detectionPath = 'categories-based';
+  
+  const categories = selfAssessment.categories;
+  let noneCount = 0;
+  let someCount = 0;
+  let strongCount = 0;
+  let totalCategories = 0;
+  
+  console.log('🔍 Processing categories:', categories);
+  console.log('🔍 Category keys:', Object.keys(categories));
+  
+  // Count attachment levels from categories
+  Object.entries(categories).forEach(([category, data]: [string, any]) => {
+    console.log(`📝 Processing ${category}:`, data);
+    
+    if (data && data.level) {
+      totalCategories++;
+      
+      switch (data.level) {
+        case 'none':
+          noneCount++;
+          console.log(`✨ ${category}: Non-attachment detected`);
+          break;
+        case 'some':
+          someCount++;
+          console.log(`⚖️ ${category}: Some attachment detected`);
+          break;
+        case 'strong':
+          strongCount++;
+          console.log(`🔥 ${category}: Strong attachment detected`);
+          break;
+        default:
+          console.log(`⚠️ ${category}: Unknown level "${data.level}"`);
+      }
+    } else {
+      console.log(`⚠️ ${category}: Invalid data format`, data);
+    }
+  });
+  
+  // Calculate penalty: some = 25 points, strong = 75 points
+  const penaltyPoints = (someCount * 25) + (strongCount * 75);
+  
+  // Calculate non-attachment bonus
+  const nonAttachmentPercentage = totalCategories > 0 ? (noneCount / totalCategories) * 100 : 0;
+  let nonAttachmentBonus = 0;
+  
+  if (nonAttachmentPercentage >= 80) nonAttachmentBonus = 120;
+  else if (nonAttachmentPercentage >= 60) nonAttachmentBonus = 80;
+  else if (nonAttachmentPercentage >= 40) nonAttachmentBonus = 40;
+  else if (nonAttachmentPercentage >= 20) nonAttachmentBonus = 20;
+  
+  // Determine attachment level
+  let level = 'unknown';
+  if (strongCount >= 4) level = 'very-high';
+  else if (strongCount >= 2 || someCount >= 4) level = 'high';
+  else if (strongCount >= 1 || someCount >= 2) level = 'medium';
+  else if (someCount >= 1) level = 'low';
+  else if (noneCount === totalCategories) level = 'non-attached';
+  else level = 'very-low';
+  
+  const result = {
+    penaltyPoints,
+    nonAttachmentBonus,
+    level,
+    debugInfo: {
+      ...debugInfo,
+      totalCategories,
+      noneCount,
+      someCount,
+      strongCount,
+      nonAttachmentPercentage: nonAttachmentPercentage.toFixed(1),
+      calculation: `${someCount} × 25 + ${strongCount} × 75 = ${penaltyPoints}`
+    }
+  };
+  
+  console.log('✅ Categories-based calculation result:', result);
+  
+  return result;
 };
 
 const calculateResponsesBasedPenalty = (selfAssessment: any, debugInfo: any): AttachmentResult => {
@@ -775,7 +870,11 @@ const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({
   mindRecoveryHistory = [],
   pahmData,
   environmentData,
-  analytics
+  analyticsData,  // ✅ FIXED: Updated prop name
+  happinessPoints,
+  achievements,
+  questionnaire,
+  selfAssessment
 }) => {
   const [userProgress, setUserProgress] = useState<UserProgress>({
     happiness_points: 50,
@@ -791,22 +890,46 @@ const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({
   useEffect(() => {
     console.log('🔄 Calculating happiness with real data...');
     
-    // Extract real data
-    const questionnaire = currentUser?.questionnaireAnswers;
-    const selfAssessment = currentUser?.selfAssessmentData;
+    // ✅ FIXED: Try multiple data sources in order of preference
+    let finalQuestionnaire = null;
+    let finalSelfAssessment = null;
+    
+    // 1. Try props directly (from LocalDataContext)
+    if (questionnaire) {
+      finalQuestionnaire = questionnaire.responses || questionnaire;
+      console.log('📋 Using questionnaire from props');
+    }
+    
+    if (selfAssessment) {
+      finalSelfAssessment = selfAssessment;
+      console.log('🧠 Using self-assessment from props');
+    }
+    
+    // 2. Fallback to currentUser data
+    if (!finalQuestionnaire && currentUser?.questionnaireAnswers) {
+      finalQuestionnaire = currentUser.questionnaireAnswers;
+      console.log('📋 Using questionnaire from currentUser');
+    }
+    
+    if (!finalSelfAssessment && currentUser?.selfAssessmentData) {
+      finalSelfAssessment = currentUser.selfAssessmentData;
+      console.log('🧠 Using self-assessment from currentUser');
+    }
     
     console.log('📊 Real Data Summary:', {
-      hasQuestionnaire: !!questionnaire,
-      hasSelfAssessment: !!selfAssessment,
-      questionnaire,
-      selfAssessment,
+      hasQuestionnaire: !!finalQuestionnaire,
+      hasSelfAssessment: !!finalSelfAssessment,
+      questionnaireSource: questionnaire ? 'props' : currentUser?.questionnaireAnswers ? 'currentUser' : 'none',
+      selfAssessmentSource: selfAssessment ? 'props' : currentUser?.selfAssessmentData ? 'currentUser' : 'none',
+      questionnaire: finalQuestionnaire,
+      selfAssessment: finalSelfAssessment,
       practiceSessionCount: practiceHistory.length,
       emotionalNotesCount: emotionalNotes.length,
       mindRecoveryCount: mindRecoveryHistory.length
     });
     
     // Calculate happiness with real data
-    const happinessResult = calculateHappiness(questionnaire, selfAssessment, practiceHistory);
+    const happinessResult = calculateHappiness(finalQuestionnaire, finalSelfAssessment, practiceHistory);
     
     // ✅ FIXED: Save happiness results to localStorage for other components
     localStorage.setItem('happiness_points', happinessResult.happiness_points.toString());
@@ -869,14 +992,14 @@ const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({
     }
 
     // Get practice streak from analytics
-    if (analytics) {
-      calculatedProgress.practice_streak = analytics.currentStreak || 0;
+    if (analyticsData) {
+      calculatedProgress.practice_streak = analyticsData.currentStreak || 0;
     }
 
     setUserProgress(calculatedProgress);
     console.log('✅ Real happiness calculation completed:', calculatedProgress);
 
-  }, [currentUser, practiceHistory, emotionalNotes, mindRecoveryHistory, analytics]);
+  }, [currentUser, practiceHistory, emotionalNotes, mindRecoveryHistory, analyticsData, questionnaire, selfAssessment]);
 
   return (
     <div style={{ 
@@ -1149,7 +1272,7 @@ const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({
           </div>
         </div>
 
-        {/* Debug Panel */}
+        {/* Enhanced Debug Panel */}
         {showDebug && userProgress.breakdown && (
           <div style={{
             background: '#f8f9fa',
@@ -1162,25 +1285,29 @@ const HappinessProgressTracker: React.FC<HappinessProgressTrackerProps> = ({
             <div style={{ fontFamily: 'monospace', fontSize: '14px' }}>
               <div style={{ marginBottom: '10px' }}>
                 <strong>Data Sources:</strong>
-                <br />• Questionnaire: {currentUser?.questionnaireAnswers ? '✅ Available' : '❌ Missing'}
-                <br />• Self-Assessment: {currentUser?.selfAssessmentData ? '✅ Available' : '❌ Missing'}
+                <br />• Questionnaire: {questionnaire ? '✅ Props' : currentUser?.questionnaireAnswers ? '✅ CurrentUser' : '❌ Missing'}
+                <br />• Self-Assessment: {selfAssessment ? '✅ Props' : currentUser?.selfAssessmentData ? '✅ CurrentUser' : '❌ Missing'}
                 <br />• Practice Sessions: {practiceHistory.length} sessions
                 <br />• Emotional Notes: {emotionalNotes.length} notes
                 <br />• Mind Recovery: {mindRecoveryHistory.length} sessions
+                <br />• PAHM Data: {pahmData ? '✅ Available' : '❌ Missing'}
+                <br />• Environment Data: {environmentData ? '✅ Available' : '❌ Missing'}
+                <br />• Analytics Data: {analyticsData ? '✅ Available' : '❌ Missing'}
               </div>
               <div style={{ marginBottom: '10px' }}>
                 <strong>Calculation Formula:</strong>
                 <br />Base ({userProgress.breakdown.baseHappiness}) + Questionnaire ({userProgress.breakdown.questionnaireBonus}) + PAHM ({userProgress.breakdown.pahmMasteryBonus}) + Quality ({userProgress.breakdown.sessionQualityBonus}) + Emotional ({userProgress.breakdown.emotionalStabilityBonus}) + Recovery ({userProgress.breakdown.mindRecoveryBonus}) + Environment ({userProgress.breakdown.environmentBonus}) + Consistency ({userProgress.breakdown.consistencyBonus}) + Non-Attachment ({userProgress.breakdown.nonAttachmentBonus}) - Attachment Penalty ({userProgress.breakdown.attachmentPenalty}) = <strong>{userProgress.happiness_points}</strong>
               </div>
-              {currentUser?.selfAssessmentData && (
+              {(selfAssessment || currentUser?.selfAssessmentData) && (
                 <div>
                   <strong>Self-Assessment Debug:</strong>
-                  <br />• Format: {currentUser.selfAssessmentData.format || 'unknown'}
-                  <br />• Intent-Based: {currentUser.selfAssessmentData.intentBased ? 'true' : 'false'}
-                  <br />• Has Responses: {currentUser.selfAssessmentData.responses ? 'true' : 'false'}
-                  {currentUser.selfAssessmentData.responses && (
+                  <br />• Format: {(selfAssessment || currentUser?.selfAssessmentData)?.format || 'unknown'}
+                  <br />• Intent-Based: {(selfAssessment || currentUser?.selfAssessmentData)?.intentBased ? 'true' : 'false'}
+                  <br />• Has Categories: {(selfAssessment || currentUser?.selfAssessmentData)?.categories ? 'true' : 'false'}
+                  <br />• Has Responses: {(selfAssessment || currentUser?.selfAssessmentData)?.responses ? 'true' : 'false'}
+                  {(selfAssessment || currentUser?.selfAssessmentData)?.categories && (
                     <div>
-                      <br />• Response Keys: {Object.keys(currentUser.selfAssessmentData.responses).join(', ')}
+                      <br />• Category Keys: {Object.keys((selfAssessment || currentUser?.selfAssessmentData).categories).join(', ')}
                     </div>
                   )}
                 </div>

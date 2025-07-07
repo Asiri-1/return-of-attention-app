@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
+// ✅ FIXED: Import LocalDataContext instead of AuthContext for data storage
+import { useLocalData } from './contexts/LocalDataContext';
 
 interface QuestionnaireProps {
   onComplete: (answers: any) => void;
@@ -10,7 +11,8 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  const { markQuestionnaireComplete } = useAuth();
+  // ✅ FIXED: Use LocalDataContext for data storage instead of AuthContext
+  const { markQuestionnaireComplete } = useLocalData();
 
   // Load saved progress
   useEffect(() => {
@@ -38,16 +40,11 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     }
   }, [answers, currentQuestion, isLoading]);
 
+  // ✅ FIXED: Remove auto-advance - users must click Next button
   const handleAnswer = (questionId: string, answer: any) => {
     const newAnswers = { ...answers, [questionId]: answer };
     setAnswers(newAnswers);
-    
-    // 🔧 FIXED: Auto-advance to next question for better UX
-    setTimeout(() => {
-      if (currentQuestion < 27) {
-        setCurrentQuestion(currentQuestion + 1);
-      }
-    }, 300);
+    // ✅ REMOVED: Auto-advance timeout - now users must click Next manually
   };
 
   const nextQuestion = () => {
@@ -64,6 +61,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     }
   };
 
+  // ✅ FIXED: Updated completion to use LocalDataContext
   const completeQuestionnaire = async () => {
     console.log('🔧 QUESTIONNAIRE COMPLETION STARTING...');
     console.log('🔧 Current answers object:', answers);
@@ -119,10 +117,11 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     console.log('🔧 QUESTIONNAIRE: Answer count:', Object.keys(structuredAnswers).length);
 
     try {
+      // ✅ FIXED: Use LocalDataContext method
       if (markQuestionnaireComplete) {
-        console.log('🔧 QUESTIONNAIRE: Calling markQuestionnaireComplete...');
+        console.log('🔧 QUESTIONNAIRE: Calling LocalDataContext markQuestionnaireComplete...');
         await markQuestionnaireComplete(structuredAnswers);
-        console.log('✅ QUESTIONNAIRE: AuthContext completion marked successfully!');
+        console.log('✅ QUESTIONNAIRE: LocalDataContext completion marked successfully!');
       }
 
       console.log('🔧 QUESTIONNAIRE: Calling parent onComplete...');
@@ -210,6 +209,20 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     if (questionNum <= 15) return { phase: 2, name: 'Lifestyle Patterns', icon: '🏠' };
     if (questionNum <= 21) return { phase: 3, name: 'Thinking Patterns', icon: '🧠' };
     return { phase: 4, name: 'Mindfulness Specific', icon: '🧘' };
+  };
+
+  // ✅ NEW: Check if current question has been answered
+  const isCurrentQuestionAnswered = () => {
+    const questionKey = getQuestionKey(currentQuestion);
+    const answer = answers[questionKey];
+    
+    // For multiple choice questions, check if array has items
+    if (Array.isArray(answer)) {
+      return answer.length > 0;
+    }
+    
+    // For other questions, check if answer exists
+    return answer !== undefined && answer !== null && answer !== '';
   };
 
   const renderQuestion = () => {
@@ -1187,6 +1200,16 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           cursor: not-allowed;
         }
 
+        /* ✅ NEW: Answer requirement indicator */
+        .answer-required {
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+          color: white;
+        }
+
+        .answer-required:hover:not(:disabled) {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
         /* Mobile Responsiveness */
         @media (max-width: 768px) {
           .questionnaire-container {
@@ -1247,7 +1270,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         {renderQuestion()}
       </div>
 
-      {/* Navigation */}
+      {/* ✅ FIXED: Navigation now requires manual Next button clicks */}
       <div className="questionnaire-navigation">
         <button 
           className="back-button" 
@@ -1258,11 +1281,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         </button>
 
         <button 
-          className="next-button" 
+          className={`next-button ${!isCurrentQuestionAnswered() ? 'answer-required' : ''}`}
           onClick={nextQuestion}
-          disabled={false} // 🔧 FIXED: Allow progression even without answer (with defaults)
+          disabled={false}
         >
-          {currentQuestion === 27 ? 'Complete Assessment' : 'Next →'}
+          {currentQuestion === 27 ? 'Complete Assessment' : 
+           !isCurrentQuestionAnswered() ? 'Please Answer First' : 'Next →'}
         </button>
       </div>
     </div>

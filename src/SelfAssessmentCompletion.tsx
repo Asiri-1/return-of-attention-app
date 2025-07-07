@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// ✅ FIXED: Import both contexts for proper separation
 import { useAuth } from './AuthContext';
+import { useLocalData } from './contexts/LocalDataContext';
 
 interface SelfAssessmentCompletionProps {
   onGetStarted: (data?: any) => void;
@@ -10,7 +12,10 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
   onGetStarted,
   onBack
 }) => {
-  const { markSelfAssessmentComplete, isSelfAssessmentCompleted, currentUser, userProfile } = useAuth();
+  // ✅ FIXED: Split the hooks - Auth for user info, LocalData for data operations
+  const { currentUser, userProfile } = useAuth();
+  const { isSelfAssessmentCompleted, getSelfAssessment } = useLocalData();
+  
   const [showContent, setShowContent] = useState(false);
   const [showStages, setShowStages] = useState(false);
 
@@ -19,40 +24,20 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
     setTimeout(() => setShowContent(true), 300);
     setTimeout(() => setShowStages(true), 800);
 
-    // 🔧 FIXED: Check existing data with correct key names
+    // ✅ FIXED: Check existing data using LocalDataContext (backend logging only)
     const checkAndPreserveData = async () => {
-      console.log('🔍 FIXED: Checking existing self-assessment data...');
+      console.log('🔍 FIXED: Checking existing self-assessment data via LocalDataContext...');
       
       try {
-        // 🔧 FIX 1: Check userProfile first (AuthContext state)
-        console.log('🔍 Checking userProfile from AuthContext:', userProfile);
-        let existingData = userProfile?.selfAssessment; // ✅ CORRECT KEY: selfAssessment not selfAssessmentData
-        
-        // 🔧 FIX 2: Fallback to localStorage with correct key
-        if (!existingData) {
-          console.log('🔍 Checking localStorage for backup...');
-          const userProfileLocal = JSON.parse(localStorage.getItem('userProfile') || '{}');
-          existingData = userProfileLocal?.selfAssessment; // ✅ CORRECT KEY
-          
-          // 🔧 FIX 3: Also check direct selfAssessment key in localStorage
-          if (!existingData) {
-            const directAssessment = localStorage.getItem('selfAssessment');
-            if (directAssessment) {
-              try {
-                existingData = JSON.parse(directAssessment);
-                console.log('🔍 Found data in direct selfAssessment key:', existingData);
-              } catch (e) {
-                console.error('Error parsing direct selfAssessment:', e);
-              }
-            }
-          }
-        }
+        // ✅ FIXED: Use LocalDataContext to get self-assessment data
+        const existingData = getSelfAssessment();
+        console.log('🔍 LocalDataContext self-assessment data:', existingData);
         
         if (existingData) {
           console.log('✅ FIXED: Found existing self-assessment data:', existingData);
           
           // Check if it has real assessment responses
-          const hasRealData = existingData.taste || 
+          const hasRealData = existingData.categories || 
                              existingData.responses || 
                              existingData.attachmentScore !== undefined ||
                              existingData.format === 'standard' ||
@@ -65,15 +50,11 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
             console.log('⚠️ FIXED: Existing data is just completion flag - might need real assessment');
           }
         } else {
-          console.log('❌ FIXED: No existing self-assessment data found in any location');
-          console.log('🔍 Available localStorage keys:', Object.keys(localStorage));
-          console.log('🔍 userProfile content:', userProfile);
+          console.log('❌ FIXED: No existing self-assessment data found in LocalDataContext');
         }
 
-        // Handle completion status check
-        const isAssessmentCompleted = typeof isSelfAssessmentCompleted === 'function' 
-          ? isSelfAssessmentCompleted() 
-          : isSelfAssessmentCompleted;
+        // ✅ FIXED: Handle completion status check using LocalDataContext
+        const isAssessmentCompleted = isSelfAssessmentCompleted();
 
         if (!isAssessmentCompleted && !existingData) {
           console.log('🔧 FIXED: User reached completion screen without data - this might be an error in flow');
@@ -85,38 +66,12 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
     };
 
     checkAndPreserveData();
-  }, [markSelfAssessmentComplete, isSelfAssessmentCompleted, userProfile]); // Added userProfile to dependencies
+  }, [getSelfAssessment, isSelfAssessmentCompleted]); // ✅ FIXED: Updated dependencies
 
   const handleGetStarted = async () => {
     try {
-      // 🔧 FIX: Check multiple locations for assessment data
-      let existingData = null;
-      
-      // Priority 1: AuthContext userProfile
-      if (userProfile?.selfAssessment) {
-        existingData = userProfile.selfAssessment;
-        console.log('✅ Using data from AuthContext userProfile:', existingData);
-      }
-      // Priority 2: localStorage userProfile
-      else {
-        const userProfileLocal = JSON.parse(localStorage.getItem('userProfile') || '{}');
-        if (userProfileLocal?.selfAssessment) {
-          existingData = userProfileLocal.selfAssessment;
-          console.log('✅ Using data from localStorage userProfile:', existingData);
-        }
-        // Priority 3: Direct localStorage selfAssessment key
-        else {
-          const directAssessment = localStorage.getItem('selfAssessment');
-          if (directAssessment) {
-            try {
-              existingData = JSON.parse(directAssessment);
-              console.log('✅ Using data from direct localStorage:', existingData);
-            } catch (e) {
-              console.error('Error parsing direct selfAssessment:', e);
-            }
-          }
-        }
-      }
+      // ✅ FIXED: Get assessment data from LocalDataContext
+      const existingData = getSelfAssessment();
       
       if (existingData) {
         console.log('✅ FIXED: Using existing self-assessment data for navigation');
@@ -133,11 +88,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
         onGetStarted(completionData);
         
       } else {
-        console.log('⚠️ FIXED: No assessment data found in any location');
-        console.log('📋 Available data sources:');
-        console.log('  - userProfile?.selfAssessment:', userProfile?.selfAssessment);
-        console.log('  - localStorage userProfile:', JSON.parse(localStorage.getItem('userProfile') || '{}')?.selfAssessment);
-        console.log('  - localStorage selfAssessment:', localStorage.getItem('selfAssessment'));
+        console.log('⚠️ FIXED: No assessment data found in LocalDataContext');
         
         // Continue without assessment data but mark as incomplete
         const completionData = {
@@ -164,75 +115,6 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
       });
     }
   };
-
-  // 🔧 FIXED: Get assessment status with correct key lookups
-  const getAssessmentStatus = () => {
-    try {
-      let assessmentData = null;
-      
-      // Check AuthContext first
-      if (userProfile?.selfAssessment) {
-        assessmentData = userProfile.selfAssessment;
-      }
-      // Fallback to localStorage
-      else {
-        const userProfileLocal = JSON.parse(localStorage.getItem('userProfile') || '{}');
-        assessmentData = userProfileLocal?.selfAssessment;
-        
-        // Last resort: direct localStorage key
-        if (!assessmentData) {
-          const directAssessment = localStorage.getItem('selfAssessment');
-          if (directAssessment) {
-            try {
-              assessmentData = JSON.parse(directAssessment);
-            } catch (e) {
-              console.error('Error parsing direct selfAssessment:', e);
-            }
-          }
-        }
-      }
-      
-      if (assessmentData) {
-        const hasRealData = assessmentData.taste || 
-                           assessmentData.responses || 
-                           assessmentData.attachmentScore !== undefined ||
-                           assessmentData.format === 'standard';
-        
-        if (hasRealData) {
-          return {
-            completed: true,
-            verified: true,
-            message: "Complete & Verified",
-            data: assessmentData
-          };
-        } else {
-          return {
-            completed: true,
-            verified: false,
-            message: "Complete (Basic)",
-            data: assessmentData
-          };
-        }
-      } else {
-        return {
-          completed: false,
-          verified: false,
-          message: "Not Found",
-          data: null
-        };
-      }
-    } catch (error) {
-      console.error('Error getting assessment status:', error);
-      return {
-        completed: false,
-        verified: false,
-        message: "Error",
-        data: null
-      };
-    }
-  };
-
-  const assessmentStatus = getAssessmentStatus();
 
   const stages = [
     {
@@ -298,7 +180,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="max-w-4xl w-full">
           
-          {/* Celebration Section */}
+          {/* ✅ CLEANED: Celebration Section - Removed verification and points display */}
           <div className={`text-center mb-12 transition-all duration-1000 ${showContent ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'}`}>
             <div className="text-6xl mb-6 animate-bounce">🎉</div>
             <h1 className="text-5xl font-bold text-gray-800 mb-4">
@@ -307,46 +189,6 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
               You've completed the self-assessment and taken the first step on your journey to greater presence and attention.
             </p>
-            
-            {/* 🔧 FIXED: Enhanced completion status indicator */}
-            <div className="mt-4 space-y-2">
-              <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-                assessmentStatus.verified 
-                  ? 'bg-green-100 text-green-800' 
-                  : assessmentStatus.completed 
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
-              }`}>
-                {assessmentStatus.verified ? '✅' : assessmentStatus.completed ? '⚠️' : '❌'} 
-                Self-Assessment {assessmentStatus.message}
-              </div>
-              
-              {/* Show assessment data summary if available */}
-              {assessmentStatus.data && assessmentStatus.verified && (
-                <div className="text-sm text-gray-600 mt-2">
-                  {assessmentStatus.data.attachmentScore !== undefined && (
-                    <span>Attachment Score: {assessmentStatus.data.attachmentScore} points</span>
-                  )}
-                  {assessmentStatus.data.nonAttachmentCount !== undefined && (
-                    <span className="ml-3">Non-attachment: {assessmentStatus.data.nonAttachmentCount}/6 categories</span>
-                  )}
-                </div>
-              )}
-              
-              {/* Warning if no real data */}
-              {!assessmentStatus.verified && assessmentStatus.completed && (
-                <div className="text-xs text-yellow-600 mt-1">
-                  ⚠️ Assessment data may be incomplete - consider retaking for better personalization
-                </div>
-              )}
-              
-              {/* Debug info if no data found */}
-              {!assessmentStatus.completed && (
-                <div className="text-xs text-red-600 mt-1">
-                  🔧 Debug: No assessment data found. Check console for details.
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Journey Overview */}
@@ -405,7 +247,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
             ))}
           </div>
 
-          {/* Call to Action */}
+          {/* ✅ CLEANED: Call to Action - Removed retake assessment option */}
           <div className={`text-center transition-all duration-1000 delay-700 ${showContent ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'}`}>
             <div className="bg-white rounded-2xl p-8 shadow-xl max-w-2xl mx-auto border border-gray-100">
               <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Begin?</h3>
@@ -429,18 +271,6 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
                   ← Back to Self-Assessment
                 </button>
               </div>
-
-              {/* Option to retake assessment if data is incomplete */}
-              {assessmentStatus.completed && !assessmentStatus.verified && (
-                <div className="mt-4">
-                  <button 
-                    onClick={onBack}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 underline"
-                  >
-                    🔄 Retake Assessment for Better Personalization
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Trust Badge */}
