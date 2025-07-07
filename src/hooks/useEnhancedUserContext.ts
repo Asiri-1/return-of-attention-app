@@ -76,16 +76,43 @@ export const useEnhancedUserContextDebug = () => {
 };
 
 /**
- * Lightweight hook that returns just the basic context info
+ * ✅ FIXED: Lightweight hook that returns just the basic context info
  * Use this for components that only need basic user info
  */
 export const useBasicUserContext = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
+  
+  // ✅ FIXED: Get properties with proper fallbacks from multiple sources
+  const getCurrentStage = () => {
+    return userProfile?.currentStage || 
+           currentUser?.currentStage || 
+           localStorage.getItem('currentStage') || 
+           '1';
+  };
+
+  const getGoals = () => {
+    const profileGoals = userProfile?.goals;
+    const userGoals = currentUser?.goals;
+    const localGoals = localStorage.getItem('userGoals');
+    
+    // Return first available goals array
+    if (Array.isArray(profileGoals)) return profileGoals;
+    if (Array.isArray(userGoals)) return userGoals;
+    if (localGoals) {
+      try {
+        const parsed = JSON.parse(localGoals);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
   
   return {
     uid: currentUser?.uid || '',
-    currentStage: Number(currentUser?.currentStage) || 1,
-    goals: currentUser?.goals || []
+    currentStage: Number(getCurrentStage()),
+    goals: getGoals()
   };
 };
 

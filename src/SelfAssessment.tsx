@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+// ✅ FIXED: Import both AuthContext for user info and LocalDataContext for data storage
 import { useAuth } from './AuthContext';
+import { useLocalData } from './contexts/LocalDataContext';
 import './SelfAssessment.css';
 
 interface SelfAssessmentProps {
@@ -16,7 +18,10 @@ interface Category {
 }
 
 const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) => {
-  const { currentUser, markSelfAssessmentComplete } = useAuth();
+  // ✅ FIXED: Split the hooks - Auth for user info, LocalData for data storage
+  const { currentUser } = useAuth();
+  const { markSelfAssessmentComplete } = useLocalData();
+  
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -204,6 +209,16 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       touch: responses.touch?.level || 'none',
       mind: responses.mind?.level || 'none',
       
+      // ✅ FIXED: Categories object format for LocalDataContext compatibility
+      categories: {
+        taste: { level: responses.taste?.level || 'none', details: responses.taste?.details || '', category: 'taste' },
+        smell: { level: responses.smell?.level || 'none', details: responses.smell?.details || '', category: 'smell' },
+        sound: { level: responses.sound?.level || 'none', details: responses.sound?.details || '', category: 'sound' },
+        sight: { level: responses.sight?.level || 'none', details: responses.sight?.details || '', category: 'sight' },
+        touch: { level: responses.touch?.level || 'none', details: responses.touch?.details || '', category: 'touch' },
+        mind: { level: responses.mind?.level || 'none', details: responses.mind?.details || '', category: 'mind' }
+      },
+      
       // Responses object - for happiness calculator
       responses: {
         taste: { level: responses.taste?.level || 'none', details: responses.taste?.details || '', category: 'taste' },
@@ -219,6 +234,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       nonAttachmentCount: Object.values(responses).filter((r: any) => r.level === 'none').length,
       
       // Metadata
+      completed: true,
       completedAt: new Date().toISOString(),
       type: 'selfAssessment'
     };
@@ -227,12 +243,12 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     console.log('✅ Standardized assessment data:', standardizedData);
 
     try {
-      // Use AuthContext method with standardized data
-      console.log('🔄 Calling markSelfAssessmentComplete with standardized format...');
+      // ✅ FIXED: Use LocalDataContext method with standardized data
+      console.log('🔄 Calling LocalDataContext markSelfAssessmentComplete with standardized format...');
       
       await markSelfAssessmentComplete(standardizedData);
       
-      console.log('✅ Self-assessment saved successfully in standardized format!');
+      console.log('✅ Self-assessment saved successfully via LocalDataContext!');
       
       // Clear temporary storage
       localStorage.removeItem('tempSelfAssessmentResponses');
@@ -241,7 +257,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       onComplete(standardizedData);
       
     } catch (error) {
-      console.error('❌ Error saving through AuthContext:', error);
+      console.error('❌ Error saving through LocalDataContext:', error);
       
       // Fallback: Save directly to storage in standardized format
       console.log('🔄 Attempting fallback save in standardized format...');
@@ -594,4 +610,3 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
 };
 
 export default SelfAssessment;
-

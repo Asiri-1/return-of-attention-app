@@ -26,7 +26,8 @@ interface Message {
 }
 
 const ChatInterface: React.FC = () => {
-  const { currentUser } = useAuth();
+  // ✅ FIXED: Use both contexts properly - Auth for user info, LocalData for practice data
+  const { currentUser, userProfile } = useAuth();
   const { getPAHMData, getEnvironmentData, getDailyEmotionalNotes } = useLocalData();
   
   // 🚀 NEW: Smart AI integration
@@ -87,20 +88,33 @@ const ChatInterface: React.FC = () => {
     return hasSubstantiveContent || isLongResponse;
   };
 
-  // Memoize user context
-  const userContext = useCallback(() => ({
-    uid: currentUser?.uid || '',
-    currentStage: Number(currentUser?.currentStage) || 1,
-    goals: currentUser?.goals || [],
-    practiceAnalytics: {
-      pahmData: getPAHMData?.() || undefined,
-      environmentData: getEnvironmentData?.() || undefined,
-      emotionalNotes: getDailyEmotionalNotes?.() || []
-    },
-    recentChallenges: ['restlessness'],
-    currentMood: 6,
-    timeOfDay: new Date().getHours() < 12 ? 'morning' : 'afternoon'
-  }), [currentUser?.uid, currentUser?.currentStage, currentUser?.goals, getPAHMData, getEnvironmentData, getDailyEmotionalNotes]);
+  // ✅ FIXED: Memoize user context with proper fallbacks
+  const userContext = useCallback(() => {
+    // Get current stage from multiple sources with fallbacks
+    const currentStage = userProfile?.currentStage || 
+                        currentUser?.currentStage || 
+                        localStorage.getItem('currentStage') || 
+                        '1';
+    
+    // Get goals from multiple sources with fallbacks  
+    const goals = userProfile?.goals || 
+                  currentUser?.goals || 
+                  JSON.parse(localStorage.getItem('userGoals') || '[]');
+
+    return {
+      uid: currentUser?.uid || '',
+      currentStage: Number(currentStage),
+      goals: Array.isArray(goals) ? goals : [],
+      practiceAnalytics: {
+        pahmData: getPAHMData?.() || undefined,
+        environmentData: getEnvironmentData?.() || undefined,
+        emotionalNotes: getDailyEmotionalNotes?.() || []
+      },
+      recentChallenges: ['restlessness'],
+      currentMood: 6,
+      timeOfDay: new Date().getHours() < 12 ? 'morning' : 'afternoon'
+    };
+  }, [currentUser?.uid, currentUser?.currentStage, currentUser?.goals, userProfile?.currentStage, userProfile?.goals, getPAHMData, getEnvironmentData, getDailyEmotionalNotes]);
 
   // Initialize once only
   useEffect(() => {
@@ -247,10 +261,16 @@ const ChatInterface: React.FC = () => {
       
       // Local fallback (your original logic)
       try {
+        // ✅ FIXED: Get current stage with proper fallback
+        const currentStage = userProfile?.currentStage || 
+                            currentUser?.currentStage || 
+                            localStorage.getItem('currentStage') || 
+                            '1';
+
         const localResponse = EnhancedLocalStorageManager.getEnhancedPAHMResponse(
           userMessage,
           {
-            currentStage: Number(currentUser?.currentStage) || 1,
+            currentStage: Number(currentStage),
             recentChallenges: ['restlessness'],
             moodLevel: 6,
             practiceHours: 25
@@ -340,6 +360,14 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  // ✅ FIXED: Get current stage with proper fallbacks for display
+  const getCurrentStage = () => {
+    return userProfile?.currentStage || 
+           currentUser?.currentStage || 
+           localStorage.getItem('currentStage') || 
+           '1';
+  };
+
   if (!initialized) {
     return (
       <div className="chat-container">
@@ -371,7 +399,7 @@ const ChatInterface: React.FC = () => {
             
             <div className="user-stats">
               <div className="stat-pill">
-                <span>Stage: {Number(currentUser?.currentStage) || 1}</span>
+                <span>Stage: {Number(getCurrentStage())}</span>
               </div>
               <div className="stat-pill">
                 <span>Hours: 25</span>

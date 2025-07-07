@@ -18,55 +18,53 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
   const stageNumber = 1;
   const navigate = useNavigate();
   
-  const { updateUserProfileInContext, currentUser, userProfile } = useAuth(); // ✅ ADD: Get userProfile too
+  // ✅ SIMPLIFIED: Only get what we actually need
+  const { updateUserProfileInContext } = useAuth();
   
-  // ✅ FIXED: Mark introduction AND assessment as completed with proper timing
+  // ✅ FIXED: Simplified intro completion - no more self-assessment manipulation
   const markIntroCompleted = () => {
-    console.log('🔍 DEBUG: markIntroCompleted called');
-    console.log('🔍 DEBUG: Current user before update:', currentUser);
+    console.log('🔍 Stage 1 introduction completed');
     
-    // Update localStorage (existing logic)
+    // Update localStorage for intro tracking (existing logic)
     const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
     if (!completedIntros.includes(stageNumber)) {
       completedIntros.push(stageNumber);
       localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
     }
     
-    console.log('🔍 DEBUG: About to update AuthContext...');
-    
-    // 🔧 FIXED: Update user assessment status in AuthContext with correct property structure
-    updateUserProfileInContext({ 
-      selfAssessment: {
-        ...userProfile?.selfAssessment, // Preserve existing selfAssessment data
-        completed: true
-      },
-      currentStage: '1'
-    });
-    
-    console.log('✅ Stage 1 introduction completed - assessment marked as complete');
+    // ✅ SIMPLIFIED: Only update current stage since self-assessment is already completed
+    try {
+      updateUserProfileInContext({ 
+        currentStage: '1'
+      });
+      console.log('✅ Current stage updated to 1');
+    } catch (error) {
+      console.warn('Could not update current stage:', error);
+      // Continue anyway since this is not critical
+    }
   };
   
-  // ✅ FIXED: Handle skip with delay to ensure state update
+  // ✅ SIMPLIFIED: Handle skip
   const handleSkip = () => {
     markIntroCompleted();
     
-    // ✅ ADD: Small delay to ensure state propagation
+    // Small delay to ensure state propagation
     setTimeout(() => {
-      console.log('🔍 DEBUG: Navigating to /home after state update');
+      console.log('🔍 Navigating to /home after skip');
       navigate('/home');
     }, 100);
   };
   
-  // ✅ FIXED: Handle next slide completion with delay  
+  // ✅ SIMPLIFIED: Handle completion
   const nextSlide = () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
       markIntroCompleted();
       
-      // ✅ ADD: Small delay to ensure state propagation
+      // Small delay to ensure state propagation
       setTimeout(() => {
-        console.log('🔍 DEBUG: Navigating to /home after completion');
+        console.log('🔍 Navigating to /home after completion');
         navigate('/home');
       }, 100);
     }

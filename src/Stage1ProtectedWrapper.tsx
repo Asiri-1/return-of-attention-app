@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+// ✅ FIXED: Import LocalDataContext for assessment status
+import { useLocalData } from './contexts/LocalDataContext';
 import Stage1Wrapper from './Stage1Wrapper';
 
 interface AssessmentWarningPopupProps {
@@ -108,6 +110,8 @@ const AssessmentWarningPopup: React.FC<AssessmentWarningPopupProps> = ({
 const Stage1ProtectedWrapper: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated } = useAuth();
+  // ✅ FIXED: Use LocalDataContext for assessment status
+  const { isSelfAssessmentCompleted } = useLocalData();
   const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
@@ -117,15 +121,16 @@ const Stage1ProtectedWrapper: React.FC = () => {
       return;
     }
 
-    // Check if self-assessment is completed
-    if (!currentUser.assessmentCompleted) {
+    // ✅ FIXED: Check if self-assessment is completed using LocalDataContext
+    const assessmentCompleted = isSelfAssessmentCompleted();
+    if (!assessmentCompleted) {
       console.log('🚫 Self-assessment not completed, showing warning');
       setShowWarning(true);
       return;
     }
 
     console.log('✅ Self-assessment completed, allowing Stage 1 access');
-  }, [isAuthenticated, currentUser, navigate]);
+  }, [isAuthenticated, currentUser, navigate, isSelfAssessmentCompleted]);
 
   const handleCompleteAssessment = () => {
     setShowWarning(false);
@@ -142,7 +147,9 @@ const Stage1ProtectedWrapper: React.FC = () => {
     return null;
   }
 
-  if (!currentUser.assessmentCompleted) {
+  // ✅ FIXED: Check assessment completion using LocalDataContext
+  const assessmentCompleted = isSelfAssessmentCompleted();
+  if (!assessmentCompleted) {
     return (
       <AssessmentWarningPopup
         isVisible={showWarning}

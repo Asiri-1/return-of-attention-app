@@ -9,7 +9,8 @@ interface PracticeSessionData {
   sessionType: 'meditation' | 'mind_recovery';
   stageLevel?: number;
   stageLabel?: string;
-  mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'midday-reset' | 'work-home-transition' | 'evening-window' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
+  // ✅ FIXED: Updated mindRecoveryContext to match actual usage
+  mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'mid-day-reset' | 'work-home-transition' | 'evening-wind-down' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
   mindRecoveryPurpose?: 'energy-boost' | 'stress-relief' | 'mental-refresh' | 'transition-support' | 'sleep-preparation' | 'emotional-balance' | 'quick-reset' | 'awareness-anchor';
   rating?: number;
   notes?: string;
@@ -37,7 +38,7 @@ interface PracticeSessionData {
     clarityImprovement: number;
     moodImprovement: number;
   };
-  metadata?: any; // ✅ NEW: Additional metadata field
+  metadata?: any;
 }
 
 interface EmotionalNoteData {
@@ -48,7 +49,7 @@ interface EmotionalNoteData {
   energyLevel?: number;
   tags?: string[];
   gratitude?: string[];
-  metadata?: any; // ✅ NEW: Additional metadata field
+  metadata?: any;
 }
 
 interface ReflectionData {
@@ -61,6 +62,155 @@ interface ReflectionData {
   gratitude: string[];
   intention?: string;
   insights?: string;
+}
+
+// ✅ COMPLETE: Questionnaire Data Interface
+interface QuestionnaireData {
+  completed: boolean;
+  completedAt?: string;
+  responses: {
+    // Demographics & Background (1-7)
+    experience_level: number;
+    goals: string[];
+    age_range: string;
+    location: string;
+    occupation: string;
+    education_level: string;
+    meditation_background: string;
+    
+    // Lifestyle Patterns (8-15)  
+    sleep_pattern: number;
+    physical_activity: string;
+    stress_triggers: string[];
+    daily_routine: string;
+    diet_pattern: string;
+    screen_time: string;
+    social_connections: string;
+    work_life_balance: string;
+    
+    // Thinking Patterns (16-21)
+    emotional_awareness: number;
+    stress_response: string;
+    decision_making: string;
+    self_reflection: string;
+    thought_patterns: string;
+    mindfulness_in_daily_life: string;
+    
+    // Mindfulness Specific (22-27)
+    mindfulness_experience: number;
+    meditation_background_detail: string;
+    practice_goals: string;
+    preferred_duration: number;
+    biggest_challenges: string;
+    motivation: string;
+    
+    // Additional fields
+    totalQuestions: number;
+    answeredQuestions: number;
+    [key: string]: any;
+  };
+}
+
+// ✅ FIXED: Complete Self-Assessment Data Interface
+interface SelfAssessmentData {
+  // Completion status
+  completed: boolean;
+  completedAt?: string;
+  
+  // Format identifiers
+  format?: 'standard' | string;
+  version?: string;
+  type?: 'selfAssessment' | string;
+  
+  // Direct category values (for simple access)
+  taste: 'none' | 'some' | 'strong';
+  smell: 'none' | 'some' | 'strong';
+  sound: 'none' | 'some' | 'strong';
+  sight: 'none' | 'some' | 'strong';
+  touch: 'none' | 'some' | 'strong';
+  mind: 'none' | 'some' | 'strong';
+  
+  // Categories object format (for LocalDataContext compatibility)
+  categories: {
+    taste: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    smell: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    sound: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    sight: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    touch: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    mind: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+  };
+  
+  // ✅ ADDED: Responses object (for happiness calculator compatibility) - THIS WAS MISSING!
+  responses: {
+    taste: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    smell: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    sound: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    sight: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    touch: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+    mind: {
+      level: 'none' | 'some' | 'strong';
+      details?: string;
+      category: string;
+    };
+  };
+  
+  // ✅ ADDED: Pre-calculated scores at top level (for SelfAssessmentCompletion compatibility)
+  attachmentScore: number;
+  nonAttachmentCount: number;
+  
+  // ✅ KEPT: Metrics object (for backward compatibility)
+  metrics: {
+    nonAttachmentCount: number;
+    attachmentScore: number;
+    attachmentLevel: string;
+  };
+  
+  // Legacy support (if needed)
+  [key: string]: any;
 }
 
 // 🧠 9-CATEGORY PAHM ANALYTICS INTERFACE
@@ -166,6 +316,7 @@ interface ComprehensiveAnalytics {
   lastUpdated: string;
 }
 
+// ✅ UPDATED: ComprehensiveUserData interface with all data
 interface ComprehensiveUserData {
   profile: {
     userId: string;
@@ -205,6 +356,16 @@ interface ComprehensiveUserData {
   practiceSessions: PracticeSessionData[];
   emotionalNotes: EmotionalNoteData[];
   reflections: ReflectionData[];
+  
+  // Questionnaire and Self-Assessment data
+  questionnaire?: QuestionnaireData;
+  selfAssessment?: SelfAssessmentData;
+  
+  // Happiness and gamification system
+  happinessPoints: number;
+  achievements: string[];
+  notes: any[]; // Additional notes beyond emotional notes
+  
   analytics: {
     totalPracticeTime: number;
     averageSessionLength: number;
@@ -218,9 +379,14 @@ interface ComprehensiveUserData {
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
-  refreshTrigger: number; // ✨ AUTO-REFRESH TRIGGER
+  refreshTrigger: number;
   
-  // Core methods (production only)
+  // Direct properties for compatibility
+  comprehensiveUserData: ComprehensiveUserData | null;
+  practiceSessions: PracticeSessionData[];
+  emotionalNotes: EmotionalNoteData[];
+  
+  // Core methods
   clearAllData: () => void;
   
   // Data getters
@@ -229,12 +395,23 @@ interface LocalDataContextType {
   getReflections: () => ReflectionData[];
   getAnalyticsData: () => ComprehensiveAnalytics;
   
+  // Questionnaire and Self-Assessment getters
+  getQuestionnaire: () => QuestionnaireData | null;
+  getSelfAssessment: () => SelfAssessmentData | null;
+  isQuestionnaireCompleted: () => boolean;
+  isSelfAssessmentCompleted: () => boolean;
+  
+  // Happiness and gamification getters
+  getHappinessPoints: () => number;
+  getAchievements: () => string[];
+  getNotes: () => any[];
+  
   // Mind recovery specific getters
   getMindRecoverySessions: () => PracticeSessionData[];
   getMeditationSessions: () => PracticeSessionData[];
   getMindRecoveryAnalytics: () => MindRecoveryAnalytics;
   
-  // 🧠 9-CATEGORY PAHM ANALYTICS
+  // 9-Category PAHM Analytics
   getPAHMData: () => PAHMAnalytics | null;
   getEnvironmentData: () => EnvironmentAnalytics;
   getProgressTrends: () => any;
@@ -242,7 +419,7 @@ interface LocalDataContextType {
   getPredictiveInsights: () => any;
   exportDataForAnalysis: () => any;
   
-  // 📊 DASHBOARD ANALYTICS - ALL TABS SUPPORT
+  // Dashboard Analytics
   getFilteredData: (timeRange?: string) => { practice: PracticeSessionData[], notes: EmotionalNoteData[] };
   getPracticeDurationData: (timeRange?: string) => { date: string, duration: number }[];
   getEmotionDistribution: (timeRange?: string) => { emotion: string, count: number, color: string }[];
@@ -263,18 +440,38 @@ interface LocalDataContextType {
   addEmotionalNote: (note: Omit<EmotionalNoteData, 'noteId'>) => void;
   addReflection: (reflection: Omit<ReflectionData, 'reflectionId'>) => void;
   addMindRecoverySession: (session: Omit<PracticeSessionData, 'sessionId'>) => void;
+
+  // Questionnaire and Self-Assessment methods
+  updateQuestionnaire: (questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => void;
+  updateSelfAssessment: (selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => void;
+  markQuestionnaireComplete: (responses: any) => void;
+  markSelfAssessmentComplete: (responses: any) => void;
+
+  // Happiness and gamification methods
+  addHappinessPoints: (points: number, reason: string) => void;
+  addAchievement: (achievement: string) => void;
+  addNote: (note: any) => void;
+
+  // ✅ NEW: Delete methods for data management
+  deleteEmotionalNote: (noteId: string) => void;
+  deletePracticeSession: (sessionId: string) => void;
+  deleteReflection: (reflectionId: string) => void;
+
+  // Legacy compatibility methods
+  getLegacyPracticeHistory: () => PracticeSessionData[];
+  getLegacyEmotionalNotes: () => EmotionalNoteData[];
+  getLegacyMindRecoveryHistory: () => PracticeSessionData[];
+  syncLegacyStorageKeys: () => void;
 }
 
 // 🔧 CREATE CONTEXT
 const LocalDataContext = createContext<LocalDataContextType | undefined>(undefined);
 
-// 🚀 ENHANCED PROVIDER WITH IMPROVED AUTO-REFRESH + DATA CONSISTENCY
+// 🚀 ENHANCED PROVIDER WITH COMPLETE FUNCTIONALITY
 export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, syncWithLocalData } = useAuth();
   const [userData, setUserData] = useState<ComprehensiveUserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // ✨ ENHANCED AUTO-REFRESH MECHANISM 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // 🔥 ENHANCED AUTOMATIC REFRESH FUNCTION
@@ -292,134 +489,234 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // 🔥 GET USER STORAGE KEY
-  const getStorageKey = (): string => {
+  const getStorageKey = useCallback((): string => {
     return currentUser?.uid ? `comprehensiveUserData_${currentUser.uid}` : 'comprehensiveUserData';
-  };
+  }, [currentUser?.uid]);
+
+  // ✅ LEGACY STORAGE KEY MANAGEMENT
+  const getLegacyStorageKeys = useCallback(() => {
+    return {
+      practiceHistory: 'practiceHistory',
+      emotionalNotes: 'emotionalNotes', 
+      mindRecoveryHistory: 'mindRecoveryHistory',
+      userProfile: currentUser?.uid ? `userProfile_${currentUser.uid}` : 'userProfile',
+      questionnaire: 'questionnaire_responses',
+      selfAssessment: 'self_assessment_responses'
+    };
+  }, [currentUser?.uid]);
+
+  // 🔥 CREATE EMPTY USER DATA STRUCTURE
+  const createEmptyUserData = useCallback((): ComprehensiveUserData => {
+    return {
+      profile: {
+        userId: currentUser?.uid || 'guest',
+        displayName: currentUser?.displayName || 'User',
+        email: currentUser?.email || '',
+        totalSessions: 0,
+        totalMinutes: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        averageQuality: 0,
+        averagePresentPercentage: 0,
+        totalMindRecoverySessions: 0,
+        totalMindRecoveryMinutes: 0,
+        averageMindRecoveryRating: 0,
+        currentProgress: {
+          currentStage: 1,
+          currentTLevel: "Beginner",
+          totalSessions: 0,
+          totalMinutes: 0,
+          longestStreak: 0,
+          currentStreak: 0,
+          averageQuality: 0,
+          averagePresentPercentage: 0
+        },
+        preferences: {
+          defaultSessionDuration: 20,
+          reminderEnabled: true,
+          favoriteStages: [1, 2],
+          optimalPracticeTime: "morning",
+          notifications: {
+            dailyReminder: true,
+            streakReminder: true,
+            weeklyProgress: true
+          }
+        }
+      },
+      practiceSessions: [],
+      emotionalNotes: [],
+      reflections: [],
+      questionnaire: undefined,
+      selfAssessment: undefined,
+      happinessPoints: 50,
+      achievements: ['journey_started'],
+      notes: [],
+      analytics: {
+        totalPracticeTime: 0,
+        averageSessionLength: 0,
+        consistencyScore: 0,
+        progressTrend: 'stable',
+        lastUpdated: new Date().toISOString()
+      }
+    };
+  }, [currentUser]);
 
   // 🔥 CLEAR ALL DATA
-  const clearAllData = () => {
+  const clearAllData = useCallback(() => {
     setUserData(null);
     localStorage.removeItem(getStorageKey());
+    
+    const legacyKeys = getLegacyStorageKeys();
+    Object.values(legacyKeys).forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    localStorage.removeItem('questionnaire_completed');
+    localStorage.removeItem('self_assessment_completed');
+    localStorage.removeItem('happiness_points');
+    
     triggerAutoRefresh();
     console.log('🗑️ All data cleared and auto-refresh triggered!');
-  };
+  }, [getStorageKey, getLegacyStorageKeys, triggerAutoRefresh]);
+
+  // 🔥 SAVE DATA TO STORAGE WITH AUTO-UPDATE
+  const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      console.log('💾 Data auto-saved to comprehensive storage');
+      
+      // Sync with legacy storage keys for component compatibility
+      if (currentUser) {
+        const legacyKeys = getLegacyStorageKeys();
+        
+        localStorage.setItem(legacyKeys.practiceHistory, JSON.stringify(data.practiceSessions));
+        localStorage.setItem(legacyKeys.emotionalNotes, JSON.stringify(data.emotionalNotes));
+        
+        const mindRecoverySessions = data.practiceSessions.filter(s => s.sessionType === 'mind_recovery');
+        localStorage.setItem(legacyKeys.mindRecoveryHistory, JSON.stringify(mindRecoverySessions));
+        
+        if (data.questionnaire) {
+          localStorage.setItem(legacyKeys.questionnaire, JSON.stringify(data.questionnaire.responses));
+          localStorage.setItem('questionnaire_completed', data.questionnaire.completed ? 'true' : 'false');
+        }
+        
+        if (data.selfAssessment) {
+          localStorage.setItem(legacyKeys.selfAssessment, JSON.stringify(data.selfAssessment));
+          localStorage.setItem('self_assessment_completed', data.selfAssessment.completed ? 'true' : 'false');
+        }
+        
+        if (data.happinessPoints !== undefined) {
+          localStorage.setItem('happiness_points', data.happinessPoints.toString());
+        }
+      }
+      
+      // Auto-sync with auth context
+      if (currentUser && syncWithLocalData) {
+        syncWithLocalData();
+      }
+      
+      setTimeout(() => {
+        triggerAutoRefresh();
+      }, 50);
+      
+    } catch (error) {
+      console.error('❌ Error saving data to storage:', error);
+    }
+  }, [getStorageKey, getLegacyStorageKeys, currentUser, syncWithLocalData, triggerAutoRefresh]);
 
   // 🔥 LOAD DATA FROM STORAGE
   const loadDataFromStorage = useCallback(() => {
     try {
       setIsLoading(true);
       const storedData = localStorage.getItem(getStorageKey());
+      
       if (storedData) {
         const parsedData = JSON.parse(storedData);
         setUserData(parsedData);
-        console.log('📊 Data loaded from storage');
+        console.log('📊 Data loaded from comprehensive storage');
       } else {
-        // Initialize empty user data structure
-        const emptyData: ComprehensiveUserData = {
-          profile: {
-            userId: currentUser?.uid || 'guest',
-            displayName: currentUser?.displayName || 'User',
-            email: currentUser?.email || '',
-            totalSessions: 0,
-            totalMinutes: 0,
-            currentStreak: 0,
-            longestStreak: 0,
-            averageQuality: 0,
-            averagePresentPercentage: 0,
-            totalMindRecoverySessions: 0,
-            totalMindRecoveryMinutes: 0,
-            averageMindRecoveryRating: 0,
-            currentProgress: {
-              currentStage: 1,
-              currentTLevel: "Beginner",
-              totalSessions: 0,
-              totalMinutes: 0,
-              longestStreak: 0,
-              currentStreak: 0,
-              averageQuality: 0,
-              averagePresentPercentage: 0
-            },
-            preferences: {
-              defaultSessionDuration: 20,
-              reminderEnabled: true,
-              favoriteStages: [1, 2],
-              optimalPracticeTime: "morning",
-              notifications: {
-                dailyReminder: true,
-                streakReminder: true,
-                weeklyProgress: true
-              }
-            }
-          },
-          practiceSessions: [],
-          emotionalNotes: [],
-          reflections: [],
-          analytics: {
-            totalPracticeTime: 0,
-            averageSessionLength: 0,
-            consistencyScore: 0,
-            progressTrend: 'stable',
-            lastUpdated: new Date().toISOString()
-          }
-        };
+        const emptyData = createEmptyUserData();
         setUserData(emptyData);
         saveDataToStorage(emptyData);
       }
+      
       triggerAutoRefresh();
     } catch (error) {
-      console.error('Error loading data from storage:', error);
+      console.error('❌ Error loading data from storage:', error);
+      const emptyData = createEmptyUserData();
+      setUserData(emptyData);
+      saveDataToStorage(emptyData);
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
+  }, [getStorageKey, createEmptyUserData, saveDataToStorage, triggerAutoRefresh]);
 
-  // 🔥 ENHANCED SAVE DATA TO STORAGE WITH BETTER AUTO-UPDATE
-  const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
-    try {
-      localStorage.setItem(getStorageKey(), JSON.stringify(data));
-      console.log('💾 Data auto-saved to storage');
-      
-      // 🔧 FIXED: Auto-sync with auth context - removed parameter
-      if (currentUser && syncWithLocalData) {
-        syncWithLocalData();
-      }
-      
-      // ✅ CRITICAL: Trigger auto-refresh AFTER save to ensure components update
-      setTimeout(() => {
-        triggerAutoRefresh();
-      }, 50); // Small delay to ensure save completes
-      
-    } catch (error) {
-      console.error('Error saving data to storage:', error);
-    }
-  }, [getStorageKey, currentUser, syncWithLocalData, triggerAutoRefresh]);
-
-  // 🔥 ENHANCED DATA GETTERS - All depend on refreshTrigger for automatic updates
+  // 🔥 ENHANCED DATA GETTERS
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     const sessions = userData?.practiceSessions || [];
     console.log(`📊 getPracticeSessions called - returning ${sessions.length} sessions (refresh #${refreshTrigger})`);
     return sessions;
-  }, [userData?.practiceSessions, refreshTrigger]);
+  }, [userData?.practiceSessions]);
 
   const getDailyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
     const notes = userData?.emotionalNotes || [];
     console.log(`💝 getDailyEmotionalNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
     return notes;
-  }, [userData?.emotionalNotes, refreshTrigger]);
+  }, [userData?.emotionalNotes]);
 
   const getReflections = useCallback((): ReflectionData[] => {
     return userData?.reflections || [];
-  }, [userData?.reflections, refreshTrigger]);
+  }, [userData?.reflections]);
+
+  // Questionnaire and Self-Assessment getters
+  const getQuestionnaire = useCallback((): QuestionnaireData | null => {
+    const questionnaire = userData?.questionnaire || null;
+    console.log(`📝 getQuestionnaire called - returning:`, questionnaire?.completed ? 'completed' : 'not completed');
+    return questionnaire;
+  }, [userData?.questionnaire]);
+
+  const getSelfAssessment = useCallback((): SelfAssessmentData | null => {
+    const selfAssessment = userData?.selfAssessment || null;
+    console.log(`🧠 getSelfAssessment called - returning:`, selfAssessment?.completed ? 'completed' : 'not completed');
+    return selfAssessment;
+  }, [userData?.selfAssessment]);
+
+  const isQuestionnaireCompleted = useCallback((): boolean => {
+    return userData?.questionnaire?.completed || false;
+  }, [userData?.questionnaire?.completed]);
+
+  const isSelfAssessmentCompleted = useCallback((): boolean => {
+    return userData?.selfAssessment?.completed || false;
+  }, [userData?.selfAssessment?.completed]);
+
+  // Happiness and gamification getters
+  const getHappinessPoints = useCallback((): number => {
+    const points = userData?.happinessPoints || 50;
+    console.log(`😊 getHappinessPoints called - returning ${points} points (refresh #${refreshTrigger})`);
+    return points;
+  }, [userData?.happinessPoints]);
+
+  const getAchievements = useCallback((): string[] => {
+    const achievements = userData?.achievements || [];
+    console.log(`🏆 getAchievements called - returning ${achievements.length} achievements (refresh #${refreshTrigger})`);
+    return achievements;
+  }, [userData?.achievements]);
+
+  const getNotes = useCallback((): any[] => {
+    const notes = userData?.notes || [];
+    console.log(`📒 getNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
+    return notes;
+  }, [userData?.notes]);
 
   const getMindRecoverySessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'mind_recovery') || [];
-  }, [userData?.practiceSessions, refreshTrigger]);
+  }, [userData?.practiceSessions]);
 
   const getMeditationSessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'meditation') || [];
-  }, [userData?.practiceSessions, refreshTrigger]);
+  }, [userData?.practiceSessions]);
 
-  // 🧠 ENHANCED 9-CATEGORY PAHM ANALYTICS with better data validation
+  // ✅ FIXED: COMPLETE PAHM ANALYTICS IMPLEMENTATION
   const getPAHMData = useCallback((): PAHMAnalytics | null => {
     const sessions = getPracticeSessions().filter(session => session.pahmCounts);
     
@@ -452,7 +749,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     const totalCounts = Object.values(totalPAHM).reduce((sum, count) => sum + count, 0);
-    console.log(`🧠 Total PAHM observations: ${totalCounts}`);
     
     const timeDistribution = {
       present: totalPAHM.present_attachment + totalPAHM.present_neutral + totalPAHM.present_aversion,
@@ -479,604 +775,488 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       sessionsAnalyzed: sessions.length,
       totalObservations: totalCounts
     };
-  }, [getPracticeSessions, refreshTrigger]);
+  }, [getPracticeSessions]);
 
-  // 🌿 ENVIRONMENT ANALYTICS - Auto-refreshing
+  // ✅ FIXED: COMPLETE ENVIRONMENT ANALYTICS IMPLEMENTATION
   const getEnvironmentData = useCallback((): EnvironmentAnalytics => {
     const sessions = getPracticeSessions().filter(session => session.environment);
     
-    const groupByEnvironmentFactor = (factor: 'posture' | 'location' | 'lighting' | 'sounds') => {
-      const groups: { [key: string]: { ratings: number[], presents: number[], count: number } } = {};
+    if (sessions.length === 0) {
+      return {
+        posture: [],
+        location: [],
+        lighting: [],
+        sounds: []
+      };
+    }
+
+    const analyzeEnvironmentFactor = (factor: keyof NonNullable<PracticeSessionData['environment']>) => {
+      const factorData: { [key: string]: { count: number; totalRating: number; totalPresent: number } } = {};
       
       sessions.forEach(session => {
-        if (session.environment && session.environment[factor]) {
+        if (session.environment) {
           const value = session.environment[factor];
-          if (!groups[value]) {
-            groups[value] = { ratings: [], presents: [], count: 0 };
+          if (!factorData[value]) {
+            factorData[value] = { count: 0, totalRating: 0, totalPresent: 0 };
           }
-          if (session.rating) groups[value].ratings.push(session.rating);
-          if (session.presentPercentage) groups[value].presents.push(session.presentPercentage);
-          groups[value].count++;
+          factorData[value].count++;
+          factorData[value].totalRating += session.rating || 0;
+          factorData[value].totalPresent += session.presentPercentage || 0;
         }
       });
 
-      return Object.entries(groups)
-        .map(([name, data]) => ({
-          name,
-          count: data.count,
-          avgRating: data.ratings.length > 0 ? Math.round((data.ratings.reduce((sum, r) => sum + r, 0) / data.ratings.length) * 10) / 10 : 0,
-          avgPresent: data.presents.length > 0 ? Math.round((data.presents.reduce((sum, p) => sum + p, 0) / data.presents.length) * 10) / 10 : 0
-        }))
-        .sort((a, b) => b.avgRating - a.avgRating);
+      return Object.entries(factorData).map(([name, data]) => ({
+        name,
+        count: data.count,
+        avgRating: Math.round((data.totalRating / data.count) * 10) / 10,
+        avgPresent: Math.round(data.totalPresent / data.count)
+      })).sort((a, b) => b.count - a.count);
     };
 
     return {
-      posture: groupByEnvironmentFactor('posture'),
-      location: groupByEnvironmentFactor('location'),
-      lighting: groupByEnvironmentFactor('lighting'),
-      sounds: groupByEnvironmentFactor('sounds')
+      posture: analyzeEnvironmentFactor('posture'),
+      location: analyzeEnvironmentFactor('location'),
+      lighting: analyzeEnvironmentFactor('lighting'),
+      sounds: analyzeEnvironmentFactor('sounds')
     };
-  }, [getPracticeSessions, refreshTrigger]);
+  }, [getPracticeSessions]);
 
-  // 🕐 MIND RECOVERY ANALYTICS - Auto-refreshing
+  // ✅ FIXED: COMPLETE MIND RECOVERY ANALYTICS IMPLEMENTATION
   const getMindRecoveryAnalytics = useCallback((): MindRecoveryAnalytics => {
-    const mindRecoverySessions = getMindRecoverySessions();
-    
-    const contextStats = mindRecoverySessions.reduce((acc: any[], session) => {
-      if (session.mindRecoveryContext) {
-        const existing = acc.find(item => item.context === session.mindRecoveryContext);
-        if (existing) {
-          existing.count++;
-          existing.ratings.push(session.rating || 0);
-          existing.durations.push(session.duration);
-        } else {
-          acc.push({
-            context: session.mindRecoveryContext,
-            count: 1,
-            ratings: [session.rating || 0],
-            durations: [session.duration]
-          });
-        }
-      }
-      return acc;
-    }, []).map(item => ({
-      context: item.context,
-      count: item.count,
-      avgRating: Math.round((item.ratings.reduce((sum: number, r: number) => sum + r, 0) / item.ratings.length) * 10) / 10,
-      avgDuration: Math.round((item.durations.reduce((sum: number, d: number) => sum + d, 0) / item.durations.length) * 10) / 10
-    })).sort((a, b) => b.avgRating - a.avgRating);
-
-    const purposeStats = mindRecoverySessions.reduce((acc: any[], session) => {
-      if (session.mindRecoveryPurpose) {
-        const existing = acc.find(item => item.purpose === session.mindRecoveryPurpose);
-        if (existing) {
-          existing.count++;
-          existing.ratings.push(session.rating || 0);
-          existing.durations.push(session.duration);
-        } else {
-          acc.push({
-            purpose: session.mindRecoveryPurpose,
-            count: 1,
-            ratings: [session.rating || 0],
-            durations: [session.duration]
-          });
-        }
-      }
-      return acc;
-    }, []).map(item => ({
-      purpose: item.purpose,
-      count: item.count,
-      avgRating: Math.round((item.ratings.reduce((sum: number, r: number) => sum + r, 0) / item.ratings.length) * 10) / 10,
-      avgDuration: Math.round((item.durations.reduce((sum: number, d: number) => sum + d, 0) / item.durations.length) * 10) / 10
-    })).sort((a, b) => b.avgRating - a.avgRating);
-
-    const totalMinutes = mindRecoverySessions.reduce((sum, session) => sum + session.duration, 0);
-    const avgRating = mindRecoverySessions.length > 0 
-      ? Math.round((mindRecoverySessions.reduce((sum, session) => sum + (session.rating || 0), 0) / mindRecoverySessions.length) * 10) / 10
-      : 0;
-    const avgDuration = mindRecoverySessions.length > 0 
-      ? Math.round((totalMinutes / mindRecoverySessions.length) * 10) / 10
-      : 0;
-
-    return {
-      totalMindRecoverySessions: mindRecoverySessions.length,
-      totalMindRecoveryMinutes: totalMinutes,
-      avgMindRecoveryRating: avgRating,
-      avgMindRecoveryDuration: avgDuration,
-      contextStats,
-      purposeStats,
-      highestRatedContext: contextStats.length > 0 ? { name: contextStats[0].context, rating: contextStats[0].avgRating } : undefined,
-      mostUsedContext: contextStats.length > 0 ? { name: contextStats.sort((a, b) => b.count - a.count)[0].context, count: contextStats.sort((a, b) => b.count - a.count)[0].count } : undefined
-    };
-  }, [getMindRecoverySessions, refreshTrigger]);
-
-  // 📊 ENHANCED COMPREHENSIVE ANALYTICS with better streak calculation
-  const getAnalyticsData = useCallback((): ComprehensiveAnalytics => {
-    const allSessions = getPracticeSessions();
-    const meditationSessions = getMeditationSessions();
-    const mindRecoverySessions = getMindRecoverySessions();
-    const emotionalNotes = getDailyEmotionalNotes();
-    
-    console.log(`📊 Calculating analytics for ${allSessions.length} total sessions`);
-    
-    const totalMinutes = allSessions.reduce((sum, session) => sum + session.duration, 0);
-    const avgSessionLength = allSessions.length > 0 ? Math.round((totalMinutes / allSessions.length) * 10) / 10 : 0;
-    const avgQuality = allSessions.length > 0 
-      ? Math.round((allSessions.reduce((sum, session) => sum + (session.rating || 0), 0) / allSessions.length) * 10) / 10 
-      : 0;
-    const avgPresent = allSessions.length > 0 
-      ? Math.round((allSessions.reduce((sum, session) => sum + (session.presentPercentage || 0), 0) / allSessions.length) * 10) / 10 
-      : 0;
-
-    // ✅ ENHANCED STREAK CALCULATION - More accurate
-    const sortedSessions = allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-    
-    if (sortedSessions.length > 0) {
-      const today = new Date();
-      today.setHours(23, 59, 59, 999); // End of today
-      
-      const lastSessionDate = new Date(sortedSessions[0].timestamp);
-      const daysDiff = Math.floor((today.getTime() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysDiff <= 1) { // Session today or yesterday
-        currentStreak = 1;
-        tempStreak = 1;
-        
-        // Check consecutive days
-        const sessionDates = new Set<string>();
-        sortedSessions.forEach(session => {
-          const dateStr = new Date(session.timestamp).toDateString();
-          sessionDates.add(dateStr);
-        });
-        
-        const uniqueDates = Array.from(sessionDates).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-        
-        for (let i = 1; i < uniqueDates.length; i++) {
-          const currentDate = new Date(uniqueDates[i - 1]);
-          const prevDate = new Date(uniqueDates[i]);
-          const diff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (diff === 1) {
-            currentStreak++;
-            tempStreak++;
-          } else {
-            longestStreak = Math.max(longestStreak, tempStreak);
-            tempStreak = 1;
-          }
-        }
-        longestStreak = Math.max(longestStreak, tempStreak);
-      }
-    }
-
-    const progressTrend: 'improving' | 'stable' | 'declining' = 
-      avgQuality >= 8 ? 'improving' : avgQuality >= 6 ? 'stable' : 'improving';
-
-    const analytics: ComprehensiveAnalytics = {
-      totalSessions: allSessions.length,
-      totalMeditationSessions: meditationSessions.length,
-      totalMindRecoverySessions: mindRecoverySessions.length,
-      totalPracticeTime: totalMinutes,
-      averageSessionLength: avgSessionLength,
-      averageQuality: avgQuality,
-      averagePresentPercentage: avgPresent,
-      currentStreak: currentStreak,
-      longestStreak: longestStreak,
-      emotionalNotesCount: emotionalNotes.length,
-      consistencyScore: allSessions.length > 0 ? Math.min(100, Math.round((currentStreak / 30) * 100)) : 0,
-      progressTrend,
-      lastUpdated: new Date().toISOString()
-    };
-
-    console.log('📊 Analytics calculated:', analytics);
-    return analytics;
-  }, [getPracticeSessions, getMeditationSessions, getMindRecoverySessions, getDailyEmotionalNotes, refreshTrigger]);
-
-  // 🔮 PREDICTIVE INSIGHTS
-  const getPredictiveInsights = useCallback(() => {
-    const sessions = getPracticeSessions();
-    if (sessions.length < 5) return null;
-
-    const recentSessions = sessions.slice(-10);
-    const avgDuration = recentSessions.reduce((sum, s) => sum + s.duration, 0) / recentSessions.length;
-    const avgRating = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
-    
-    // Analyze time patterns
-    const timePatterns = recentSessions.reduce((acc: any, session) => {
-      const hour = new Date(session.timestamp).getHours();
-      const timeSlot = hour < 6 ? 'early-morning' : 
-                     hour < 12 ? 'morning' : 
-                     hour < 18 ? 'afternoon' : 'evening';
-      
-      if (!acc[timeSlot]) acc[timeSlot] = { count: 0, totalRating: 0 };
-      acc[timeSlot].count++;
-      acc[timeSlot].totalRating += session.rating || 0;
-      return acc;
-    }, {});
-
-    const bestTimeSlot = Object.entries(timePatterns)
-      .map(([time, data]: [string, any]) => ({ time, avgRating: data.totalRating / data.count }))
-      .sort((a, b) => b.avgRating - a.avgRating)[0];
-
-    return {
-      optimalSessionLength: Math.round(avgDuration),
-      bestPracticeTime: bestTimeSlot?.time || 'morning',
-      streakProbability: Math.min(95, Math.round(avgRating * 10)),
-      qualityTrend: avgRating >= 8 ? 'excellent' : avgRating >= 6 ? 'good' : 'developing'
-    };
-  }, [getPracticeSessions, refreshTrigger]);
-
-  // 📈 PROGRESS TRENDS
-  const getProgressTrends = useCallback(() => {
-    const sessions = getPracticeSessions();
-    if (sessions.length < 3) return null;
-
-    const recentSessions = sessions.slice(-7);
-    const olderSessions = sessions.slice(-14, -7);
-
-    const recentAvgRating = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
-    const olderAvgRating = olderSessions.length > 0 
-      ? olderSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / olderSessions.length 
-      : recentAvgRating;
-
-    const recentAvgPresent = recentSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / recentSessions.length;
-    const olderAvgPresent = olderSessions.length > 0 
-      ? olderSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / olderSessions.length 
-      : recentAvgPresent;
-
-    return {
-      qualityTrend: recentAvgRating > olderAvgRating ? 'improving' : recentAvgRating < olderAvgRating ? 'declining' : 'stable',
-      presentTrend: recentAvgPresent > olderAvgPresent ? 'improving' : recentAvgPresent < olderAvgPresent ? 'declining' : 'stable',
-      qualityChange: Math.round((recentAvgRating - olderAvgRating) * 10) / 10,
-      presentChange: Math.round((recentAvgPresent - olderAvgPresent) * 10) / 10
-    };
-  }, [getPracticeSessions, refreshTrigger]);
-
-  // 📊 COMPREHENSIVE ANALYTICS FOR EXPORT
-  const getComprehensiveAnalytics = useCallback(() => {
-    return {
-      basicAnalytics: getAnalyticsData(),
-      pahmAnalytics: getPAHMData(),
-      environmentAnalytics: getEnvironmentData(),
-      mindRecoveryAnalytics: getMindRecoveryAnalytics(),
-      predictiveInsights: getPredictiveInsights(),
-      progressTrends: getProgressTrends()
-    };
-  }, [getAnalyticsData, getPAHMData, getEnvironmentData, getMindRecoveryAnalytics, getPredictiveInsights, getProgressTrends, refreshTrigger]);
-
-  // 📤 EXPORT DATA FOR ANALYSIS
-  const exportDataForAnalysis = useCallback(() => {
-    return {
-      userData,
-      analytics: getComprehensiveAnalytics(),
-      exportTimestamp: new Date().toISOString(),
-      version: 'production-complete-v1.0'
-    };
-  }, [userData, getComprehensiveAnalytics, refreshTrigger]);
-
-  // 📊 DASHBOARD ANALYTICS - ALL TABS SUPPORT
-  
-  // Filter data based on time range
-  const getFilteredData = useCallback((timeRange: string = 'month') => {
-    const now = new Date();
-    let cutoffDate = new Date();
-    
-    switch (timeRange) {
-      case 'week':
-        cutoffDate.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        cutoffDate.setMonth(now.getMonth() - 1);
-        break;
-      case 'quarter':
-        cutoffDate.setMonth(now.getMonth() - 3);
-        break;
-      case 'year':
-        cutoffDate.setFullYear(now.getFullYear() - 1);
-        break;
-      default:
-        cutoffDate.setMonth(now.getMonth() - 1);
-    }
-    
-    const practice = getPracticeSessions().filter(session => new Date(session.timestamp) >= cutoffDate);
-    const notes = getDailyEmotionalNotes().filter(note => new Date(note.timestamp) >= cutoffDate);
-    
-    console.log(`📊 Filtered data for ${timeRange}: ${practice.length} sessions, ${notes.length} notes`);
-    return { practice, notes };
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
-
-  // Get practice duration trend data
-  const getPracticeDurationData = useCallback((timeRange: string = 'month') => {
-    const { practice } = getFilteredData(timeRange);
-    
-    if (practice.length === 0) return [];
-    
-    const durationByDate: {[key: string]: number} = {};
-    practice.forEach(session => {
-      const dateKey = new Date(session.timestamp).toLocaleDateString();
-      durationByDate[dateKey] = (durationByDate[dateKey] || 0) + session.duration;
-    });
-    
-    const sortedDates = Object.keys(durationByDate).sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime()
-    );
-    
-    return sortedDates.map(date => ({
-      date,
-      duration: durationByDate[date]
-    }));
-  }, [getFilteredData, refreshTrigger]);
-
-  // Get emotion distribution
-  const getEmotionDistribution = useCallback((timeRange: string = 'month') => {
-    const { notes } = getFilteredData(timeRange);
-    const emotionCounts: {[key: string]: number} = {};
-    
-    notes.forEach(note => {
-      const emotion = note.emotion || 'neutral';
-      emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
-    });
-    
-    const getEmotionColor = (emotion: string): string => {
-      const colors: {[key: string]: string} = {
-        joy: '#FFD700', joyful: '#FFD700', content: '#90EE90', peaceful: '#87CEEB',
-        relieved: '#98FB98', satisfied: '#DDA0DD', amazed: '#FF69B4', serene: '#B0E0E6',
-        ecstatic: '#FF6347', transformed: '#9370DB', energized: '#32CD32', connected: '#20B2AA',
-        focused: '#4169E1', blissful: '#DA70D6', accomplished: '#228B22', clear: '#00CED1',
-        nurtured: '#DDA0DD', transcendent: '#8A2BE2', balanced: '#32CD32', integrated: '#4682B4',
-        profound: '#800080', refreshed: '#00FA9A', loving: '#FF1493', grateful: '#FFA500',
-        centered: '#6495ED', sadness: '#6495ED', anger: '#FF6347', fear: '#9370DB', neutral: '#A9A9A9',
-        reflective: '#9370DB'
-      };
-      return colors[emotion.toLowerCase()] || '#A9A9A9';
-    };
-    
-    return Object.entries(emotionCounts).map(([emotion, count]) => ({
-      emotion: emotion.charAt(0).toUpperCase() + emotion.slice(1),
-      count,
-      color: getEmotionColor(emotion)
-    }));
-  }, [getFilteredData, refreshTrigger]);
-
-  // Get practice distribution by stage
-  const getPracticeDistribution = useCallback((timeRange: string = 'month') => {
-    const { practice } = getFilteredData(timeRange);
-    
-    if (practice.length === 0) return [];
-    
-    const countByStage: {[key: string]: number} = {};
-    practice.forEach(session => {
-      const stageKey = session.stageLevel 
-        ? `Stage ${session.stageLevel}`
-        : session.mindRecoveryContext
-        ? 'Mind Recovery'
-        : 'Unknown';
-      countByStage[stageKey] = (countByStage[stageKey] || 0) + 1;
-    });
-    
-    return Object.entries(countByStage).map(([stage, count]) => ({
-      stage,
-      count
-    }));
-  }, [getFilteredData, refreshTrigger]);
-
-  // Get app usage patterns
-  const getAppUsagePatterns = useCallback(() => {
-    const practice = getPracticeSessions();
-    
-    // Session timing analysis
-    const timeOfDayStats: {[key: string]: number} = {};
-    const dayOfWeekStats: {[key: string]: number} = {};
-    const sessionLengthDistribution: {[key: string]: number} = {};
-    
-    practice.forEach(session => {
-      const date = new Date(session.timestamp);
-      const hour = date.getHours();
-      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-      
-      // Time of day categorization
-      let timeCategory = '';
-      if (hour >= 5 && hour < 9) timeCategory = 'Early Morning (5-9 AM)';
-      else if (hour >= 9 && hour < 12) timeCategory = 'Morning (9-12 PM)';
-      else if (hour >= 12 && hour < 17) timeCategory = 'Afternoon (12-5 PM)';
-      else if (hour >= 17 && hour < 21) timeCategory = 'Evening (5-9 PM)';
-      else timeCategory = 'Night (9 PM-5 AM)';
-      
-      timeOfDayStats[timeCategory] = (timeOfDayStats[timeCategory] || 0) + 1;
-      dayOfWeekStats[dayOfWeek] = (dayOfWeekStats[dayOfWeek] || 0) + 1;
-      
-      // Session length categorization
-      let lengthCategory = '';
-      if (session.duration <= 5) lengthCategory = '1-5 minutes';
-      else if (session.duration <= 15) lengthCategory = '6-15 minutes';
-      else if (session.duration <= 30) lengthCategory = '16-30 minutes';
-      else lengthCategory = '30+ minutes';
-      
-      sessionLengthDistribution[lengthCategory] = (sessionLengthDistribution[lengthCategory] || 0) + 1;
-    });
-    
-    return {
-      timeOfDayStats,
-      dayOfWeekStats,
-      sessionLengthDistribution,
-      totalSessions: practice.length,
-      averageSessionsPerWeek: Math.round((practice.length / 4) * 10) / 10,
-      consistency: practice.length > 20 ? 'High' : practice.length > 10 ? 'Medium' : 'Low'
-    };
-  }, [getPracticeSessions, refreshTrigger]);
-
-  // Get engagement metrics
-  const getEngagementMetrics = useCallback(() => {
-    const practice = getPracticeSessions();
-    const notes = getDailyEmotionalNotes();
-    
-    const today = new Date();
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
-    const lastWeekSessions = practice.filter(s => new Date(s.timestamp) >= weekAgo).length;
-    const lastMonthSessions = practice.filter(s => new Date(s.timestamp) >= monthAgo).length;
-    
-    const avgSessionQuality = practice.length > 0 
-      ? practice.reduce((sum, s) => sum + (s.rating || 0), 0) / practice.length 
-      : 0;
-    const notesPerSession = practice.length > 0 ? notes.length / practice.length : 0;
-    
-    return {
-      weeklyFrequency: lastWeekSessions,
-      monthlyFrequency: lastMonthSessions,
-      averageQuality: Math.round(avgSessionQuality * 10) / 10,
-      engagementLevel: avgSessionQuality >= 8 ? 'High' : avgSessionQuality >= 6 ? 'Medium' : 'Low',
-      notesPerSession: Math.round(notesPerSession * 10) / 10,
-      documentationHabit: notesPerSession >= 0.5 ? 'Excellent' : notesPerSession >= 0.25 ? 'Good' : 'Basic'
-    };
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
-
-  // Get feature utilization
-  const getFeatureUtilization = useCallback(() => {
-    const practice = getPracticeSessions();
-    const notes = getDailyEmotionalNotes();
-    
-    const features = {
-      meditation: practice.filter(s => s.sessionType === 'meditation').length,
-      mindRecovery: practice.filter(s => s.sessionType === 'mind_recovery').length,
-      emotionalNotes: notes.length,
-      environmentTracking: practice.filter(s => s.environment).length,
-      pahmTracking: practice.filter(s => s.pahmCounts).length,
-      ratings: practice.filter(s => s.rating).length,
-      personalNotes: practice.filter(s => s.notes).length
-    };
-    
-    const totalFeatureUses = Object.values(features).reduce((sum, count) => sum + count, 0);
-    
-    return Object.entries(features).map(([feature, count]) => ({
-      feature: feature.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
-      count,
-      percentage: totalFeatureUses > 0 ? Math.round((count / totalFeatureUses) * 100) : 0
-    })).sort((a, b) => b.count - a.count);
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
-
-  // Get comprehensive statistics for overview
-  const getComprehensiveStats = useCallback(() => {
-    const practice = getPracticeSessions();
-    const notes = getDailyEmotionalNotes();
-    
-    if (practice.length === 0) {
-      return {
-        totalSessions: 0,
-        totalMinutes: 0,
-        averageRating: 0,
-        averageDuration: 0,
-        averagePresent: 0,
-        meditationSessions: 0,
-        mindRecoverySessions: 0,
-        mindRecoveryUsage: 0,
-        totalEmotionalNotes: 0,
-        mostCommonEmotion: 'N/A',
-        averageEnergyLevel: 0
-      };
-    }
-    
-    const totalMinutes = practice.reduce((sum, s) => sum + s.duration, 0);
-    const averageRating = practice.reduce((sum, s) => sum + (s.rating || 0), 0) / practice.length;
-    const averageDuration = totalMinutes / practice.length;
-    const averagePresent = practice.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / practice.length;
-    
-    const meditationSessions = practice.filter(s => s.sessionType === 'meditation').length;
-    const mindRecoverySessions = practice.filter(s => s.sessionType === 'mind_recovery').length;
-    const mindRecoveryUsage = Math.round((mindRecoverySessions / practice.length) * 100);
-    
-    const emotionCounts: {[key: string]: number} = {};
-    let totalEnergyLevel = 0;
-    let energyLevelCount = 0;
-    
-    notes.forEach(note => {
-      const emotion = note.emotion || 'neutral';
-      emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
-      
-      if (note.energyLevel) {
-        totalEnergyLevel += note.energyLevel;
-        energyLevelCount++;
-      }
-    });
-    
-    const mostCommonEmotion = Object.entries(emotionCounts).reduce((a, b) => 
-      emotionCounts[a[0]] > emotionCounts[b[0]] ? a : b, ['neutral', 0])[0];
-    
-    return {
-      totalSessions: practice.length,
-      totalMinutes,
-      averageRating: Math.round(averageRating * 10) / 10,
-      averageDuration: Math.round(averageDuration),
-      averagePresent: Math.round(averagePresent),
-      meditationSessions,
-      mindRecoverySessions,
-      mindRecoveryUsage,
-      totalEmotionalNotes: notes.length,
-      mostCommonEmotion: mostCommonEmotion.charAt(0).toUpperCase() + mostCommonEmotion.slice(1),
-      averageEnergyLevel: energyLevelCount > 0 ? Math.round((totalEnergyLevel / energyLevelCount) * 10) / 10 : 0
-    };
-  }, [getPracticeSessions, getDailyEmotionalNotes, refreshTrigger]);
-
-  // Get 9-Category PAHM insights (alias for dashboard compatibility)
-  const get9CategoryPAHMInsights = useCallback(() => {
-    return getPAHMData();
-  }, [getPAHMData, refreshTrigger]);
-
-  // Get Mind Recovery insights (alias for dashboard compatibility)
-  const getMindRecoveryInsights = useCallback(() => {
     const mindRecoverySessions = getMindRecoverySessions();
     
     if (mindRecoverySessions.length === 0) {
       return {
-        totalSessions: 0,
-        totalMinutes: 0,
-        averageRating: 0,
-        averageDuration: 0,
-        techniques: []
+        totalMindRecoverySessions: 0,
+        totalMindRecoveryMinutes: 0,
+        avgMindRecoveryRating: 0,
+        avgMindRecoveryDuration: 0,
+        contextStats: [],
+        purposeStats: [],
       };
     }
-    
-    const totalMinutes = mindRecoverySessions.reduce((sum, s) => sum + s.duration, 0);
-    const averageRating = mindRecoverySessions.reduce((sum, s) => sum + (s.rating || 0), 0) / mindRecoverySessions.length;
-    const averageDuration = totalMinutes / mindRecoverySessions.length;
-    
-    // Analyze techniques
-    const techniqueStats: {[key: string]: {count: number, totalDuration: number, avgRating: number}} = {};
-    
+
+    const totalMinutes = mindRecoverySessions.reduce((sum, session) => sum + session.duration, 0);
+    const avgRating = mindRecoverySessions.reduce((sum, session) => sum + (session.rating || 0), 0) / mindRecoverySessions.length;
+    const avgDuration = totalMinutes / mindRecoverySessions.length;
+
+    // Analyze contexts
+    const contextData: { [key: string]: { count: number; totalRating: number; totalDuration: number } } = {};
     mindRecoverySessions.forEach(session => {
-      const technique = session.mindRecoveryContext || 'Unknown';
-      if (!techniqueStats[technique]) {
-        techniqueStats[technique] = {count: 0, totalDuration: 0, avgRating: 0};
+      if (session.mindRecoveryContext) {
+        const context = session.mindRecoveryContext;
+        if (!contextData[context]) {
+          contextData[context] = { count: 0, totalRating: 0, totalDuration: 0 };
+        }
+        contextData[context].count++;
+        contextData[context].totalRating += session.rating || 0;
+        contextData[context].totalDuration += session.duration;
       }
-      techniqueStats[technique].count++;
-      techniqueStats[technique].totalDuration += session.duration;
-      techniqueStats[technique].avgRating = 
-        (techniqueStats[technique].avgRating * (techniqueStats[technique].count - 1) + (session.rating || 0)) / techniqueStats[technique].count;
+    });
+
+    const contextStats = Object.entries(contextData).map(([context, data]) => ({
+      context,
+      count: data.count,
+      avgRating: Math.round((data.totalRating / data.count) * 10) / 10,
+      avgDuration: Math.round(data.totalDuration / data.count)
+    })).sort((a, b) => b.count - a.count);
+
+    // Analyze purposes
+    const purposeData: { [key: string]: { count: number; totalRating: number; totalDuration: number } } = {};
+    mindRecoverySessions.forEach(session => {
+      if (session.mindRecoveryPurpose) {
+        const purpose = session.mindRecoveryPurpose;
+        if (!purposeData[purpose]) {
+          purposeData[purpose] = { count: 0, totalRating: 0, totalDuration: 0 };
+        }
+        purposeData[purpose].count++;
+        purposeData[purpose].totalRating += session.rating || 0;
+        purposeData[purpose].totalDuration += session.duration;
+      }
+    });
+
+    const purposeStats = Object.entries(purposeData).map(([purpose, data]) => ({
+      purpose,
+      count: data.count,
+      avgRating: Math.round((data.totalRating / data.count) * 10) / 10,
+      avgDuration: Math.round(data.totalDuration / data.count)
+    })).sort((a, b) => b.count - a.count);
+
+    const highestRatedContext = contextStats.length > 0 ? {
+      name: contextStats.reduce((prev, current) => prev.avgRating > current.avgRating ? prev : current).context,
+      rating: contextStats.reduce((prev, current) => prev.avgRating > current.avgRating ? prev : current).avgRating
+    } : undefined;
+
+    const mostUsedContext = contextStats.length > 0 ? {
+      name: contextStats[0].context,
+      count: contextStats[0].count
+    } : undefined;
+
+    return {
+      totalMindRecoverySessions: mindRecoverySessions.length,
+      totalMindRecoveryMinutes: totalMinutes,
+      avgMindRecoveryRating: Math.round(avgRating * 10) / 10,
+      avgMindRecoveryDuration: Math.round(avgDuration),
+      contextStats,
+      purposeStats,
+      highestRatedContext,
+      mostUsedContext
+    };
+  }, [getMindRecoverySessions]);
+
+  // ✅ FIXED: COMPLETE ANALYTICS DATA IMPLEMENTATION
+  const getAnalyticsData = useCallback((): ComprehensiveAnalytics => {
+    const allSessions = getPracticeSessions();
+    const emotionalNotes = getDailyEmotionalNotes();
+    const mindRecoverySessions = getMindRecoverySessions();
+    
+    const totalSessions = allSessions.length;
+    const totalMeditationSessions = allSessions.filter(s => s.sessionType === 'meditation').length;
+    const totalMindRecoverySessions = mindRecoverySessions.length;
+    const totalPracticeTime = allSessions.reduce((sum, session) => sum + session.duration, 0);
+    const averageSessionLength = totalSessions > 0 ? Math.round(totalPracticeTime / totalSessions) : 0;
+    const averageQuality = totalSessions > 0 ? 
+      Math.round((allSessions.reduce((sum, session) => sum + (session.rating || 0), 0) / totalSessions) * 10) / 10 : 0;
+    const averagePresentPercentage = totalSessions > 0 ?
+      Math.round(allSessions.reduce((sum, session) => sum + (session.presentPercentage || 0), 0) / totalSessions) : 0;
+    
+    // Calculate streak
+    const sortedSessions = [...allSessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let currentStreakCount = 0;
+    let maxStreakCount = 0;
+    
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    for (const session of sortedSessions) {
+      const sessionDate = new Date(session.timestamp);
+      sessionDate.setHours(0, 0, 0, 0);
+      
+      const daysDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff === currentStreakCount) {
+        currentStreakCount++;
+        if (currentStreak === 0) currentStreak = currentStreakCount;
+      } else if (daysDiff > currentStreakCount) {
+        if (currentStreakCount > maxStreakCount) {
+          maxStreakCount = currentStreakCount;
+        }
+        break;
+      }
+    }
+    
+    longestStreak = Math.max(maxStreakCount, currentStreak);
+    
+    const consistencyScore = calculateConsistencyScore(allSessions);
+    const progressTrend = calculateProgressTrend(allSessions);
+
+    return {
+      totalSessions,
+      totalMeditationSessions,
+      totalMindRecoverySessions,
+      totalPracticeTime,
+      averageSessionLength,
+      averageQuality,
+      averagePresentPercentage,
+      currentStreak,
+      longestStreak,
+      emotionalNotesCount: emotionalNotes.length,
+      consistencyScore,
+      progressTrend,
+      lastUpdated: new Date().toISOString()
+    };
+  }, [getPracticeSessions, getDailyEmotionalNotes, getMindRecoverySessions]);
+
+  // Helper functions for analytics
+  const calculateConsistencyScore = (sessions: PracticeSessionData[]): number => {
+    if (sessions.length === 0) return 0;
+    
+    const last30Days = sessions.filter(session => {
+      const sessionDate = new Date(session.timestamp);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return sessionDate >= thirtyDaysAgo;
     });
     
-    const techniques = Object.entries(techniqueStats)
-      .map(([name, stats]) => ({
-        name,
-        count: stats.count,
-        totalDuration: stats.totalDuration,
-        avgDuration: Math.round(stats.totalDuration / stats.count),
-        avgRating: Math.round(stats.avgRating * 10) / 10
-      }))
-      .sort((a, b) => b.avgRating - a.avgRating);
+    const daysWithSessions = new Set(last30Days.map(session => {
+      const date = new Date(session.timestamp);
+      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    })).size;
+    
+    return Math.round((daysWithSessions / 30) * 100);
+  };
+
+  const calculateProgressTrend = (sessions: PracticeSessionData[]): 'improving' | 'stable' | 'declining' => {
+    if (sessions.length < 10) return 'stable';
+    
+    const recentSessions = sessions.slice(-5);
+    const earlierSessions = sessions.slice(-10, -5);
+    
+    const recentAvg = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
+    const earlierAvg = earlierSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / earlierSessions.length;
+    
+    const difference = recentAvg - earlierAvg;
+    
+    if (difference > 0.5) return 'improving';
+    if (difference < -0.5) return 'declining';
+    return 'stable';
+  };
+
+  // ✅ NEW: Dashboard Analytics Methods
+  const getFilteredData = useCallback((timeRange: string = 'month') => {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (timeRange) {
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case 'quarter':
+        startDate.setMonth(now.getMonth() - 3);
+        break;
+      case 'year':
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        startDate.setMonth(now.getMonth() - 1);
+    }
+    
+    const practice = getPracticeSessions().filter(session => 
+      new Date(session.timestamp) >= startDate
+    );
+    
+    const notes = getDailyEmotionalNotes().filter(note => 
+      new Date(note.timestamp) >= startDate
+    );
+    
+    return { practice, notes };
+  }, [getPracticeSessions, getDailyEmotionalNotes]);
+
+  const getPracticeDurationData = useCallback((timeRange: string = 'month') => {
+    const { practice } = getFilteredData(timeRange);
+    
+    const durationData: { [key: string]: number } = {};
+    
+    practice.forEach(session => {
+      const date = new Date(session.timestamp).toISOString().split('T')[0];
+      durationData[date] = (durationData[date] || 0) + session.duration;
+    });
+    
+    return Object.entries(durationData).map(([date, duration]) => ({
+      date,
+      duration
+    })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [getFilteredData]);
+
+  const getEmotionDistribution = useCallback((timeRange: string = 'month') => {
+    const { notes } = getFilteredData(timeRange);
+    
+    const emotionCounts: { [key: string]: number } = {};
+    const emotionColors: { [key: string]: string } = {
+      joy: '#4caf50',
+      happy: '#4caf50',
+      calm: '#2196f3',
+      grateful: '#ff9800',
+      focused: '#9c27b0',
+      peaceful: '#00bcd4',
+      energized: '#cddc39',
+      thoughtful: '#607d8b',
+      content: '#8bc34a',
+      neutral: '#9e9e9e',
+      stressed: '#ff5722',
+      sad: '#3f51b5',
+      angry: '#f44336',
+      frustrated: '#ff5722'
+    };
+    
+    notes.forEach(note => {
+      if (note.emotion) {
+        emotionCounts[note.emotion] = (emotionCounts[note.emotion] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(emotionCounts).map(([emotion, count]) => ({
+      emotion,
+      count,
+      color: emotionColors[emotion] || '#9e9e9e'
+    })).sort((a, b) => b.count - a.count);
+  }, [getFilteredData]);
+
+  const getPracticeDistribution = useCallback((timeRange: string = 'month') => {
+    const { practice } = getFilteredData(timeRange);
+    
+    const stageCounts: { [key: string]: number } = {};
+    
+    practice.forEach(session => {
+      const stage = session.stageLabel || `Stage ${session.stageLevel || 1}`;
+      stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+    });
+    
+    return Object.entries(stageCounts).map(([stage, count]) => ({
+      stage,
+      count
+    })).sort((a, b) => b.count - a.count);
+  }, [getFilteredData]);
+
+  // ✅ NEW: Additional Analytics Methods
+  const getAppUsagePatterns = useCallback(() => {
+    const sessions = getPracticeSessions();
+    
+    const timeOfDayStats: { [key: string]: number } = {};
+    const dayOfWeekStats: { [key: string]: number } = {};
+    
+    sessions.forEach(session => {
+      const date = new Date(session.timestamp);
+      const hour = date.getHours();
+      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      let timeOfDay: string;
+      if (hour < 6) timeOfDay = 'Late Night';
+      else if (hour < 12) timeOfDay = 'Morning';
+      else if (hour < 17) timeOfDay = 'Afternoon';
+      else if (hour < 21) timeOfDay = 'Evening';
+      else timeOfDay = 'Night';
+      
+      timeOfDayStats[timeOfDay] = (timeOfDayStats[timeOfDay] || 0) + 1;
+      dayOfWeekStats[dayOfWeek] = (dayOfWeekStats[dayOfWeek] || 0) + 1;
+    });
+    
+    const consistency = calculateConsistencyScore(sessions);
     
     return {
-      totalSessions: mindRecoverySessions.length,
-      totalMinutes,
-      averageRating: Math.round(averageRating * 10) / 10,
-      averageDuration: Math.round(averageDuration),
-      techniques
+      timeOfDayStats,
+      dayOfWeekStats,
+      consistency
     };
-  }, [getMindRecoverySessions, refreshTrigger]);
+  }, [getPracticeSessions]);
 
-  // 🔥 ENHANCED DATA MANIPULATION METHODS - Improved validation and auto-refresh
+  const getEngagementMetrics = useCallback(() => {
+    const sessions = getPracticeSessions();
+    const notes = getDailyEmotionalNotes();
+    
+    const now = new Date();
+    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    const weeklySessionCount = sessions.filter(s => new Date(s.timestamp) >= lastWeek).length;
+    const weeklyNotesCount = notes.filter(n => new Date(n.timestamp) >= lastWeek).length;
+    
+    const avgSessionLength = sessions.length > 0 ? 
+      sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length : 0;
+    
+    return {
+      weeklyFrequency: weeklySessionCount,
+      weeklyNotes: weeklyNotesCount,
+      avgSessionLength: Math.round(avgSessionLength),
+      totalEngagementDays: new Set(sessions.map(s => new Date(s.timestamp).toDateString())).size
+    };
+  }, [getPracticeSessions, getDailyEmotionalNotes]);
+
+  const getFeatureUtilization = useCallback(() => {
+    const sessions = getPracticeSessions();
+    const totalSessions = sessions.length;
+    
+    if (totalSessions === 0) return [];
+    
+    const mindRecoveryUsage = sessions.filter(s => s.sessionType === 'mind_recovery').length;
+    const pahmUsage = sessions.filter(s => s.pahmCounts).length;
+    const environmentTracking = sessions.filter(s => s.environment).length;
+    const notesUsage = sessions.filter(s => s.notes && s.notes.length > 0).length;
+    
+    return [
+      {
+        feature: 'Mind Recovery',
+        percentage: Math.round((mindRecoveryUsage / totalSessions) * 100)
+      },
+      {
+        feature: 'PAHM Tracking',
+        percentage: Math.round((pahmUsage / totalSessions) * 100)
+      },
+      {
+        feature: 'Environment Tracking',
+        percentage: Math.round((environmentTracking / totalSessions) * 100)
+      },
+      {
+        feature: 'Session Notes',
+        percentage: Math.round((notesUsage / totalSessions) * 100)
+      }
+    ];
+  }, [getPracticeSessions]);
+
+  // ✅ NEW: Delete Methods
+  const deleteEmotionalNote = useCallback((noteId: string) => {
+    if (!userData) return;
+    
+    const updatedData = {
+      ...userData,
+      emotionalNotes: userData.emotionalNotes.filter(note => note.noteId !== noteId),
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log(`✅ Emotional note ${noteId} deleted successfully`);
+  }, [userData, saveDataToStorage]);
+
+  const deletePracticeSession = useCallback((sessionId: string) => {
+    if (!userData) return;
+    
+    const updatedData = {
+      ...userData,
+      practiceSessions: userData.practiceSessions.filter(session => session.sessionId !== sessionId),
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    
+    // Recalculate profile stats
+    const allSessions = updatedData.practiceSessions;
+    const totalMinutes = allSessions.reduce((sum, s) => sum + s.duration, 0);
+    const avgQuality = allSessions.length > 0 ? allSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / allSessions.length : 0;
+    const avgPresent = allSessions.length > 0 ? allSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / allSessions.length : 0;
+
+    updatedData.profile = {
+      ...updatedData.profile,
+      totalSessions: allSessions.length,
+      totalMinutes: totalMinutes,
+      averageQuality: Math.round(avgQuality * 10) / 10,
+      averagePresentPercentage: Math.round(avgPresent)
+    };
+    
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log(`✅ Practice session ${sessionId} deleted successfully`);
+  }, [userData, saveDataToStorage]);
+
+  const deleteReflection = useCallback((reflectionId: string) => {
+    if (!userData) return;
+    
+    const updatedData = {
+      ...userData,
+      reflections: userData.reflections.filter(reflection => reflection.reflectionId !== reflectionId),
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log(`✅ Reflection ${reflectionId} deleted successfully`);
+  }, [userData, saveDataToStorage]);
+
+  // ✅ Data manipulation methods (keeping existing implementations)
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     if (!userData) {
       console.error('❌ Cannot add session - userData is null');
@@ -1119,10 +1299,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       averagePresentPercentage: Math.round(avgPresent)
     };
 
+    const pointsToAward = Math.ceil(newSession.duration / 5);
+    updatedData.happinessPoints = updatedData.happinessPoints + pointsToAward;
+
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Practice session added successfully - auto-refresh will trigger');
+    console.log(`✅ Practice session added successfully - awarded ${pointsToAward} happiness points`);
   }, [userData, saveDataToStorage]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
@@ -1162,7 +1345,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Emotional note added successfully - auto-refresh will trigger');
+    console.log('✅ Emotional note added successfully');
   }, [userData, saveDataToStorage]);
 
   const addReflection = useCallback((reflection: Omit<ReflectionData, 'reflectionId'>) => {
@@ -1188,51 +1371,425 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Reflection added successfully - auto-refresh will trigger');
+    console.log('✅ Reflection added successfully');
   }, [userData, saveDataToStorage]);
 
-  // 🔄 AUTH INTEGRATION
+  // Questionnaire and Self-Assessment methods (keeping existing implementations)
+  const updateQuestionnaire = useCallback((questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
+    if (!userData) {
+      console.error('❌ Cannot update questionnaire - userData is null');
+      return;
+    }
+
+    console.log('📝 Updating questionnaire data:', questionnaireData);
+
+    const updatedData = {
+      ...userData,
+      questionnaire: {
+        ...questionnaireData,
+        completed: true,
+        completedAt: new Date().toISOString()
+      },
+      happinessPoints: userData.happinessPoints + 50,
+      achievements: userData.achievements.includes('questionnaire_completed') 
+        ? userData.achievements 
+        : [...userData.achievements, 'questionnaire_completed'],
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log('✅ Questionnaire updated successfully - awarded 50 happiness points and achievement');
+  }, [userData, saveDataToStorage]);
+
+  const updateSelfAssessment = useCallback((selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
+    if (!userData) {
+      console.error('❌ Cannot update self-assessment - userData is null');
+      return;
+    }
+
+    console.log('🧠 Updating self-assessment data:', selfAssessmentData);
+
+    const updatedData = {
+      ...userData,
+      selfAssessment: {
+        ...selfAssessmentData,
+        completed: true,
+        completedAt: new Date().toISOString()
+      } as SelfAssessmentData,
+      happinessPoints: userData.happinessPoints + 100,
+      achievements: userData.achievements.includes('self_assessment_completed') 
+        ? userData.achievements 
+        : [...userData.achievements, 'self_assessment_completed'],
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log('✅ Self-assessment updated successfully - awarded 100 happiness points and achievement');
+  }, [userData, saveDataToStorage]);
+
+  const markQuestionnaireComplete = useCallback((responses: any) => {
+    console.log('📝 Marking questionnaire complete with responses:', responses);
+    
+    const questionnaireData: QuestionnaireData = {
+      completed: true,
+      completedAt: new Date().toISOString(),
+      responses: {
+        experience_level: responses.experience_level || 1,
+        goals: responses.goals || [],
+        age_range: responses.age_range || '',
+        location: responses.location || '',
+        occupation: responses.occupation || '',
+        education_level: responses.education_level || '',
+        meditation_background: responses.meditation_background || '',
+        sleep_pattern: responses.sleep_pattern || 5,
+        physical_activity: responses.physical_activity || '',
+        stress_triggers: responses.stress_triggers || [],
+        daily_routine: responses.daily_routine || '',
+        diet_pattern: responses.diet_pattern || '',
+        screen_time: responses.screen_time || '',
+        social_connections: responses.social_connections || '',
+        work_life_balance: responses.work_life_balance || '',
+        emotional_awareness: responses.emotional_awareness || 5,
+        stress_response: responses.stress_response || '',
+        decision_making: responses.decision_making || '',
+        self_reflection: responses.self_reflection || '',
+        thought_patterns: responses.thought_patterns || '',
+        mindfulness_in_daily_life: responses.mindfulness_in_daily_life || '',
+        mindfulness_experience: responses.mindfulness_experience || 1,
+        meditation_background_detail: responses.meditation_background_detail || '',
+        practice_goals: responses.practice_goals || '',
+        preferred_duration: responses.preferred_duration || 10,
+        biggest_challenges: responses.biggest_challenges || '',
+        motivation: responses.motivation || '',
+        totalQuestions: responses.totalQuestions || 27,
+        answeredQuestions: responses.answeredQuestions || Object.keys(responses).length,
+        ...responses
+      }
+    };
+    
+    updateQuestionnaire(questionnaireData);
+  }, [updateQuestionnaire]);
+
+  // ✅ FIXED: markSelfAssessmentComplete with enhanced data format
+  const markSelfAssessmentComplete = useCallback((responses: any) => {
+    console.log('🧠 Marking self-assessment complete with responses:', responses);
+    
+    let selfAssessmentData: SelfAssessmentData;
+    
+    // Handle both new enhanced format and legacy format
+    if (responses.categories || responses.responses) {
+      // Enhanced format from SelfAssessment component
+      const categories = responses.categories || responses.responses || {};
+      
+      selfAssessmentData = {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        format: responses.format || 'standard',
+        version: responses.version || '2.0',
+        type: responses.type || 'selfAssessment',
+        
+        // Direct category values (for simple access)
+        taste: responses.taste || categories.taste?.level || 'none',
+        smell: responses.smell || categories.smell?.level || 'none',
+        sound: responses.sound || categories.sound?.level || 'none',
+        sight: responses.sight || categories.sight?.level || 'none',
+        touch: responses.touch || categories.touch?.level || 'none',
+        mind: responses.mind || categories.mind?.level || 'none',
+        
+        // Categories object format (for LocalDataContext compatibility)
+        categories: responses.categories || {
+          taste: { level: responses.taste || categories.taste?.level || 'none', category: 'taste', details: categories.taste?.details || '' },
+          smell: { level: responses.smell || categories.smell?.level || 'none', category: 'smell', details: categories.smell?.details || '' },
+          sound: { level: responses.sound || categories.sound?.level || 'none', category: 'sound', details: categories.sound?.details || '' },
+          sight: { level: responses.sight || categories.sight?.level || 'none', category: 'sight', details: categories.sight?.details || '' },
+          touch: { level: responses.touch || categories.touch?.level || 'none', category: 'touch', details: categories.touch?.details || '' },
+          mind: { level: responses.mind || categories.mind?.level || 'none', category: 'mind', details: categories.mind?.details || '' }
+        },
+        
+        // Responses object (for happiness calculator compatibility)
+        responses: responses.responses || responses.categories || {
+          taste: { level: responses.taste || categories.taste?.level || 'none', category: 'taste', details: categories.taste?.details || '' },
+          smell: { level: responses.smell || categories.smell?.level || 'none', category: 'smell', details: categories.smell?.details || '' },
+          sound: { level: responses.sound || categories.sound?.level || 'none', category: 'sound', details: categories.sound?.details || '' },
+          sight: { level: responses.sight || categories.sight?.level || 'none', category: 'sight', details: categories.sight?.details || '' },
+          touch: { level: responses.touch || categories.touch?.level || 'none', category: 'touch', details: categories.touch?.details || '' },
+          mind: { level: responses.mind || categories.mind?.level || 'none', category: 'mind', details: categories.mind?.details || '' }
+        },
+        
+        // Pre-calculated scores at top level
+        attachmentScore: responses.attachmentScore || 0,
+        nonAttachmentCount: responses.nonAttachmentCount || 0,
+        
+        // Metrics object (for backward compatibility)
+        metrics: responses.metrics || {
+          nonAttachmentCount: responses.nonAttachmentCount || 0,
+          attachmentScore: responses.attachmentScore || 0,
+          attachmentLevel: responses.attachmentLevel || 'Unknown'
+        }
+      };
+    } else {
+      // Legacy format handling
+      selfAssessmentData = {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        format: 'standard',
+        version: '2.0',
+        type: 'selfAssessment',
+        
+        // Direct category values
+        taste: responses.taste || 'none',
+        smell: responses.smell || 'none',
+        sound: responses.sound || 'none',
+        sight: responses.sight || 'none',
+        touch: responses.touch || 'none',
+        mind: responses.mind || 'none',
+        
+        // Categories object
+        categories: {
+          taste: { level: responses.taste || 'none', category: 'taste' },
+          smell: { level: responses.smell || 'none', category: 'smell' },
+          sound: { level: responses.sound || 'none', category: 'sound' },
+          sight: { level: responses.sight || 'none', category: 'sight' },
+          touch: { level: responses.touch || 'none', category: 'touch' },
+          mind: { level: responses.mind || 'none', category: 'mind' }
+        },
+        
+        // Responses object (duplicate of categories for compatibility)
+        responses: {
+          taste: { level: responses.taste || 'none', category: 'taste' },
+          smell: { level: responses.smell || 'none', category: 'smell' },
+          sound: { level: responses.sound || 'none', category: 'sound' },
+          sight: { level: responses.sight || 'none', category: 'sight' },
+          touch: { level: responses.touch || 'none', category: 'touch' },
+          mind: { level: responses.mind || 'none', category: 'mind' }
+        },
+        
+        // Pre-calculated scores
+        attachmentScore: responses.attachmentScore || 0,
+        nonAttachmentCount: responses.nonAttachmentCount || 0,
+        
+        // Metrics object
+        metrics: {
+          nonAttachmentCount: responses.nonAttachmentCount || 0,
+          attachmentScore: responses.attachmentScore || 0,
+          attachmentLevel: responses.attachmentLevel || 'Unknown'
+        }
+      };
+    }
+    
+    updateSelfAssessment(selfAssessmentData);
+  }, [updateSelfAssessment]);
+
+  // Happiness and gamification methods (keeping existing implementations)
+  const addHappinessPoints = useCallback((points: number, reason: string) => {
+    if (!userData) {
+      console.error('❌ Cannot add happiness points - userData is null');
+      return;
+    }
+
+    console.log(`😊 Adding ${points} happiness points - reason: ${reason}`);
+
+    const newPoints = userData.happinessPoints + points;
+    const updatedData = {
+      ...userData,
+      happinessPoints: newPoints,
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    localStorage.setItem('happiness_points', newPoints.toString());
+    
+    console.log(`✅ Happiness points added successfully - new total: ${newPoints}`);
+  }, [userData, saveDataToStorage]);
+
+  const addAchievement = useCallback((achievement: string) => {
+    if (!userData) {
+      console.error('❌ Cannot add achievement - userData is null');
+      return;
+    }
+
+    if (userData.achievements.includes(achievement)) {
+      console.log(`⚠️ Achievement '${achievement}' already exists - skipping`);
+      return;
+    }
+
+    console.log(`🏆 Adding achievement: ${achievement}`);
+
+    const updatedData = {
+      ...userData,
+      achievements: [...userData.achievements, achievement],
+      happinessPoints: userData.happinessPoints + 25,
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log(`✅ Achievement '${achievement}' added successfully - awarded 25 happiness points`);
+  }, [userData, saveDataToStorage]);
+
+  const addNote = useCallback((note: any) => {
+    if (!userData) {
+      console.error('❌ Cannot add note - userData is null');
+      return;
+    }
+
+    const newNote = {
+      ...note,
+      id: generateId('note'),
+      timestamp: new Date().toISOString(),
+      userId: currentUser?.uid
+    };
+
+    console.log(`📒 Adding note: ${newNote.id}`);
+
+    const updatedData = {
+      ...userData,
+      notes: [...userData.notes, newNote],
+      analytics: {
+        ...userData.analytics,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    setUserData(updatedData);
+    saveDataToStorage(updatedData);
+    
+    console.log(`✅ Note added successfully`);
+  }, [userData, saveDataToStorage, currentUser]);
+
+  // Legacy compatibility methods
+  const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
+    return getPracticeSessions();
+  }, [getPracticeSessions]);
+
+  const getLegacyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
+    return getDailyEmotionalNotes();
+  }, [getDailyEmotionalNotes]);
+
+  const getLegacyMindRecoveryHistory = useCallback((): PracticeSessionData[] => {
+    return getMindRecoverySessions();
+  }, [getMindRecoverySessions]);
+
+  const syncLegacyStorageKeys = useCallback(() => {
+    if (userData && currentUser) {
+      const legacyKeys = getLegacyStorageKeys();
+      
+      try {
+        localStorage.setItem(legacyKeys.practiceHistory, JSON.stringify(userData.practiceSessions));
+        localStorage.setItem(legacyKeys.emotionalNotes, JSON.stringify(userData.emotionalNotes));
+        
+        const mindRecoverySessions = userData.practiceSessions.filter(s => s.sessionType === 'mind_recovery');
+        localStorage.setItem(legacyKeys.mindRecoveryHistory, JSON.stringify(mindRecoverySessions));
+
+        if (userData.questionnaire) {
+          localStorage.setItem(legacyKeys.questionnaire, JSON.stringify(userData.questionnaire.responses));
+          localStorage.setItem('questionnaire_completed', userData.questionnaire.completed ? 'true' : 'false');
+        }
+        
+        if (userData.selfAssessment) {
+          localStorage.setItem(legacyKeys.selfAssessment, JSON.stringify(userData.selfAssessment));
+          localStorage.setItem('self_assessment_completed', userData.selfAssessment.completed ? 'true' : 'false');
+        }
+
+        if (userData.happinessPoints !== undefined) {
+          localStorage.setItem('happiness_points', userData.happinessPoints.toString());
+        }
+
+        console.log('🔄 Legacy storage keys synced for component compatibility');
+      } catch (error) {
+        console.error('❌ Error syncing legacy storage keys:', error);
+      }
+    }
+  }, [userData, currentUser, getLegacyStorageKeys]);
+
+  // Auth integration
   const syncWithAuthContext = useCallback(() => {
     if (currentUser && syncWithLocalData) {
-      // 🔧 FIXED: Removed parameter from syncWithLocalData call
       syncWithLocalData();
     }
   }, [currentUser, syncWithLocalData]);
 
   const getOnboardingStatusFromAuth = useCallback(() => {
     return {
-      questionnaire: currentUser?.questionnaireCompleted || false,
-      assessment: currentUser?.assessmentCompleted || false
+      questionnaire: isQuestionnaireCompleted(),
+      assessment: isSelfAssessmentCompleted()
     };
-  }, [currentUser]);
+  }, [isQuestionnaireCompleted, isSelfAssessmentCompleted]);
 
-  // 🔄 LOAD DATA ON MOUNT AND USER CHANGE
+  // Placeholder methods that need to be implemented based on specific requirements
+  const getProgressTrends = useCallback(() => ({}), []);
+  const getComprehensiveAnalytics = useCallback(() => ({}), []);
+  const getPredictiveInsights = useCallback(() => ({}), []);
+  const exportDataForAnalysis = useCallback(() => ({}), []);
+  const getComprehensiveStats = useCallback(() => ({}), []);
+  const get9CategoryPAHMInsights = useCallback(() => getPAHMData(), [getPAHMData]);
+  const getMindRecoveryInsights = useCallback(() => getMindRecoveryAnalytics(), [getMindRecoveryAnalytics]);
+
+  // Load data on mount and user change
   useEffect(() => {
     loadDataFromStorage();
   }, [loadDataFromStorage]);
 
-  // 🔄 AUTOMATIC DATA SYNC
+  // Automatic data sync
   useEffect(() => {
-    if (userData && currentUser && syncWithLocalData) {
-      // 🔧 FIXED: Removed parameter from syncWithLocalData call
-      syncWithLocalData();
+    if (userData && currentUser) {
+      syncLegacyStorageKeys();
+      
+      if (syncWithLocalData) {
+        syncWithLocalData();
+      }
     }
-  }, [userData, currentUser, syncWithLocalData]);
+  }, [userData, currentUser, syncWithLocalData, syncLegacyStorageKeys]);
 
-  // 🎯 COMPLETE CONTEXT VALUE - ALL FUNCTIONALITY + ENHANCED AUTO-REFRESH
+  // 🎯 COMPLETE CONTEXT VALUE
   const contextValue: LocalDataContextType = {
     userData,
     isLoading,
-    refreshTrigger, // ✨ Expose refresh trigger for component updates
+    refreshTrigger,
+    
+    // Direct properties
+    comprehensiveUserData: userData,
+    practiceSessions: userData?.practiceSessions || [],
+    emotionalNotes: userData?.emotionalNotes || [],
     
     // Core methods
     clearAllData,
     
-    // Data getters (all auto-refreshing via refreshTrigger)
+    // Data getters
     getPracticeSessions,
     getDailyEmotionalNotes,
     getReflections,
     getAnalyticsData,
+    
+    // Questionnaire and Self-Assessment getters
+    getQuestionnaire,
+    getSelfAssessment,
+    isQuestionnaireCompleted,
+    isSelfAssessmentCompleted,
+    
+    // Happiness and gamification getters
+    getHappinessPoints,
+    getAchievements,
+    getNotes,
     
     // Mind recovery specific
     getMindRecoverySessions,
@@ -1247,7 +1804,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getPredictiveInsights,
     exportDataForAnalysis,
     
-    // Dashboard Analytics - ALL TABS SUPPORT (all auto-refreshing)
+    // Dashboard Analytics
     getFilteredData,
     getPracticeDurationData,
     getEmotionDistribution,
@@ -1263,11 +1820,33 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     syncWithAuthContext,
     getOnboardingStatusFromAuth,
     
-    // Data manipulation (these trigger auto-refresh)
+    // Data manipulation
     addPracticeSession,
     addEmotionalNote,
     addReflection,
-    addMindRecoverySession
+    addMindRecoverySession,
+
+    // Questionnaire and Self-Assessment methods
+    updateQuestionnaire,
+    updateSelfAssessment,
+    markQuestionnaireComplete,
+    markSelfAssessmentComplete,
+
+    // Happiness and gamification methods
+    addHappinessPoints,
+    addAchievement,
+    addNote,
+
+    // Delete methods
+    deleteEmotionalNote,
+    deletePracticeSession,
+    deleteReflection,
+
+    // Legacy compatibility methods
+    getLegacyPracticeHistory,
+    getLegacyEmotionalNotes,
+    getLegacyMindRecoveryHistory,
+    syncLegacyStorageKeys
   };
 
   return (

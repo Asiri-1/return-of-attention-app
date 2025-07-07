@@ -1,6 +1,6 @@
 // ============================================================================
 // src/components/PublicLandingHero.tsx
-// FINAL BEAUTIFUL VERSION - Tailwind CSS Working!
+// CORRECTED VERSION - Clean, Fast Loading, No Logo Loading Issues
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -11,7 +11,7 @@ const PublicLandingHero: React.FC = () => {
 
   const quotes = [
     "You are not your thoughts",
-    "The mind is trainable",
+    "The mind is trainable", 
     "Present attention itself is happiness",
     "Peace is not found - it is recognized"
   ];
@@ -40,103 +40,368 @@ const PublicLandingHero: React.FC = () => {
   }, [quotes.length]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 text-white overflow-hidden">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #1e1b4b 0%, #7c2d12 50%, #be185d 100%)',
+      color: 'white',
+      overflow: 'hidden',
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    }}>
       {/* Floating Background Elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-10 w-20 h-20 bg-white rounded-full opacity-10 animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-yellow-300 rounded-full opacity-10 animate-bounce"></div>
-        <div className="absolute bottom-40 left-1/4 w-12 h-12 bg-pink-300 rounded-full opacity-10 animate-pulse"></div>
-        <div className="absolute bottom-20 right-1/3 w-8 h-8 bg-blue-300 rounded-full opacity-10 animate-bounce"></div>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.2 }}>
+        <div style={{
+          position: 'absolute',
+          top: '80px',
+          left: '40px',
+          width: '80px',
+          height: '80px',
+          backgroundColor: 'white',
+          borderRadius: '50%',
+          opacity: 0.1,
+          animation: 'pulse 2s infinite'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          top: '160px',
+          right: '80px',
+          width: '64px',
+          height: '64px',
+          backgroundColor: '#fbbf24',
+          borderRadius: '50%',
+          opacity: 0.1,
+          animation: 'bounce 2s infinite'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '160px',
+          left: '25%',
+          width: '48px',
+          height: '48px',
+          backgroundColor: '#f9a8d4',
+          borderRadius: '50%',
+          opacity: 0.1,
+          animation: 'pulse 3s infinite'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '80px',
+          right: '33%',
+          width: '32px',
+          height: '32px',
+          backgroundColor: '#93c5fd',
+          borderRadius: '50%',
+          opacity: 0.1,
+          animation: 'bounce 3s infinite'
+        }}></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
+      <div style={{
+        position: 'relative',
+        zIndex: 10,
+        maxWidth: '1280px',
+        margin: '0 auto',
+        padding: '24px 24px 48px',
+      }}>
         {/* Header */}
-        <div className="text-center mb-16">
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          {/* Logo */}
+          <div style={{ marginBottom: '32px' }}>
+            <Logo />
+          </div>
+          
           {/* Rotating Quote */}
-          <div className="h-20 flex items-center justify-center mb-8">
-            <h1 className="text-4xl md:text-6xl font-bold transition-all duration-500 ease-in-out">
+          <div style={{
+            height: '80px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '32px'
+          }}>
+            <h1 style={{
+              fontSize: 'clamp(28px, 6vw, 60px)',
+              fontWeight: 'bold',
+              transition: 'all 0.5s ease-in-out',
+              margin: 0,
+              textAlign: 'center'
+            }}>
               "{quotes[currentQuote]}"
             </h1>
           </div>
           
-          <h2 className="text-2xl md:text-3xl mb-6 opacity-90">
-            The Return of Attention
+          <h2 style={{
+            fontSize: 'clamp(24px, 4vw, 36px)',
+            marginBottom: '24px',
+            opacity: 0.9,
+            margin: '0 0 24px 0'
+          }}>
+            Practices for the Happiness that Stays
           </h2>
-          <p className="text-xl md:text-2xl max-w-4xl mx-auto leading-relaxed opacity-80">
+          <p style={{
+            fontSize: 'clamp(18px, 3vw, 24px)',
+            maxWidth: '800px',
+            margin: '0 auto',
+            lineHeight: 1.6,
+            opacity: 0.8
+          }}>
             A simple, practical guide to happiness that actually stays
           </p>
         </div>
 
-        {/* Logo Demo Section */}
-        <div className="flex flex-col lg:flex-row items-center gap-12 mb-16">
-          <div className="lg:w-1/2 text-center">
-            <Logo />
-            <div className="mt-6 bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <p className="text-lg font-semibold mb-2">See Your Mind in Action</p>
-              <p className="text-sm opacity-90">
-                Watch the golden dot move from center (present awareness) to outer thoughts, 
-                then return to center. This is exactly what your mind will learn to do.
+        {/* Mind Visualization Demo - Simple Version */}
+        <div style={{
+          display: 'flex',
+          flexDirection: window.innerWidth < 1024 ? 'column' : 'row',
+          alignItems: 'center',
+          gap: '48px',
+          marginBottom: '64px'
+        }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            {/* Simple Mind Visualization */}
+            <div style={{
+              width: '300px',
+              height: '300px',
+              margin: '0 auto',
+              position: 'relative',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '50%',
+              border: '2px solid rgba(255, 255, 255, 0.3)'
+            }}>
+              {/* Center dot - Present awareness */}
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '20px',
+                height: '20px',
+                backgroundColor: '#fbbf24',
+                borderRadius: '50%',
+                animation: 'pulse 2s infinite'
+              }}></div>
+              
+              {/* Outer thoughts */}
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '12px',
+                height: '12px',
+                backgroundColor: '#ef4444',
+                borderRadius: '50%',
+                opacity: 0.7
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                right: '20px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '10px',
+                backgroundColor: '#ef4444',
+                borderRadius: '50%',
+                opacity: 0.6
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '30px',
+                left: '30px',
+                width: '8px',
+                height: '8px',
+                backgroundColor: '#ef4444',
+                borderRadius: '50%',
+                opacity: 0.5
+              }}></div>
+            </div>
+            <div style={{
+              marginTop: '24px',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <p style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                margin: '0 0 8px 0'
+              }}>
+                See Your Mind in Action
+              </p>
+              <p style={{
+                fontSize: '14px',
+                opacity: 0.9,
+                margin: 0
+              }}>
+                Golden center = present awareness. Red dots = thoughts, worries, distractions. 
+                The practice = learning to return naturally.
               </p>
             </div>
           </div>
           
-          <div className="lg:w-1/2 space-y-6">
-            <h3 className="text-3xl font-bold text-center lg:text-left">
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h3 style={{
+              fontSize: 'clamp(24px, 4vw, 32px)',
+              fontWeight: 'bold',
+              textAlign: window.innerWidth < 1024 ? 'center' : 'left',
+              margin: '0 0 24px 0'
+            }}>
               Your Mind's Natural Movement
             </h3>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3 bg-white/10 rounded-lg p-4">
-                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
-                <span className="text-lg">Center = Present moment awareness</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '16px'
+              }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#fbbf24',
+                  borderRadius: '50%',
+                  animation: 'pulse 2s infinite'
+                }}></div>
+                <span style={{ fontSize: '18px' }}>Center = Present moment awareness</span>
               </div>
-              <div className="flex items-center space-x-3 bg-white/10 rounded-lg p-4">
-                <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                <span className="text-lg">Outer cells = Thoughts, worries, distractions</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '16px'
+              }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#ef4444',
+                  borderRadius: '50%'
+                }}></div>
+                <span style={{ fontSize: '18px' }}>Outer cells = Thoughts, worries, distractions</span>
               </div>
-              <div className="flex items-center space-x-3 bg-white/10 rounded-lg p-4">
-                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                <span className="text-lg">The practice = Learning to return naturally</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '16px'
+              }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#10b981',
+                  borderRadius: '50%'
+                }}></div>
+                <span style={{ fontSize: '18px' }}>The practice = Learning to return naturally</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Problem Section */}
-        <div className="grid md:grid-cols-2 gap-12 mb-16">
-          <div className="space-y-6">
-            <h3 className="text-2xl font-bold mb-6 text-center">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr',
+          gap: '48px',
+          marginBottom: '64px'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h3 style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              marginBottom: '24px',
+              textAlign: 'center',
+              margin: '0 0 24px 0'
+            }}>
               Sound Familiar?
             </h3>
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {problems.map((problem, index) => (
-                <div key={index} className="flex items-center space-x-3 bg-white/10 rounded-lg p-4">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  <span className="text-lg">{problem}</span>
+                <div key={index} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  padding: '16px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    backgroundColor: '#ef4444',
+                    borderRadius: '50%'
+                  }}></div>
+                  <span style={{ fontSize: '18px' }}>{problem}</span>
                 </div>
               ))}
             </div>
-            <div className="text-center mt-6">
-              <p className="text-lg opacity-80">
+            <div style={{ textAlign: 'center', marginTop: '24px' }}>
+              <p style={{
+                fontSize: '18px',
+                opacity: 0.8,
+                margin: 0
+              }}>
                 You're not alone. This is how the mind naturally works.
               </p>
             </div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-2xl font-bold mb-6 text-center">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h3 style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              marginBottom: '24px',
+              textAlign: 'center',
+              margin: '0 0 24px 0'
+            }}>
               What If There's a Way Out?
             </h3>
-            <div className="bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-xl p-6 backdrop-blur-sm">
-              <div className="text-center space-y-4">
-                <div className="text-6xl mb-4">🧘</div>
-                <h4 className="text-xl font-semibold">The Universal Solution</h4>
-                <p className="text-lg opacity-90">
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
+              borderRadius: '16px',
+              padding: '24px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px'
+              }}>
+                <div style={{ fontSize: '64px', margin: '0 0 16px 0' }}>🧘</div>
+                <h4 style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  margin: 0
+                }}>
+                  The Universal Solution
+                </h4>
+                <p style={{
+                  fontSize: '18px',
+                  opacity: 0.9,
+                  margin: 0
+                }}>
                   Unlike your body, your mind <em>is</em> trainable. 
                   Thousands have found lasting peace through this simple practice.
                 </p>
-                <div className="mt-6">
-                  <div className="text-4xl font-bold text-green-400">6 Stages</div>
-                  <div className="text-sm opacity-80">From chaos to clarity</div>
+                <div style={{ marginTop: '24px' }}>
+                  <div style={{
+                    fontSize: '32px',
+                    fontWeight: 'bold',
+                    color: '#10b981'
+                  }}>
+                    6 Stages
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    opacity: 0.8
+                  }}>
+                    From chaos to clarity
+                  </div>
                 </div>
               </div>
             </div>
@@ -144,94 +409,253 @@ const PublicLandingHero: React.FC = () => {
         </div>
 
         {/* The Journey */}
-        <div className="text-center mb-16">
-          <h3 className="text-3xl font-bold mb-8">Your Journey to Freedom</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <div className="text-3xl mb-2">🎯</div>
-              <h4 className="font-semibold mb-1">Stage 1-2</h4>
-              <p className="text-sm opacity-80">Physical stillness & thought observation</p>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <h3 style={{
+            fontSize: 'clamp(24px, 4vw, 32px)',
+            fontWeight: 'bold',
+            marginBottom: '32px',
+            margin: '0 0 32px 0'
+          }}>
+            Your Journey to Freedom
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '24px',
+            maxWidth: '1000px',
+            margin: '0 auto'
+          }}>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎯</div>
+              <h4 style={{ fontWeight: '600', marginBottom: '4px', margin: '0 0 4px 0' }}>Stage 1-2</h4>
+              <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>Physical stillness & thought observation</p>
             </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <div className="text-3xl mb-2">🧠</div>
-              <h4 className="font-semibold mb-1">Stage 3-4</h4>
-              <p className="text-sm opacity-80">Recognizing mental patterns</p>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🧠</div>
+              <h4 style={{ fontWeight: '600', marginBottom: '4px', margin: '0 0 4px 0' }}>Stage 3-4</h4>
+              <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>Recognizing mental patterns</p>
             </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <div className="text-3xl mb-2">✨</div>
-              <h4 className="font-semibold mb-1">Stage 5-6</h4>
-              <p className="text-sm opacity-80">Discovering lasting happiness</p>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✨</div>
+              <h4 style={{ fontWeight: '600', marginBottom: '4px', margin: '0 0 4px 0' }}>Stage 5-6</h4>
+              <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>Discovering lasting happiness</p>
             </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <div className="text-3xl mb-2">⚡</div>
-              <h4 className="font-semibold mb-1">No Beliefs</h4>
-              <p className="text-sm opacity-80">Just practical experience</p>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚡</div>
+              <h4 style={{ fontWeight: '600', marginBottom: '4px', margin: '0 0 4px 0' }}>No Beliefs</h4>
+              <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>Just practical experience</p>
             </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <div className="text-3xl mb-2">🔄</div>
-              <h4 className="font-semibold mb-1">No Special Skills</h4>
-              <p className="text-sm opacity-80">Anyone can do this</p>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔄</div>
+              <h4 style={{ fontWeight: '600', marginBottom: '4px', margin: '0 0 4px 0' }}>No Special Skills</h4>
+              <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>Anyone can do this</p>
             </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <div className="text-3xl mb-2">🎁</div>
-              <h4 className="font-semibold mb-1">Happiness That Stays</h4>
-              <p className="text-sm opacity-80">Not dependent on circumstances</p>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎁</div>
+              <h4 style={{ fontWeight: '600', marginBottom: '4px', margin: '0 0 4px 0' }}>Happiness That Stays</h4>
+              <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>Not dependent on circumstances</p>
             </div>
           </div>
         </div>
 
         {/* Simple Truth */}
-        <div className="max-w-3xl mx-auto text-center mb-16 bg-white/5 rounded-xl p-8 backdrop-blur-sm">
-          <h3 className="text-2xl font-bold mb-4">The Simple Truth</h3>
-          <p className="text-xl leading-relaxed mb-6">
+        <div style={{
+          maxWidth: '800px',
+          margin: '0 auto 64px',
+          textAlign: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '16px',
+          padding: '32px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <h3 style={{
+            fontSize: '24px',
+            fontWeight: 'bold',
+            marginBottom: '16px',
+            margin: '0 0 16px 0'
+          }}>
+            The Simple Truth
+          </h3>
+          <p style={{
+            fontSize: '20px',
+            lineHeight: 1.6,
+            marginBottom: '24px',
+            margin: '0 0 24px 0'
+          }}>
             Most approaches to happiness involve <strong>adding</strong> something new. 
             This approach is different. It involves <strong>removing</strong> the obstacles 
             to the peace that is already your natural state.
           </p>
-          <div className="text-lg opacity-90">
-            <div className="mb-2">🔍 Notice when attention wanders</div>
-            <div className="mb-2">↩️ Gently return to the present</div>
+          <div style={{
+            fontSize: '18px',
+            opacity: 0.9,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div>🔍 Notice when attention wanders</div>
+            <div>↩️ Gently return to the present</div>
             <div>🔄 Repeat until it becomes natural</div>
           </div>
         </div>
 
         {/* CTA Section */}
-        <div className="text-center space-y-6">
-          <h3 className="text-3xl font-bold">Ready to Begin?</h3>
-          <p className="text-xl opacity-90 max-w-2xl mx-auto">
+        <div style={{
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px'
+        }}>
+          <h3 style={{
+            fontSize: 'clamp(24px, 4vw, 32px)',
+            fontWeight: 'bold',
+            margin: 0
+          }}>
+            Ready to Begin?
+          </h3>
+          <p style={{
+            fontSize: '20px',
+            opacity: 0.9,
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
             Join thousands who have discovered that lasting happiness isn't something to achieve—
             it's something to recognize.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
+          <div style={{
+            display: 'flex',
+            flexDirection: window.innerWidth < 640 ? 'column' : 'row',
+            gap: '16px',
+            justifyContent: 'center',
+            alignItems: 'center',
+            maxWidth: '400px',
+            margin: '0 auto'
+          }}>
             <button 
               onClick={handleStartJourney}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-full font-bold text-lg hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105 shadow-xl"
+              style={{
+                width: window.innerWidth < 640 ? '100%' : 'auto',
+                padding: '16px 32px',
+                background: 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)',
+                color: 'white',
+                borderRadius: '50px',
+                fontWeight: 'bold',
+                fontSize: '18px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(90deg, #059669 0%, #2563eb 100%)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
             >
               🚀 Start Your Journey
             </button>
             <button 
               onClick={handleLearnMore}
-              className="w-full sm:w-auto px-8 py-4 border-2 border-white/40 rounded-full font-semibold text-lg hover:bg-white/10 transition-all backdrop-blur-sm"
+              style={{
+                width: window.innerWidth < 640 ? '100%' : 'auto',
+                padding: '16px 32px',
+                border: '2px solid rgba(255, 255, 255, 0.4)',
+                borderRadius: '50px',
+                fontWeight: '600',
+                fontSize: '18px',
+                backgroundColor: 'transparent',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
               📖 Learn More
             </button>
           </div>
 
-          <div className="mt-8 text-sm opacity-60">
-            <p>No subscription required • Complete guide included • Start immediately</p>
+          <div style={{
+            marginTop: '32px',
+            fontSize: '14px',
+            opacity: 0.6
+          }}>
+            <p style={{ margin: 0 }}>No subscription required • Complete guide included • Start immediately</p>
           </div>
         </div>
 
         {/* Bottom Quote */}
-        <div className="mt-20 text-center">
-          <blockquote className="text-2xl italic opacity-80 max-w-3xl mx-auto">
+        <div style={{ marginTop: '80px', textAlign: 'center' }}>
+          <blockquote style={{
+            fontSize: 'clamp(18px, 3vw, 24px)',
+            fontStyle: 'italic',
+            opacity: 0.8,
+            maxWidth: '800px',
+            margin: '0 auto 16px'
+          }}>
             "This book offers a practice, not a philosophy. It is about returning—
             bringing attention back to what is already here."
           </blockquote>
-          <cite className="block mt-4 text-lg">— A.C. Amarasinghe</cite>
+          <cite style={{
+            display: 'block',
+            marginTop: '16px',
+            fontSize: '18px'
+          }}>
+            — A.C. Amarasinghe
+          </cite>
         </div>
       </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+      `}</style>
     </div>
   );
 };
