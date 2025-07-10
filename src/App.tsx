@@ -339,7 +339,144 @@ const AdminBypassApp: React.FC = () => {
   );
 };
 
-// ✅ MAIN APP CONTENT: Updated to use LocalDataContext for data operations
+// ✅ FIXED: Robust completion status checker
+const useCompletionStatus = (currentUser: any) => {
+  const { isQuestionnaireCompleted, isSelfAssessmentCompleted } = useLocalData();
+  const [completionStatus, setCompletionStatus] = useState({
+    questionnaire: false,
+    selfAssessment: false,
+    isLoaded: false,
+    hasChecked: false
+  });
+
+  // ✅ ENHANCED: Check completion status with multiple fallbacks
+  const checkCompletionStatus = React.useCallback(async () => {
+    if (!currentUser) {
+      setCompletionStatus({
+        questionnaire: false,
+        selfAssessment: false,
+        isLoaded: true,
+        hasChecked: true
+      });
+      return;
+    }
+
+    try {
+      // ✅ WAIT: Small delay to ensure LocalDataContext is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // ✅ METHOD 1: Check via LocalDataContext
+      let questComplete = false;
+      let selfComplete = false;
+
+      try {
+        questComplete = isQuestionnaireCompleted();
+        selfComplete = isSelfAssessmentCompleted();
+      } catch (error) {
+        console.warn('LocalDataContext methods failed, using fallback');
+      }
+
+      // ✅ METHOD 2: Direct localStorage fallback check
+      if (!questComplete || !selfComplete) {
+        try {
+          const userId = currentUser.uid;
+
+          // Check questionnaire completion (multiple possible keys)
+          const questKeys = [
+            `questionnaire_${userId}`,
+            `questionnaire_completed_${userId}`,
+            'questionnaireData'
+          ];
+
+          for (const key of questKeys) {
+            const questData = localStorage.getItem(key);
+            if (questData) {
+              try {
+                const parsed = JSON.parse(questData);
+                if (parsed.completed || parsed.questionnaireCompleted) {
+                  questComplete = true;
+                  break;
+                }
+              } catch (e) {
+                // If it's not JSON, check if it's just "true"
+                if (questData === 'true') {
+                  questComplete = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          // Check self-assessment completion (multiple possible keys)
+          const selfKeys = [
+            `self_assessment_${userId}`,
+            `selfAssessment_${userId}`,
+            'selfAssessmentData'
+          ];
+
+          for (const key of selfKeys) {
+            const selfData = localStorage.getItem(key);
+            if (selfData) {
+              try {
+                const parsed = JSON.parse(selfData);
+                if (parsed.completed || parsed.selfAssessmentCompleted) {
+                  selfComplete = true;
+                  break;
+                }
+              } catch (e) {
+                // If it's not JSON, check if it's just "true"
+                if (selfData === 'true') {
+                  selfComplete = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          // ✅ METHOD 3: Check user profile data (from AuthContext)
+          if (!selfComplete && currentUser.assessmentCompleted) {
+            selfComplete = true;
+          }
+
+        } catch (error) {
+          console.error('Fallback completion check failed:', error);
+        }
+      }
+
+      console.log('🔍 FINAL Completion Status Check:', {
+        userId: currentUser.uid,
+        questComplete,
+        selfComplete,
+        currentUserAssessmentCompleted: currentUser.assessmentCompleted
+      });
+
+      setCompletionStatus({
+        questionnaire: questComplete,
+        selfAssessment: selfComplete,
+        isLoaded: true,
+        hasChecked: true
+      });
+
+    } catch (error) {
+      console.error('Error checking completion status:', error);
+      setCompletionStatus({
+        questionnaire: false,
+        selfAssessment: false,
+        isLoaded: true,
+        hasChecked: true
+      });
+    }
+  }, [currentUser, isQuestionnaireCompleted, isSelfAssessmentCompleted]);
+
+  // ✅ CHECK: Run completion check when user changes
+  useEffect(() => {
+    checkCompletionStatus();
+  }, [checkCompletionStatus]);
+
+  return { completionStatus, recheckStatus: checkCompletionStatus };
+};
+
+// ✅ MAIN APP CONTENT: Updated to use robust completion checking
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   
@@ -357,10 +494,11 @@ const AppContent: React.FC = () => {
   // ✅ NEW: Use LocalDataContext for all data operations
   const {
     markQuestionnaireComplete,
-    markSelfAssessmentComplete,
-    isQuestionnaireCompleted,
-    isSelfAssessmentCompleted
+    markSelfAssessmentComplete
   } = useLocalData();
+
+  // ✅ FIXED: Use robust completion status checker
+  const { completionStatus, recheckStatus } = useCompletionStatus(currentUser);
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(false);
 
@@ -394,7 +532,7 @@ const AppContent: React.FC = () => {
 
   // ✅ ALL YOUR EVENT HANDLERS (updated to use LocalDataContext)
   const handleStartPracticeWrapper = () => {
-    if (!isSelfAssessmentCompleted()) {
+    if (!completionStatus.selfAssessment) {
       alert('Please complete your self-assessment first before starting practice sessions.');
       navigate('/self-assessment');
       return;
@@ -439,19 +577,11 @@ const AppContent: React.FC = () => {
   const handleSignIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       await signIn(email, password);
-      // ✅ FIXED: Proper redirect after sign in based on completion status
-      setTimeout(() => {
-        const questComplete = isQuestionnaireCompleted();
-        const selfComplete = isSelfAssessmentCompleted();
-        
-        if (!questComplete) {
-          navigate('/questionnaire');
-        } else if (!selfComplete) {
-          navigate('/introduction');
-        } else {
-          navigate('/home');
-        }
-      }, 500); // Small delay to ensure state is updated
+      // ✅ FIXED: After sign in, recheck completion status, then navigate
+      setTimeout(async () => {
+        await recheckStatus();
+        console.log('🔄 Sign in successful, completion status rechecked');
+      }, 500);
     } catch (error: any) {
       alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
     }
@@ -461,28 +591,32 @@ const AppContent: React.FC = () => {
   const handleQuestionnaireComplete = async (answers: any) => {
     try {
       await markQuestionnaireComplete(answers);
+      // Force recheck completion status
+      await recheckStatus();
       setTimeout(() => {
         navigate('/introduction');
       }, 100);
     } catch (error) {
-      // Silent error handling
+      console.error('Failed to complete questionnaire:', error);
     }
   };
 
-  // ✅ FIXED: Use LocalDataContext for self-assessment completion with safe property update
+  // ✅ FIXED: Use LocalDataContext for self-assessment completion
   const handleSelfAssessmentComplete = async (data?: any) => {
     try {
       await markSelfAssessmentComplete(data);
       
-      // ✅ FIXED: Safe property update - check if currentStage is available
+      // ✅ FIXED: Update user profile
       try {
         await updateUserProfile({ 
           currentStage: '1'
         });
       } catch (profileError) {
-        console.warn('Could not update currentStage in profile:', profileError);
-        // Continue without failing - the important data is saved in LocalDataContext
+        console.warn('Could not update profile:', profileError);
       }
+      
+      // Force recheck completion status
+      await recheckStatus();
       
       setTimeout(() => {
         navigate('/self-assessment-completion');
@@ -496,7 +630,6 @@ const AppContent: React.FC = () => {
   const handleGoogleSignIn = async () => {
     try {
       console.log('Google Sign In clicked');
-      // For now, just show alert since SignIn expects () => Promise<void>
       alert('Google Sign In not fully implemented yet - please use regular sign in');
     } catch (error: any) {
       alert(`Google sign-in failed: ${error.message || 'Unknown error'}`);
@@ -507,7 +640,6 @@ const AppContent: React.FC = () => {
     try {
       console.log('Google Sign Up:', googleUser);
       
-      // Send Google user data to your backend for sign-up
       const response = await fetch('/api/auth/google-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -555,7 +687,7 @@ const AppContent: React.FC = () => {
   };
 
   // ✅ UPDATED Loading state with better message
-  if (isLoading) {
+  if (isLoading || !completionStatus.isLoaded || !completionStatus.hasChecked) {
     return <FastLoader message="Initializing practices for the happiness that stays..." />;
   }
 
@@ -565,7 +697,6 @@ const AppContent: React.FC = () => {
       <div className="app-container">
         <PageViewTracker />
         <Routes>
-          {/* ✅ FIXED: Public landing page - no Suspense needed, direct import */}
           <Route path="/" element={<PublicLandingHero />} />
           
           <Route path="/about" element={
@@ -580,7 +711,6 @@ const AppContent: React.FC = () => {
             </Suspense>
           } />
           
-          {/* ✅ CORRECTED Authentication routes - removed Apple props */}
           <Route path="/signin" element={
             <SignIn 
               onSignIn={handleSignIn}
@@ -597,14 +727,13 @@ const AppContent: React.FC = () => {
             />
           } />
           
-          {/* Redirect all other routes to home for unauthenticated users */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES: Full app functionality with INDIVIDUAL ROUTE GUARDS
+  // ✅ AUTHENTICATED ROUTES: Full app functionality with ROBUST ROUTE GUARDS
   return (
     <div className="app-container">
       <PageViewTracker />
@@ -634,33 +763,42 @@ const AppContent: React.FC = () => {
           />
         } />
         
-        {/* ✅ FIXED: Individual route guards instead of global redirect */}
+        {/* ✅ FIXED: Root route with ROBUST completion checking */}
         <Route path="/" element={
           (() => {
-            const questComplete = isQuestionnaireCompleted();
-            const selfComplete = isSelfAssessmentCompleted();
+            console.log('🔍 ROOT ROUTE - Completion Status:', completionStatus);
             
-            if (!questComplete) {
-              return <Navigate to="/questionnaire" replace />;
-            } else if (!selfComplete) {
-              return <Navigate to="/introduction" replace />;
-            } else {
+            // ✅ ENHANCED: If both are completed, go directly to dashboard
+            if (completionStatus.questionnaire && completionStatus.selfAssessment) {
+              console.log('✅ Both completed - redirecting to /home');
               return <Navigate to="/home" replace />;
             }
+            
+            // If questionnaire not completed, start there
+            if (!completionStatus.questionnaire) {
+              console.log('📝 Questionnaire not completed - redirecting to /questionnaire');
+              return <Navigate to="/questionnaire" replace />;
+            }
+            
+            // If only self-assessment remaining, go to introduction
+            if (!completionStatus.selfAssessment) {
+              console.log('🎯 Self-assessment not completed - redirecting to /introduction');
+              return <Navigate to="/introduction" replace />;
+            }
+            
+            // Default fallback
+            return <Navigate to="/home" replace />;
           })()
         } />
         
-        {/* Main app routes with individual guards */}
+        {/* ✅ FIXED: Main app routes with proper individual guards */}
         <Route 
           path="/home" 
           element={
             (() => {
-              const questComplete = isQuestionnaireCompleted();
-              const selfComplete = isSelfAssessmentCompleted();
-              
-              if (!questComplete) {
+              if (!completionStatus.questionnaire) {
                 return <Navigate to="/questionnaire" replace />;
-              } else if (!selfComplete) {
+              } else if (!completionStatus.selfAssessment) {
                 return <Navigate to="/introduction" replace />;
               } else {
                 return (
@@ -688,17 +826,14 @@ const AppContent: React.FC = () => {
           } 
         />
         
-        {/* All other authenticated routes with guards */}
+        {/* ✅ FIXED: All other authenticated routes with proper guards */}
         <Route 
           path="/*" 
           element={
             (() => {
-              const questComplete = isQuestionnaireCompleted();
-              const selfComplete = isSelfAssessmentCompleted();
-              
-              if (!questComplete) {
+              if (!completionStatus.questionnaire) {
                 return <Navigate to="/questionnaire" replace />;
-              } else if (!selfComplete) {
+              } else if (!completionStatus.selfAssessment) {
                 return <Navigate to="/introduction" replace />;
               } else {
                 return (
@@ -825,7 +960,7 @@ const AppContent: React.FC = () => {
   );
 };
 
-// ✅ SIMPLIFIED: LocalDataProvider wrapper (no lazy loading for context providers)
+// ✅ SIMPLIFIED: LocalDataProvider wrapper
 const AppWithData: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <LocalDataProvider>
@@ -834,7 +969,7 @@ const AppWithData: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-// ✅ MAIN App component (fixed import structure)
+// ✅ MAIN App component
 const App: React.FC = () => {
   return (
     <BrowserRouter>
