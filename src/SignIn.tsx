@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import './SignIn.css';
 
+// ✅ iPhone-Optimized SignIn Component with Embedded CSS
 interface SignInProps {
   onSignIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
-  onAppleSignIn: () => Promise<void>;
   onSignUp: () => void;
   onForgotPassword: () => void;
 }
@@ -13,7 +11,6 @@ interface SignInProps {
 const SignIn: React.FC<SignInProps> = ({
   onSignIn,
   onGoogleSignIn,
-  onAppleSignIn,
   onSignUp,
   onForgotPassword
 }) => {
@@ -51,21 +48,535 @@ const SignIn: React.FC<SignInProps> = ({
     }
   };
 
-  const handleAppleSignIn = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      await onAppleSignIn();
-    } catch (error: any) {
-      setError(error.message || 'Failed to sign in with Apple');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="signin-container">
+      <style>{`
+        /* ✅ IPHONE-OPTIMIZED CSS WITH FULL RESPONSIVENESS */
+        .signin-container {
+          min-height: 100vh;
+          min-height: 100dvh; /* Dynamic viewport height for iPhone */
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 20px);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          box-sizing: border-box;
+          -webkit-overflow-scrolling: touch;
+          overflow-x: hidden;
+        }
+
+        .signin-card {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border-radius: 20px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+          width: 100%;
+          max-width: 400px;
+          margin: 0 auto;
+          overflow: hidden;
+          animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .signin-content {
+          padding: 40px 30px;
+        }
+
+        .signin-header {
+          text-align: center;
+          margin-bottom: 30px;
+        }
+
+        .signin-header h1 {
+          color: #2c3e50;
+          font-size: clamp(24px, 6vw, 32px);
+          font-weight: 700;
+          margin-bottom: 8px;
+          letter-spacing: -0.5px;
+        }
+
+        .signin-header p {
+          color: #6c757d;
+          font-size: clamp(14px, 4vw, 16px);
+          margin: 0;
+          line-height: 1.5;
+        }
+
+        .error-message {
+          background-color: #f8d7da;
+          color: #721c24;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          border: 1px solid #f5c6cb;
+          font-size: clamp(13px, 3.5vw, 14px);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .error-message::before {
+          content: '❌';
+          font-size: 16px;
+        }
+
+        .signin-form {
+          margin-bottom: 25px;
+        }
+
+        .form-group {
+          margin-bottom: 20px;
+          position: relative;
+        }
+
+        .form-group input {
+          width: 100%;
+          padding: 16px 20px;
+          border: 2px solid #e9ecef;
+          border-radius: 12px;
+          font-size: clamp(14px, 4vw, 16px);
+          background-color: #f8f9fa;
+          transition: all 0.3s ease;
+          box-sizing: border-box;
+          min-height: 50px; /* iPhone touch target minimum */
+          -webkit-appearance: none;
+          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input:focus {
+          outline: none;
+          border-color: #667eea;
+          background-color: #fff;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .form-group input::placeholder {
+          color: #adb5bd;
+          font-weight: 400;
+        }
+
+        .signin-options {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 25px;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .remember-me-section {
+          display: flex;
+          align-items: center;
+        }
+
+        .checkbox-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: clamp(13px, 3.5vw, 14px);
+          position: relative;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          min-width: 18px;
+          min-height: 18px;
+          margin: 0;
+          cursor: pointer;
+        }
+
+        .checkbox-group label {
+          cursor: pointer;
+          color: #495057;
+          user-select: none;
+        }
+
+        .security-info-icon {
+          cursor: pointer;
+          color: #6c757d;
+          position: relative;
+          margin-left: 4px;
+          padding: 4px;
+          min-width: 24px;
+          min-height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .security-tooltip {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #2c3e50;
+          color: white;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          width: 200px;
+          z-index: 1000;
+          margin-bottom: 8px;
+        }
+
+        .tooltip-content {
+          text-align: left;
+        }
+
+        .tooltip-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+
+        .remember-note {
+          margin: 4px 0 0 0;
+          color: #10b981;
+          font-size: 11px;
+        }
+
+        .forgot-link {
+          background: none;
+          border: none;
+          color: #667eea;
+          font-size: clamp(13px, 3.5vw, 14px);
+          cursor: pointer;
+          text-decoration: none;
+          padding: 8px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+        }
+
+        .forgot-link:hover {
+          color: #764ba2;
+          text-decoration: underline;
+        }
+
+        .primary-button {
+          width: 100%;
+          padding: 16px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-size: clamp(14px, 4vw, 16px);
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          position: relative;
+          overflow: hidden;
+          min-height: 50px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+          touch-action: manipulation;
+        }
+
+        .primary-button::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+          transition: left 0.5s;
+        }
+
+        .primary-button:hover::before {
+          left: 100%;
+        }
+
+        .primary-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .primary-button:active {
+          transform: translateY(0);
+        }
+
+        .primary-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .loading-spinner {
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          border-top: 2px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .social-signin {
+          margin-bottom: 25px;
+        }
+
+        .divider {
+          text-align: center;
+          margin: 20px 0;
+          position: relative;
+          font-size: clamp(13px, 3.5vw, 14px);
+          color: #6c757d;
+        }
+
+        .divider::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background-color: #dee2e6;
+        }
+
+        .divider span {
+          background-color: white;
+          padding: 0 15px;
+          position: relative;
+          z-index: 1;
+        }
+
+        .social-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .social-button {
+          width: 100%;
+          padding: 14px 20px;
+          border: 2px solid #e9ecef;
+          border-radius: 12px;
+          background-color: #fff;
+          color: #495057;
+          font-size: clamp(13px, 3.5vw, 15px);
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          min-height: 50px;
+          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+          touch-action: manipulation;
+        }
+
+        .social-button:hover {
+          border-color: #667eea;
+          background-color: #f8f9ff;
+          transform: translateY(-1px);
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .google-button:hover {
+          border-color: #db4437;
+          background-color: #fef7f7;
+        }
+
+        .social-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .signup-section {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .signup-section p {
+          color: #6c757d;
+          font-size: clamp(13px, 3.5vw, 14px);
+          margin: 0;
+        }
+
+        .signup-link {
+          background: none;
+          border: none;
+          color: #667eea;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          transition: color 0.3s ease;
+          padding: 4px 8px;
+          margin-left: 4px;
+          min-height: 32px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .signup-link:hover {
+          color: #764ba2;
+          text-decoration: underline;
+        }
+
+        .trust-indicators {
+          text-align: center;
+          padding-top: 20px;
+          border-top: 1px solid #e9ecef;
+        }
+
+        .security-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          color: #6c757d;
+          font-size: clamp(11px, 3vw, 12px);
+        }
+
+        /* ✅ IPHONE SE (375px and smaller) */
+        @media (max-width: 374px) {
+          .signin-container {
+            padding: 10px 8px;
+          }
+          
+          .signin-content {
+            padding: 25px 20px;
+          }
+          
+          .signin-options {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+          }
+          
+          .forgot-link {
+            align-self: flex-end;
+          }
+        }
+
+        /* ✅ IPHONE STANDARD (375px - 414px) */
+        @media (min-width: 375px) and (max-width: 414px) {
+          .signin-container {
+            padding: 15px 12px;
+          }
+          
+          .signin-content {
+            padding: 30px 25px;
+          }
+        }
+
+        /* ✅ IPHONE PLUS/PRO MAX (415px+) */
+        @media (min-width: 415px) and (max-width: 768px) {
+          .signin-content {
+            padding: 35px 30px;
+          }
+        }
+
+        /* ✅ LANDSCAPE MODE */
+        @media (max-width: 768px) and (orientation: landscape) {
+          .signin-container {
+            padding: 10px 20px;
+            align-items: flex-start;
+            padding-top: max(10px, env(safe-area-inset-top));
+          }
+          
+          .signin-content {
+            padding: 20px 25px;
+          }
+          
+          .signin-header {
+            margin-bottom: 20px;
+          }
+          
+          .form-group {
+            margin-bottom: 15px;
+          }
+        }
+
+        /* ✅ SAFE AREA SUPPORT (iPhone X and newer) */
+        @supports (padding: max(0px)) {
+          .signin-container {
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+          }
+        }
+
+        /* ✅ HIGH CONTRAST MODE SUPPORT */
+        @media (prefers-contrast: high) {
+          .form-group input {
+            border-width: 3px;
+          }
+          
+          .error-message {
+            border-left: 4px solid #dc3545;
+          }
+        }
+
+        /* ✅ REDUCED MOTION SUPPORT */
+        @media (prefers-reduced-motion: reduce) {
+          .signin-card {
+            animation: none;
+          }
+          
+          .loading-spinner {
+            animation: none;
+          }
+          
+          .primary-button::before {
+            transition: none;
+          }
+        }
+
+        /* ✅ DARK MODE SUPPORT */
+        @media (prefers-color-scheme: dark) {
+          .signin-card {
+            background: rgba(30, 30, 30, 0.95);
+          }
+          
+          .signin-header h1 {
+            color: #f8f9fa;
+          }
+          
+          .signin-header p {
+            color: #adb5bd;
+          }
+          
+          .form-group input {
+            background-color: #2c3e50;
+            color: #f8f9fa;
+            border-color: #495057;
+          }
+          
+          .form-group input::placeholder {
+            color: #6c757d;
+          }
+        }
+      `}</style>
+
       <div className="signin-card">
         <div className="signin-content">
           {/* Clean Header */}
@@ -188,18 +699,6 @@ const SignIn: React.FC<SignInProps> = ({
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 Continue with Google
-              </button>
-              
-              <button 
-                type="button" 
-                className="social-button apple-button"
-                onClick={handleAppleSignIn}
-                disabled={loading}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-                Continue with Apple
               </button>
             </div>
           </div>

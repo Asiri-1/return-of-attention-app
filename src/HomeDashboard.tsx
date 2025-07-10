@@ -3,8 +3,7 @@ import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLocalData } from './contexts/LocalDataContext';
 import AdminPanel from './components/AdminPanel';
-// ✅ FIXED: Import from your existing shared happiness calculation
-import { calculateHappiness, HappinessResult } from './happinessCalculations';
+// ✅ REMOVED: No happiness calculation imports - just display!
 
 // ✅ FIXED: Correct interface for HomeDashboard component
 interface HomeDashboardProps {
@@ -22,7 +21,6 @@ interface HomeDashboardProps {
   onShowWhatIsPAHM: () => void;
 }
 
-// ✅ FIXED: Ensure HomeDashboard uses correct props interface
 const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onStartPractice,
   onViewProgress,
@@ -39,12 +37,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 }) => {
   const { currentUser } = useAuth();
   
-  // ✅ FIXED: Get data from LocalDataContext only
-  const { 
-    practiceSessions, 
-    getQuestionnaire,
-    getSelfAssessment
-  } = useLocalData();
+  // ✅ FIXED: Only get basic data for stats, NOT for calculation
+  const { practiceSessions } = useLocalData();
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,25 +48,11 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const [totalHours, setTotalHours] = useState<number>(0);
   const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
   
-  // ✅ FIXED: Use shared happiness calculation result
-  const [happinessData, setHappinessData] = useState<HappinessResult>({
+  // ✅ FIXED: Just display happiness from localStorage - NO CALCULATION
+  const [happinessData, setHappinessData] = useState({
     happiness_points: 50,
-    current_level: 'Newcomer',
-    breakdown: {
-      baseHappiness: 50,
-      questionnaireBonus: 0,
-      attachmentPenalty: 0,
-      nonAttachmentBonus: 0,
-      pahmMasteryBonus: 0,
-      sessionQualityBonus: 0,
-      emotionalStabilityBonus: 0,
-      mindRecoveryBonus: 0,
-      environmentBonus: 0,
-      consistencyBonus: 0,
-    }
+    current_level: 'Newcomer'
   });
-
-  const [isCalculating, setIsCalculating] = useState(true);
 
   // ✅ SIMPLIFIED: Calculate user stats only (no happiness calculation here)
   const calculateUserStats = useCallback(() => {
@@ -131,61 +111,71 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [currentUser, practiceSessions]);
 
-  // ✅ FIXED: Use your existing shared happiness calculation
+  // ✅ FIXED: ONLY READ happiness from localStorage - NO CALCULATION
   useEffect(() => {
     if (!currentUser) {
-      setIsCalculating(false);
       return;
     }
 
+    console.log('🎯 HomeDashboard: Reading happiness from localStorage (NO calculation)...');
+
     try {
-      console.log('🔄 HomeDashboard: Using shared happiness calculation...');
-      setIsCalculating(true);
-
-      // Get data from LocalDataContext
-      const questionnaire = getQuestionnaire();
-      const selfAssessment = getSelfAssessment();
+      // ✅ FIXED: Just read from localStorage - let HappinessProgressTracker do the calculation
+      const storedHappiness = localStorage.getItem('happiness_points');
+      const storedLevel = localStorage.getItem('user_level');
       
-      console.log('📊 HomeDashboard input data:', {
-        hasQuestionnaire: !!questionnaire,
-        hasSelfAssessment: !!selfAssessment,
-        practiceSessionsCount: practiceSessions?.length || 0
-      });
-
-      // ✅ FIXED: Use your existing shared happiness calculation utility
-      const result = calculateHappiness(
-        questionnaire?.responses || questionnaire, 
-        selfAssessment, 
-        practiceSessions || []
-      );
-
-      setHappinessData(result);
-
-      // Save to localStorage for consistency
-      localStorage.setItem('happiness_points', result.happiness_points.toString());
-      localStorage.setItem('user_level', result.current_level);
-      localStorage.setItem('happiness_last_calculated', Date.now().toString());
-
-      // Dispatch event for other components
-      window.dispatchEvent(new CustomEvent('happinessUpdated', {
-        detail: {
-          happiness_points: result.happiness_points,
-          user_level: result.current_level,
-          breakdown: result.breakdown
-        }
-      }));
-
-      console.log('✅ HomeDashboard happiness calculation completed:', {
-        happiness_points: result.happiness_points,
-        current_level: result.current_level
-      });
+      if (storedHappiness && storedLevel) {
+        const happiness_points = parseInt(storedHappiness);
+        const current_level = storedLevel;
+        
+        setHappinessData({
+          happiness_points,
+          current_level
+        });
+        
+        console.log('✅ HomeDashboard: Displaying happiness from localStorage:', {
+          happiness_points,
+          current_level
+        });
+      } else {
+        console.log('📊 HomeDashboard: No stored happiness found, using defaults');
+        setHappinessData({
+          happiness_points: 50,
+          current_level: 'Newcomer'
+        });
+      }
 
     } catch (error) {
-      console.error('❌ Error calculating happiness points:', error);
-    } finally {
-      setIsCalculating(false);
+      console.error('❌ Error reading happiness from localStorage:', error);
+      setHappinessData({
+        happiness_points: 50,
+        current_level: 'Newcomer'
+      });
     }
-  }, [currentUser, practiceSessions, getQuestionnaire, getSelfAssessment]);
+  }, [currentUser]);
+
+  // ✅ LISTEN: Listen for happiness updates from HappinessProgressTracker
+  useEffect(() => {
+    const handleHappinessUpdate = (event: CustomEvent) => {
+      const { happiness_points, user_level } = event.detail;
+      
+      console.log('🔔 HomeDashboard: Received happiness update from tracker:', {
+        happiness_points,
+        user_level
+      });
+      
+      setHappinessData({
+        happiness_points,
+        current_level: user_level
+      });
+    };
+
+    window.addEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     calculateUserStats();
@@ -316,45 +306,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       onClick: onShowPAHMExplanation
     }
   ];
-
-  if (isCalculating) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '20px',
-          padding: '40px',
-          textAlign: 'center',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{
-            width: '50px',
-            height: '50px',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #667eea',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 20px'
-          }}></div>
-          <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>
-            Calculating your happiness points...
-          </h3>
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{
@@ -592,6 +543,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
+        {/* Rest of the component remains the same... */}
         {/* Stages Section */}
         <section style={{
           background: 'rgba(255, 255, 255, 0.95)',
@@ -911,5 +863,4 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   );
 };
 
-// ✅ FIXED: Ensure proper export of HomeDashboard component
 export default HomeDashboard;

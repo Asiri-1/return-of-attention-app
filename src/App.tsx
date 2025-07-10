@@ -492,21 +492,42 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // ✅ Additional handlers for missing props
+  // ✅ FIXED GOOGLE HANDLERS to match SignIn interface
   const handleGoogleSignIn = async () => {
-    alert('Google Sign In not implemented yet');
+    try {
+      console.log('Google Sign In clicked');
+      // For now, just show alert since SignIn expects () => Promise<void>
+      alert('Google Sign In not fully implemented yet - please use regular sign in');
+    } catch (error: any) {
+      alert(`Google sign-in failed: ${error.message || 'Unknown error'}`);
+    }
   };
 
-  const handleAppleSignIn = async () => {
-    alert('Apple Sign In not implemented yet');
-  };
-
-  const handleGoogleSignUp = async () => {
-    alert('Google Sign Up not implemented yet');
-  };
-
-  const handleAppleSignUp = async () => {
-    alert('Apple Sign Up not implemented yet');
+  const handleGoogleSignUp = async (googleUser: any) => {
+    try {
+      console.log('Google Sign Up:', googleUser);
+      
+      // Send Google user data to your backend for sign-up
+      const response = await fetch('/api/auth/google-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: googleUser.email,
+          name: googleUser.name,
+          googleId: googleUser.googleId,
+          picture: googleUser.picture,
+          token: googleUser.token
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('authToken', data.token);
+        navigate('/questionnaire');
+      }
+    } catch (error: any) {
+      alert(`Google sign-up failed: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -559,12 +580,11 @@ const AppContent: React.FC = () => {
             </Suspense>
           } />
           
-          {/* Authentication routes with all required props */}
+          {/* ✅ CORRECTED Authentication routes - removed Apple props */}
           <Route path="/signin" element={
             <SignIn 
               onSignIn={handleSignIn}
               onGoogleSignIn={handleGoogleSignIn}
-              onAppleSignIn={handleAppleSignIn}
               onSignUp={() => navigate('/signup')}
               onForgotPassword={handleForgotPassword}
             />
@@ -573,7 +593,6 @@ const AppContent: React.FC = () => {
             <SignUp 
               onSignUp={handleSignUp}
               onGoogleSignUp={handleGoogleSignUp}
-              onAppleSignUp={handleAppleSignUp}
               onSignIn={() => navigate('/signin')}
             />
           } />
