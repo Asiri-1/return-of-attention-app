@@ -3,7 +3,6 @@ import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLocalData } from './contexts/LocalDataContext';
 import AdminPanel from './components/AdminPanel';
-// ✅ REMOVED: No happiness calculation imports - just display!
 
 // ✅ FIXED: Correct interface for HomeDashboard component
 interface HomeDashboardProps {
@@ -48,10 +47,10 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const [totalHours, setTotalHours] = useState<number>(0);
   const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
   
-  // ✅ FIXED: Just display happiness from localStorage - NO CALCULATION
+  // ✅ ONLY FIXED THIS: Read real happiness from localStorage instead of hardcoded 50
   const [happinessData, setHappinessData] = useState({
-    happiness_points: 50,
-    current_level: 'Newcomer'
+    happiness_points: 0, // Changed from hardcoded 50
+    current_level: 'Beginning Seeker'
   });
 
   // ✅ SIMPLIFIED: Calculate user stats only (no happiness calculation here)
@@ -111,70 +110,78 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [currentUser, practiceSessions]);
 
-  // ✅ FIXED: ONLY READ happiness from localStorage - NO CALCULATION
+  // ✅ ONLY FIXED THIS: Read real happiness from localStorage
   useEffect(() => {
     if (!currentUser) {
       return;
     }
 
-    console.log('🎯 HomeDashboard: Reading happiness from localStorage (NO calculation)...');
-
     try {
-      // ✅ FIXED: Just read from localStorage - let HappinessProgressTracker do the calculation
-      const storedHappiness = localStorage.getItem('happiness_points');
-      const storedLevel = localStorage.getItem('user_level');
+      // Read from the happiness calculation cache
+      const cachedHappiness = localStorage.getItem('lastHappinessCalculation');
       
-      if (storedHappiness && storedLevel) {
-        const happiness_points = parseInt(storedHappiness);
-        const current_level = storedLevel;
+      if (cachedHappiness) {
+        const savedData = JSON.parse(cachedHappiness);
+        const happiness_points = savedData.result?.happiness_points || 0;
+        const current_level = savedData.result?.user_level || 'Beginning Seeker';
         
         setHappinessData({
           happiness_points,
           current_level
         });
         
-        console.log('✅ HomeDashboard: Displaying happiness from localStorage:', {
-          happiness_points,
-          current_level
-        });
+        console.log('✅ HomeDashboard: Loaded real happiness score:', happiness_points);
       } else {
-        console.log('📊 HomeDashboard: No stored happiness found, using defaults');
-        setHappinessData({
-          happiness_points: 50,
-          current_level: 'Newcomer'
-        });
+        // Fallback to checking individual localStorage keys
+        const storedHappiness = localStorage.getItem('happiness_points');
+        const storedLevel = localStorage.getItem('user_level');
+        
+        if (storedHappiness && storedLevel) {
+          setHappinessData({
+            happiness_points: parseInt(storedHappiness),
+            current_level: storedLevel
+          });
+        } else {
+          // No calculation done yet
+          setHappinessData({
+            happiness_points: 0,
+            current_level: 'Beginning Seeker'
+          });
+        }
       }
 
     } catch (error) {
       console.error('❌ Error reading happiness from localStorage:', error);
       setHappinessData({
-        happiness_points: 50,
-        current_level: 'Newcomer'
+        happiness_points: 0,
+        current_level: 'Beginning Seeker'
       });
     }
   }, [currentUser]);
 
-  // ✅ LISTEN: Listen for happiness updates from HappinessProgressTracker
+  // ✅ ADDED: Listen for happiness updates from HappinessProgressTracker
   useEffect(() => {
-    const handleHappinessUpdate = (event: CustomEvent) => {
-      const { happiness_points, user_level } = event.detail;
-      
-      console.log('🔔 HomeDashboard: Received happiness update from tracker:', {
-        happiness_points,
-        user_level
-      });
-      
-      setHappinessData({
-        happiness_points,
-        current_level: user_level
-      });
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'lastHappinessCalculation' && e.newValue) {
+        try {
+          const savedData = JSON.parse(e.newValue);
+          const happiness_points = savedData.result?.happiness_points || 0;
+          const current_level = savedData.result?.user_level || 'Beginning Seeker';
+          
+          setHappinessData({
+            happiness_points,
+            current_level
+          });
+          
+          console.log('🔄 HomeDashboard: Updated happiness from storage change:', happiness_points);
+        } catch (error) {
+          console.error('❌ Error parsing storage update:', error);
+        }
+      }
     };
 
-    window.addEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
-    
-    return () => {
-      window.removeEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
-    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   useEffect(() => {
@@ -543,7 +550,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* Rest of the component remains the same... */}
         {/* Stages Section */}
         <section style={{
           background: 'rgba(255, 255, 255, 0.95)',
