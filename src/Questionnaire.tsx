@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// ✅ FIXED: Import LocalDataContext instead of AuthContext for data storage
 import { useLocalData } from './contexts/LocalDataContext';
 
 interface QuestionnaireProps {
@@ -11,7 +10,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ FIXED: Use LocalDataContext for data storage instead of AuthContext
   const { markQuestionnaireComplete } = useLocalData();
 
   // Load saved progress
@@ -40,11 +38,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     }
   }, [answers, currentQuestion, isLoading]);
 
-  // ✅ FIXED: Remove auto-advance - users must click Next button
   const handleAnswer = (questionId: string, answer: any) => {
     const newAnswers = { ...answers, [questionId]: answer };
     setAnswers(newAnswers);
-    // ✅ REMOVED: Auto-advance timeout - now users must click Next manually
   };
 
   const nextQuestion = () => {
@@ -61,15 +57,10 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     }
   };
 
-  // ✅ FIXED: Updated completion to use LocalDataContext
   const completeQuestionnaire = async () => {
     console.log('🔧 QUESTIONNAIRE COMPLETION STARTING...');
-    console.log('🔧 Current answers object:', answers);
-    
-    // Clear saved progress
     localStorage.removeItem('questionnaire_progress');
     
-    // 🔧 FIXED: Ensure ALL 27 questions are captured with defaults
     const structuredAnswers = {
       // Demographics & Background (1-7)
       experience_level: answers.experience_level || 1,
@@ -79,7 +70,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       occupation: answers.occupation || 'Other',
       education_level: answers.education_level || 'Bachelor\'s degree',
       meditation_background: answers.meditation_background || 'Never tried meditation',
-
       // Lifestyle Patterns (8-15)  
       sleep_pattern: answers.sleep_pattern || 5,
       physical_activity: answers.physical_activity || 'moderate',
@@ -89,7 +79,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       screen_time: answers.screen_time || '3-4 hours daily',
       social_connections: answers.social_connections || 'Few but close relationships',
       work_life_balance: answers.work_life_balance || 'Sometimes struggle but generally good',
-
       // Thinking Patterns (16-21)
       emotional_awareness: answers.emotional_awareness || 5,
       stress_response: answers.stress_response || 'Usually manage well',
@@ -97,7 +86,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       self_reflection: answers.self_reflection || 'Occasional deep thinking',
       thought_patterns: answers.thought_patterns || 'Mixed emotions',
       mindfulness_in_daily_life: answers.mindfulness_in_daily_life || 'Try to be mindful but forget',
-
       // Mindfulness Specific (22-27)
       mindfulness_experience: answers.mindfulness_experience || 1,
       meditation_background_detail: answers.meditation_background_detail || 'None',
@@ -105,29 +93,17 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       preferred_duration: answers.preferred_duration || 10,
       biggest_challenges: answers.biggest_challenges || 'Finding time and staying consistent',
       motivation: answers.motivation || 'Stress reduction and emotional balance',
-      
-      // 🔧 FIXED: Add completion metadata
       completed: true,
       completedAt: new Date().toISOString(),
       totalQuestions: 27,
       answeredQuestions: Object.keys(answers).length
     };
 
-    console.log('🔧 QUESTIONNAIRE: Complete structured answers (all 27):', structuredAnswers);
-    console.log('🔧 QUESTIONNAIRE: Answer count:', Object.keys(structuredAnswers).length);
-
     try {
-      // ✅ FIXED: Use LocalDataContext method
       if (markQuestionnaireComplete) {
-        console.log('🔧 QUESTIONNAIRE: Calling LocalDataContext markQuestionnaireComplete...');
         await markQuestionnaireComplete(structuredAnswers);
-        console.log('✅ QUESTIONNAIRE: LocalDataContext completion marked successfully!');
       }
-
-      console.log('🔧 QUESTIONNAIRE: Calling parent onComplete...');
       onComplete(structuredAnswers);
-      console.log('✅ QUESTIONNAIRE: Parent callback completed!');
-
     } catch (error) {
       console.error('❌ QUESTIONNAIRE: Error during completion:', error);
       onComplete(structuredAnswers);
@@ -167,39 +143,17 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   function getQuestionKey(questionNum: number): string {
     const keyMap: Record<number, string> = {
       // Demographics & Background (1-7)
-      1: 'experience_level',
-      2: 'goals', 
-      3: 'age_range',
-      4: 'location',
-      5: 'occupation',
-      6: 'education_level',
-      7: 'meditation_background',
-      
+      1: 'experience_level', 2: 'goals', 3: 'age_range', 4: 'location', 5: 'occupation',
+      6: 'education_level', 7: 'meditation_background',
       // Lifestyle Patterns (8-15)
-      8: 'sleep_pattern',
-      9: 'physical_activity', 
-      10: 'stress_triggers',
-      11: 'daily_routine',
-      12: 'diet_pattern',
-      13: 'screen_time',
-      14: 'social_connections',
-      15: 'work_life_balance',
-      
+      8: 'sleep_pattern', 9: 'physical_activity', 10: 'stress_triggers', 11: 'daily_routine',
+      12: 'diet_pattern', 13: 'screen_time', 14: 'social_connections', 15: 'work_life_balance',
       // Thinking Patterns (16-21)
-      16: 'emotional_awareness',
-      17: 'stress_response',
-      18: 'decision_making', 
-      19: 'self_reflection',
-      20: 'thought_patterns',
-      21: 'mindfulness_in_daily_life',
-      
+      16: 'emotional_awareness', 17: 'stress_response', 18: 'decision_making', 19: 'self_reflection',
+      20: 'thought_patterns', 21: 'mindfulness_in_daily_life',
       // Mindfulness Specific (22-27)
-      22: 'mindfulness_experience',
-      23: 'meditation_background_detail',
-      24: 'practice_goals',
-      25: 'preferred_duration',
-      26: 'biggest_challenges',
-      27: 'motivation'
+      22: 'mindfulness_experience', 23: 'meditation_background_detail', 24: 'practice_goals',
+      25: 'preferred_duration', 26: 'biggest_challenges', 27: 'motivation'
     };
     return keyMap[questionNum] || `q${questionNum}`;
   }
@@ -211,17 +165,14 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     return { phase: 4, name: 'Mindfulness Specific', icon: '🧘' };
   };
 
-  // ✅ NEW: Check if current question has been answered
   const isCurrentQuestionAnswered = () => {
     const questionKey = getQuestionKey(currentQuestion);
     const answer = answers[questionKey];
     
-    // For multiple choice questions, check if array has items
     if (Array.isArray(answer)) {
       return answer.length > 0;
     }
     
-    // For other questions, check if answer exists
     return answer !== undefined && answer !== null && answer !== '';
   };
 
@@ -428,7 +379,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           </div>
         );
 
-      // LIFESTYLE PATTERNS (8-15)
+      // LIFESTYLE PATTERNS (8-15) - Adding cases 8-27 with the same pattern
       case 8:
         return (
           <div className="question-container">
@@ -977,13 +928,19 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   return (
     <div className="questionnaire-container">
       <style>{`
+        /* ✅ ENHANCED IPHONE-OPTIMIZED CSS */
         .questionnaire-container {
           max-width: 800px;
           margin: 0 auto;
-          padding: 20px;
+          padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) 100px env(safe-area-inset-left, 20px);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
           min-height: 100vh;
+          min-height: 100dvh;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+          box-sizing: border-box;
+          padding-bottom: 120px; /* Extra space for fixed navigation */
         }
 
         .questionnaire-progress {
@@ -1002,13 +959,13 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .progress-text {
-          font-size: 16px;
+          font-size: clamp(16px, 4vw, 18px); /* Larger for iPhone */
           font-weight: 600;
           color: #2d3748;
         }
 
         .progress-percentage {
-          font-size: 14px;
+          font-size: clamp(14px, 3.5vw, 16px); /* Larger for iPhone */
           color: #667eea;
           font-weight: 500;
         }
@@ -1036,25 +993,27 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           padding: 12px;
           background: #f8fafc;
           border-radius: 8px;
+          font-size: clamp(15px, 3.5vw, 16px); /* Larger for iPhone */
         }
 
         .question-content {
           background: white;
           border-radius: 20px;
-          padding: 40px;
+          padding: 30px 25px; /* Optimized for iPhone */
           margin-bottom: 30px;
           box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
 
         .question-container h2 {
-          font-size: 28px;
+          font-size: clamp(22px, 6vw, 30px); /* Larger for iPhone */
           color: #2d3748;
           margin-bottom: 15px;
           text-align: center;
+          line-height: 1.3;
         }
 
         .question-container p {
-          font-size: 16px;
+          font-size: clamp(16px, 4vw, 18px); /* Larger for iPhone */
           color: #4a5568;
           text-align: center;
           margin-bottom: 30px;
@@ -1063,21 +1022,27 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .options-grid {
           display: grid;
-          gap: 15px;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px; /* More spacing on iPhone */
+          grid-template-columns: 1fr; /* Single column for iPhone */
         }
 
         .option-button {
           display: flex;
           align-items: center;
-          gap: 15px;
-          padding: 20px;
+          gap: 16px; /* More spacing */
+          padding: 20px 18px; /* More padding */
           border: 2px solid #e2e8f0;
-          border-radius: 12px;
+          border-radius: 16px; /* More rounded */
           background: white;
           cursor: pointer;
           transition: all 0.3s ease;
           text-align: left;
+          min-height: 56px; /* Larger touch target */
+          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+          touch-action: manipulation;
+          word-break: break-word;
+          box-sizing: border-box;
+          width: 100%;
         }
 
         .option-button:hover {
@@ -1093,12 +1058,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .option-icon {
-          font-size: 24px;
+          font-size: clamp(24px, 5vw, 28px); /* Larger icons */
           flex-shrink: 0;
         }
 
         .option-text {
-          font-size: 14px;
+          font-size: clamp(15px, 3.5vw, 16px); /* Larger text */
           font-weight: 500;
           line-height: 1.4;
         }
@@ -1109,27 +1074,28 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .range-slider {
           width: 100%;
-          height: 8px;
-          border-radius: 4px;
+          height: 12px; /* Larger slider */
+          border-radius: 6px;
           background: #e2e8f0;
           outline: none;
           -webkit-appearance: none;
           margin-bottom: 20px;
+          font-size: 16px;
         }
 
         .range-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 24px;
-          height: 24px;
+          width: 28px; /* Larger thumb */
+          height: 28px;
           border-radius: 50%;
           background: #667eea;
           cursor: pointer;
         }
 
         .range-slider::-moz-range-thumb {
-          width: 24px;
-          height: 24px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
           background: #667eea;
           cursor: pointer;
@@ -1140,35 +1106,52 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           display: flex;
           justify-content: space-between;
           margin-bottom: 15px;
-          font-size: 12px;
+          font-size: clamp(12px, 3vw, 13px);
           color: #4a5568;
+          flex-wrap: wrap;
+          gap: 8px;
         }
 
         .slider-value {
           text-align: center;
-          font-size: 16px;
+          font-size: clamp(16px, 4vw, 18px); /* Larger */
           font-weight: 600;
           color: #667eea;
         }
 
+        /* ✅ FIXED NAVIGATION FOR IPHONE */
         .questionnaire-navigation {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: white;
-          padding: 20px 30px;
-          border-radius: 15px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          padding: 20px;
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+          z-index: 1000;
+          max-width: 800px;
+          margin: 0 auto;
+          padding-bottom: max(20px, env(safe-area-inset-bottom));
         }
 
         .back-button, .next-button {
-          padding: 12px 24px;
+          padding: 16px 24px; /* Larger buttons */
           border: none;
-          border-radius: 8px;
-          font-size: 14px;
+          border-radius: 12px;
+          font-size: clamp(14px, 3.5vw, 16px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.3s ease;
+          min-width: 120px;
+          min-height: 50px; /* Larger touch target */
+          text-align: center;
+          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+          touch-action: manipulation;
+          box-sizing: border-box;
         }
 
         .back-button {
@@ -1178,6 +1161,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .back-button:hover:not(:disabled) {
           background: #cbd5e0;
+          transform: translateY(-2px);
         }
 
         .back-button:disabled {
@@ -1186,56 +1170,167 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .next-button {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+          color: white !important;
+          border: none !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          pointer-events: auto !important;
         }
 
         .next-button:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+          opacity: 1 !important;
+          visibility: visible !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+          background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
+          color: white !important;
         }
 
-        .next-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        /* ✅ NEW: Answer requirement indicator */
         .answer-required {
-          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-          color: white;
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+          color: white !important;
         }
 
-        .answer-required:hover:not(:disabled) {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        .answer-required:hover {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3) !important;
         }
 
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
+        /* ✅ ENHANCED IPHONE BREAKPOINTS */
+        @media (max-width: 374px) {
           .questionnaire-container {
-            padding: 15px;
+            padding: 10px 12px 120px 12px;
           }
-
+          
+          .questionnaire-progress {
+            padding: 20px 15px;
+            margin-bottom: 20px;
+          }
+          
           .question-content {
             padding: 25px 20px;
+            margin-bottom: 20px;
           }
-
-          .question-container h2 {
-            font-size: 22px;
-          }
-
+          
           .options-grid {
-            grid-template-columns: 1fr;
             gap: 12px;
           }
-
+          
           .option-button {
-            padding: 15px;
+            padding: 18px 15px;
+            gap: 12px;
+            min-height: 52px;
+          }
+          
+          .questionnaire-navigation {
+            padding: 15px 12px;
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+          }
+          
+          .back-button, .next-button {
+            min-width: 100px;
+            padding: 14px 16px;
+            min-height: 48px;
+          }
+          
+          .slider-labels {
+            font-size: 11px;
+            justify-content: center;
+            text-align: center;
+          }
+          
+          .slider-labels span {
+            flex: 1;
+            text-align: center;
+          }
+        }
+
+        @media (min-width: 375px) and (max-width: 414px) {
+          .questionnaire-container {
+            padding: 15px 16px 120px 16px;
+          }
+          
+          .options-grid {
+            gap: 14px;
+          }
+          
+          .option-button {
+            padding: 20px 16px;
+            gap: 14px;
+            min-height: 54px;
+          }
+          
+          .questionnaire-navigation {
+            padding: 18px 16px;
+            padding-bottom: max(18px, env(safe-area-inset-bottom));
+          }
+          
+          .back-button, .next-button {
+            min-width: 110px;
+            padding: 15px 20px;
+            min-height: 50px;
+          }
+        }
+
+        @media (min-width: 415px) and (max-width: 768px) {
+          .options-grid {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+          }
+          
+          .back-button, .next-button {
+            min-width: 130px;
+            padding: 16px 24px;
+          }
+        }
+
+        /* ✅ LANDSCAPE MODE OPTIMIZATION */
+        @media (max-width: 768px) and (orientation: landscape) {
+          .questionnaire-container {
+            padding: 10px 20px 100px 20px;
+          }
+          
+          .questionnaire-progress {
+            padding: 15px 20px;
+            margin-bottom: 15px;
+          }
+          
+          .question-content {
+            padding: 20px 25px;
+            margin-bottom: 15px;
+          }
+          
+          .options-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 12px;
           }
-
+          
+          .option-button {
+            padding: 14px 16px;
+            gap: 12px;
+            min-height: 48px;
+          }
+          
           .questionnaire-navigation {
-            padding: 15px 20px;
+            padding: 12px 20px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+          }
+        }
+
+        /* ✅ SAFE AREA SUPPORT */
+        @supports (padding: max(0px)) {
+          .questionnaire-container {
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            padding-top: max(20px, env(safe-area-inset-top));
+          }
+          
+          .questionnaire-navigation {
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
           }
         }
 
@@ -1270,7 +1365,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         {renderQuestion()}
       </div>
 
-      {/* ✅ FIXED: Navigation now requires manual Next button clicks */}
+      {/* Fixed Navigation for iPhone */}
       <div className="questionnaire-navigation">
         <button 
           className="back-button" 

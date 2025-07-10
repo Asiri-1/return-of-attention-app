@@ -1,6 +1,6 @@
 // ============================================================================
 // src/components/PublicLandingHero.tsx
-// CORRECTED VERSION - Clean, Fast Loading, No Logo Loading Issues
+// COMPLETE VERSION - All Sections with Purple/Blue Theme
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -42,7 +42,7 @@ const PublicLandingHero: React.FC = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1e1b4b 0%, #7c2d12 50%, #be185d 100%)',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)',
       color: 'white',
       overflow: 'hidden',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -55,9 +55,9 @@ const PublicLandingHero: React.FC = () => {
           left: '40px',
           width: '80px',
           height: '80px',
-          backgroundColor: 'white',
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
           borderRadius: '50%',
-          opacity: 0.1,
+          opacity: 0.3,
           animation: 'pulse 2s infinite'
         }}></div>
         <div style={{
@@ -66,9 +66,9 @@ const PublicLandingHero: React.FC = () => {
           right: '80px',
           width: '64px',
           height: '64px',
-          backgroundColor: '#fbbf24',
+          backgroundColor: 'rgba(139, 92, 246, 0.4)',
           borderRadius: '50%',
-          opacity: 0.1,
+          opacity: 0.3,
           animation: 'bounce 2s infinite'
         }}></div>
         <div style={{
@@ -77,9 +77,9 @@ const PublicLandingHero: React.FC = () => {
           left: '25%',
           width: '48px',
           height: '48px',
-          backgroundColor: '#f9a8d4',
+          backgroundColor: 'rgba(102, 126, 234, 0.4)',
           borderRadius: '50%',
-          opacity: 0.1,
+          opacity: 0.3,
           animation: 'pulse 3s infinite'
         }}></div>
         <div style={{
@@ -88,9 +88,9 @@ const PublicLandingHero: React.FC = () => {
           right: '33%',
           width: '32px',
           height: '32px',
-          backgroundColor: '#93c5fd',
+          backgroundColor: 'rgba(168, 85, 247, 0.4)',
           borderRadius: '50%',
-          opacity: 0.1,
+          opacity: 0.3,
           animation: 'bounce 3s infinite'
         }}></div>
       </div>
@@ -174,7 +174,7 @@ const PublicLandingHero: React.FC = () => {
                 transform: 'translate(-50%, -50%)',
                 width: '20px',
                 height: '20px',
-                backgroundColor: '#fbbf24',
+                backgroundColor: '#a855f7',
                 borderRadius: '50%',
                 animation: 'pulse 2s infinite'
               }}></div>
@@ -187,7 +187,7 @@ const PublicLandingHero: React.FC = () => {
                 transform: 'translateX(-50%)',
                 width: '12px',
                 height: '12px',
-                backgroundColor: '#ef4444',
+                backgroundColor: '#667eea',
                 borderRadius: '50%',
                 opacity: 0.7
               }}></div>
@@ -198,7 +198,7 @@ const PublicLandingHero: React.FC = () => {
                 transform: 'translateY(-50%)',
                 width: '10px',
                 height: '10px',
-                backgroundColor: '#ef4444',
+                backgroundColor: '#667eea',
                 borderRadius: '50%',
                 opacity: 0.6
               }}></div>
@@ -208,7 +208,7 @@ const PublicLandingHero: React.FC = () => {
                 left: '30px',
                 width: '8px',
                 height: '8px',
-                backgroundColor: '#ef4444',
+                backgroundColor: '#667eea',
                 borderRadius: '50%',
                 opacity: 0.5
               }}></div>
@@ -233,7 +233,7 @@ const PublicLandingHero: React.FC = () => {
                 opacity: 0.9,
                 margin: 0
               }}>
-                Golden center = present awareness. Red dots = thoughts, worries, distractions. 
+                Purple center = present awareness. Blue dots = thoughts, worries, distractions. 
                 The practice = learning to return naturally.
               </p>
             </div>
@@ -260,7 +260,7 @@ const PublicLandingHero: React.FC = () => {
                 <div style={{
                   width: '12px',
                   height: '12px',
-                  backgroundColor: '#fbbf24',
+                  backgroundColor: '#a855f7',
                   borderRadius: '50%',
                   animation: 'pulse 2s infinite'
                 }}></div>
@@ -277,7 +277,7 @@ const PublicLandingHero: React.FC = () => {
                 <div style={{
                   width: '12px',
                   height: '12px',
-                  backgroundColor: '#ef4444',
+                  backgroundColor: '#667eea',
                   borderRadius: '50%'
                 }}></div>
                 <span style={{ fontSize: '18px' }}>Outer cells = Thoughts, worries, distractions</span>
@@ -293,7 +293,7 @@ const PublicLandingHero: React.FC = () => {
                 <div style={{
                   width: '12px',
                   height: '12px',
-                  backgroundColor: '#10b981',
+                  backgroundColor: '#8b5cf6',
                   borderRadius: '50%'
                 }}></div>
                 <span style={{ fontSize: '18px' }}>The practice = Learning to return naturally</span>
@@ -332,7 +332,7 @@ const PublicLandingHero: React.FC = () => {
                   <div style={{
                     width: '8px',
                     height: '8px',
-                    backgroundColor: '#ef4444',
+                    backgroundColor: '#667eea',
                     borderRadius: '50%'
                   }}></div>
                   <span style={{ fontSize: '18px' }}>{problem}</span>
@@ -361,7 +361,7 @@ const PublicLandingHero: React.FC = () => {
               What If There's a Way Out?
             </h3>
             <div style={{
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
+              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(102, 126, 234, 0.3) 100%)',
               borderRadius: '16px',
               padding: '24px',
               backdropFilter: 'blur(10px)'
@@ -392,7 +392,7 @@ const PublicLandingHero: React.FC = () => {
                   <div style={{
                     fontSize: '32px',
                     fontWeight: 'bold',
-                    color: '#10b981'
+                    color: '#a855f7'
                   }}>
                     6 Stages
                   </div>
@@ -567,7 +567,7 @@ const PublicLandingHero: React.FC = () => {
               style={{
                 width: window.innerWidth < 640 ? '100%' : 'auto',
                 padding: '16px 32px',
-                background: 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)',
+                background: 'linear-gradient(90deg, #a855f7 0%, #667eea 100%)',
                 color: 'white',
                 borderRadius: '50px',
                 fontWeight: 'bold',
@@ -578,11 +578,11 @@ const PublicLandingHero: React.FC = () => {
                 boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(90deg, #059669 0%, #2563eb 100%)';
+                e.currentTarget.style.background = 'linear-gradient(90deg, #9333ea 0%, #5a67d8 100%)';
                 e.currentTarget.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)';
+                e.currentTarget.style.background = 'linear-gradient(90deg, #a855f7 0%, #667eea 100%)';
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >

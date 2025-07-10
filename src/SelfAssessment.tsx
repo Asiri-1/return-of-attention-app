@@ -403,7 +403,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             <div className="option-content">
               <div className="option-header">
                 <span className="option-icon">✨</span>
-                <strong>I don't have particular preferences for this (0 points)</strong>
+                <strong>I don't have particular preferences for this </strong>
               </div>
               <div className="option-description">
                 I'm generally content with whatever comes my way in this area (Non-attachment)
@@ -422,7 +422,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             <div className="option-content">
               <div className="option-header">
                 <span className="option-icon">⚖️</span>
-                <strong>I have some preferences, but I'm flexible (-7 points)</strong>
+                <strong>I have some preferences, but I'm flexible </strong>
               </div>
               <div className="option-description">
                 I enjoy certain things more than others, but I adapt easily (Some attachment)
@@ -441,7 +441,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             <div className="option-content">
               <div className="option-header">
                 <span className="option-icon">🔥</span>
-                <strong>I have strong preferences and specific likes/dislikes (-15 points)</strong>
+                <strong>I have strong preferences and specific likes/dislikes </strong>
               </div>
               <div className="option-description">
                 There are clear things I love or avoid in this area (Strong attachment)

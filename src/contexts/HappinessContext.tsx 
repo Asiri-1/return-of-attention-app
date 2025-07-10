@@ -1,0 +1,615 @@
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import { useLocalData } from './LocalDataContext';
+
+// 🎯 HAPPINESS CALCULATION INTERFACES
+interface HappinessBreakdown {
+  baseHappiness: number;
+  questionnaire: number;
+  pahmMastery: number;
+  sessionQuality: number;
+  emotionalStability: number;
+  mindRecovery: number;
+  environment: number;
+  consistency: number;
+  practiceStreak: number;
+  milestones: number;
+  skillProgress: number;
+  practiceDepth: number;
+  beginnerSupport: number;
+  attachmentPenalty: number;
+  nonAttachment: number;
+  total: number;
+}
+
+interface HappinessLevel {
+  level: string;
+  minPoints: number;
+  maxPoints: number;
+  description: string;
+  color: string;
+}
+
+interface HappinessContextType {
+  happinessPoints: number;
+  happinessLevel: HappinessLevel;
+  breakdown: HappinessBreakdown;
+  refreshHappiness: () => void;
+  
+  // Individual calculators for debugging
+  calculateBaseHappiness: () => number;
+  calculateQuestionnaireBonus: () => number;
+  calculatePAHMMastery: () => number;
+  calculateSessionQuality: () => number;
+  calculateEmotionalStability: () => number;
+  calculateMindRecovery: () => number;
+  calculateEnvironment: () => number;
+  calculateConsistency: () => number;
+  calculatePracticeStreak: () => number;
+  calculateMilestones: () => number;
+  calculateSkillProgress: () => number;
+  calculatePracticeDepth: () => number;
+  calculateBeginnerSupport: () => number;
+  calculateAttachmentPenalty: () => number;
+  calculateNonAttachment: () => number;
+}
+
+// 🎨 HAPPINESS LEVELS CONFIGURATION
+const HAPPINESS_LEVELS: HappinessLevel[] = [
+  { level: "New Seeker", minPoints: 0, maxPoints: 49, description: "Starting your mindfulness journey", color: "#ef4444" },
+  { level: "Growing Seeker", minPoints: 50, maxPoints: 99, description: "Building foundation practices", color: "#f97316" },
+  { level: "Developing Practitioner", minPoints: 100, maxPoints: 149, description: "Establishing consistent practice", color: "#eab308" },
+  { level: "Steady Practitioner", minPoints: 150, maxPoints: 199, description: "Deepening awareness", color: "#84cc16" },
+  { level: "Experienced Practitioner", minPoints: 200, maxPoints: 249, description: "Integrating mindfulness daily", color: "#22c55e" },
+  { level: "Advanced Practitioner", minPoints: 250, maxPoints: 299, description: "Mastering present awareness", color: "#06b6d4" },
+  { level: "Mindful Master", minPoints: 300, maxPoints: 349, description: "Living with deep presence", color: "#3b82f6" },
+  { level: "Wisdom Keeper", minPoints: 350, maxPoints: 399, description: "Embodying mindful wisdom", color: "#8b5cf6" },
+  { level: "Enlightened Being", minPoints: 400, maxPoints: Infinity, description: "Transcendent awareness", color: "#d946ef" }
+];
+
+// 🔧 CREATE CONTEXT
+const HappinessContext = createContext<HappinessContextType | undefined>(undefined);
+
+// 🚀 HAPPINESS PROVIDER WITH COMPLETE CALCULATIONS
+export const HappinessProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const {
+    userData,
+    getPracticeSessions,
+    getDailyEmotionalNotes,
+    getQuestionnaire,
+    getSelfAssessment,
+    isQuestionnaireCompleted,
+    isSelfAssessmentCompleted,
+    getAchievements,
+    getPAHMData,
+    getAnalyticsData,
+    refreshTrigger // This ensures happiness recalculates when data changes
+  } = useLocalData();
+
+  // 🎯 BASE HAPPINESS CALCULATION
+  const calculateBaseHappiness = useCallback((): number => {
+    // Everyone starts with 50 base happiness points
+    return 50;
+  }, []);
+
+  // 📝 QUESTIONNAIRE BONUS CALCULATION
+  const calculateQuestionnaireBonus = useCallback((): number => {
+    if (!isQuestionnaireCompleted()) return 0;
+    
+    const questionnaire = getQuestionnaire();
+    if (!questionnaire?.responses) return 0;
+
+    let bonus = 20; // Base questionnaire completion bonus
+    
+    // Additional bonuses based on responses
+    const responses = questionnaire.responses;
+    
+    // Experience level bonus (0-5 points)
+    if (responses.experience_level >= 3) bonus += 2;
+    if (responses.experience_level >= 5) bonus += 3;
+    
+    // Goals diversity bonus (0-3 points)
+    if (responses.goals && responses.goals.length >= 3) bonus += 3;
+    
+    // Mindfulness experience bonus (0-5 points)
+    if (responses.mindfulness_experience >= 3) bonus += 2;
+    if (responses.mindfulness_experience >= 5) bonus += 3;
+
+    return Math.min(bonus, 35); // Cap at 35 points
+  }, [isQuestionnaireCompleted, getQuestionnaire]);
+
+  // 🧠 PAHM MASTERY CALCULATION
+  const calculatePAHMMastery = useCallback((): number => {
+    const pahmData = getPAHMData();
+    if (!pahmData || pahmData.totalObservations === 0) return 0;
+
+    let points = 0;
+    
+    // Present moment awareness (0-20 points)
+    const presentPercentage = pahmData.presentPercentage;
+    if (presentPercentage >= 70) points += 20;
+    else if (presentPercentage >= 50) points += 15;
+    else if (presentPercentage >= 30) points += 10;
+    else if (presentPercentage >= 10) points += 5;
+
+    // Neutral observation skill (0-15 points)
+    const neutralPercentage = pahmData.neutralPercentage;
+    if (neutralPercentage >= 60) points += 15;
+    else if (neutralPercentage >= 40) points += 10;
+    else if (neutralPercentage >= 20) points += 5;
+
+    // Experience depth (0-10 points)
+    if (pahmData.totalObservations >= 500) points += 10;
+    else if (pahmData.totalObservations >= 200) points += 7;
+    else if (pahmData.totalObservations >= 50) points += 5;
+    else if (pahmData.totalObservations >= 10) points += 2;
+
+    return Math.min(points, 45);
+  }, [getPAHMData]);
+
+  // ⭐ SESSION QUALITY CALCULATION
+  const calculateSessionQuality = useCallback((): number => {
+    const sessions = getPracticeSessions();
+    if (sessions.length === 0) return 0;
+
+    const recentSessions = sessions.slice(-10); // Last 10 sessions
+    const totalRating = recentSessions.reduce((sum, session) => sum + (session.rating || 0), 0);
+    const avgRating = totalRating / recentSessions.length;
+    
+    let points = 0;
+    
+    // Average quality points (0-20)
+    if (avgRating >= 4.5) points += 20;
+    else if (avgRating >= 4.0) points += 15;
+    else if (avgRating >= 3.5) points += 10;
+    else if (avgRating >= 3.0) points += 5;
+
+    // Consistency in quality (0-10)
+    const ratings = recentSessions.map(s => s.rating || 0).filter(r => r > 0);
+    if (ratings.length >= 5) {
+      const variance = ratings.reduce((sum, rating) => sum + Math.pow(rating - avgRating, 2), 0) / ratings.length;
+      const stdDev = Math.sqrt(variance);
+      
+      if (stdDev <= 0.5) points += 10; // Very consistent
+      else if (stdDev <= 1.0) points += 7;
+      else if (stdDev <= 1.5) points += 4;
+    }
+
+    return Math.min(points, 30);
+  }, [getPracticeSessions]);
+
+  // 💝 EMOTIONAL STABILITY CALCULATION
+  const calculateEmotionalStability = useCallback((): number => {
+    const notes = getDailyEmotionalNotes();
+    if (notes.length === 0) return 0;
+
+    const recentNotes = notes.slice(-20); // Last 20 notes
+    let points = 0;
+
+    // Positive emotion frequency (0-15 points)
+    const positiveEmotions = ['joy', 'happy', 'calm', 'grateful', 'peaceful', 'content', 'energized'];
+    const positiveCount = recentNotes.filter(note => 
+      positiveEmotions.includes(note.emotion.toLowerCase())
+    ).length;
+    const positiveRatio = positiveCount / recentNotes.length;
+    
+    if (positiveRatio >= 0.7) points += 15;
+    else if (positiveRatio >= 0.5) points += 12;
+    else if (positiveRatio >= 0.3) points += 8;
+    else if (positiveRatio >= 0.1) points += 4;
+
+    // Gratitude practice (0-10 points)
+    const gratitudeCount = recentNotes.filter(note => 
+      note.gratitude && note.gratitude.length > 0
+    ).length;
+    const gratitudeRatio = gratitudeCount / recentNotes.length;
+    
+    if (gratitudeRatio >= 0.5) points += 10;
+    else if (gratitudeRatio >= 0.3) points += 7;
+    else if (gratitudeRatio >= 0.1) points += 4;
+
+    // Regular emotional check-ins (0-5 points)
+    if (recentNotes.length >= 15) points += 5;
+    else if (recentNotes.length >= 10) points += 3;
+    else if (recentNotes.length >= 5) points += 1;
+
+    return Math.min(points, 30);
+  }, [getDailyEmotionalNotes]);
+
+  // 🕐 MIND RECOVERY CALCULATION
+  const calculateMindRecovery = useCallback((): number => {
+    const sessions = getPracticeSessions();
+    const mindRecoverySessions = sessions.filter(s => s.sessionType === 'mind_recovery');
+    
+    if (mindRecoverySessions.length === 0) return 0;
+
+    let points = 0;
+
+    // Regular use (0-10 points)
+    const last30Days = mindRecoverySessions.filter(session => {
+      const sessionDate = new Date(session.timestamp);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return sessionDate >= thirtyDaysAgo;
+    });
+
+    if (last30Days.length >= 20) points += 10;
+    else if (last30Days.length >= 10) points += 7;
+    else if (last30Days.length >= 5) points += 4;
+    else if (last30Days.length >= 1) points += 2;
+
+    // Quality of recovery sessions (0-10 points)
+    const avgRating = mindRecoverySessions.reduce((sum, s) => sum + (s.rating || 0), 0) / mindRecoverySessions.length;
+    if (avgRating >= 4.0) points += 10;
+    else if (avgRating >= 3.5) points += 7;
+    else if (avgRating >= 3.0) points += 4;
+
+    // Variety in contexts (0-5 points)
+    const contexts = new Set(mindRecoverySessions.map(s => s.mindRecoveryContext).filter(Boolean));
+    if (contexts.size >= 5) points += 5;
+    else if (contexts.size >= 3) points += 3;
+    else if (contexts.size >= 1) points += 1;
+
+    return Math.min(points, 25);
+  }, [getPracticeSessions]);
+
+  // 🌿 ENVIRONMENT CALCULATION
+  const calculateEnvironment = useCallback((): number => {
+    const sessions = getPracticeSessions();
+    const sessionsWithEnv = sessions.filter(s => s.environment);
+    
+    if (sessionsWithEnv.length === 0) return 0;
+
+    let points = 0;
+
+    // Environment tracking consistency (0-10 points)
+    const envRatio = sessionsWithEnv.length / sessions.length;
+    if (envRatio >= 0.8) points += 10;
+    else if (envRatio >= 0.6) points += 7;
+    else if (envRatio >= 0.4) points += 4;
+    else if (envRatio >= 0.2) points += 2;
+
+    // Optimal environment discovery (0-10 points)
+    const envData: { [key: string]: { ratings: number[], count: number } } = {};
+    
+    sessionsWithEnv.forEach(session => {
+      if (session.environment && session.rating) {
+        const envKey = `${session.environment.posture}_${session.environment.location}`;
+        if (!envData[envKey]) envData[envKey] = { ratings: [], count: 0 };
+        envData[envKey].ratings.push(session.rating);
+        envData[envKey].count++;
+      }
+    });
+
+    const bestEnvAvg = Math.max(...Object.values(envData).map(env => 
+      env.ratings.reduce((sum, r) => sum + r, 0) / env.ratings.length
+    ));
+
+    if (bestEnvAvg >= 4.5) points += 10;
+    else if (bestEnvAvg >= 4.0) points += 7;
+    else if (bestEnvAvg >= 3.5) points += 4;
+
+    return Math.min(points, 20);
+  }, [getPracticeSessions]);
+
+  // 📊 CONSISTENCY CALCULATION
+  const calculateConsistency = useCallback((): number => {
+    const analytics = getAnalyticsData();
+    const consistencyScore = analytics.consistencyScore; // 0-100
+
+    let points = 0;
+
+    // Based on 30-day consistency
+    if (consistencyScore >= 90) points += 25;
+    else if (consistencyScore >= 75) points += 20;
+    else if (consistencyScore >= 60) points += 15;
+    else if (consistencyScore >= 45) points += 10;
+    else if (consistencyScore >= 30) points += 5;
+    else if (consistencyScore >= 15) points += 2;
+
+    return Math.min(points, 25);
+  }, [getAnalyticsData]);
+
+  // 🔥 PRACTICE STREAK CALCULATION
+  const calculatePracticeStreak = useCallback((): number => {
+    const analytics = getAnalyticsData();
+    const currentStreak = analytics.currentStreak;
+
+    let points = 0;
+
+    // Current streak bonus
+    if (currentStreak >= 30) points += 20;
+    else if (currentStreak >= 21) points += 15;
+    else if (currentStreak >= 14) points += 12;
+    else if (currentStreak >= 7) points += 8;
+    else if (currentStreak >= 3) points += 4;
+    else if (currentStreak >= 1) points += 1;
+
+    // Longest streak achievement
+    const longestStreak = analytics.longestStreak;
+    if (longestStreak >= 100) points += 15;
+    else if (longestStreak >= 50) points += 10;
+    else if (longestStreak >= 30) points += 7;
+    else if (longestStreak >= 14) points += 4;
+    else if (longestStreak >= 7) points += 2;
+
+    return Math.min(points, 35);
+  }, [getAnalyticsData]);
+
+  // 🏆 MILESTONES CALCULATION
+  const calculateMilestones = useCallback((): number => {
+    const achievements = getAchievements();
+    const sessions = getPracticeSessions();
+    const analytics = getAnalyticsData();
+
+    let points = 0;
+
+    // Achievement-based points
+    points += achievements.length * 5; // 5 points per achievement
+
+    // Session milestones
+    const totalSessions = sessions.length;
+    if (totalSessions >= 500) points += 25;
+    else if (totalSessions >= 200) points += 15;
+    else if (totalSessions >= 100) points += 10;
+    else if (totalSessions >= 50) points += 7;
+    else if (totalSessions >= 25) points += 4;
+    else if (totalSessions >= 10) points += 2;
+
+    // Time milestones
+    const totalMinutes = analytics.totalPracticeTime;
+    if (totalMinutes >= 5000) points += 20;
+    else if (totalMinutes >= 2000) points += 12;
+    else if (totalMinutes >= 1000) points += 8;
+    else if (totalMinutes >= 500) points += 5;
+    else if (totalMinutes >= 200) points += 3;
+
+    return Math.min(points, 100);
+  }, [getAchievements, getPracticeSessions, getAnalyticsData]);
+
+  // 📈 SKILL PROGRESS CALCULATION
+  const calculateSkillProgress = useCallback((): number => {
+    const sessions = getPracticeSessions();
+    if (sessions.length < 5) return 0;
+
+    let points = 0;
+
+    // Present percentage improvement
+    const recentSessions = sessions.slice(-10);
+    const olderSessions = sessions.slice(-20, -10);
+    
+    if (olderSessions.length >= 5 && recentSessions.length >= 5) {
+      const recentAvgPresent = recentSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / recentSessions.length;
+      const olderAvgPresent = olderSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / olderSessions.length;
+      
+      const improvement = recentAvgPresent - olderAvgPresent;
+      if (improvement >= 10) points += 15;
+      else if (improvement >= 5) points += 10;
+      else if (improvement >= 2) points += 5;
+    }
+
+    // Session rating improvement
+    if (olderSessions.length >= 5 && recentSessions.length >= 5) {
+      const recentAvgRating = recentSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / recentSessions.length;
+      const olderAvgRating = olderSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / olderSessions.length;
+      
+      const improvement = recentAvgRating - olderAvgRating;
+      if (improvement >= 0.5) points += 10;
+      else if (improvement >= 0.25) points += 5;
+      else if (improvement >= 0.1) points += 2;
+    }
+
+    // Stage progression
+    const stageProgression = new Set(sessions.map(s => s.stageLevel).filter(Boolean)).size;
+    if (stageProgression >= 5) points += 10;
+    else if (stageProgression >= 3) points += 5;
+    else if (stageProgression >= 2) points += 2;
+
+    return Math.min(points, 35);
+  }, [getPracticeSessions]);
+
+  // 📚 PRACTICE DEPTH CALCULATION
+  const calculatePracticeDepth = useCallback((): number => {
+    const sessions = getPracticeSessions();
+    const analytics = getAnalyticsData();
+    
+    let points = 0;
+
+    // Average session length
+    const avgLength = analytics.averageSessionLength;
+    if (avgLength >= 45) points += 15;
+    else if (avgLength >= 30) points += 12;
+    else if (avgLength >= 20) points += 8;
+    else if (avgLength >= 10) points += 4;
+
+    // Session variety (different durations)
+    const durations = sessions.map(s => Math.floor(s.duration / 5) * 5); // Group by 5-minute intervals
+    const uniqueDurations = new Set(durations).size;
+    if (uniqueDurations >= 6) points += 10;
+    else if (uniqueDurations >= 4) points += 7;
+    else if (uniqueDurations >= 3) points += 4;
+
+    // Long session bonus
+    const longSessions = sessions.filter(s => s.duration >= 45).length;
+    if (longSessions >= 20) points += 10;
+    else if (longSessions >= 10) points += 7;
+    else if (longSessions >= 5) points += 4;
+    else if (longSessions >= 1) points += 2;
+
+    return Math.min(points, 35);
+  }, [getPracticeSessions, getAnalyticsData]);
+
+  // 🌱 BEGINNER SUPPORT CALCULATION
+  const calculateBeginnerSupport = useCallback((): number => {
+    const sessions = getPracticeSessions();
+    if (sessions.length > 50) return 0; // Not a beginner anymore
+
+    let points = 0;
+
+    // Early engagement bonus
+    if (sessions.length >= 1) points += 5;
+    if (sessions.length >= 3) points += 5;
+    if (sessions.length >= 7) points += 5;
+    if (sessions.length >= 14) points += 5;
+
+    // Completion bonuses for beginners
+    if (isQuestionnaireCompleted()) points += 10;
+    if (isSelfAssessmentCompleted()) points += 15;
+
+    return Math.min(points, 45);
+  }, [getPracticeSessions, isQuestionnaireCompleted, isSelfAssessmentCompleted]);
+
+  // 💔 ATTACHMENT PENALTY CALCULATION
+  const calculateAttachmentPenalty = useCallback((): number => {
+    const selfAssessment = getSelfAssessment();
+    if (!selfAssessment || !selfAssessment.responses) return 0;
+
+    let penalty = 0;
+    
+    // Calculate penalty based on attachment levels
+    Object.values(selfAssessment.responses).forEach(response => {
+      if (response.level === 'strong') penalty += 5;
+      else if (response.level === 'some') penalty += 2;
+    });
+
+    return -Math.min(penalty, 30); // Negative points, capped at -30
+  }, [getSelfAssessment]);
+
+  // 🎯 NON-ATTACHMENT BONUS CALCULATION
+  const calculateNonAttachment = useCallback((): number => {
+    const selfAssessment = getSelfAssessment();
+    if (!selfAssessment || !selfAssessment.responses) return 0;
+
+    let points = 0;
+    
+    // Count 'none' responses (non-attachment)
+    const noneCount = Object.values(selfAssessment.responses).filter(
+      response => response.level === 'none'
+    ).length;
+
+    // Bonus for non-attachment
+    if (noneCount === 6) points += 50; // All categories non-attached
+    else if (noneCount >= 5) points += 35;
+    else if (noneCount >= 4) points += 25;
+    else if (noneCount >= 3) points += 15;
+    else if (noneCount >= 2) points += 8;
+    else if (noneCount >= 1) points += 3;
+
+    return Math.min(points, 50);
+  }, [getSelfAssessment]);
+
+  // 🧮 COMPLETE HAPPINESS CALCULATION
+  const calculateHappiness = useMemo((): HappinessBreakdown => {
+    const baseHappiness = calculateBaseHappiness();
+    const questionnaire = calculateQuestionnaireBonus();
+    const pahmMastery = calculatePAHMMastery();
+    const sessionQuality = calculateSessionQuality();
+    const emotionalStability = calculateEmotionalStability();
+    const mindRecovery = calculateMindRecovery();
+    const environment = calculateEnvironment();
+    const consistency = calculateConsistency();
+    const practiceStreak = calculatePracticeStreak();
+    const milestones = calculateMilestones();
+    const skillProgress = calculateSkillProgress();
+    const practiceDepth = calculatePracticeDepth();
+    const beginnerSupport = calculateBeginnerSupport();
+    const attachmentPenalty = calculateAttachmentPenalty();
+    const nonAttachment = calculateNonAttachment();
+
+    const total = baseHappiness + questionnaire + pahmMastery + sessionQuality + 
+                  emotionalStability + mindRecovery + environment + consistency + 
+                  practiceStreak + milestones + skillProgress + practiceDepth + 
+                  beginnerSupport + attachmentPenalty + nonAttachment;
+
+    return {
+      baseHappiness,
+      questionnaire,
+      pahmMastery,
+      sessionQuality,
+      emotionalStability,
+      mindRecovery,
+      environment,
+      consistency,
+      practiceStreak,
+      milestones,
+      skillProgress,
+      practiceDepth,
+      beginnerSupport,
+      attachmentPenalty,
+      nonAttachment,
+      total: Math.max(0, total) // Ensure total is never negative
+    };
+  }, [
+    calculateBaseHappiness,
+    calculateQuestionnaireBonus,
+    calculatePAHMMastery,
+    calculateSessionQuality,
+    calculateEmotionalStability,
+    calculateMindRecovery,
+    calculateEnvironment,
+    calculateConsistency,
+    calculatePracticeStreak,
+    calculateMilestones,
+    calculateSkillProgress,
+    calculatePracticeDepth,
+    calculateBeginnerSupport,
+    calculateAttachmentPenalty,
+    calculateNonAttachment,
+    refreshTrigger // Dependency on refreshTrigger ensures recalculation when data changes
+  ]);
+
+  // 🎨 HAPPINESS LEVEL DETERMINATION
+  const happinessLevel = useMemo((): HappinessLevel => {
+    const points = calculateHappiness.total;
+    return HAPPINESS_LEVELS.find(level => 
+      points >= level.minPoints && points <= level.maxPoints
+    ) || HAPPINESS_LEVELS[0];
+  }, [calculateHappiness.total]);
+
+  // 🔄 REFRESH FUNCTION
+  const refreshHappiness = useCallback(() => {
+    // The calculation will automatically refresh due to refreshTrigger dependency
+    console.log('🔄 Happiness calculation refreshed');
+  }, []);
+
+  // 🎯 CONTEXT VALUE
+  const contextValue: HappinessContextType = {
+    happinessPoints: calculateHappiness.total,
+    happinessLevel,
+    breakdown: calculateHappiness,
+    refreshHappiness,
+    
+    // Individual calculators
+    calculateBaseHappiness,
+    calculateQuestionnaireBonus,
+    calculatePAHMMastery,
+    calculateSessionQuality,
+    calculateEmotionalStability,
+    calculateMindRecovery,
+    calculateEnvironment,
+    calculateConsistency,
+    calculatePracticeStreak,
+    calculateMilestones,
+    calculateSkillProgress,
+    calculatePracticeDepth,
+    calculateBeginnerSupport,
+    calculateAttachmentPenalty,
+    calculateNonAttachment
+  };
+
+  return (
+    <HappinessContext.Provider value={contextValue}>
+      {children}
+    </HappinessContext.Provider>
+  );
+};
+
+// 🎯 CUSTOM HOOK
+export const useHappiness = (): HappinessContextType => {
+  const context = useContext(HappinessContext);
+  if (!context) {
+    throw new Error('useHappiness must be used within a HappinessProvider');
+  }
+  return context;
+};
+
+export default HappinessContext;

@@ -316,7 +316,7 @@ interface ComprehensiveAnalytics {
   lastUpdated: string;
 }
 
-// ✅ UPDATED: ComprehensiveUserData interface with all data
+// ✅ FIXED: ComprehensiveUserData interface WITHOUT happiness points
 interface ComprehensiveUserData {
   profile: {
     userId: string;
@@ -361,8 +361,9 @@ interface ComprehensiveUserData {
   questionnaire?: QuestionnaireData;
   selfAssessment?: SelfAssessmentData;
   
-  // Happiness and gamification system
-  happinessPoints: number;
+  // ❌ REMOVED: happiness points - will be calculated dynamically
+  // happinessPoints: number;
+  
   achievements: string[];
   notes: any[]; // Additional notes beyond emotional notes
   
@@ -375,16 +376,18 @@ interface ComprehensiveUserData {
   };
 }
 
-// 🎯 ENHANCED CONTEXT INTERFACE WITH COMPLETE COVERAGE
+// ✅ ENHANCED: LocalDataContextType interface WITH missing direct properties
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
   refreshTrigger: number;
   
-  // Direct properties for compatibility
+  // ✅ ADDED: Direct properties for component compatibility (MISSING BEFORE!)
   comprehensiveUserData: ComprehensiveUserData | null;
   practiceSessions: PracticeSessionData[];
   emotionalNotes: EmotionalNoteData[];
+  questionnaire: QuestionnaireData | null;  // ← ADDED THIS!
+  selfAssessment: SelfAssessmentData | null; // ← ADDED THIS!
   
   // Core methods
   clearAllData: () => void;
@@ -401,8 +404,10 @@ interface LocalDataContextType {
   isQuestionnaireCompleted: () => boolean;
   isSelfAssessmentCompleted: () => boolean;
   
-  // Happiness and gamification getters
-  getHappinessPoints: () => number;
+  // ❌ REMOVED: Happiness getters and setters - will be handled by HappinessContext
+  // getHappinessPoints: () => number;
+  // addHappinessPoints: (points: number, reason: string) => void;
+  
   getAchievements: () => string[];
   getNotes: () => any[];
   
@@ -447,8 +452,7 @@ interface LocalDataContextType {
   markQuestionnaireComplete: (responses: any) => void;
   markSelfAssessmentComplete: (responses: any) => void;
 
-  // Happiness and gamification methods
-  addHappinessPoints: (points: number, reason: string) => void;
+  // Achievement methods (but NOT happiness points)
   addAchievement: (achievement: string) => void;
   addNote: (note: any) => void;
 
@@ -505,7 +509,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [currentUser?.uid]);
 
-  // 🔥 CREATE EMPTY USER DATA STRUCTURE
+  // ✅ FIXED: Create empty user data WITHOUT happiness points
   const createEmptyUserData = useCallback((): ComprehensiveUserData => {
     return {
       profile: {
@@ -548,7 +552,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       reflections: [],
       questionnaire: undefined,
       selfAssessment: undefined,
-      happinessPoints: 50,
+      // ❌ REMOVED: Static happiness points
+      // happinessPoints: 50,
       achievements: ['journey_started'],
       notes: [],
       analytics: {
@@ -573,13 +578,14 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     localStorage.removeItem('questionnaire_completed');
     localStorage.removeItem('self_assessment_completed');
-    localStorage.removeItem('happiness_points');
+    // ❌ REMOVED: Don't clear happiness_points as it will be managed dynamically
+    // localStorage.removeItem('happiness_points');
     
     triggerAutoRefresh();
     console.log('🗑️ All data cleared and auto-refresh triggered!');
   }, [getStorageKey, getLegacyStorageKeys, triggerAutoRefresh]);
 
-  // 🔥 SAVE DATA TO STORAGE WITH AUTO-UPDATE
+  // ✅ FIXED: Save data to storage WITHOUT happiness points
   const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
     try {
       localStorage.setItem(getStorageKey(), JSON.stringify(data));
@@ -605,9 +611,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           localStorage.setItem('self_assessment_completed', data.selfAssessment.completed ? 'true' : 'false');
         }
         
-        if (data.happinessPoints !== undefined) {
-          localStorage.setItem('happiness_points', data.happinessPoints.toString());
-        }
+        // ❌ REMOVED: Don't save static happiness points to localStorage
+        // if (data.happinessPoints !== undefined) {
+        //   localStorage.setItem('happiness_points', data.happinessPoints.toString());
+        // }
       }
       
       // Auto-sync with auth context
@@ -656,13 +663,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const sessions = userData?.practiceSessions || [];
     console.log(`📊 getPracticeSessions called - returning ${sessions.length} sessions (refresh #${refreshTrigger})`);
     return sessions;
-  }, [userData?.practiceSessions]);
+  }, [userData?.practiceSessions, refreshTrigger]);
 
   const getDailyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
     const notes = userData?.emotionalNotes || [];
     console.log(`💝 getDailyEmotionalNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
     return notes;
-  }, [userData?.emotionalNotes]);
+  }, [userData?.emotionalNotes, refreshTrigger]);
 
   const getReflections = useCallback((): ReflectionData[] => {
     return userData?.reflections || [];
@@ -689,24 +696,20 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return userData?.selfAssessment?.completed || false;
   }, [userData?.selfAssessment?.completed]);
 
-  // Happiness and gamification getters
-  const getHappinessPoints = useCallback((): number => {
-    const points = userData?.happinessPoints || 50;
-    console.log(`😊 getHappinessPoints called - returning ${points} points (refresh #${refreshTrigger})`);
-    return points;
-  }, [userData?.happinessPoints]);
+  // ❌ REMOVED: Happiness getters - will be handled by HappinessContext
+  // const getHappinessPoints = useCallback((): number => { ... }
 
   const getAchievements = useCallback((): string[] => {
     const achievements = userData?.achievements || [];
     console.log(`🏆 getAchievements called - returning ${achievements.length} achievements (refresh #${refreshTrigger})`);
     return achievements;
-  }, [userData?.achievements]);
+  }, [userData?.achievements, refreshTrigger]);
 
   const getNotes = useCallback((): any[] => {
     const notes = userData?.notes || [];
     console.log(`📒 getNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
     return notes;
-  }, [userData?.notes]);
+  }, [userData?.notes, refreshTrigger]);
 
   const getMindRecoverySessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'mind_recovery') || [];
@@ -1256,7 +1259,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     console.log(`✅ Reflection ${reflectionId} deleted successfully`);
   }, [userData, saveDataToStorage]);
 
-  // ✅ Data manipulation methods (keeping existing implementations)
+  // ✅ FIXED: Data manipulation methods WITHOUT happiness point awards
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     if (!userData) {
       console.error('❌ Cannot add session - userData is null');
@@ -1299,13 +1302,14 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       averagePresentPercentage: Math.round(avgPresent)
     };
 
-    const pointsToAward = Math.ceil(newSession.duration / 5);
-    updatedData.happinessPoints = updatedData.happinessPoints + pointsToAward;
+    // ❌ REMOVED: Static happiness point awarding
+    // const pointsToAward = Math.ceil(newSession.duration / 5);
+    // updatedData.happinessPoints = updatedData.happinessPoints + pointsToAward;
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log(`✅ Practice session added successfully - awarded ${pointsToAward} happiness points`);
+    console.log('✅ Practice session added successfully - happiness will be calculated dynamically');
   }, [userData, saveDataToStorage]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
@@ -1374,7 +1378,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     console.log('✅ Reflection added successfully');
   }, [userData, saveDataToStorage]);
 
-  // Questionnaire and Self-Assessment methods (keeping existing implementations)
+  // ✅ FIXED: Questionnaire and Self-Assessment methods WITHOUT happiness points
   const updateQuestionnaire = useCallback((questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
     if (!userData) {
       console.error('❌ Cannot update questionnaire - userData is null');
@@ -1390,7 +1394,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         completed: true,
         completedAt: new Date().toISOString()
       },
-      happinessPoints: userData.happinessPoints + 50,
+      // ❌ REMOVED: Static happiness points
+      // happinessPoints: userData.happinessPoints + 50,
       achievements: userData.achievements.includes('questionnaire_completed') 
         ? userData.achievements 
         : [...userData.achievements, 'questionnaire_completed'],
@@ -1403,7 +1408,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Questionnaire updated successfully - awarded 50 happiness points and achievement');
+    console.log('✅ Questionnaire updated successfully - happiness will be calculated dynamically');
   }, [userData, saveDataToStorage]);
 
   const updateSelfAssessment = useCallback((selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
@@ -1421,7 +1426,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         completed: true,
         completedAt: new Date().toISOString()
       } as SelfAssessmentData,
-      happinessPoints: userData.happinessPoints + 100,
+      // ❌ REMOVED: Static happiness points
+      // happinessPoints: userData.happinessPoints + 100,
       achievements: userData.achievements.includes('self_assessment_completed') 
         ? userData.achievements 
         : [...userData.achievements, 'self_assessment_completed'],
@@ -1434,7 +1440,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Self-assessment updated successfully - awarded 100 happiness points and achievement');
+    console.log('✅ Self-assessment updated successfully - happiness will be calculated dynamically');
   }, [userData, saveDataToStorage]);
 
   const markQuestionnaireComplete = useCallback((responses: any) => {
@@ -1590,33 +1596,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateSelfAssessment(selfAssessmentData);
   }, [updateSelfAssessment]);
 
-  // Happiness and gamification methods (keeping existing implementations)
-  const addHappinessPoints = useCallback((points: number, reason: string) => {
-    if (!userData) {
-      console.error('❌ Cannot add happiness points - userData is null');
-      return;
-    }
+  // ❌ REMOVED: addHappinessPoints method - will be handled by HappinessContext
 
-    console.log(`😊 Adding ${points} happiness points - reason: ${reason}`);
-
-    const newPoints = userData.happinessPoints + points;
-    const updatedData = {
-      ...userData,
-      happinessPoints: newPoints,
-      analytics: {
-        ...userData.analytics,
-        lastUpdated: new Date().toISOString()
-      }
-    };
-
-    setUserData(updatedData);
-    saveDataToStorage(updatedData);
-    
-    localStorage.setItem('happiness_points', newPoints.toString());
-    
-    console.log(`✅ Happiness points added successfully - new total: ${newPoints}`);
-  }, [userData, saveDataToStorage]);
-
+  // ✅ FIXED: addAchievement method WITHOUT happiness points
   const addAchievement = useCallback((achievement: string) => {
     if (!userData) {
       console.error('❌ Cannot add achievement - userData is null');
@@ -1633,7 +1615,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const updatedData = {
       ...userData,
       achievements: [...userData.achievements, achievement],
-      happinessPoints: userData.happinessPoints + 25,
+      // ❌ REMOVED: Static happiness points
+      // happinessPoints: userData.happinessPoints + 25,
       analytics: {
         ...userData.analytics,
         lastUpdated: new Date().toISOString()
@@ -1643,7 +1626,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log(`✅ Achievement '${achievement}' added successfully - awarded 25 happiness points`);
+    console.log(`✅ Achievement '${achievement}' added successfully - happiness will be calculated dynamically`);
   }, [userData, saveDataToStorage]);
 
   const addNote = useCallback((note: any) => {
@@ -1710,9 +1693,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           localStorage.setItem('self_assessment_completed', userData.selfAssessment.completed ? 'true' : 'false');
         }
 
-        if (userData.happinessPoints !== undefined) {
-          localStorage.setItem('happiness_points', userData.happinessPoints.toString());
-        }
+        // ❌ REMOVED: Don't sync static happiness points
+        // if (userData.happinessPoints !== undefined) {
+        //   localStorage.setItem('happiness_points', userData.happinessPoints.toString());
+        // }
 
         console.log('🔄 Legacy storage keys synced for component compatibility');
       } catch (error) {
@@ -1760,16 +1744,18 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [userData, currentUser, syncWithLocalData, syncLegacyStorageKeys]);
 
-  // 🎯 COMPLETE CONTEXT VALUE
+  // ✅ ENHANCED: COMPLETE CONTEXT VALUE WITH missing direct properties
   const contextValue: LocalDataContextType = {
     userData,
     isLoading,
     refreshTrigger,
     
-    // Direct properties
+    // ✅ ENHANCED: Direct properties with MISSING ones added
     comprehensiveUserData: userData,
     practiceSessions: userData?.practiceSessions || [],
     emotionalNotes: userData?.emotionalNotes || [],
+    questionnaire: userData?.questionnaire || null,  // ← ADDED THIS!
+    selfAssessment: userData?.selfAssessment || null, // ← ADDED THIS!
     
     // Core methods
     clearAllData,
@@ -1786,8 +1772,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isQuestionnaireCompleted,
     isSelfAssessmentCompleted,
     
-    // Happiness and gamification getters
-    getHappinessPoints,
+    // ❌ REMOVED: Happiness getters and setters
+    // getHappinessPoints,
+    // addHappinessPoints,
+    
     getAchievements,
     getNotes,
     
@@ -1832,8 +1820,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     markQuestionnaireComplete,
     markSelfAssessmentComplete,
 
-    // Happiness and gamification methods
-    addHappinessPoints,
+    // Achievement methods (but NOT happiness points)
     addAchievement,
     addNote,
 
