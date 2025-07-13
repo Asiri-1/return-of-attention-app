@@ -61,7 +61,8 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     console.log('🔧 QUESTIONNAIRE COMPLETION STARTING...');
     localStorage.removeItem('questionnaire_progress');
     
-    const structuredAnswers = {
+    // ✅ FIXED: Send ONLY raw responses - LocalDataContext will add metadata
+    const rawResponses = {
       // Demographics & Background (1-7)
       experience_level: answers.experience_level || 1,
       goals: answers.goals || [],
@@ -93,20 +94,20 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       preferred_duration: answers.preferred_duration || 10,
       biggest_challenges: answers.biggest_challenges || 'Finding time and staying consistent',
       motivation: answers.motivation || 'Stress reduction and emotional balance',
-      completed: true,
-      completedAt: new Date().toISOString(),
+      // ✅ REMOVED: No metadata here - LocalDataContext will add it
       totalQuestions: 27,
       answeredQuestions: Object.keys(answers).length
     };
 
     try {
+      console.log('📝 Sending raw responses to LocalDataContext:', rawResponses);
       if (markQuestionnaireComplete) {
-        await markQuestionnaireComplete(structuredAnswers);
+        await markQuestionnaireComplete(rawResponses);
       }
-      onComplete(structuredAnswers);
+      onComplete(rawResponses);
     } catch (error) {
       console.error('❌ QUESTIONNAIRE: Error during completion:', error);
-      onComplete(structuredAnswers);
+      onComplete(rawResponses);
     }
   };
 
@@ -379,7 +380,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           </div>
         );
 
-      // LIFESTYLE PATTERNS (8-15) - Adding cases 8-27 with the same pattern
+      // LIFESTYLE PATTERNS (8-15)
       case 8:
         return (
           <div className="question-container">
@@ -928,7 +929,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   return (
     <div className="questionnaire-container">
       <style>{`
-        /* ✅ ENHANCED IPHONE-OPTIMIZED CSS */
+        /* Enhanced iPhone-optimized CSS */
         .questionnaire-container {
           max-width: 800px;
           margin: 0 auto;
@@ -940,7 +941,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
           box-sizing: border-box;
-          padding-bottom: 120px; /* Extra space for fixed navigation */
+          padding-bottom: 120px;
         }
 
         .questionnaire-progress {
@@ -959,13 +960,13 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .progress-text {
-          font-size: clamp(16px, 4vw, 18px); /* Larger for iPhone */
+          font-size: clamp(16px, 4vw, 18px);
           font-weight: 600;
           color: #2d3748;
         }
 
         .progress-percentage {
-          font-size: clamp(14px, 3.5vw, 16px); /* Larger for iPhone */
+          font-size: clamp(14px, 3.5vw, 16px);
           color: #667eea;
           font-weight: 500;
         }
@@ -993,19 +994,19 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           padding: 12px;
           background: #f8fafc;
           border-radius: 8px;
-          font-size: clamp(15px, 3.5vw, 16px); /* Larger for iPhone */
+          font-size: clamp(15px, 3.5vw, 16px);
         }
 
         .question-content {
           background: white;
           border-radius: 20px;
-          padding: 30px 25px; /* Optimized for iPhone */
+          padding: 30px 25px;
           margin-bottom: 30px;
           box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
 
         .question-container h2 {
-          font-size: clamp(22px, 6vw, 30px); /* Larger for iPhone */
+          font-size: clamp(22px, 6vw, 30px);
           color: #2d3748;
           margin-bottom: 15px;
           text-align: center;
@@ -1013,7 +1014,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .question-container p {
-          font-size: clamp(16px, 4vw, 18px); /* Larger for iPhone */
+          font-size: clamp(16px, 4vw, 18px);
           color: #4a5568;
           text-align: center;
           margin-bottom: 30px;
@@ -1022,22 +1023,22 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .options-grid {
           display: grid;
-          gap: 16px; /* More spacing on iPhone */
-          grid-template-columns: 1fr; /* Single column for iPhone */
+          gap: 16px;
+          grid-template-columns: 1fr;
         }
 
         .option-button {
           display: flex;
           align-items: center;
-          gap: 16px; /* More spacing */
-          padding: 20px 18px; /* More padding */
+          gap: 16px;
+          padding: 20px 18px;
           border: 2px solid #e2e8f0;
-          border-radius: 16px; /* More rounded */
+          border-radius: 16px;
           background: white;
           cursor: pointer;
           transition: all 0.3s ease;
           text-align: left;
-          min-height: 56px; /* Larger touch target */
+          min-height: 56px;
           -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
           touch-action: manipulation;
           word-break: break-word;
@@ -1058,12 +1059,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .option-icon {
-          font-size: clamp(24px, 5vw, 28px); /* Larger icons */
+          font-size: clamp(24px, 5vw, 28px);
           flex-shrink: 0;
         }
 
         .option-text {
-          font-size: clamp(15px, 3.5vw, 16px); /* Larger text */
+          font-size: clamp(15px, 3.5vw, 16px);
           font-weight: 500;
           line-height: 1.4;
         }
@@ -1074,7 +1075,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .range-slider {
           width: 100%;
-          height: 12px; /* Larger slider */
+          height: 12px;
           border-radius: 6px;
           background: #e2e8f0;
           outline: none;
@@ -1086,7 +1087,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         .range-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 28px; /* Larger thumb */
+          width: 28px;
           height: 28px;
           border-radius: 50%;
           background: #667eea;
@@ -1114,12 +1115,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .slider-value {
           text-align: center;
-          font-size: clamp(16px, 4vw, 18px); /* Larger */
+          font-size: clamp(16px, 4vw, 18px);
           font-weight: 600;
           color: #667eea;
         }
 
-        /* ✅ FIXED NAVIGATION FOR IPHONE */
+        /* Fixed navigation for iPhone */
         .questionnaire-navigation {
           position: fixed;
           bottom: 0;
@@ -1139,7 +1140,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .back-button, .next-button {
-          padding: 16px 24px; /* Larger buttons */
+          padding: 16px 24px;
           border: none;
           border-radius: 12px;
           font-size: clamp(14px, 3.5vw, 16px);
@@ -1147,7 +1148,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           cursor: pointer;
           transition: all 0.3s ease;
           min-width: 120px;
-          min-height: 50px; /* Larger touch target */
+          min-height: 50px;
           text-align: center;
           -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
           touch-action: manipulation;
@@ -1196,142 +1197,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
           transform: translateY(-2px) !important;
           box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3) !important;
-        }
-
-        /* ✅ ENHANCED IPHONE BREAKPOINTS */
-        @media (max-width: 374px) {
-          .questionnaire-container {
-            padding: 10px 12px 120px 12px;
-          }
-          
-          .questionnaire-progress {
-            padding: 20px 15px;
-            margin-bottom: 20px;
-          }
-          
-          .question-content {
-            padding: 25px 20px;
-            margin-bottom: 20px;
-          }
-          
-          .options-grid {
-            gap: 12px;
-          }
-          
-          .option-button {
-            padding: 18px 15px;
-            gap: 12px;
-            min-height: 52px;
-          }
-          
-          .questionnaire-navigation {
-            padding: 15px 12px;
-            padding-bottom: max(15px, env(safe-area-inset-bottom));
-          }
-          
-          .back-button, .next-button {
-            min-width: 100px;
-            padding: 14px 16px;
-            min-height: 48px;
-          }
-          
-          .slider-labels {
-            font-size: 11px;
-            justify-content: center;
-            text-align: center;
-          }
-          
-          .slider-labels span {
-            flex: 1;
-            text-align: center;
-          }
-        }
-
-        @media (min-width: 375px) and (max-width: 414px) {
-          .questionnaire-container {
-            padding: 15px 16px 120px 16px;
-          }
-          
-          .options-grid {
-            gap: 14px;
-          }
-          
-          .option-button {
-            padding: 20px 16px;
-            gap: 14px;
-            min-height: 54px;
-          }
-          
-          .questionnaire-navigation {
-            padding: 18px 16px;
-            padding-bottom: max(18px, env(safe-area-inset-bottom));
-          }
-          
-          .back-button, .next-button {
-            min-width: 110px;
-            padding: 15px 20px;
-            min-height: 50px;
-          }
-        }
-
-        @media (min-width: 415px) and (max-width: 768px) {
-          .options-grid {
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
-          }
-          
-          .back-button, .next-button {
-            min-width: 130px;
-            padding: 16px 24px;
-          }
-        }
-
-        /* ✅ LANDSCAPE MODE OPTIMIZATION */
-        @media (max-width: 768px) and (orientation: landscape) {
-          .questionnaire-container {
-            padding: 10px 20px 100px 20px;
-          }
-          
-          .questionnaire-progress {
-            padding: 15px 20px;
-            margin-bottom: 15px;
-          }
-          
-          .question-content {
-            padding: 20px 25px;
-            margin-bottom: 15px;
-          }
-          
-          .options-grid {
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-          }
-          
-          .option-button {
-            padding: 14px 16px;
-            gap: 12px;
-            min-height: 48px;
-          }
-          
-          .questionnaire-navigation {
-            padding: 12px 20px;
-            padding-bottom: max(12px, env(safe-area-inset-bottom));
-          }
-        }
-
-        /* ✅ SAFE AREA SUPPORT */
-        @supports (padding: max(0px)) {
-          .questionnaire-container {
-            padding-left: max(20px, env(safe-area-inset-left));
-            padding-right: max(20px, env(safe-area-inset-right));
-            padding-top: max(20px, env(safe-area-inset-top));
-          }
-          
-          .questionnaire-navigation {
-            padding-left: max(20px, env(safe-area-inset-left));
-            padding-right: max(20px, env(safe-area-inset-right));
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
-          }
         }
 
         @keyframes spin {

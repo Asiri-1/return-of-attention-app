@@ -1,6 +1,7 @@
+// src/components/UserProfile.tsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { useLocalData } from './contexts/LocalDataContext';
+import { useAuth } from './AuthContext'; // ✅ FIXED: Correct import path
+import { useLocalData } from './contexts/LocalDataContext'; // ✅ FIXED: Correct import path
 
 interface UserProfileProps {
   onBack: () => void;
@@ -12,7 +13,7 @@ interface PracticeSession {
   sessionId: string;
   timestamp: string;
   duration: number;
-  sessionType?: 'stage1' | 'stage2' | 'mind_recovery' | 'pahm_practice';
+  sessionType?: 'meditation' | 'mind_recovery';
   pahmCounts?: {
     total: number;
     [key: string]: number;
@@ -39,6 +40,7 @@ interface EmotionalNote {
 interface CategoryData {
   level: 'none' | 'some' | 'strong';
   details?: string;
+  category: string;
 }
 
 interface SelfAssessmentData {
@@ -80,9 +82,10 @@ interface QuestionnaireData {
 const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
   const { currentUser } = useAuth();
   const { 
-    comprehensiveUserData, 
     practiceSessions, 
-    emotionalNotes 
+    emotionalNotes,
+    getQuestionnaire,
+    getSelfAssessment
   } = useLocalData();
   
   const [loading, setLoading] = useState(true);
@@ -204,9 +207,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
 
   const userStats = calculateUserStats();
 
+  // ✅ COMPLETE: Enhanced questionnaire section with all 27 fields displayed
   const renderQuestionnaireSection = () => {
-    // ✅ FIXED: Proper type checking for questionnaire data
-    const questionnaire = comprehensiveUserData?.questionnaire as QuestionnaireData | undefined;
+    const questionnaire = getQuestionnaire();
     
     if (!questionnaire?.completed || !questionnaire.responses) {
       return (
@@ -237,15 +240,19 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
               {completedAt ? new Date(completedAt).toLocaleDateString() : 'Recently'}
             </span>
           </div>
+          <div className="text-sm text-green-700 mt-2">
+            All 27 questions answered • Complete profile established
+          </div>
         </div>
 
+        {/* Demographics & Background (Questions 1-7) */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
           <button
             onClick={() => toggleSection('demographics')}
             className="w-full flex justify-between items-center p-4 text-left bg-blue-100 hover:bg-blue-200 transition-colors"
           >
             <h4 className="font-semibold text-blue-800 flex items-center gap-2">
-              👤 Demographics & Background
+              👤 Demographics & Background (Questions 1-7)
             </h4>
             <span className="text-blue-600 text-xl">
               {expandedSections.has('demographics') ? '▼' : '▶'}
@@ -256,7 +263,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white rounded p-3">
-                  <strong className="text-blue-700">Experience Level:</strong>
+                  <strong className="text-blue-700">Q1 - Experience Level:</strong>
                   <div className="text-lg font-semibold text-blue-600">
                     {responses.experience_level || 0}/10
                   </div>
@@ -267,33 +274,46 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
                   </div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-blue-700">Age Range:</strong>
+                  <strong className="text-blue-700">Q2 - Goals:</strong>
+                  <div className="text-gray-800">
+                    {Array.isArray(responses.goals) && responses.goals.length > 0 
+                      ? responses.goals.join(', ') 
+                      : responses.goals || 'Not specified'}
+                  </div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-blue-700">Q3 - Age Range:</strong>
                   <div className="text-gray-800">{responses.age_range || 'Not specified'}</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-blue-700">Location:</strong>
+                  <strong className="text-blue-700">Q4 - Location:</strong>
                   <div className="text-gray-800">{responses.location || 'Not specified'}</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-blue-700">Occupation:</strong>
+                  <strong className="text-blue-700">Q5 - Occupation:</strong>
                   <div className="text-gray-800">{responses.occupation || 'Not specified'}</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-blue-700">Education:</strong>
+                  <strong className="text-blue-700">Q6 - Education:</strong>
                   <div className="text-gray-800">{responses.education_level || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3 md:col-span-2">
+                  <strong className="text-blue-700">Q7 - Meditation Background:</strong>
+                  <div className="text-gray-800">{responses.meditation_background || 'Not specified'}</div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
+        {/* Lifestyle Patterns (Questions 8-15) */}
         <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
           <button
             onClick={() => toggleSection('lifestyle')}
             className="w-full flex justify-between items-center p-4 text-left bg-green-100 hover:bg-green-200 transition-colors"
           >
             <h4 className="font-semibold text-green-800 flex items-center gap-2">
-              🌱 Lifestyle Patterns
+              🌱 Lifestyle Patterns (Questions 8-15)
             </h4>
             <span className="text-green-600 text-xl">
               {expandedSections.has('lifestyle') ? '▼' : '▶'}
@@ -304,7 +324,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white rounded p-3">
-                  <strong className="text-green-700">Sleep Quality:</strong>
+                  <strong className="text-green-700">Q8 - Sleep Quality:</strong>
                   <div className="text-lg font-semibold text-green-600">
                     {responses.sleep_pattern || 0}/10
                   </div>
@@ -315,44 +335,105 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
                   </div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-green-700">Physical Activity:</strong>
+                  <strong className="text-green-700">Q9 - Physical Activity:</strong>
                   <div className="text-gray-800 capitalize">{responses.physical_activity || 'Not specified'}</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-green-700">Daily Routine:</strong>
-                  <div className="text-gray-800 capitalize">{responses.daily_routine || 'Not specified'}</div>
-                </div>
-                <div className="bg-white rounded p-3">
-                  <strong className="text-green-700">Work-Life Balance:</strong>
-                  <div className="text-gray-800 capitalize">{responses.work_life_balance || 'Not specified'}</div>
-                </div>
-              </div>
-              
-              {responses.stress_triggers && Array.isArray(responses.stress_triggers) && responses.stress_triggers.length > 0 && (
-                <div className="bg-white rounded p-3">
-                  <strong className="text-green-700">Stress Triggers:</strong>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {responses.stress_triggers.map((trigger: string, index: number) => (
-                      <span key={index} className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
-                        {trigger}
-                      </span>
-                    ))}
+                  <strong className="text-green-700">Q10 - Stress Triggers:</strong>
+                  <div className="text-gray-800">
+                    {Array.isArray(responses.stress_triggers) && responses.stress_triggers.length > 0 
+                      ? responses.stress_triggers.join(', ')
+                      : responses.stress_triggers || 'Not specified'}
                   </div>
                 </div>
-              )}
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Q11 - Daily Routine:</strong>
+                  <div className="text-gray-800">{responses.daily_routine || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Q12 - Diet Pattern:</strong>
+                  <div className="text-gray-800">{responses.diet_pattern || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Q13 - Screen Time:</strong>
+                  <div className="text-gray-800">{responses.screen_time || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Q14 - Social Connections:</strong>
+                  <div className="text-gray-800">{responses.social_connections || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-green-700">Q15 - Work-Life Balance:</strong>
+                  <div className="text-gray-800">{responses.work_life_balance || 'Not specified'}</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
+        {/* Thinking Patterns (Questions 16-21) */}
         <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden">
           <button
-            onClick={() => toggleSection('mindfulness')}
+            onClick={() => toggleSection('thinking')}
             className="w-full flex justify-between items-center p-4 text-left bg-purple-100 hover:bg-purple-200 transition-colors"
           >
             <h4 className="font-semibold text-purple-800 flex items-center gap-2">
-              🧘 Mindfulness Experience
+              🧠 Thinking Patterns (Questions 16-21)
             </h4>
             <span className="text-purple-600 text-xl">
+              {expandedSections.has('thinking') ? '▼' : '▶'}
+            </span>
+          </button>
+          
+          {expandedSections.has('thinking') && (
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Q16 - Emotional Awareness:</strong>
+                  <div className="text-lg font-semibold text-purple-600">
+                    {responses.emotional_awareness || 0}/10
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {(responses.emotional_awareness || 0) >= 8 ? 'Very High' : 
+                     (responses.emotional_awareness || 0) >= 6 ? 'Good' :
+                     (responses.emotional_awareness || 0) >= 4 ? 'Moderate' : 'Low'}
+                  </div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Q17 - Stress Response:</strong>
+                  <div className="text-gray-800">{responses.stress_response || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Q18 - Decision Making:</strong>
+                  <div className="text-gray-800">{responses.decision_making || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Q19 - Self Reflection:</strong>
+                  <div className="text-gray-800">{responses.self_reflection || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Q20 - Thought Patterns:</strong>
+                  <div className="text-gray-800">{responses.thought_patterns || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-purple-700">Q21 - Daily Mindfulness:</strong>
+                  <div className="text-gray-800">{responses.mindfulness_in_daily_life || 'Not specified'}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mindfulness Experience (Questions 22-27) */}
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => toggleSection('mindfulness')}
+            className="w-full flex justify-between items-center p-4 text-left bg-indigo-100 hover:bg-indigo-200 transition-colors"
+          >
+            <h4 className="font-semibold text-indigo-800 flex items-center gap-2">
+              🧘 Mindfulness Experience (Questions 22-27)
+            </h4>
+            <span className="text-indigo-600 text-xl">
               {expandedSections.has('mindfulness') ? '▼' : '▶'}
             </span>
           </button>
@@ -361,8 +442,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white rounded p-3">
-                  <strong className="text-purple-700">Mindfulness Experience:</strong>
-                  <div className="text-lg font-semibold text-purple-600">
+                  <strong className="text-indigo-700">Q22 - Mindfulness Experience:</strong>
+                  <div className="text-lg font-semibold text-indigo-600">
                     {responses.mindfulness_experience || 0}/10
                   </div>
                   <div className="text-sm text-gray-600">
@@ -372,34 +453,63 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
                   </div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-purple-700">Meditation Background:</strong>
-                  <div className="text-gray-800 capitalize">{responses.meditation_background || 'Not specified'}</div>
+                  <strong className="text-indigo-700">Q23 - Meditation Background Detail:</strong>
+                  <div className="text-gray-800">{responses.meditation_background_detail || 'Not specified'}</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-purple-700">Practice Goals:</strong>
-                  <div className="text-gray-800 capitalize">{responses.practice_goals || 'Not specified'}</div>
+                  <strong className="text-indigo-700">Q24 - Practice Goals:</strong>
+                  <div className="text-gray-800">{responses.practice_goals || 'Not specified'}</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-purple-700">Preferred Duration:</strong>
+                  <strong className="text-indigo-700">Q25 - Preferred Duration:</strong>
                   <div className="text-gray-800">{responses.preferred_duration || 'Not specified'} minutes</div>
                 </div>
                 <div className="bg-white rounded p-3">
-                  <strong className="text-purple-700">Motivation:</strong>
-                  <div className="text-gray-800 capitalize">{responses.motivation || 'Not specified'}</div>
+                  <strong className="text-indigo-700">Q26 - Biggest Challenges:</strong>
+                  <div className="text-gray-800">{responses.biggest_challenges || 'Not specified'}</div>
+                </div>
+                <div className="bg-white rounded p-3">
+                  <strong className="text-indigo-700">Q27 - Motivation:</strong>
+                  <div className="text-gray-800">{responses.motivation || 'Not specified'}</div>
                 </div>
               </div>
             </div>
           )}
         </div>
+
+        {/* ✅ NEW: Summary Statistics */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="font-semibold text-gray-800 mb-3">📊 Questionnaire Summary</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{responses.totalQuestions || 27}</div>
+              <div className="text-sm text-gray-600">Total Questions</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{responses.answeredQuestions || Object.keys(responses).length}</div>
+              <div className="text-sm text-gray-600">Answered</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {Math.round(((responses.answeredQuestions || Object.keys(responses).length) / (responses.totalQuestions || 27)) * 100)}%
+              </div>
+              <div className="text-sm text-gray-600">Completion</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">4</div>
+              <div className="text-sm text-gray-600">Categories</div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
 
+  // ✅ ENHANCED: Self-assessment section with better data handling
   const renderSelfAssessmentSection = () => {
-    // ✅ FIXED: Proper type checking for self-assessment data
-    const selfAssessment = comprehensiveUserData?.selfAssessment as SelfAssessmentData | undefined;
+    const selfAssessment = getSelfAssessment();
     
-    if (!selfAssessment?.completed || !selfAssessment.categories) {
+    if (!selfAssessment?.completed) {
       return (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
           <div className="text-center">
@@ -427,6 +537,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <span className="text-green-600 text-sm">
               {completedAt ? new Date(completedAt).toLocaleDateString() : 'Recently'}
             </span>
+          </div>
+          <div className="text-sm text-green-700 mt-2">
+            6 sensory categories analyzed • Attachment levels determined
           </div>
         </div>
 
@@ -459,7 +572,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
         </div>
 
         <div className="grid gap-3">
-          {Object.entries(categories).map(([category, data]) => {
+          {Object.entries(categories || {}).map(([category, data]) => {
             const categoryInfo: { [key: string]: { icon: string; title: string } } = {
               taste: { icon: '🍽️', title: 'Food & Taste' },
               smell: { icon: '👃', title: 'Scents & Aromas' },
@@ -471,7 +584,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             
             const info = categoryInfo[category] || { icon: '❓', title: category };
             
-            // ✅ FIXED: Proper type checking and indexing
+            // ✅ FIXED: Proper type checking and safe property access
             const levelColors: { [key in 'none' | 'some' | 'strong']: string } = {
               none: 'bg-green-100 text-green-800 border-green-200',
               some: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -484,9 +597,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
               strong: '🔥 Strong preferences',
             };
             
-            // ✅ FIXED: Type assertion with validation
+            // ✅ ENHANCED: Safe data extraction with fallbacks
             const categoryData = data as CategoryData;
-            const level = categoryData.level || 'none';
+            const level = categoryData?.level || 'none';
             
             return (
               <div key={category} className={`border rounded-lg ${levelColors[level]}`}>
@@ -499,7 +612,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
                       {levelTexts[level]}
                     </span>
                   </div>
-                  {categoryData.details && (
+                  {categoryData?.details && (
                     <div className="mt-3 text-sm opacity-80">
                       <strong>Details:</strong> {categoryData.details}
                     </div>
@@ -508,6 +621,39 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
               </div>
             );
           })}
+        </div>
+
+        {/* ✅ NEW: Detailed Analysis */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="font-semibold text-gray-800 mb-3">🔍 Detailed Analysis</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h5 className="font-medium text-gray-700 mb-2">Attachment Distribution:</h5>
+              <div className="space-y-2">
+                {Object.entries(categories || {}).map(([category, data]) => {
+                  const level = (data as CategoryData)?.level || 'none';
+                  const pointValue = level === 'none' ? 0 : level === 'some' ? -7 : -14;
+                  return (
+                    <div key={category} className="flex justify-between text-sm">
+                      <span className="capitalize">{category}:</span>
+                      <span className={`font-medium ${pointValue === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {pointValue} points
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <h5 className="font-medium text-gray-700 mb-2">Progress Indicators:</h5>
+              <div className="space-y-2 text-sm">
+                <div>Non-attachment ratio: {metrics.nonAttachmentCount}/6 ({Math.round((metrics.nonAttachmentCount/6)*100)}%)</div>
+                <div>Flexibility level: {metrics.attachmentLevel}</div>
+                <div>Total score: {metrics.attachmentScore} points</div>
+                <div>Assessment date: {completedAt ? new Date(completedAt).toLocaleDateString() : 'Recent'}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

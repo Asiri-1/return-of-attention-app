@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 
@@ -304,7 +304,7 @@ const AdminBypassApp: React.FC = () => {
           
           <Route path="/stage5" element={
             <Suspense fallback={<FastLoader message="Preparing refined awareness..." />}>
-              <Stage6Wrapper />
+              <Stage5Wrapper />
             </Suspense>
           } />
           
@@ -339,18 +339,19 @@ const AdminBypassApp: React.FC = () => {
   );
 };
 
-// ✅ FIXED: Robust completion status checker
+// ✅ COMPLETELY REWRITTEN: Simple and robust completion status checker
 const useCompletionStatus = (currentUser: any) => {
-  const { isQuestionnaireCompleted, isSelfAssessmentCompleted } = useLocalData();
+  const { comprehensiveUserData, userData, isLoading: localDataLoading } = useLocalData();
   const [completionStatus, setCompletionStatus] = useState({
     questionnaire: false,
     selfAssessment: false,
     isLoaded: false,
     hasChecked: false
   });
+  const [forceComplete, setForceComplete] = useState(false);
 
-  // ✅ ENHANCED: Check completion status with multiple fallbacks
-  const checkCompletionStatus = React.useCallback(async () => {
+  // ✅ SIMPLE: Direct completion check without complex logic
+  const checkCompletionStatus = useCallback(async () => {
     if (!currentUser) {
       setCompletionStatus({
         questionnaire: false,
@@ -362,93 +363,45 @@ const useCompletionStatus = (currentUser: any) => {
     }
 
     try {
-      // ✅ WAIT: Small delay to ensure LocalDataContext is ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // ✅ METHOD 1: Check via LocalDataContext
+      const userId = currentUser.uid;
       let questComplete = false;
       let selfComplete = false;
 
-      try {
-        questComplete = isQuestionnaireCompleted();
-        selfComplete = isSelfAssessmentCompleted();
-      } catch (error) {
-        console.warn('LocalDataContext methods failed, using fallback');
+      console.log('🔍 SIMPLE Completion Check for:', userId);
+
+      // ✅ METHOD 1: Check LocalDataContext first
+      const data = comprehensiveUserData || userData;
+      if (data && data.questionnaire && data.questionnaire.completed) {
+        questComplete = true;
+        console.log('✅ Questionnaire completed via LocalDataContext');
+      }
+      if (data && data.selfAssessment && data.selfAssessment.completed) {
+        selfComplete = true;
+        console.log('✅ Self-assessment completed via LocalDataContext');
       }
 
-      // ✅ METHOD 2: Direct localStorage fallback check
+      // ✅ METHOD 2: Check localStorage directly
       if (!questComplete || !selfComplete) {
-        try {
-          const userId = currentUser.uid;
-
-          // Check questionnaire completion (multiple possible keys)
-          const questKeys = [
-            `questionnaire_${userId}`,
-            `questionnaire_completed_${userId}`,
-            'questionnaireData'
-          ];
-
-          for (const key of questKeys) {
-            const questData = localStorage.getItem(key);
-            if (questData) {
-              try {
-                const parsed = JSON.parse(questData);
-                if (parsed.completed || parsed.questionnaireCompleted) {
-                  questComplete = true;
-                  break;
-                }
-              } catch (e) {
-                // If it's not JSON, check if it's just "true"
-                if (questData === 'true') {
-                  questComplete = true;
-                  break;
-                }
-              }
+        const storageKey = `comprehensiveUserData_${userId}`;
+        const storedData = localStorage.getItem(storageKey);
+        if (storedData) {
+          try {
+            const parsedData = JSON.parse(storedData);
+            if (!questComplete && parsedData.questionnaire && parsedData.questionnaire.completed) {
+              questComplete = true;
+              console.log('✅ Questionnaire completed via localStorage');
             }
-          }
-
-          // Check self-assessment completion (multiple possible keys)
-          const selfKeys = [
-            `self_assessment_${userId}`,
-            `selfAssessment_${userId}`,
-            'selfAssessmentData'
-          ];
-
-          for (const key of selfKeys) {
-            const selfData = localStorage.getItem(key);
-            if (selfData) {
-              try {
-                const parsed = JSON.parse(selfData);
-                if (parsed.completed || parsed.selfAssessmentCompleted) {
-                  selfComplete = true;
-                  break;
-                }
-              } catch (e) {
-                // If it's not JSON, check if it's just "true"
-                if (selfData === 'true') {
-                  selfComplete = true;
-                  break;
-                }
-              }
+            if (!selfComplete && parsedData.selfAssessment && parsedData.selfAssessment.completed) {
+              selfComplete = true;
+              console.log('✅ Self-assessment completed via localStorage');
             }
+          } catch (error) {
+            console.warn('Error parsing localStorage data:', error);
           }
-
-          // ✅ METHOD 3: Check user profile data (from AuthContext)
-          if (!selfComplete && currentUser.assessmentCompleted) {
-            selfComplete = true;
-          }
-
-        } catch (error) {
-          console.error('Fallback completion check failed:', error);
         }
       }
 
-      console.log('🔍 FINAL Completion Status Check:', {
-        userId: currentUser.uid,
-        questComplete,
-        selfComplete,
-        currentUserAssessmentCompleted: currentUser.assessmentCompleted
-      });
+      console.log('🎯 Final Completion Status:', { questComplete, selfComplete });
 
       setCompletionStatus({
         questionnaire: questComplete,
@@ -457,8 +410,23 @@ const useCompletionStatus = (currentUser: any) => {
         hasChecked: true
       });
 
+      // ✅ FORCE: If both completed but we're stuck, set force flag
+      if (questComplete && selfComplete && !forceComplete) {
+        console.log('🚀 Both assessments completed - setting force flag');
+        setForceComplete(true);
+        
+        // Force navigation after small delay
+        setTimeout(() => {
+          const currentPath = window.location.pathname;
+          if (currentPath === '/questionnaire' || currentPath === '/introduction' || currentPath === '/self-assessment') {
+            console.log('🚀 Force navigating to /home');
+            window.location.href = '/home';
+          }
+        }, 1000);
+      }
+
     } catch (error) {
-      console.error('Error checking completion status:', error);
+      console.error('Error in completion check:', error);
       setCompletionStatus({
         questionnaire: false,
         selfAssessment: false,
@@ -466,17 +434,28 @@ const useCompletionStatus = (currentUser: any) => {
         hasChecked: true
       });
     }
-  }, [currentUser, isQuestionnaireCompleted, isSelfAssessmentCompleted]);
+  }, [currentUser, comprehensiveUserData, userData, forceComplete]);
 
-  // ✅ CHECK: Run completion check when user changes
+  // ✅ TRIGGER: Check completion when dependencies change
   useEffect(() => {
-    checkCompletionStatus();
-  }, [checkCompletionStatus]);
+    if (!localDataLoading) {
+      const timer = setTimeout(checkCompletionStatus, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [checkCompletionStatus, localDataLoading]);
 
-  return { completionStatus, recheckStatus: checkCompletionStatus };
+  // ✅ OVERRIDE: If force flag is set, return completed status
+  const finalStatus = forceComplete ? {
+    questionnaire: true,
+    selfAssessment: true,
+    isLoaded: true,
+    hasChecked: true
+  } : completionStatus;
+
+  return { completionStatus: finalStatus, recheckStatus: checkCompletionStatus };
 };
 
-// ✅ MAIN APP CONTENT: Updated to use robust completion checking
+// ✅ MAIN APP CONTENT: Simplified with better error handling
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   
@@ -497,10 +476,12 @@ const AppContent: React.FC = () => {
     markSelfAssessmentComplete
   } = useLocalData();
 
-  // ✅ FIXED: Use robust completion status checker
+  // ✅ FIXED: Use simple completion status checker
   const { completionStatus, recheckStatus } = useCompletionStatus(currentUser);
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(false);
+  const [loadingStartTime] = useState(Date.now());
+  const [hasTriedForceNavigation, setHasTriedForceNavigation] = useState(false);
 
   // Helper to check if user is authenticated
   const isAuthenticated = !!currentUser;
@@ -524,6 +505,27 @@ const AppContent: React.FC = () => {
     };
     initializeKnowledgeBase();
   }, []);
+
+  // ✅ FORCE NAVIGATION: If both completed but stuck in loading
+  useEffect(() => {
+    if (completionStatus.questionnaire && 
+        completionStatus.selfAssessment && 
+        completionStatus.isLoaded && 
+        !hasTriedForceNavigation &&
+        isAuthenticated) {
+      
+      const currentPath = window.location.pathname;
+      console.log('🚀 Both assessments completed, current path:', currentPath);
+      
+      if (currentPath === '/' || currentPath === '/questionnaire' || currentPath === '/introduction' || currentPath === '/self-assessment') {
+        console.log('🚀 Force navigating to /home due to completion');
+        setHasTriedForceNavigation(true);
+        setTimeout(() => {
+          navigate('/home');
+        }, 500);
+      }
+    }
+  }, [completionStatus, isAuthenticated, navigate, hasTriedForceNavigation]);
 
   // ✅ ADMIN BYPASS: After all hooks are called
   if (isAdminUser) {
@@ -587,23 +589,33 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // ✅ FIXED: Use LocalDataContext for questionnaire completion
+  // ✅ FIXED: Use LocalDataContext for questionnaire completion with proper data flow
   const handleQuestionnaireComplete = async (answers: any) => {
     try {
+      console.log('🎯 App.tsx: Handling questionnaire completion with answers:', answers);
+      
+      // ✅ FIXED: Pass raw answers to LocalDataContext, which will properly structure them
       await markQuestionnaireComplete(answers);
+      
       // Force recheck completion status
       await recheckStatus();
+      
       setTimeout(() => {
         navigate('/introduction');
       }, 100);
     } catch (error) {
-      console.error('Failed to complete questionnaire:', error);
+      console.error('❌ App.tsx: Failed to complete questionnaire:', error);
+      // Still navigate even if there's an error
+      navigate('/introduction');
     }
   };
 
-  // ✅ FIXED: Use LocalDataContext for self-assessment completion
+  // ✅ FIXED: Use LocalDataContext for self-assessment completion with proper data flow
   const handleSelfAssessmentComplete = async (data?: any) => {
     try {
+      console.log('🎯 App.tsx: Handling self-assessment completion with data:', data);
+      
+      // ✅ FIXED: Pass data to LocalDataContext, which will properly structure it
       await markSelfAssessmentComplete(data);
       
       // ✅ FIXED: Update user profile
@@ -622,6 +634,7 @@ const AppContent: React.FC = () => {
         navigate('/self-assessment-completion');
       }, 200);
     } catch (error) {
+      console.error('❌ App.tsx: Failed to complete self-assessment:', error);
       alert('Failed to complete self-assessment. Please try again.');
     }
   };
@@ -686,8 +699,33 @@ const AppContent: React.FC = () => {
     navigate('/self-assessment');
   };
 
-  // ✅ UPDATED Loading state with better message
+  // ✅ SIMPLIFIED: Loading state with aggressive timeout
   if (isLoading || !completionStatus.isLoaded || !completionStatus.hasChecked) {
+    const loadingTime = Date.now() - loadingStartTime;
+    
+    console.log('🔄 App in loading state:', {
+      authLoading: isLoading,
+      completionLoaded: completionStatus.isLoaded,
+      completionChecked: completionStatus.hasChecked,
+      questionnaire: completionStatus.questionnaire,
+      selfAssessment: completionStatus.selfAssessment,
+      loadingTimeMs: loadingTime
+    });
+    
+    // ✅ AGGRESSIVE TIMEOUT: Force navigation if stuck
+    if (loadingTime > 3000) {
+      console.log('🚀 Loading timeout - forcing app to continue');
+      if (currentUser && completionStatus.questionnaire && completionStatus.selfAssessment) {
+        setTimeout(() => {
+          window.location.href = '/home';
+        }, 100);
+      } else if (currentUser) {
+        setTimeout(() => {
+          window.location.href = '/questionnaire';
+        }, 100);
+      }
+    }
+    
     return <FastLoader message="Initializing practices for the happiness that stays..." />;
   }
 
@@ -733,228 +771,214 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES: Full app functionality with ROBUST ROUTE GUARDS
+  // ✅ AUTHENTICATED ROUTES: Simplified route guards with better logic
   return (
     <div className="app-container">
       <PageViewTracker />
       <LogoutWarning />
       
       <Routes>
-        {/* Onboarding flow with all required props */}
-        <Route path="/introduction" element={
-          <Introduction 
-            onComplete={handleIntroductionComplete}
-            onSkip={handleIntroductionSkip}
-          />
-        } />
-        <Route path="/questionnaire" element={
-          <Questionnaire onComplete={handleQuestionnaireComplete} />
-        } />
-        <Route path="/self-assessment" element={
-          <SelfAssessment 
-            onComplete={handleSelfAssessmentComplete}
-            onBack={handleSelfAssessmentBack}
-          />
-        } />
-        <Route path="/self-assessment-completion" element={
-          <SelfAssessmentCompletion 
-            onGetStarted={handleSelfAssessmentCompletionGetStarted}
-            onBack={handleSelfAssessmentCompletionBack}
-          />
-        } />
-        
-        {/* ✅ FIXED: Root route with ROBUST completion checking */}
+        {/* ✅ SMART ROOT ROUTE: Direct navigation logic */}
         <Route path="/" element={
           (() => {
-            console.log('🔍 ROOT ROUTE - Completion Status:', completionStatus);
+            console.log('🔍 ROOT ROUTE - Status:', {
+              quest: completionStatus.questionnaire,
+              self: completionStatus.selfAssessment
+            });
             
-            // ✅ ENHANCED: If both are completed, go directly to dashboard
             if (completionStatus.questionnaire && completionStatus.selfAssessment) {
-              console.log('✅ Both completed - redirecting to /home');
               return <Navigate to="/home" replace />;
-            }
-            
-            // If questionnaire not completed, start there
-            if (!completionStatus.questionnaire) {
-              console.log('📝 Questionnaire not completed - redirecting to /questionnaire');
+            } else if (!completionStatus.questionnaire) {
               return <Navigate to="/questionnaire" replace />;
-            }
-            
-            // If only self-assessment remaining, go to introduction
-            if (!completionStatus.selfAssessment) {
-              console.log('🎯 Self-assessment not completed - redirecting to /introduction');
+            } else {
               return <Navigate to="/introduction" replace />;
             }
-            
-            // Default fallback
-            return <Navigate to="/home" replace />;
           })()
         } />
         
-        {/* ✅ FIXED: Main app routes with proper individual guards */}
-        <Route 
-          path="/home" 
-          element={
-            (() => {
-              if (!completionStatus.questionnaire) {
-                return <Navigate to="/questionnaire" replace />;
-              } else if (!completionStatus.selfAssessment) {
-                return <Navigate to="/introduction" replace />;
-              } else {
-                return (
-                  <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
-                    <MainNavigation>
-                      <HomeDashboard 
-                        onStartPractice={handleStartPracticeWrapper}
-                        onStartStage2={handleStartStage2}
-                        onStartStage3={handleStartStage3}
-                        onStartStage4={handleStartStage4}
-                        onStartStage5={handleStartStage5}
-                        onStartStage6={handleStartStage6}
-                        onViewProgress={handleViewProgress}
-                        onViewLearning={handleViewLearning}
-                        onShowPostureGuide={handleShowPostureGuide}
-                        onShowPAHMExplanation={handleShowPAHMExplanation}
-                        onShowWhatIsPAHM={handleShowWhatIsPAHM}
-                        onLogout={handleLogout}
-                      />
-                    </MainNavigation>
-                  </Suspense>
-                );
-              }
-            })()
-          } 
-        />
+        {/* ✅ QUESTIONNAIRE ROUTE: Allow access if not completed */}
+        <Route path="/questionnaire" element={
+          completionStatus.questionnaire && completionStatus.selfAssessment ? 
+            <Navigate to="/home" replace /> : 
+            <Questionnaire onComplete={handleQuestionnaireComplete} />
+        } />
         
-        {/* ✅ FIXED: All other authenticated routes with proper guards */}
-        <Route 
-          path="/*" 
-          element={
-            (() => {
-              if (!completionStatus.questionnaire) {
-                return <Navigate to="/questionnaire" replace />;
-              } else if (!completionStatus.selfAssessment) {
-                return <Navigate to="/introduction" replace />;
-              } else {
-                return (
-                  <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
-                    <MainNavigation>
-                      <Routes>
-                        <Route path="/stage1" element={
-                          <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
-                            <Stage1Wrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/stage2" element={
-                          <Suspense fallback={<FastLoader message="Loading attention training..." />}>
-                            <Stage2Wrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/stage3" element={
-                          <Suspense fallback={<FastLoader message="Preparing structured practice..." />}>
-                            <Stage3Wrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/stage4" element={
-                          <Suspense fallback={<FastLoader message="Loading advanced techniques..." />}>
-                            <Stage4Wrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/stage5" element={
-                          <Suspense fallback={<FastLoader message="Preparing refined awareness..." />}>
-                            <Stage5Wrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/stage6" element={
-                          <Suspense fallback={<FastLoader message="Loading complete mastery..." />}>
-                            <Stage6Wrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/learning/pahm" element={
-                          <Suspense fallback={<FastLoader message="Loading PAHM wisdom..." />}>
-                            <WhatIsPAHMWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/seeker-practice-timer" element={
-                          <Suspense fallback={<FastLoader message="Starting your practice session..." />}>
-                            <SeekerPracticeTimerWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/seeker-practice-complete" element={
-                          <Suspense fallback={<FastLoader message="Celebrating your progress..." />}>
-                            <SeekerPracticeCompleteWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/immediate-reflection" element={
-                          <Suspense fallback={<FastLoader message="Preparing reflection space..." />}>
-                            <ImmediateReflectionWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/notes" element={
-                          <Suspense fallback={<FastLoader message="Loading your practice notes..." />}>
-                            <DailyEmotionalNotesWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/analytics" element={
-                          <Suspense fallback={<FastLoader message="Loading your progress insights..." />}>
-                            <AnalyticsBoardWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/mind-recovery" element={
-                          <Suspense fallback={<FastLoader message="Preparing mind recovery practice..." />}>
-                            <MindRecoverySelectionWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/mind-recovery/:practiceType" element={
-                          <Suspense fallback={<FastLoader message="Starting mind recovery session..." />}>
-                            <MindRecoveryTimerWrapper />
-                          </Suspense>
-                        } />
-                        <Route path="/posture-guide" element={
-                          <Suspense fallback={<FastLoader message="Loading optimal posture guide..." />}>
-                            <PostureGuide onContinue={() => navigate('/home')} />
-                          </Suspense>
-                        } />
-                        <Route path="/profile" element={
-                          <Suspense fallback={<FastLoader message="Loading your practice profile..." />}>
-                            <UserProfile onBack={() => navigate('/home')} onLogout={handleLogout} />
-                          </Suspense>
-                        } />
-                        <Route 
-                          path="/chatwithguru" 
-                          element={
-                            <Suspense fallback={<FastLoader message="Connecting with your AI teacher..." />}>
-                              {knowledgeBaseReady ? <ChatInterface /> : (
-                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', fontSize: '18px' }}>
-                                  Loading knowledge base...
-                                </div>
-                              )}
-                            </Suspense>
-                          } 
-                        />
-                        
-                        {/* ✅ HAPPINESS ROUTES */}
-                        <Route path="/happiness-test" element={
-                          <Suspense fallback={<FastLoader message="Calculating your happiness levels..." />}>
-                            <HappinessTrackerPage />
-                          </Suspense>
-                        } />
-                        
-                        <Route path="/happiness-tracker" element={
-                          <Suspense fallback={<FastLoader message="Calculating your happiness levels..." />}>
-                            <HappinessTrackerPage />
-                          </Suspense>
-                        } />
-                        
-                        <Route path="*" element={<Navigate to="/home" replace />} />
-                      </Routes>
-                    </MainNavigation>
-                  </Suspense>
-                );
-              }
-            })()
-          }
-        />
+        {/* ✅ INTRODUCTION ROUTE: Simple guard */}
+        <Route path="/introduction" element={
+          !completionStatus.questionnaire ? 
+            <Navigate to="/questionnaire" replace /> :
+            completionStatus.questionnaire && completionStatus.selfAssessment ?
+              <Navigate to="/home" replace /> :
+              <Introduction 
+                onComplete={handleIntroductionComplete}
+                onSkip={handleIntroductionSkip}
+              />
+        } />
+        
+        {/* ✅ SELF ASSESSMENT ROUTE: Simple guard */}
+        <Route path="/self-assessment" element={
+          !completionStatus.questionnaire ? 
+            <Navigate to="/questionnaire" replace /> :
+            completionStatus.questionnaire && completionStatus.selfAssessment ?
+              <Navigate to="/home" replace /> :
+              <SelfAssessment 
+                onComplete={handleSelfAssessmentComplete}
+                onBack={handleSelfAssessmentBack}
+              />
+        } />
+        
+        {/* ✅ COMPLETION ROUTE: Simple guard */}
+        <Route path="/self-assessment-completion" element={
+          (!completionStatus.questionnaire || !completionStatus.selfAssessment) ? 
+            <Navigate to="/questionnaire" replace /> :
+            <SelfAssessmentCompletion 
+              onGetStarted={handleSelfAssessmentCompletionGetStarted}
+              onBack={handleSelfAssessmentCompletionBack}
+            />
+        } />
+        
+        {/* ✅ HOME ROUTE: Main dashboard */}
+        <Route path="/home" element={
+          (!completionStatus.questionnaire || !completionStatus.selfAssessment) ? 
+            <Navigate to="/questionnaire" replace /> :
+            <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
+              <MainNavigation>
+                <HomeDashboard 
+                  onStartPractice={handleStartPracticeWrapper}
+                  onStartStage2={handleStartStage2}
+                  onStartStage3={handleStartStage3}
+                  onStartStage4={handleStartStage4}
+                  onStartStage5={handleStartStage5}
+                  onStartStage6={handleStartStage6}
+                  onViewProgress={handleViewProgress}
+                  onViewLearning={handleViewLearning}
+                  onShowPostureGuide={handleShowPostureGuide}
+                  onShowPAHMExplanation={handleShowPAHMExplanation}
+                  onShowWhatIsPAHM={handleShowWhatIsPAHM}
+                  onLogout={handleLogout}
+                />
+              </MainNavigation>
+            </Suspense>
+        } />
+        
+        {/* ✅ ALL OTHER AUTHENTICATED ROUTES */}
+        <Route path="/*" element={
+          (!completionStatus.questionnaire || !completionStatus.selfAssessment) ? 
+            <Navigate to="/questionnaire" replace /> :
+            <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
+              <MainNavigation>
+                <Routes>
+                  <Route path="/stage1" element={
+                    <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
+                      <Stage1Wrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/stage2" element={
+                    <Suspense fallback={<FastLoader message="Loading attention training..." />}>
+                      <Stage2Wrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/stage3" element={
+                    <Suspense fallback={<FastLoader message="Preparing structured practice..." />}>
+                      <Stage3Wrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/stage4" element={
+                    <Suspense fallback={<FastLoader message="Loading advanced techniques..." />}>
+                      <Stage4Wrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/stage5" element={
+                    <Suspense fallback={<FastLoader message="Preparing refined awareness..." />}>
+                      <Stage5Wrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/stage6" element={
+                    <Suspense fallback={<FastLoader message="Loading complete mastery..." />}>
+                      <Stage6Wrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/learning/pahm" element={
+                    <Suspense fallback={<FastLoader message="Loading PAHM wisdom..." />}>
+                      <WhatIsPAHMWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/seeker-practice-timer" element={
+                    <Suspense fallback={<FastLoader message="Starting your practice session..." />}>
+                      <SeekerPracticeTimerWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/seeker-practice-complete" element={
+                    <Suspense fallback={<FastLoader message="Celebrating your progress..." />}>
+                      <SeekerPracticeCompleteWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/immediate-reflection" element={
+                    <Suspense fallback={<FastLoader message="Preparing reflection space..." />}>
+                      <ImmediateReflectionWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/notes" element={
+                    <Suspense fallback={<FastLoader message="Loading your practice notes..." />}>
+                      <DailyEmotionalNotesWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/analytics" element={
+                    <Suspense fallback={<FastLoader message="Loading your progress insights..." />}>
+                      <AnalyticsBoardWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/mind-recovery" element={
+                    <Suspense fallback={<FastLoader message="Preparing mind recovery practice..." />}>
+                      <MindRecoverySelectionWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/mind-recovery/:practiceType" element={
+                    <Suspense fallback={<FastLoader message="Starting mind recovery session..." />}>
+                      <MindRecoveryTimerWrapper />
+                    </Suspense>
+                  } />
+                  <Route path="/posture-guide" element={
+                    <Suspense fallback={<FastLoader message="Loading optimal posture guide..." />}>
+                      <PostureGuide onContinue={() => navigate('/home')} />
+                    </Suspense>
+                  } />
+                  <Route path="/profile" element={
+                    <Suspense fallback={<FastLoader message="Loading your practice profile..." />}>
+                      <UserProfile onBack={() => navigate('/home')} onLogout={handleLogout} />
+                    </Suspense>
+                  } />
+                  <Route 
+                    path="/chatwithguru" 
+                    element={
+                      <Suspense fallback={<FastLoader message="Connecting with your AI teacher..." />}>
+                        {knowledgeBaseReady ? <ChatInterface /> : (
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', fontSize: '18px' }}>
+                            Loading knowledge base...
+                          </div>
+                        )}
+                      </Suspense>
+                    } 
+                  />
+                  
+                  {/* ✅ HAPPINESS ROUTES */}
+                  <Route path="/happiness-test" element={
+                    <Suspense fallback={<FastLoader message="Calculating your happiness levels..." />}>
+                      <HappinessTrackerPage />
+                    </Suspense>
+                  } />
+                  
+                  <Route path="/happiness-tracker" element={
+                    <Suspense fallback={<FastLoader message="Calculating your happiness levels..." />}>
+                      <HappinessTrackerPage />
+                    </Suspense>
+                  } />
+                  
+                  <Route path="*" element={<Navigate to="/home" replace />} />
+                </Routes>
+              </MainNavigation>
+            </Suspense>
+        } />
       </Routes>
     </div>
   );

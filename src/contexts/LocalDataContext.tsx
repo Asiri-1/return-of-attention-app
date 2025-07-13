@@ -9,7 +9,6 @@ interface PracticeSessionData {
   sessionType: 'meditation' | 'mind_recovery';
   stageLevel?: number;
   stageLabel?: string;
-  // ✅ FIXED: Updated mindRecoveryContext to match actual usage
   mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'mid-day-reset' | 'work-home-transition' | 'evening-wind-down' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
   mindRecoveryPurpose?: 'energy-boost' | 'stress-relief' | 'mental-refresh' | 'transition-support' | 'sleep-preparation' | 'emotional-balance' | 'quick-reset' | 'awareness-anchor';
   rating?: number;
@@ -64,7 +63,7 @@ interface ReflectionData {
   insights?: string;
 }
 
-// ✅ COMPLETE: Questionnaire Data Interface
+// ✅ FIXED: Complete Questionnaire Data Interface
 interface QuestionnaireData {
   completed: boolean;
   completedAt?: string;
@@ -111,7 +110,7 @@ interface QuestionnaireData {
   };
 }
 
-// ✅ FIXED: Complete Self-Assessment Data Interface
+// ✅ FIXED: Complete Self-Assessment Data Interface with ALL compatibility formats
 interface SelfAssessmentData {
   // Completion status
   completed: boolean;
@@ -164,7 +163,7 @@ interface SelfAssessmentData {
     };
   };
   
-  // ✅ ADDED: Responses object (for happiness calculator compatibility) - THIS WAS MISSING!
+  // ✅ ESSENTIAL: Responses object (for happiness calculator compatibility)
   responses: {
     taste: {
       level: 'none' | 'some' | 'strong';
@@ -198,11 +197,11 @@ interface SelfAssessmentData {
     };
   };
   
-  // ✅ ADDED: Pre-calculated scores at top level (for SelfAssessmentCompletion compatibility)
+  // Pre-calculated scores at top level (for SelfAssessmentCompletion compatibility)
   attachmentScore: number;
   nonAttachmentCount: number;
   
-  // ✅ KEPT: Metrics object (for backward compatibility)
+  // Metrics object (for backward compatibility)
   metrics: {
     nonAttachmentCount: number;
     attachmentScore: number;
@@ -316,7 +315,7 @@ interface ComprehensiveAnalytics {
   lastUpdated: string;
 }
 
-// ✅ FIXED: ComprehensiveUserData interface WITHOUT happiness points
+// ✅ FIXED: ComprehensiveUserData interface
 interface ComprehensiveUserData {
   profile: {
     userId: string;
@@ -361,11 +360,8 @@ interface ComprehensiveUserData {
   questionnaire?: QuestionnaireData;
   selfAssessment?: SelfAssessmentData;
   
-  // ❌ REMOVED: happiness points - will be calculated dynamically
-  // happinessPoints: number;
-  
   achievements: string[];
-  notes: any[]; // Additional notes beyond emotional notes
+  notes: any[];
   
   analytics: {
     totalPracticeTime: number;
@@ -376,18 +372,18 @@ interface ComprehensiveUserData {
   };
 }
 
-// ✅ ENHANCED: LocalDataContextType interface WITH missing direct properties
+// ✅ ENHANCED: LocalDataContextType interface WITH all missing direct properties
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
   refreshTrigger: number;
   
-  // ✅ ADDED: Direct properties for component compatibility (MISSING BEFORE!)
+  // ✅ CRITICAL: Direct properties for component compatibility
   comprehensiveUserData: ComprehensiveUserData | null;
   practiceSessions: PracticeSessionData[];
   emotionalNotes: EmotionalNoteData[];
-  questionnaire: QuestionnaireData | null;  // ← ADDED THIS!
-  selfAssessment: SelfAssessmentData | null; // ← ADDED THIS!
+  questionnaire: QuestionnaireData | null;
+  selfAssessment: SelfAssessmentData | null;
   
   // Core methods
   clearAllData: () => void;
@@ -403,10 +399,6 @@ interface LocalDataContextType {
   getSelfAssessment: () => SelfAssessmentData | null;
   isQuestionnaireCompleted: () => boolean;
   isSelfAssessmentCompleted: () => boolean;
-  
-  // ❌ REMOVED: Happiness getters and setters - will be handled by HappinessContext
-  // getHappinessPoints: () => number;
-  // addHappinessPoints: (points: number, reason: string) => void;
   
   getAchievements: () => string[];
   getNotes: () => any[];
@@ -446,17 +438,17 @@ interface LocalDataContextType {
   addReflection: (reflection: Omit<ReflectionData, 'reflectionId'>) => void;
   addMindRecoverySession: (session: Omit<PracticeSessionData, 'sessionId'>) => void;
 
-  // Questionnaire and Self-Assessment methods
+  // ✅ FIXED: Questionnaire and Self-Assessment methods
   updateQuestionnaire: (questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => void;
   updateSelfAssessment: (selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => void;
   markQuestionnaireComplete: (responses: any) => void;
   markSelfAssessmentComplete: (responses: any) => void;
 
-  // Achievement methods (but NOT happiness points)
+  // Achievement methods
   addAchievement: (achievement: string) => void;
   addNote: (note: any) => void;
 
-  // ✅ NEW: Delete methods for data management
+  // Delete methods for data management
   deleteEmotionalNote: (noteId: string) => void;
   deletePracticeSession: (sessionId: string) => void;
   deleteReflection: (reflectionId: string) => void;
@@ -509,7 +501,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [currentUser?.uid]);
 
-  // ✅ FIXED: Create empty user data WITHOUT happiness points
+  // ✅ FIXED: Create empty user data
   const createEmptyUserData = useCallback((): ComprehensiveUserData => {
     return {
       profile: {
@@ -552,8 +544,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       reflections: [],
       questionnaire: undefined,
       selfAssessment: undefined,
-      // ❌ REMOVED: Static happiness points
-      // happinessPoints: 50,
       achievements: ['journey_started'],
       notes: [],
       analytics: {
@@ -578,14 +568,12 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     localStorage.removeItem('questionnaire_completed');
     localStorage.removeItem('self_assessment_completed');
-    // ❌ REMOVED: Don't clear happiness_points as it will be managed dynamically
-    // localStorage.removeItem('happiness_points');
     
     triggerAutoRefresh();
     console.log('🗑️ All data cleared and auto-refresh triggered!');
   }, [getStorageKey, getLegacyStorageKeys, triggerAutoRefresh]);
 
-  // ✅ FIXED: Save data to storage WITHOUT happiness points
+  // ✅ FIXED: Save data to storage
   const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
     try {
       localStorage.setItem(getStorageKey(), JSON.stringify(data));
@@ -610,11 +598,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           localStorage.setItem(legacyKeys.selfAssessment, JSON.stringify(data.selfAssessment));
           localStorage.setItem('self_assessment_completed', data.selfAssessment.completed ? 'true' : 'false');
         }
-        
-        // ❌ REMOVED: Don't save static happiness points to localStorage
-        // if (data.happinessPoints !== undefined) {
-        //   localStorage.setItem('happiness_points', data.happinessPoints.toString());
-        // }
       }
       
       // Auto-sync with auth context
@@ -695,9 +678,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const isSelfAssessmentCompleted = useCallback((): boolean => {
     return userData?.selfAssessment?.completed || false;
   }, [userData?.selfAssessment?.completed]);
-
-  // ❌ REMOVED: Happiness getters - will be handled by HappinessContext
-  // const getHappinessPoints = useCallback((): number => { ... }
 
   const getAchievements = useCallback((): string[] => {
     const achievements = userData?.achievements || [];
@@ -1259,7 +1239,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     console.log(`✅ Reflection ${reflectionId} deleted successfully`);
   }, [userData, saveDataToStorage]);
 
-  // ✅ FIXED: Data manipulation methods WITHOUT happiness point awards
+  // ✅ FIXED: Data manipulation methods
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     if (!userData) {
       console.error('❌ Cannot add session - userData is null');
@@ -1302,14 +1282,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       averagePresentPercentage: Math.round(avgPresent)
     };
 
-    // ❌ REMOVED: Static happiness point awarding
-    // const pointsToAward = Math.ceil(newSession.duration / 5);
-    // updatedData.happinessPoints = updatedData.happinessPoints + pointsToAward;
-
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Practice session added successfully - happiness will be calculated dynamically');
+    console.log('✅ Practice session added successfully');
   }, [userData, saveDataToStorage]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
@@ -1378,7 +1354,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     console.log('✅ Reflection added successfully');
   }, [userData, saveDataToStorage]);
 
-  // ✅ FIXED: Questionnaire and Self-Assessment methods WITHOUT happiness points
+  // ✅ FIXED: Questionnaire and Self-Assessment methods
   const updateQuestionnaire = useCallback((questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
     if (!userData) {
       console.error('❌ Cannot update questionnaire - userData is null');
@@ -1394,8 +1370,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         completed: true,
         completedAt: new Date().toISOString()
       },
-      // ❌ REMOVED: Static happiness points
-      // happinessPoints: userData.happinessPoints + 50,
       achievements: userData.achievements.includes('questionnaire_completed') 
         ? userData.achievements 
         : [...userData.achievements, 'questionnaire_completed'],
@@ -1408,7 +1382,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Questionnaire updated successfully - happiness will be calculated dynamically');
+    console.log('✅ Questionnaire updated successfully');
   }, [userData, saveDataToStorage]);
 
   const updateSelfAssessment = useCallback((selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
@@ -1426,8 +1400,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         completed: true,
         completedAt: new Date().toISOString()
       } as SelfAssessmentData,
-      // ❌ REMOVED: Static happiness points
-      // happinessPoints: userData.happinessPoints + 100,
       achievements: userData.achievements.includes('self_assessment_completed') 
         ? userData.achievements 
         : [...userData.achievements, 'self_assessment_completed'],
@@ -1440,59 +1412,71 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log('✅ Self-assessment updated successfully - happiness will be calculated dynamically');
+    console.log('✅ Self-assessment updated successfully');
   }, [userData, saveDataToStorage]);
 
+  // ✅ FIXED: markQuestionnaireComplete - handles raw responses and adds proper wrapper
   const markQuestionnaireComplete = useCallback((responses: any) => {
-    console.log('📝 Marking questionnaire complete with responses:', responses);
+    console.log('📝 Marking questionnaire complete with raw responses:', responses);
+    
+    // ✅ FIXED: Handle both raw responses and already-structured data
+    let cleanResponses = responses;
+    
+    // If responses already include completion metadata, extract just the data
+    if (responses.completed || responses.completedAt) {
+      console.log('⚠️ Detected pre-structured data - extracting raw responses');
+      const { completed, completedAt, totalQuestions, answeredQuestions, ...rawData } = responses;
+      cleanResponses = rawData;
+    }
     
     const questionnaireData: QuestionnaireData = {
       completed: true,
       completedAt: new Date().toISOString(),
       responses: {
-        experience_level: responses.experience_level || 1,
-        goals: responses.goals || [],
-        age_range: responses.age_range || '',
-        location: responses.location || '',
-        occupation: responses.occupation || '',
-        education_level: responses.education_level || '',
-        meditation_background: responses.meditation_background || '',
-        sleep_pattern: responses.sleep_pattern || 5,
-        physical_activity: responses.physical_activity || '',
-        stress_triggers: responses.stress_triggers || [],
-        daily_routine: responses.daily_routine || '',
-        diet_pattern: responses.diet_pattern || '',
-        screen_time: responses.screen_time || '',
-        social_connections: responses.social_connections || '',
-        work_life_balance: responses.work_life_balance || '',
-        emotional_awareness: responses.emotional_awareness || 5,
-        stress_response: responses.stress_response || '',
-        decision_making: responses.decision_making || '',
-        self_reflection: responses.self_reflection || '',
-        thought_patterns: responses.thought_patterns || '',
-        mindfulness_in_daily_life: responses.mindfulness_in_daily_life || '',
-        mindfulness_experience: responses.mindfulness_experience || 1,
-        meditation_background_detail: responses.meditation_background_detail || '',
-        practice_goals: responses.practice_goals || '',
-        preferred_duration: responses.preferred_duration || 10,
-        biggest_challenges: responses.biggest_challenges || '',
-        motivation: responses.motivation || '',
-        totalQuestions: responses.totalQuestions || 27,
-        answeredQuestions: responses.answeredQuestions || Object.keys(responses).length,
-        ...responses
+        experience_level: cleanResponses.experience_level || 1,
+        goals: cleanResponses.goals || [],
+        age_range: cleanResponses.age_range || '',
+        location: cleanResponses.location || '',
+        occupation: cleanResponses.occupation || '',
+        education_level: cleanResponses.education_level || '',
+        meditation_background: cleanResponses.meditation_background || '',
+        sleep_pattern: cleanResponses.sleep_pattern || 5,
+        physical_activity: cleanResponses.physical_activity || '',
+        stress_triggers: cleanResponses.stress_triggers || [],
+        daily_routine: cleanResponses.daily_routine || '',
+        diet_pattern: cleanResponses.diet_pattern || '',
+        screen_time: cleanResponses.screen_time || '',
+        social_connections: cleanResponses.social_connections || '',
+        work_life_balance: cleanResponses.work_life_balance || '',
+        emotional_awareness: cleanResponses.emotional_awareness || 5,
+        stress_response: cleanResponses.stress_response || '',
+        decision_making: cleanResponses.decision_making || '',
+        self_reflection: cleanResponses.self_reflection || '',
+        thought_patterns: cleanResponses.thought_patterns || '',
+        mindfulness_in_daily_life: cleanResponses.mindfulness_in_daily_life || '',
+        mindfulness_experience: cleanResponses.mindfulness_experience || 1,
+        meditation_background_detail: cleanResponses.meditation_background_detail || '',
+        practice_goals: cleanResponses.practice_goals || '',
+        preferred_duration: cleanResponses.preferred_duration || 10,
+        biggest_challenges: cleanResponses.biggest_challenges || '',
+        motivation: cleanResponses.motivation || '',
+        totalQuestions: cleanResponses.totalQuestions || 27,
+        answeredQuestions: cleanResponses.answeredQuestions || Object.keys(cleanResponses).length,
+        ...cleanResponses
       }
     };
     
+    console.log('✅ Created proper questionnaire structure:', questionnaireData);
     updateQuestionnaire(questionnaireData);
   }, [updateQuestionnaire]);
 
-  // ✅ FIXED: markSelfAssessmentComplete with enhanced data format
+  // ✅ FIXED: markSelfAssessmentComplete with enhanced data format handling
   const markSelfAssessmentComplete = useCallback((responses: any) => {
     console.log('🧠 Marking self-assessment complete with responses:', responses);
     
     let selfAssessmentData: SelfAssessmentData;
     
-    // Handle both new enhanced format and legacy format
+    // Handle multiple input formats
     if (responses.categories || responses.responses) {
       // Enhanced format from SelfAssessment component
       const categories = responses.categories || responses.responses || {};
@@ -1522,7 +1506,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           mind: { level: responses.mind || categories.mind?.level || 'none', category: 'mind', details: categories.mind?.details || '' }
         },
         
-        // Responses object (for happiness calculator compatibility)
+        // ✅ CRITICAL: Responses object (for happiness calculator compatibility)
         responses: responses.responses || responses.categories || {
           taste: { level: responses.taste || categories.taste?.level || 'none', category: 'taste', details: categories.taste?.details || '' },
           smell: { level: responses.smell || categories.smell?.level || 'none', category: 'smell', details: categories.smell?.details || '' },
@@ -1570,7 +1554,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           mind: { level: responses.mind || 'none', category: 'mind' }
         },
         
-        // Responses object (duplicate of categories for compatibility)
+        // ✅ CRITICAL: Responses object (duplicate of categories for compatibility)
         responses: {
           taste: { level: responses.taste || 'none', category: 'taste' },
           smell: { level: responses.smell || 'none', category: 'smell' },
@@ -1593,12 +1577,11 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
     }
     
+    console.log('✅ Created proper self-assessment structure:', selfAssessmentData);
     updateSelfAssessment(selfAssessmentData);
   }, [updateSelfAssessment]);
 
-  // ❌ REMOVED: addHappinessPoints method - will be handled by HappinessContext
-
-  // ✅ FIXED: addAchievement method WITHOUT happiness points
+  // ✅ FIXED: addAchievement method
   const addAchievement = useCallback((achievement: string) => {
     if (!userData) {
       console.error('❌ Cannot add achievement - userData is null');
@@ -1615,8 +1598,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const updatedData = {
       ...userData,
       achievements: [...userData.achievements, achievement],
-      // ❌ REMOVED: Static happiness points
-      // happinessPoints: userData.happinessPoints + 25,
       analytics: {
         ...userData.analytics,
         lastUpdated: new Date().toISOString()
@@ -1626,7 +1607,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setUserData(updatedData);
     saveDataToStorage(updatedData);
     
-    console.log(`✅ Achievement '${achievement}' added successfully - happiness will be calculated dynamically`);
+    console.log(`✅ Achievement '${achievement}' added successfully`);
   }, [userData, saveDataToStorage]);
 
   const addNote = useCallback((note: any) => {
@@ -1693,11 +1674,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           localStorage.setItem('self_assessment_completed', userData.selfAssessment.completed ? 'true' : 'false');
         }
 
-        // ❌ REMOVED: Don't sync static happiness points
-        // if (userData.happinessPoints !== undefined) {
-        //   localStorage.setItem('happiness_points', userData.happinessPoints.toString());
-        // }
-
         console.log('🔄 Legacy storage keys synced for component compatibility');
       } catch (error) {
         console.error('❌ Error syncing legacy storage keys:', error);
@@ -1744,18 +1720,18 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [userData, currentUser, syncWithLocalData, syncLegacyStorageKeys]);
 
-  // ✅ ENHANCED: COMPLETE CONTEXT VALUE WITH missing direct properties
+  // ✅ ENHANCED: COMPLETE CONTEXT VALUE WITH all missing direct properties
   const contextValue: LocalDataContextType = {
     userData,
     isLoading,
     refreshTrigger,
     
-    // ✅ ENHANCED: Direct properties with MISSING ones added
+    // ✅ CRITICAL: Direct properties for component compatibility
     comprehensiveUserData: userData,
     practiceSessions: userData?.practiceSessions || [],
     emotionalNotes: userData?.emotionalNotes || [],
-    questionnaire: userData?.questionnaire || null,  // ← ADDED THIS!
-    selfAssessment: userData?.selfAssessment || null, // ← ADDED THIS!
+    questionnaire: userData?.questionnaire || null,
+    selfAssessment: userData?.selfAssessment || null,
     
     // Core methods
     clearAllData,
@@ -1771,10 +1747,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getSelfAssessment,
     isQuestionnaireCompleted,
     isSelfAssessmentCompleted,
-    
-    // ❌ REMOVED: Happiness getters and setters
-    // getHappinessPoints,
-    // addHappinessPoints,
     
     getAchievements,
     getNotes,
@@ -1814,13 +1786,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     addReflection,
     addMindRecoverySession,
 
-    // Questionnaire and Self-Assessment methods
+    // ✅ FIXED: Questionnaire and Self-Assessment methods
     updateQuestionnaire,
     updateSelfAssessment,
     markQuestionnaireComplete,
     markSelfAssessmentComplete,
 
-    // Achievement methods (but NOT happiness points)
+    // Achievement methods
     addAchievement,
     addNote,
 
