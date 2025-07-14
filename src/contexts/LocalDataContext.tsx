@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../AuthContext';
 
 // 🏗️ COMPLETE DATA TYPES WITH 9-CATEGORY PAHM SYSTEM
@@ -63,7 +63,7 @@ interface ReflectionData {
   insights?: string;
 }
 
-// ✅ FIXED: Complete Questionnaire Data Interface
+// Complete Questionnaire Data Interface
 interface QuestionnaireData {
   completed: boolean;
   completedAt?: string;
@@ -110,7 +110,7 @@ interface QuestionnaireData {
   };
 }
 
-// ✅ FIXED: Complete Self-Assessment Data Interface with ALL compatibility formats
+// Complete Self-Assessment Data Interface with ALL compatibility formats
 interface SelfAssessmentData {
   // Completion status
   completed: boolean;
@@ -163,7 +163,7 @@ interface SelfAssessmentData {
     };
   };
   
-  // ✅ ESSENTIAL: Responses object (for happiness calculator compatibility)
+  // ESSENTIAL: Responses object (for happiness calculator compatibility)
   responses: {
     taste: {
       level: 'none' | 'some' | 'strong';
@@ -315,7 +315,7 @@ interface ComprehensiveAnalytics {
   lastUpdated: string;
 }
 
-// ✅ FIXED: ComprehensiveUserData interface
+// ComprehensiveUserData interface
 interface ComprehensiveUserData {
   profile: {
     userId: string;
@@ -372,13 +372,13 @@ interface ComprehensiveUserData {
   };
 }
 
-// ✅ ENHANCED: LocalDataContextType interface WITH all missing direct properties
+// ENHANCED: LocalDataContextType interface WITH all missing direct properties
 interface LocalDataContextType {
   userData: ComprehensiveUserData | null;
   isLoading: boolean;
   refreshTrigger: number;
   
-  // ✅ CRITICAL: Direct properties for component compatibility
+  // CRITICAL: Direct properties for component compatibility
   comprehensiveUserData: ComprehensiveUserData | null;
   practiceSessions: PracticeSessionData[];
   emotionalNotes: EmotionalNoteData[];
@@ -438,7 +438,7 @@ interface LocalDataContextType {
   addReflection: (reflection: Omit<ReflectionData, 'reflectionId'>) => void;
   addMindRecoverySession: (session: Omit<PracticeSessionData, 'sessionId'>) => void;
 
-  // ✅ FIXED: Questionnaire and Self-Assessment methods
+  // Questionnaire and Self-Assessment methods
   updateQuestionnaire: (questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => void;
   updateSelfAssessment: (selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => void;
   markQuestionnaireComplete: (responses: any) => void;
@@ -460,36 +460,58 @@ interface LocalDataContextType {
   syncLegacyStorageKeys: () => void;
 }
 
-// 🔧 CREATE CONTEXT
+// CREATE CONTEXT
 const LocalDataContext = createContext<LocalDataContextType | undefined>(undefined);
 
-// 🚀 ENHANCED PROVIDER WITH COMPLETE FUNCTIONALITY
+// ✅ PERFORMANCE FIX: Debounced storage hook to prevent blocking
+const useDebouncedStorage = () => {
+  const [pendingSaves, setPendingSaves] = useState<(() => void)[]>([]);
+  
+  const debouncedSave = useCallback((saveFunction: () => void) => {
+    setPendingSaves(prev => [...prev, saveFunction]);
+  }, []);
+  
+  useEffect(() => {
+    if (pendingSaves.length === 0) return;
+    
+    const timeoutId = setTimeout(() => {
+      // Execute all pending saves
+      pendingSaves.forEach(saveFunc => saveFunc());
+      setPendingSaves([]);
+    }, 500); // 500ms debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [pendingSaves]);
+  
+  return debouncedSave;
+};
+
+// ENHANCED PROVIDER WITH COMPLETE FUNCTIONALITY
 export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, syncWithLocalData } = useAuth();
   const [userData, setUserData] = useState<ComprehensiveUserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // ✅ PERFORMANCE FIX: Use debounced storage
+  const debouncedSave = useDebouncedStorage();
 
-  // 🔥 ENHANCED AUTOMATIC REFRESH FUNCTION
+  // ENHANCED AUTOMATIC REFRESH FUNCTION
   const triggerAutoRefresh = useCallback(() => {
-    setRefreshTrigger(prev => {
-      const newTrigger = prev + 1;
-      console.log(`🔄 Auto-refresh triggered #${newTrigger} - all components will update automatically`);
-      return newTrigger;
-    });
+    setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // 🔥 GENERATE UNIQUE IDS
-  const generateId = (prefix: string): string => {
+  // GENERATE UNIQUE IDS
+  const generateId = useCallback((prefix: string): string => {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  };
+  }, []);
 
-  // 🔥 GET USER STORAGE KEY
+  // GET USER STORAGE KEY
   const getStorageKey = useCallback((): string => {
     return currentUser?.uid ? `comprehensiveUserData_${currentUser.uid}` : 'comprehensiveUserData';
   }, [currentUser?.uid]);
 
-  // ✅ LEGACY STORAGE KEY MANAGEMENT
+  // LEGACY STORAGE KEY MANAGEMENT
   const getLegacyStorageKeys = useCallback(() => {
     return {
       practiceHistory: 'practiceHistory',
@@ -501,7 +523,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [currentUser?.uid]);
 
-  // ✅ FIXED: Create empty user data
+  // Create empty user data
   const createEmptyUserData = useCallback((): ComprehensiveUserData => {
     return {
       profile: {
@@ -556,7 +578,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [currentUser]);
 
-  // 🔥 CLEAR ALL DATA
+  // CLEAR ALL DATA
   const clearAllData = useCallback(() => {
     setUserData(null);
     localStorage.removeItem(getStorageKey());
@@ -570,89 +592,87 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     localStorage.removeItem('self_assessment_completed');
     
     triggerAutoRefresh();
-    console.log('🗑️ All data cleared and auto-refresh triggered!');
   }, [getStorageKey, getLegacyStorageKeys, triggerAutoRefresh]);
 
-  // ✅ FIXED: Save data to storage
+  // ✅ PERFORMANCE FIX: Non-blocking save data to storage
   const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
-    try {
-      localStorage.setItem(getStorageKey(), JSON.stringify(data));
-      console.log('💾 Data auto-saved to comprehensive storage');
-      
-      // Sync with legacy storage keys for component compatibility
-      if (currentUser) {
-        const legacyKeys = getLegacyStorageKeys();
+    debouncedSave(() => {
+      try {
+        localStorage.setItem(getStorageKey(), JSON.stringify(data));
         
-        localStorage.setItem(legacyKeys.practiceHistory, JSON.stringify(data.practiceSessions));
-        localStorage.setItem(legacyKeys.emotionalNotes, JSON.stringify(data.emotionalNotes));
-        
-        const mindRecoverySessions = data.practiceSessions.filter(s => s.sessionType === 'mind_recovery');
-        localStorage.setItem(legacyKeys.mindRecoveryHistory, JSON.stringify(mindRecoverySessions));
-        
-        if (data.questionnaire) {
-          localStorage.setItem(legacyKeys.questionnaire, JSON.stringify(data.questionnaire.responses));
-          localStorage.setItem('questionnaire_completed', data.questionnaire.completed ? 'true' : 'false');
+        // Sync with legacy storage keys for component compatibility
+        if (currentUser) {
+          const legacyKeys = getLegacyStorageKeys();
+          
+          localStorage.setItem(legacyKeys.practiceHistory, JSON.stringify(data.practiceSessions));
+          localStorage.setItem(legacyKeys.emotionalNotes, JSON.stringify(data.emotionalNotes));
+          
+          const mindRecoverySessions = data.practiceSessions.filter(s => s.sessionType === 'mind_recovery');
+          localStorage.setItem(legacyKeys.mindRecoveryHistory, JSON.stringify(mindRecoverySessions));
+          
+          if (data.questionnaire) {
+            localStorage.setItem(legacyKeys.questionnaire, JSON.stringify(data.questionnaire.responses));
+            localStorage.setItem('questionnaire_completed', data.questionnaire.completed ? 'true' : 'false');
+          }
+          
+          if (data.selfAssessment) {
+            localStorage.setItem(legacyKeys.selfAssessment, JSON.stringify(data.selfAssessment));
+            localStorage.setItem('self_assessment_completed', data.selfAssessment.completed ? 'true' : 'false');
+          }
         }
         
-        if (data.selfAssessment) {
-          localStorage.setItem(legacyKeys.selfAssessment, JSON.stringify(data.selfAssessment));
-          localStorage.setItem('self_assessment_completed', data.selfAssessment.completed ? 'true' : 'false');
+        // Auto-sync with auth context
+        if (currentUser && syncWithLocalData) {
+          syncWithLocalData();
         }
+        
+        // Non-blocking refresh trigger
+        setTimeout(() => {
+          triggerAutoRefresh();
+        }, 50);
+        
+      } catch (error) {
+        // Silent error handling for storage issues
       }
-      
-      // Auto-sync with auth context
-      if (currentUser && syncWithLocalData) {
-        syncWithLocalData();
-      }
-      
-      setTimeout(() => {
-        triggerAutoRefresh();
-      }, 50);
-      
-    } catch (error) {
-      console.error('❌ Error saving data to storage:', error);
-    }
-  }, [getStorageKey, getLegacyStorageKeys, currentUser, syncWithLocalData, triggerAutoRefresh]);
+    });
+  }, [getStorageKey, getLegacyStorageKeys, currentUser, syncWithLocalData, triggerAutoRefresh, debouncedSave]);
 
-  // 🔥 LOAD DATA FROM STORAGE
+  // ✅ PERFORMANCE FIX: Non-blocking load data from storage
   const loadDataFromStorage = useCallback(() => {
-    try {
-      setIsLoading(true);
-      const storedData = localStorage.getItem(getStorageKey());
-      
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        setUserData(parsedData);
-        console.log('📊 Data loaded from comprehensive storage');
-      } else {
+    // Use setTimeout to prevent blocking
+    setTimeout(() => {
+      try {
+        setIsLoading(true);
+        const storedData = localStorage.getItem(getStorageKey());
+        
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          setUserData(parsedData);
+        } else {
+          const emptyData = createEmptyUserData();
+          setUserData(emptyData);
+          saveDataToStorage(emptyData);
+        }
+        
+        triggerAutoRefresh();
+      } catch (error) {
         const emptyData = createEmptyUserData();
         setUserData(emptyData);
         saveDataToStorage(emptyData);
+      } finally {
+        setIsLoading(false);
       }
-      
-      triggerAutoRefresh();
-    } catch (error) {
-      console.error('❌ Error loading data from storage:', error);
-      const emptyData = createEmptyUserData();
-      setUserData(emptyData);
-      saveDataToStorage(emptyData);
-    } finally {
-      setIsLoading(false);
-    }
+    }, 0);
   }, [getStorageKey, createEmptyUserData, saveDataToStorage, triggerAutoRefresh]);
 
-  // 🔥 ENHANCED DATA GETTERS
+  // ENHANCED DATA GETTERS
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
-    const sessions = userData?.practiceSessions || [];
-    console.log(`📊 getPracticeSessions called - returning ${sessions.length} sessions (refresh #${refreshTrigger})`);
-    return sessions;
-  }, [userData?.practiceSessions, refreshTrigger]);
+    return userData?.practiceSessions || [];
+  }, [userData?.practiceSessions]);
 
   const getDailyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
-    const notes = userData?.emotionalNotes || [];
-    console.log(`💝 getDailyEmotionalNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
-    return notes;
-  }, [userData?.emotionalNotes, refreshTrigger]);
+    return userData?.emotionalNotes || [];
+  }, [userData?.emotionalNotes]);
 
   const getReflections = useCallback((): ReflectionData[] => {
     return userData?.reflections || [];
@@ -660,15 +680,11 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Questionnaire and Self-Assessment getters
   const getQuestionnaire = useCallback((): QuestionnaireData | null => {
-    const questionnaire = userData?.questionnaire || null;
-    console.log(`📝 getQuestionnaire called - returning:`, questionnaire?.completed ? 'completed' : 'not completed');
-    return questionnaire;
+    return userData?.questionnaire || null;
   }, [userData?.questionnaire]);
 
   const getSelfAssessment = useCallback((): SelfAssessmentData | null => {
-    const selfAssessment = userData?.selfAssessment || null;
-    console.log(`🧠 getSelfAssessment called - returning:`, selfAssessment?.completed ? 'completed' : 'not completed');
-    return selfAssessment;
+    return userData?.selfAssessment || null;
   }, [userData?.selfAssessment]);
 
   const isQuestionnaireCompleted = useCallback((): boolean => {
@@ -680,16 +696,12 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [userData?.selfAssessment?.completed]);
 
   const getAchievements = useCallback((): string[] => {
-    const achievements = userData?.achievements || [];
-    console.log(`🏆 getAchievements called - returning ${achievements.length} achievements (refresh #${refreshTrigger})`);
-    return achievements;
-  }, [userData?.achievements, refreshTrigger]);
+    return userData?.achievements || [];
+  }, [userData?.achievements]);
 
   const getNotes = useCallback((): any[] => {
-    const notes = userData?.notes || [];
-    console.log(`📒 getNotes called - returning ${notes.length} notes (refresh #${refreshTrigger})`);
-    return notes;
-  }, [userData?.notes, refreshTrigger]);
+    return userData?.notes || [];
+  }, [userData?.notes]);
 
   const getMindRecoverySessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions.filter(session => session.sessionType === 'mind_recovery') || [];
@@ -699,16 +711,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return userData?.practiceSessions.filter(session => session.sessionType === 'meditation') || [];
   }, [userData?.practiceSessions]);
 
-  // ✅ FIXED: COMPLETE PAHM ANALYTICS IMPLEMENTATION
+  // COMPLETE PAHM ANALYTICS IMPLEMENTATION
   const getPAHMData = useCallback((): PAHMAnalytics | null => {
     const sessions = getPracticeSessions().filter(session => session.pahmCounts);
     
     if (sessions.length === 0) {
-      console.log('🧠 No PAHM data found');
       return null;
     }
-
-    console.log(`🧠 Analyzing PAHM data from ${sessions.length} sessions`);
 
     const totalPAHM = {
       present_attachment: 0,
@@ -760,7 +769,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getPracticeSessions]);
 
-  // ✅ FIXED: COMPLETE ENVIRONMENT ANALYTICS IMPLEMENTATION
+  // COMPLETE ENVIRONMENT ANALYTICS IMPLEMENTATION
   const getEnvironmentData = useCallback((): EnvironmentAnalytics => {
     const sessions = getPracticeSessions().filter(session => session.environment);
     
@@ -804,7 +813,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getPracticeSessions]);
 
-  // ✅ FIXED: COMPLETE MIND RECOVERY ANALYTICS IMPLEMENTATION
+  // COMPLETE MIND RECOVERY ANALYTICS IMPLEMENTATION
   const getMindRecoveryAnalytics = useCallback((): MindRecoveryAnalytics => {
     const mindRecoverySessions = getMindRecoverySessions();
     
@@ -887,7 +896,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getMindRecoverySessions]);
 
-  // ✅ FIXED: COMPLETE ANALYTICS DATA IMPLEMENTATION
+  // COMPLETE ANALYTICS DATA IMPLEMENTATION
   const getAnalyticsData = useCallback((): ComprehensiveAnalytics => {
     const allSessions = getPracticeSessions();
     const emotionalNotes = getDailyEmotionalNotes();
@@ -987,7 +996,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return 'stable';
   };
 
-  // ✅ NEW: Dashboard Analytics Methods
+  // Dashboard Analytics Methods
   const getFilteredData = useCallback((timeRange: string = 'month') => {
     const now = new Date();
     let startDate = new Date();
@@ -1086,7 +1095,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })).sort((a, b) => b.count - a.count);
   }, [getFilteredData]);
 
-  // ✅ NEW: Additional Analytics Methods
+  // Additional Analytics Methods
   const getAppUsagePatterns = useCallback(() => {
     const sessions = getPracticeSessions();
     
@@ -1170,7 +1179,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ];
   }, [getPracticeSessions]);
 
-  // ✅ NEW: Delete Methods
+  // Delete Methods
   const deleteEmotionalNote = useCallback((noteId: string) => {
     if (!userData) return;
     
@@ -1185,8 +1194,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log(`✅ Emotional note ${noteId} deleted successfully`);
   }, [userData, saveDataToStorage]);
 
   const deletePracticeSession = useCallback((sessionId: string) => {
@@ -1217,8 +1224,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log(`✅ Practice session ${sessionId} deleted successfully`);
   }, [userData, saveDataToStorage]);
 
   const deleteReflection = useCallback((reflectionId: string) => {
@@ -1235,14 +1240,11 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log(`✅ Reflection ${reflectionId} deleted successfully`);
   }, [userData, saveDataToStorage]);
 
-  // ✅ FIXED: Data manipulation methods
+  // Data manipulation methods
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     if (!userData) {
-      console.error('❌ Cannot add session - userData is null');
       return;
     }
 
@@ -1250,14 +1252,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ...session,
       sessionId: generateId('session')
     };
-
-    console.log('💾 Adding practice session:', {
-      sessionId: newSession.sessionId,
-      stageLevel: newSession.stageLevel,
-      sessionType: newSession.sessionType,
-      duration: newSession.duration,
-      pahmCounts: newSession.pahmCounts
-    });
 
     const updatedData = {
       ...userData,
@@ -1284,9 +1278,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log('✅ Practice session added successfully');
-  }, [userData, saveDataToStorage]);
+  }, [userData, saveDataToStorage, generateId]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
@@ -1298,7 +1290,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addEmotionalNote = useCallback((note: Omit<EmotionalNoteData, 'noteId'>) => {
     if (!userData) {
-      console.error('❌ Cannot add note - userData is null');
       return;
     }
 
@@ -1306,12 +1297,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ...note,
       noteId: generateId('note')
     };
-
-    console.log('💝 Adding emotional note:', {
-      noteId: newNote.noteId,
-      emotion: newNote.emotion,
-      contentLength: newNote.content.length
-    });
 
     const updatedData = {
       ...userData,
@@ -1324,13 +1309,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log('✅ Emotional note added successfully');
-  }, [userData, saveDataToStorage]);
+  }, [userData, saveDataToStorage, generateId]);
 
   const addReflection = useCallback((reflection: Omit<ReflectionData, 'reflectionId'>) => {
     if (!userData) {
-      console.error('❌ Cannot add reflection - userData is null');
       return;
     }
 
@@ -1350,18 +1332,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log('✅ Reflection added successfully');
-  }, [userData, saveDataToStorage]);
+  }, [userData, saveDataToStorage, generateId]);
 
-  // ✅ FIXED: Questionnaire and Self-Assessment methods
+  // Questionnaire and Self-Assessment methods
   const updateQuestionnaire = useCallback((questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
     if (!userData) {
-      console.error('❌ Cannot update questionnaire - userData is null');
       return;
     }
-
-    console.log('📝 Updating questionnaire data:', questionnaireData);
 
     const updatedData = {
       ...userData,
@@ -1381,17 +1358,12 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log('✅ Questionnaire updated successfully');
   }, [userData, saveDataToStorage]);
 
   const updateSelfAssessment = useCallback((selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
     if (!userData) {
-      console.error('❌ Cannot update self-assessment - userData is null');
       return;
     }
-
-    console.log('🧠 Updating self-assessment data:', selfAssessmentData);
 
     const updatedData = {
       ...userData,
@@ -1411,20 +1383,15 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log('✅ Self-assessment updated successfully');
   }, [userData, saveDataToStorage]);
 
-  // ✅ FIXED: markQuestionnaireComplete - handles raw responses and adds proper wrapper
+  // markQuestionnaireComplete - handles raw responses and adds proper wrapper
   const markQuestionnaireComplete = useCallback((responses: any) => {
-    console.log('📝 Marking questionnaire complete with raw responses:', responses);
-    
-    // ✅ FIXED: Handle both raw responses and already-structured data
+    // Handle both raw responses and already-structured data
     let cleanResponses = responses;
     
     // If responses already include completion metadata, extract just the data
     if (responses.completed || responses.completedAt) {
-      console.log('⚠️ Detected pre-structured data - extracting raw responses');
       const { completed, completedAt, totalQuestions, answeredQuestions, ...rawData } = responses;
       cleanResponses = rawData;
     }
@@ -1466,14 +1433,11 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     };
     
-    console.log('✅ Created proper questionnaire structure:', questionnaireData);
     updateQuestionnaire(questionnaireData);
   }, [updateQuestionnaire]);
 
-  // ✅ FIXED: markSelfAssessmentComplete with enhanced data format handling
+  // markSelfAssessmentComplete with enhanced data format handling
   const markSelfAssessmentComplete = useCallback((responses: any) => {
-    console.log('🧠 Marking self-assessment complete with responses:', responses);
-    
     let selfAssessmentData: SelfAssessmentData;
     
     // Handle multiple input formats
@@ -1506,7 +1470,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           mind: { level: responses.mind || categories.mind?.level || 'none', category: 'mind', details: categories.mind?.details || '' }
         },
         
-        // ✅ CRITICAL: Responses object (for happiness calculator compatibility)
+        // CRITICAL: Responses object (for happiness calculator compatibility)
         responses: responses.responses || responses.categories || {
           taste: { level: responses.taste || categories.taste?.level || 'none', category: 'taste', details: categories.taste?.details || '' },
           smell: { level: responses.smell || categories.smell?.level || 'none', category: 'smell', details: categories.smell?.details || '' },
@@ -1554,7 +1518,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           mind: { level: responses.mind || 'none', category: 'mind' }
         },
         
-        // ✅ CRITICAL: Responses object (duplicate of categories for compatibility)
+        // CRITICAL: Responses object (duplicate of categories for compatibility)
         responses: {
           taste: { level: responses.taste || 'none', category: 'taste' },
           smell: { level: responses.smell || 'none', category: 'smell' },
@@ -1577,23 +1541,18 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
     }
     
-    console.log('✅ Created proper self-assessment structure:', selfAssessmentData);
     updateSelfAssessment(selfAssessmentData);
   }, [updateSelfAssessment]);
 
-  // ✅ FIXED: addAchievement method
+  // addAchievement method
   const addAchievement = useCallback((achievement: string) => {
     if (!userData) {
-      console.error('❌ Cannot add achievement - userData is null');
       return;
     }
 
     if (userData.achievements.includes(achievement)) {
-      console.log(`⚠️ Achievement '${achievement}' already exists - skipping`);
       return;
     }
-
-    console.log(`🏆 Adding achievement: ${achievement}`);
 
     const updatedData = {
       ...userData,
@@ -1606,13 +1565,10 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log(`✅ Achievement '${achievement}' added successfully`);
   }, [userData, saveDataToStorage]);
 
   const addNote = useCallback((note: any) => {
     if (!userData) {
-      console.error('❌ Cannot add note - userData is null');
       return;
     }
 
@@ -1622,8 +1578,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       timestamp: new Date().toISOString(),
       userId: currentUser?.uid
     };
-
-    console.log(`📒 Adding note: ${newNote.id}`);
 
     const updatedData = {
       ...userData,
@@ -1636,9 +1590,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-    
-    console.log(`✅ Note added successfully`);
-  }, [userData, saveDataToStorage, currentUser]);
+  }, [userData, saveDataToStorage, currentUser, generateId]);
 
   // Legacy compatibility methods
   const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
@@ -1673,10 +1625,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           localStorage.setItem(legacyKeys.selfAssessment, JSON.stringify(userData.selfAssessment));
           localStorage.setItem('self_assessment_completed', userData.selfAssessment.completed ? 'true' : 'false');
         }
-
-        console.log('🔄 Legacy storage keys synced for component compatibility');
       } catch (error) {
-        console.error('❌ Error syncing legacy storage keys:', error);
+        // Silent error handling
       }
     }
   }, [userData, currentUser, getLegacyStorageKeys]);
@@ -1720,13 +1670,13 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [userData, currentUser, syncWithLocalData, syncLegacyStorageKeys]);
 
-  // ✅ ENHANCED: COMPLETE CONTEXT VALUE WITH all missing direct properties
-  const contextValue: LocalDataContextType = {
+  // ✅ PERFORMANCE FIX: Memoized context value to prevent unnecessary re-renders
+  const contextValue: LocalDataContextType = useMemo(() => ({
     userData,
     isLoading,
     refreshTrigger,
     
-    // ✅ CRITICAL: Direct properties for component compatibility
+    // CRITICAL: Direct properties for component compatibility
     comprehensiveUserData: userData,
     practiceSessions: userData?.practiceSessions || [],
     emotionalNotes: userData?.emotionalNotes || [],
@@ -1786,7 +1736,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     addReflection,
     addMindRecoverySession,
 
-    // ✅ FIXED: Questionnaire and Self-Assessment methods
+    // Questionnaire and Self-Assessment methods
     updateQuestionnaire,
     updateSelfAssessment,
     markQuestionnaireComplete,
@@ -1806,7 +1756,60 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getLegacyEmotionalNotes,
     getLegacyMindRecoveryHistory,
     syncLegacyStorageKeys
-  };
+  }), [
+    userData,
+    isLoading,
+    refreshTrigger,
+    clearAllData,
+    getPracticeSessions,
+    getDailyEmotionalNotes,
+    getReflections,
+    getAnalyticsData,
+    getQuestionnaire,
+    getSelfAssessment,
+    isQuestionnaireCompleted,
+    isSelfAssessmentCompleted,
+    getAchievements,
+    getNotes,
+    getMindRecoverySessions,
+    getMeditationSessions,
+    getMindRecoveryAnalytics,
+    getPAHMData,
+    getEnvironmentData,
+    getProgressTrends,
+    getComprehensiveAnalytics,
+    getPredictiveInsights,
+    exportDataForAnalysis,
+    getFilteredData,
+    getPracticeDurationData,
+    getEmotionDistribution,
+    getPracticeDistribution,
+    getAppUsagePatterns,
+    getEngagementMetrics,
+    getFeatureUtilization,
+    getComprehensiveStats,
+    get9CategoryPAHMInsights,
+    getMindRecoveryInsights,
+    syncWithAuthContext,
+    getOnboardingStatusFromAuth,
+    addPracticeSession,
+    addEmotionalNote,
+    addReflection,
+    addMindRecoverySession,
+    updateQuestionnaire,
+    updateSelfAssessment,
+    markQuestionnaireComplete,
+    markSelfAssessmentComplete,
+    addAchievement,
+    addNote,
+    deleteEmotionalNote,
+    deletePracticeSession,
+    deleteReflection,
+    getLegacyPracticeHistory,
+    getLegacyEmotionalNotes,
+    getLegacyMindRecoveryHistory,
+    syncLegacyStorageKeys
+  ]);
 
   return (
     <LocalDataContext.Provider value={contextValue}>
@@ -1815,7 +1818,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 };
 
-// 🎯 CUSTOM HOOK
+// CUSTOM HOOK
 export const useLocalData = (): LocalDataContextType => {
   const context = useContext(LocalDataContext);
   if (!context) {

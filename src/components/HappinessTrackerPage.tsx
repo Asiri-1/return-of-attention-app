@@ -1,9 +1,10 @@
 // src/components/HappinessTrackerPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../AuthContext';
 import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
 
-const HappinessTrackerPage: React.FC = () => {
+// ✅ PERFORMANCE FIX: Memoized component
+const HappinessTrackerPage: React.FC = React.memo(() => {
   const { currentUser } = useAuth();
   const {
     userProgress,
@@ -20,10 +21,37 @@ const HappinessTrackerPage: React.FC = () => {
 
   const [showDebug, setShowDebug] = useState(false);
 
-  // ✅ QUICK STATS FOR HEADER
-  const totalSessions = practiceSessions?.length || 0;
-  const totalHours = practiceSessions?.reduce((sum: number, session: any) => sum + (session.duration || 0), 0) / 60 || 0;
-  const hasData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
+  // ✅ PERFORMANCE FIX: Memoized quick stats
+  const quickStats = useMemo(() => {
+    const totalSessions = practiceSessions?.length || 0;
+    const totalHours = practiceSessions?.reduce((sum: number, session: any) => sum + (session.duration || 0), 0) / 60 || 0;
+    const hasData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
+
+    return {
+      totalSessions,
+      totalHours: totalHours.toFixed(1),
+      hasData,
+      happinessPoints: userProgress.happiness_points
+    };
+  }, [practiceSessions, questionnaire?.completed, selfAssessment?.completed, userProgress.happiness_points]);
+
+  // ✅ PERFORMANCE FIX: Memoized debug toggle handler
+  const handleDebugToggle = useCallback(() => {
+    setShowDebug(prev => !prev);
+  }, []);
+
+  // ✅ PERFORMANCE FIX: Memoized button handlers
+  const handleDebugCalculation = useCallback(() => {
+    debugCalculation();
+  }, [debugCalculation]);
+
+  const handleLogProgress = useCallback(() => {
+    logProgress();
+  }, [logProgress]);
+
+  const handleTestComponents = useCallback(() => {
+    testComponents();
+  }, [testComponents]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -40,15 +68,15 @@ const HappinessTrackerPage: React.FC = () => {
             <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-2xl px-6 py-4">
               <div className="flex items-center space-x-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-indigo-700">{totalSessions}</div>
+                  <div className="text-2xl font-bold text-indigo-700">{quickStats.totalSessions}</div>
                   <div className="text-xs text-indigo-600 font-medium">Sessions</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-700">{totalHours.toFixed(1)}h</div>
+                  <div className="text-2xl font-bold text-purple-700">{quickStats.totalHours}h</div>
                   <div className="text-xs text-purple-600 font-medium">Practice Time</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-pink-700">{userProgress.happiness_points}</div>
+                  <div className="text-2xl font-bold text-pink-700">{quickStats.happinessPoints}</div>
                   <div className="text-xs text-pink-600 font-medium">Happiness Points</div>
                 </div>
               </div>
@@ -58,7 +86,7 @@ const HappinessTrackerPage: React.FC = () => {
       </div>
 
       {/* 🎭 WELCOME MESSAGE FOR NEW USERS */}
-      {!hasData && (
+      {!quickStats.hasData && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-3xl p-8 text-center border-2 border-blue-200">
             <div className="text-6xl mb-4">🧘</div>
@@ -90,7 +118,7 @@ const HappinessTrackerPage: React.FC = () => {
       )}
 
       {/* 🎯 MAIN HAPPINESS DISPLAY */}
-      {hasData && (
+      {quickStats.hasData && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
           {/* ✅ LOADING STATE */}
@@ -110,13 +138,13 @@ const HappinessTrackerPage: React.FC = () => {
               <div className="text-lg font-semibold">{userProgress.user_level}</div>
             </div>
             <div className="text-lg opacity-90">
-              Based on {totalSessions} practice sessions & {emotionalNotes?.length || 0} emotional notes
+              Based on {quickStats.totalSessions} practice sessions & {emotionalNotes?.length || 0} emotional notes
             </div>
             
             {/* Debug Toggle */}
             <div className="mt-6">
               <button 
-                onClick={() => setShowDebug(!showDebug)}
+                onClick={handleDebugToggle}
                 className="bg-white bg-opacity-20 hover:bg-opacity-30 px-6 py-2 rounded-xl transition-all duration-300"
               >
                 {showDebug ? 'Hide Debug' : 'Show Debug'} 🔍
@@ -316,7 +344,7 @@ const HappinessTrackerPage: React.FC = () => {
             </div>
           )}
 
-          {/* ✅ DEBUG PANEL */}
+          {/* ✅ DEBUG PANEL - Only visible when toggled */}
           {showDebug && (
             <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-gray-200">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">🔍 PAHM-Centered Debug Information</h2>
@@ -351,19 +379,19 @@ const HappinessTrackerPage: React.FC = () => {
               
               <div className="flex flex-wrap gap-4 justify-center">
                 <button 
-                  onClick={debugCalculation}
+                  onClick={handleDebugCalculation}
                   className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   🔍 Debug Console
                 </button>
                 <button 
-                  onClick={logProgress}
+                  onClick={handleLogProgress}
                   className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   📊 Log Progress
                 </button>
                 <button 
-                  onClick={testComponents}
+                  onClick={handleTestComponents}
                   className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   🧪 Test Components
@@ -471,7 +499,7 @@ const HappinessTrackerPage: React.FC = () => {
       </div>
 
       {/* 🎯 CALL TO ACTION */}
-      {hasData && (
+      {quickStats.hasData && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-3xl p-8 text-center text-white">
             <h2 className="text-2xl font-bold mb-4">🌟 Continue Your Present Attention Journey</h2>
@@ -491,6 +519,6 @@ const HappinessTrackerPage: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default HappinessTrackerPage;
