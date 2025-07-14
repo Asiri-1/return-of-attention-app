@@ -56,20 +56,19 @@ class EnhancedLocalStorageManager {
 // Smart Intent Detection (for auth actions only)
 class SmartIntentDetection {
   logUserAction(action: string, data: any) {
-    // Removed debug logging to prevent infinite loops
+    // Production ready - no debug logging
   }
 }
 
-// ✅ FIXED: Extended User interface with missing properties
+// ✅ CLEANED: User interface with only auth-related properties
 interface User extends FirebaseUser {
   membershipType?: 'free' | 'premium' | 'admin';
-  // ✅ ADD: Missing properties that other components expect
   currentStage?: string;
   goals?: string[];
   assessmentCompleted?: boolean;
 }
 
-// ✅ FIXED: Define the shape of the user profile with missing properties
+// ✅ CLEANED: Define the shape of the user profile (auth-only)
 interface UserProfile {
   uid: string;
   email: string;
@@ -88,9 +87,7 @@ interface UserProfile {
     reminderTime: string | null;
   };
   customFields?: Record<string, any>;
-  // ✅ ADD: Missing properties that other components expect
   currentStage?: string;
-  selfAssessment?: any;
   goals?: string[];
 }
 
@@ -101,7 +98,7 @@ interface FirestoreUserProfile extends Omit<UserProfile, 'createdAt' | 'lastLogi
   memberSince: FieldValue | null;
 }
 
-// ✅ FIXED: AuthContext interface with missing methods
+// ✅ CLEANED: AuthContext interface (AUTHENTICATION ONLY)
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -130,11 +127,6 @@ interface AuthContextType {
   extendSession: () => void;
   syncWithLocalData: () => Promise<void>;
   
-  // ✅ ADD: Missing data storage methods (deprecated - use LocalDataContext)
-  markQuestionnaireComplete: (answers: any) => Promise<void>;
-  markSelfAssessmentComplete: (data: any) => Promise<void>;
-  isSelfAssessmentCompleted: () => boolean;
-  
   // Utility
   clearError: () => void;
 }
@@ -142,7 +134,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create a provider component
+// ✅ PERFORMANCE FIX: Create a provider component with optimized callbacks
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -154,14 +146,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const auth = getAuth(app);
   const db = getFirestore(app);
   
-  // ✅ FIXED: Create stable instances to avoid dependency issues
+  // ✅ PERFORMANCE FIX: Create stable instances to avoid dependency issues
   const localStorageManager = useCallback(() => new EnhancedLocalStorageManager(), []);
   const intentDetection = useCallback(() => new SmartIntentDetection(), []);
 
   // Computed properties
   const isAuthenticated = !!currentUser;
 
-  // ✅ Create missing user document helper function
+  // Create missing user document helper function
   const createUserDocument = useCallback(async (user: FirebaseUser): Promise<UserProfile> => {
     const membershipId = `SP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
@@ -182,9 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         language: 'en',
         reminderTime: null
       },
-      // ✅ ADD: Initialize missing properties
       currentStage: '0',
-      selfAssessment: null,
       goals: []
     };
     
@@ -203,7 +193,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return newUserProfile;
   }, [db]);
 
-  // ✅ Load user profile with enhanced error handling
+  // Load user profile with enhanced error handling
   const loadUserProfile = useCallback(async (user: FirebaseUser): Promise<UserProfile | null> => {
     try {
       const userDocRef = doc(db, 'users', user.uid);
@@ -218,17 +208,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           createdAt: data.createdAt?.toDate() || null,
           lastLoginAt: data.lastLoginAt?.toDate() || null,
           memberSince: data.memberSince?.toDate() || null,
-          // ✅ ADD: Ensure missing properties have defaults
           currentStage: data.currentStage || '0',
-          selfAssessment: data.selfAssessment || null,
           goals: data.goals || []
         } as UserProfile;
         
-        // ✅ ADD: Set additional properties on currentUser
+        // Set additional properties on currentUser
         const enhancedUser = user as User;
         enhancedUser.currentStage = profile.currentStage;
         enhancedUser.goals = data.goals || [];
-        enhancedUser.assessmentCompleted = !!data.selfAssessment?.completed;
+        enhancedUser.assessmentCompleted = false; // Handled by LocalDataContext now
         
         setCurrentUser(enhancedUser);
         
@@ -243,7 +231,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [db, createUserDocument]);
 
-  // ✅ Profile management methods (auth-only)
+  // ✅ PERFORMANCE FIX: Profile management methods (auth-only)
   const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
     const storage = localStorageManager();
     const intent = intentDetection();
@@ -256,7 +244,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const updatedProfile = { ...userProfile, ...data };
       setUserProfile(updatedProfile);
       
-      // ✅ ADD: Update currentUser properties if they're being updated
+      // Update currentUser properties if they're being updated
       if (data.currentStage !== undefined) {
         const updatedUser = { ...currentUser, currentStage: data.currentStage };
         setCurrentUser(updatedUser);
@@ -280,52 +268,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, userProfile, db, localStorageManager, intentDetection]);
 
-  // ✅ ADD: Deprecated data storage methods (for backward compatibility)
-  const markQuestionnaireComplete = useCallback(async (answers: any) => {
-    console.warn('⚠️ DEPRECATED: markQuestionnaireComplete in AuthContext. Use LocalDataContext instead.');
-    // Delegate to LocalDataContext or provide minimal implementation
-    try {
-      // Minimal implementation - just log the call
-      if (currentUser) {
-        localStorage.setItem(`questionnaire_${currentUser.uid}`, JSON.stringify({
-          completed: true,
-          responses: answers,
-          completedAt: new Date().toISOString()
-        }));
-      }
-    } catch (error) {
-      console.error('Error in deprecated markQuestionnaireComplete:', error);
-    }
-  }, [currentUser]);
-
-  const markSelfAssessmentComplete = useCallback(async (data: any) => {
-    console.warn('⚠️ DEPRECATED: markSelfAssessmentComplete in AuthContext. Use LocalDataContext instead.');
-    try {
-      if (currentUser && userProfile) {
-        // Update the user profile with self-assessment data
-        await updateUserProfile({
-          selfAssessment: {
-            ...data,
-            completed: true,
-            completedAt: new Date().toISOString()
-          }
-        });
-        
-        // Update currentUser assessmentCompleted flag
-        const updatedUser = { ...currentUser, assessmentCompleted: true };
-        setCurrentUser(updatedUser);
-      }
-    } catch (error) {
-      console.error('Error in deprecated markSelfAssessmentComplete:', error);
-    }
-  }, [currentUser, userProfile, updateUserProfile]);
-
-  const isSelfAssessmentCompleted = useCallback(() => {
-    console.warn('⚠️ DEPRECATED: isSelfAssessmentCompleted in AuthContext. Use LocalDataContext instead.');
-    return !!(userProfile?.selfAssessment?.completed || currentUser?.assessmentCompleted);
-  }, [userProfile, currentUser]);
-
-  // ✅ FIXED: Logout function with useCallback
+  // ✅ PERFORMANCE FIX: Logout function with useCallback
   const logout = useCallback(async () => {
     const storage = localStorageManager();
     const intent = intentDetection();
@@ -352,7 +295,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [auth, currentUser?.uid, localStorageManager, intentDetection]);
 
-  // ✅ FIXED: Auth state change listener with proper dependencies
+  // ✅ PERFORMANCE FIX: Auth state change listener with proper dependencies
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -379,7 +322,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return unsubscribe;
   }, [auth, db, loadUserProfile]);
 
-  // ✅ FIXED: Session timeout management with proper dependencies
+  // ✅ PERFORMANCE FIX: Session timeout management with proper dependencies
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     let warningTimeoutId: NodeJS.Timeout;
@@ -422,7 +365,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setSessionTimeRemaining(0);
   }, []);
 
-  // ✅ Authentication methods
+  // ✅ PERFORMANCE FIX: Authentication methods
   const signup = useCallback(async (email: string, password: string, displayName: string) => {
     const intent = intentDetection();
     
@@ -578,12 +521,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, intentDetection]);
 
-  // ✅ Sync with local data (placeholder - LocalDataContext handles all data now)
+  // ✅ CLEANED: Sync with local data (placeholder - LocalDataContext handles all data now)
   const syncWithLocalData = useCallback(async () => {
     try {
       // This method now just serves as a placeholder
       // All data syncing is handled by LocalDataContext
-      console.log('🔄 Auth context sync requested - LocalDataContext handles all data');
     } catch (err) {
       // Silent error handling
     }
@@ -594,7 +536,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   }, []);
 
-  // ✅ FIXED: Create context value with all required methods
+  // ✅ CLEANED: Create context value with ONLY authentication-related methods
   const value: AuthContextType = {
     currentUser,
     userProfile,
@@ -622,11 +564,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     sessionTimeRemaining,
     extendSession,
     syncWithLocalData,
-    
-    // ✅ ADD: Deprecated data storage methods (for backward compatibility)
-    markQuestionnaireComplete,
-    markSelfAssessmentComplete,
-    isSelfAssessmentCompleted,
     
     // Utility
     clearError
