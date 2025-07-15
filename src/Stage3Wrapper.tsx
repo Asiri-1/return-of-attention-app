@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Stage3Introduction from './Stage3Introduction';
 import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
@@ -8,69 +8,126 @@ import MainNavigation from './MainNavigation';
 
 interface Stage3WrapperProps {}
 
+type PhaseType = 'introduction' | 'posture' | 'timer' | 'reflection';
+
+interface LocationState {
+  fromPAHM?: boolean;
+  fromIntro?: boolean;
+  returnToStage?: number;
+  fromStage?: boolean;
+}
+
 const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Component state
-  const [showPostureSelection, setShowPostureSelection] = useState(false);
-  const [showTimer, setShowTimer] = useState(false);
-  const [showReflection, setShowReflection] = useState(false);
+  // ✅ PERFORMANCE: Consolidated state management - single phase instead of multiple booleans
+  const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
   const [selectedPosture, setSelectedPosture] = useState('');
 
-  // Check if coming from PAHM explanation
-  const isFromPAHM = location.state && location.state.fromPAHM;
-  const isFromIntro = location.state && location.state.fromIntro;
-  
-  // Parse URL search params for PAHM explanation return
-  const searchParams = new URLSearchParams(window.location.search);
-  const returnToStageParam = searchParams.get('returnToStage');
-  const fromStageParam = searchParams.get('fromStage');
-  
-  // Check if coming from PAHM explanation via URL params (for direct window.location.href navigation)
-  const isFromPAHMViaURL = returnToStageParam === '3' && fromStageParam === 'true';
-  
-  // Combine state-based and URL-based checks
-  const effectivelyFromPAHM = isFromPAHM || isFromPAHMViaURL;
-  
-  const savedPosture = sessionStorage.getItem('selectedPosture');
-  
-  // Check if user has previously completed the introduction
-  const hasCompletedIntro = () => {
+  // ✅ PERFORMANCE: Memoized location state parsing
+  const locationState = useMemo((): LocationState => {
+    return (location.state as LocationState) || {};
+  }, [location.state]);
+
+  // ✅ PERFORMANCE: Memoized URL params parsing to prevent repeated parsing
+  const urlParams = useMemo(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    return {
+      returnToStage: searchParams.get('returnToStage'),
+      fromStage: searchParams.get('fromStage')
+    };
+  }, []);
+
+  // ✅ PERFORMANCE: Memoized navigation flags calculation
+  const navigationFlags = useMemo(() => {
+    const isFromPAHM = locationState.fromPAHM || false;
+    const isFromIntro = locationState.fromIntro || false;
+    const isFromPAHMViaURL = urlParams.returnToStage === '3' && urlParams.fromStage === 'true';
+    const effectivelyFromPAHM = isFromPAHM || isFromPAHMViaURL;
+    
+    return {
+      isFromPAHM,
+      isFromIntro,
+      isFromPAHMViaURL,
+      effectivelyFromPAHM
+    };
+  }, [locationState.fromPAHM, locationState.fromIntro, urlParams.returnToStage, urlParams.fromStage]);
+
+  // ✅ PERFORMANCE: Memoized localStorage check with error handling
+  const hasCompletedIntro = useMemo(() => {
     try {
       const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
       return Array.isArray(completedIntros) && completedIntros.includes(3);
-    } catch (e) {
-      console.error("Error checking completed intros:", e);
+    } catch (error) {
+      // ✅ CODE QUALITY: Silent error handling for production
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error checking completed intros:", error);
+      }
       return false;
     }
-  };
+  }, []);
 
-  React.useEffect(() => {
+  // ✅ PERFORMANCE: Stable sessionStorage operations with error handling
+  const getStoredPosture = useCallback((): string => {
+    try {
+      return sessionStorage.getItem('selectedPosture') || '';
+    } catch (error) {
+      // ✅ CODE QUALITY: Silent error handling for production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Error reading selectedPosture from sessionStorage:", error);
+      }
+      return '';
+    }
+  }, []);
+
+  const setStoredPosture = useCallback((posture: string): void => {
+    try {
+      sessionStorage.setItem('selectedPosture', posture);
+    } catch (error) {
+      // ✅ CODE QUALITY: Silent error handling for production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Error saving selectedPosture to sessionStorage:", error);
+      }
+    }
+  }, []);
+
+  const removeStoredPosture = useCallback((): void => {
+    try {
+      sessionStorage.removeItem('selectedPosture');
+    } catch (error) {
+      // ✅ CODE QUALITY: Silent error handling for production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Error removing selectedPosture from sessionStorage:", error);
+      }
+    }
+  }, []);
+
+  // ✅ PERFORMANCE: Optimized initial phase determination with single useEffect
+  useEffect(() => {
+    const { effectivelyFromPAHM, isFromIntro } = navigationFlags;
+    
     // Force show introduction for direct menu access (first-time or returning)
-    // This ensures the introduction is always shown when accessing Stage 3 from menu
     if (!effectivelyFromPAHM && !isFromIntro) {
-      setShowPostureSelection(false);
+      setCurrentPhase('introduction');
       return;
     }
     
     // If coming from PAHM explanation (via state or URL params), always show posture selection
-    // This enforces the flow: intro -> PAHM -> posture -> timer -> reflection
     if (effectivelyFromPAHM) {
-      // Clear any saved posture to ensure user always goes through posture selection
-      sessionStorage.removeItem('selectedPosture');
-      setShowPostureSelection(true);
+      removeStoredPosture(); // Clear any saved posture to ensure user always goes through posture selection
+      setCurrentPhase('posture');
       return;
     }
     
     // If coming from intro, show posture selection
     if (isFromIntro) {
-      setShowPostureSelection(true);
+      setCurrentPhase('posture');
     }
-    // Default case - show introduction
-  }, [effectivelyFromPAHM, isFromIntro]);
+  }, [navigationFlags, removeStoredPosture]);
 
-  const handleComplete = () => {
+  // ✅ PERFORMANCE: Stable event handlers with useCallback
+  const handleComplete = useCallback(() => {
     // For Stage 3, navigate to PAHM explanation
     navigate('/learning/pahm', { 
       state: { 
@@ -78,92 +135,114 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
         fromStage: true
       } 
     });
-  };
+  }, [navigate]);
 
-  const handleBack = () => {
-    if (showTimer) {
-      // If in timer, go back to posture selection
-      setShowTimer(false);
-      setShowPostureSelection(true);
-    } else if (showPostureSelection) {
-      // If in posture selection, go back to introduction
-      setShowPostureSelection(false);
+  const handleBack = useCallback(() => {
+    if (currentPhase === 'reflection') {
+      setCurrentPhase('timer');
+    } else if (currentPhase === 'timer') {
+      setCurrentPhase('posture');
+    } else if (currentPhase === 'posture') {
+      setCurrentPhase('introduction');
     } else {
       // If in introduction, go back to home
       navigate('/home');
     }
-  };
+  }, [currentPhase, navigate]);
   
-  const handleIntroComplete = () => {
+  const handleIntroComplete = useCallback(() => {
     // When introduction is complete, show posture selection
-    // This allows the skip intro path to go directly to posture selection
-    setShowPostureSelection(true);
-  };
+    setCurrentPhase('posture');
+  }, []);
   
-  const handleStartPractice = (posture: string) => {
-    console.log("Starting practice with posture:", posture);
+  const handleStartPractice = useCallback((posture: string) => {
+    // ✅ CODE QUALITY: Removed debug console.log for production
     
     // When posture is selected and practice starts, show timer
     setSelectedPosture(posture);
-    // Save selected posture to session storage for returning from PAHM explanation
-    sessionStorage.setItem('selectedPosture', posture);
+    setStoredPosture(posture); // Save selected posture to session storage
     
-    // Force state update to ensure timer is shown
-    setShowPostureSelection(false);
-    
-    // Use a more reliable approach with requestAnimationFrame instead of setTimeout
-    requestAnimationFrame(() => {
-      console.log("Setting showTimer to true");
-      setShowTimer(true);
-    });
-  };
+    // ✅ PERFORMANCE: Direct state update instead of requestAnimationFrame
+    setCurrentPhase('timer');
+  }, [setStoredPosture]);
   
-  const handleTimerComplete = () => {
+  const handleTimerComplete = useCallback(() => {
     // When timer completes, store the selected posture for reflection
-    sessionStorage.setItem('currentPosture', selectedPosture);
+    try {
+      sessionStorage.setItem('currentPosture', selectedPosture);
+    } catch (error) {
+      // ✅ CODE QUALITY: Silent error handling for production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Error saving currentPosture to sessionStorage:", error);
+      }
+    }
     
-    // Instead of navigating to a potentially non-existent route,
-    // render the UniversalPAHMReflection component directly in this wrapper
-    setShowTimer(false);
-    setShowReflection(true);
-  };
+    setCurrentPhase('reflection');
+  }, [selectedPosture]);
 
-  // Handle reflection completion
-  const handleReflectionComplete = () => {
+  const handleReflectionComplete = useCallback(() => {
     // Navigate back to home or to next stage
     navigate('/home');
-  };
+  }, [navigate]);
+
+  const handleReflectionBack = useCallback(() => {
+    setCurrentPhase('timer');
+  }, []);
+
+  // ✅ PERFORMANCE: Memoized component renderer to prevent recreation on every render
+  const renderCurrentPhase = useMemo(() => {
+    switch (currentPhase) {
+      case 'reflection':
+        return (
+          <UniversalPAHMReflection
+            stageLevel={3}
+            onComplete={handleReflectionComplete}
+            onBack={handleReflectionBack}
+          />
+        );
+        
+      case 'timer':
+        return (
+          <UniversalPAHMTimer
+            stageLevel={3}
+            onComplete={handleTimerComplete}
+            onBack={handleBack}
+            posture={selectedPosture}
+          />
+        );
+        
+      case 'posture':
+        return (
+          <UniversalPostureSelection
+            stageNumber={3}
+            onBack={handleBack}
+            onStartPractice={handleStartPractice}
+          />
+        );
+        
+      case 'introduction':
+      default:
+        return (
+          <Stage3Introduction
+            onComplete={handleIntroComplete}
+            onBack={handleBack}
+          />
+        );
+    }
+  }, [
+    currentPhase,
+    selectedPosture,
+    handleReflectionComplete,
+    handleReflectionBack,
+    handleTimerComplete,
+    handleBack,
+    handleStartPractice,
+    handleIntroComplete
+  ]);
 
   return (
     <MainNavigation>
-      {showReflection ? (
-        <UniversalPAHMReflection
-          stageLevel={3}
-          onComplete={handleReflectionComplete}
-          onBack={() => {
-            setShowReflection(false);
-            setShowTimer(true);
-          }}
-        />
-      ) : showTimer ? (
-        <UniversalPAHMTimer
-          stageLevel={3}
-          onComplete={handleTimerComplete}
-          onBack={handleBack}
-          posture={selectedPosture}
-        />
-      ) : showPostureSelection ? (
-        <UniversalPostureSelection
-          stageNumber={3}
-          onBack={handleBack}
-          onStartPractice={handleStartPractice}
-        />
-      ) : (
-        <Stage3Introduction
-          onComplete={handleIntroComplete}
-          onBack={handleBack}
-        />
-      )}
+      {renderCurrentPhase}
     </MainNavigation>
   );
 };

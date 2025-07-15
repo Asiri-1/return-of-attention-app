@@ -9,7 +9,7 @@ import { AdminProvider } from './AdminContext';
 import AdminPanel from './components/AdminPanel';
 import LogoutWarning from './components/LogoutWarning';
 
-// ✅ DIRECT FIX: Import LocalDataProvider directly
+// ✅ FIXED: Import LocalDataProvider directly
 import { LocalDataProvider, useLocalData } from './contexts/LocalDataContext';
 
 // ✅ CRITICAL COMPONENTS: Import normally to avoid chunk loading errors
@@ -53,14 +53,16 @@ const PostureGuide = lazy(() => import('./PostureGuide'));
 const UserProfile = lazy(() => import('./UserProfile'));
 const HappinessTrackerPage = lazy(() => import('./components/HappinessTrackerPage'));
 
-// ✅ BULLETPROOF: FastLoader with forced exit
+// ✅ OPTIMIZED: FastLoader with better performance
 const FastLoader: React.FC<{ message?: string }> = React.memo(({ message = "Loading..." }) => {
   useEffect(() => {
-    // ✅ CRITICAL FIX: Force exit loading after 2 seconds
+    // ✅ SAFETY: Force exit loading after 3 seconds (increased from 2s)
     const emergencyExit = setTimeout(() => {
-      console.log('🚨 EMERGENCY EXIT: Loading took too long, forcing navigation');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚨 EMERGENCY EXIT: Loading took too long, forcing navigation');
+      }
       window.location.href = '/';
-    }, 2000);
+    }, 3000);
 
     return () => clearTimeout(emergencyExit);
   }, []);
@@ -92,7 +94,7 @@ const FastLoader: React.FC<{ message?: string }> = React.memo(({ message = "Load
         }} />
         <div>{message}</div>
         <div style={{ fontSize: '12px', opacity: 0.7 }}>
-          Emergency exit in 2s if stuck...
+          Emergency exit in 3s if stuck...
         </div>
         <style>{`
           @keyframes spin { 
@@ -105,24 +107,36 @@ const FastLoader: React.FC<{ message?: string }> = React.memo(({ message = "Load
   );
 });
 
-// ✅ COMPLETE: AdminBypassApp with all your original functionality
+// ✅ OPTIMIZED: AdminBypassApp with better performance
 const AdminBypassApp: React.FC = React.memo(() => {
   const navigate = useNavigate();
   
-  const handleNavigateHome = useCallback(() => navigate('/home'), [navigate]);
-  const handleNavigateHappiness = useCallback(() => navigate('/happiness-tracker'), [navigate]);
-  const handleNavigateAnalytics = useCallback(() => navigate('/analytics'), [navigate]);
-  const handleNavigateNotes = useCallback(() => navigate('/notes'), [navigate]);
-  const handleNavigateChat = useCallback(() => navigate('/chatwithguru'), [navigate]);
-  const handleNavigateStage1 = useCallback(() => navigate('/stage1'), [navigate]);
+  // ✅ PERFORMANCE: Stable navigation handlers
+  const navigationHandlers = useMemo(() => ({
+    home: () => navigate('/home'),
+    happiness: () => navigate('/happiness-tracker'),
+    analytics: () => navigate('/analytics'),
+    notes: () => navigate('/notes'),
+    chat: () => navigate('/chatwithguru'),
+    stage1: () => navigate('/stage1'),
+    stage2: () => navigate('/stage2'),
+    stage3: () => navigate('/stage3'),
+    stage4: () => navigate('/stage4'),
+    stage5: () => navigate('/stage5'),
+    stage6: () => navigate('/stage6'),
+    learning: () => navigate('/learning/pahm'),
+    posture: () => navigate('/posture-guide')
+  }), [navigate]);
 
-  const handleMouseOver = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
-  }, []);
-
-  const handleMouseOut = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-  }, []);
+  // ✅ PERFORMANCE: Stable style handlers
+  const styleHandlers = useMemo(() => ({
+    onMouseOver: (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+    },
+    onMouseOut: (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+    }
+  }), []);
 
   const buttonStyle = useMemo(() => ({
     padding: '15px 25px', 
@@ -159,22 +173,22 @@ const AdminBypassApp: React.FC = React.memo(() => {
           maxWidth: '1200px',
           margin: '0 auto'
         }}>
-          <button onClick={handleNavigateHome} style={buttonStyle} onMouseOver={handleMouseOver} onMouseOut={handleMouseOut}>
+          <button onClick={navigationHandlers.home} style={buttonStyle} {...styleHandlers}>
             🏠 Go to Dashboard
           </button>
-          <button onClick={handleNavigateHappiness} style={buttonStyle} onMouseOver={handleMouseOver} onMouseOut={handleMouseOut}>
+          <button onClick={navigationHandlers.happiness} style={buttonStyle} {...styleHandlers}>
             😊 Happiness Tracker
           </button>
-          <button onClick={handleNavigateAnalytics} style={buttonStyle} onMouseOver={handleMouseOver} onMouseOut={handleMouseOut}>
+          <button onClick={navigationHandlers.analytics} style={buttonStyle} {...styleHandlers}>
             📊 Analytics
           </button>
-          <button onClick={handleNavigateNotes} style={buttonStyle} onMouseOver={handleMouseOver} onMouseOut={handleMouseOut}>
+          <button onClick={navigationHandlers.notes} style={buttonStyle} {...styleHandlers}>
             📝 Notes
           </button>
-          <button onClick={handleNavigateChat} style={buttonStyle} onMouseOver={handleMouseOver} onMouseOut={handleMouseOut}>
+          <button onClick={navigationHandlers.chat} style={buttonStyle} {...styleHandlers}>
             🧘 Chat with Guru
           </button>
-          <button onClick={handleNavigateStage1} style={buttonStyle} onMouseOver={handleMouseOver} onMouseOut={handleMouseOut}>
+          <button onClick={navigationHandlers.stage1} style={buttonStyle} {...styleHandlers}>
             🎯 Practice Stage 1
           </button>
         </div>
@@ -183,17 +197,17 @@ const AdminBypassApp: React.FC = React.memo(() => {
           <Route path="/home" element={
             <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
               <HomeDashboard 
-                onStartPractice={handleNavigateStage1}
-                onStartStage2={() => navigate('/stage2')}
-                onStartStage3={() => navigate('/stage3')}
-                onStartStage4={() => navigate('/stage4')}
-                onStartStage5={() => navigate('/stage5')}
-                onStartStage6={() => navigate('/stage6')}
-                onViewProgress={() => navigate('/analytics')}
-                onViewLearning={() => navigate('/learning/pahm')}
-                onShowPostureGuide={() => navigate('/posture-guide')}
-                onShowPAHMExplanation={() => navigate('/learning/pahm')}
-                onShowWhatIsPAHM={() => navigate('/learning/pahm')}
+                onStartPractice={navigationHandlers.stage1}
+                onStartStage2={navigationHandlers.stage2}
+                onStartStage3={navigationHandlers.stage3}
+                onStartStage4={navigationHandlers.stage4}
+                onStartStage5={navigationHandlers.stage5}
+                onStartStage6={navigationHandlers.stage6}
+                onViewProgress={navigationHandlers.analytics}
+                onViewLearning={navigationHandlers.learning}
+                onShowPostureGuide={navigationHandlers.posture}
+                onShowPAHMExplanation={navigationHandlers.learning}
+                onShowWhatIsPAHM={navigationHandlers.learning}
                 onLogout={() => navigate('/')}
               />
             </Suspense>
@@ -279,7 +293,7 @@ const AdminBypassApp: React.FC = React.memo(() => {
           
           <Route path="/posture-guide" element={
             <Suspense fallback={<FastLoader message="Loading optimal posture guide..." />}>
-              <PostureGuide onContinue={() => navigate('/home')} />
+              <PostureGuide onContinue={navigationHandlers.home} />
             </Suspense>
           } />
           
@@ -290,22 +304,17 @@ const AdminBypassApp: React.FC = React.memo(() => {
   );
 });
 
-// ✅ BULLETPROOF: Completion status checker that can't get stuck
-const useCompletionStatus = (currentUser: any) => {
+// ✅ FIXED: Simplified completion status checker using LocalDataContext directly
+const useCompletionStatus = () => {
+  const { isQuestionnaireCompleted, isSelfAssessmentCompleted } = useLocalData();
+  const { currentUser } = useAuth();
+  
   const [completionStatus, setCompletionStatus] = useState({
     questionnaire: false,
     selfAssessment: false,
-    isLoaded: true, // ✅ CRITICAL FIX: Start as loaded
-    hasChecked: true // ✅ CRITICAL FIX: Start as checked
+    isLoaded: false,
+    hasChecked: false
   });
-
-  // ✅ SAFE: Try to get LocalData context, but don't fail if it doesn't work
-  let localDataContext: any = null;
-  try {
-    localDataContext = useLocalData();
-  } catch (error) {
-    console.log('🔧 LocalData context not available, using fallback');
-  }
 
   const checkCompletionStatus = useCallback(() => {
     if (!currentUser) {
@@ -319,22 +328,9 @@ const useCompletionStatus = (currentUser: any) => {
     }
 
     try {
-      let questComplete = false;
-      let selfComplete = false;
-
-      // ✅ TRY: Use LocalData methods if available
-      if (localDataContext && localDataContext.isQuestionnaireCompleted) {
-        questComplete = localDataContext.isQuestionnaireCompleted();
-        selfComplete = localDataContext.isSelfAssessmentCompleted();
-      }
-
-      // ✅ FALLBACK: Check localStorage directly
-      if (!questComplete) {
-        questComplete = localStorage.getItem('questionnaire_completed') === 'true';
-      }
-      if (!selfComplete) {
-        selfComplete = localStorage.getItem('self_assessment_completed') === 'true';
-      }
+      // ✅ FIXED: Use LocalDataContext methods directly (as per audit report)
+      const questComplete = isQuestionnaireCompleted();
+      const selfComplete = isSelfAssessmentCompleted();
 
       setCompletionStatus({
         questionnaire: questComplete,
@@ -344,271 +340,214 @@ const useCompletionStatus = (currentUser: any) => {
       });
 
     } catch (error) {
-      console.error('❌ Error in completion check, using defaults:', error);
+      console.error('❌ Error checking completion status:', error);
+      // ✅ FALLBACK: Check localStorage as backup
+      const questComplete = localStorage.getItem('questionnaire_completed') === 'true';
+      const selfComplete = localStorage.getItem('self_assessment_completed') === 'true';
+      
       setCompletionStatus({
-        questionnaire: false,
-        selfAssessment: false,
+        questionnaire: questComplete,
+        selfAssessment: selfComplete,
         isLoaded: true,
         hasChecked: true
       });
     }
-  }, [currentUser, localDataContext]);
+  }, [currentUser, isQuestionnaireCompleted, isSelfAssessmentCompleted]);
 
   useEffect(() => {
-    // ✅ IMMEDIATE: Check completion status immediately
     checkCompletionStatus();
-    
-    // ✅ FORCE: Re-check after 1 second to ensure it's set
-    const forceCheck = setTimeout(() => {
-      checkCompletionStatus();
-    }, 1000);
-
-    return () => clearTimeout(forceCheck);
   }, [checkCompletionStatus]);
 
   return { completionStatus, recheckStatus: checkCompletionStatus };
 };
 
-// ✅ COMPLETE: Main app content with all your original functionality
+// ✅ OPTIMIZED: Main app content with better performance and cleaner logic
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
+  const { currentUser, isLoading, signIn, signUp, logout, updateUserProfile } = useAuth();
+  const { markQuestionnaireComplete, markSelfAssessmentComplete } = useLocalData();
   
-  // ✅ SAFE: Get auth context with error handling
-  let authContext: any = {
-    currentUser: null,
-    isLoading: false,
-    signIn: async () => {},
-    signUp: async () => {},
-    logout: async () => {},
-    updateUserProfile: async () => {}
-  };
-
-  try {
-    authContext = useAuth();
-  } catch (error) {
-    console.log('🔧 Auth context not available, using fallback');
-  }
-
-  const { 
-    signIn, 
-    signUp, 
-    logout,
-    currentUser, 
-    updateUserProfile,
-    isLoading 
-  } = authContext;
+  // ✅ FIXED: Use simplified completion status checker
+  const { completionStatus, recheckStatus } = useCompletionStatus();
   
-  // ✅ SAFE: Get LocalData context with error handling
-  let localDataContext: any = {
-    markQuestionnaireComplete: async () => {},
-    markSelfAssessmentComplete: async () => {}
-  };
-
-  try {
-    localDataContext = useLocalData();
-  } catch (error) {
-    console.log('🔧 LocalData context not available, using fallback');
-  }
-
-  const {
-    markQuestionnaireComplete,
-    markSelfAssessmentComplete
-  } = localDataContext;
-
-  // ✅ FIXED: Use completion status checker
-  const { completionStatus, recheckStatus } = useCompletionStatus(currentUser);
-  
-  const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true); // ✅ FIX: Start as ready
+  const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
   const [appReady, setAppReady] = useState(false);
 
-  // ✅ COMPUTED VALUES
+  // ✅ PERFORMANCE: Stable computed values
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
   const isAdminUser = useMemo(() => currentUser?.email === 'asiriamarasinghe35@gmail.com', [currentUser?.email]);
 
-  // ✅ NAVIGATION COMPONENTS
-  const NavigateToHome = useMemo(() => <Navigate to="/home" replace />, []);
-  const NavigateToQuestionnaire = useMemo(() => <Navigate to="/questionnaire" replace />, []);
-  const NavigateToIntroduction = useMemo(() => <Navigate to="/introduction" replace />, []);
+  // ✅ PERFORMANCE: Stable navigation components
+  const navigationComponents = useMemo(() => ({
+    home: <Navigate to="/home" replace />,
+    questionnaire: <Navigate to="/questionnaire" replace />,
+    introduction: <Navigate to="/introduction" replace />
+  }), []);
 
-  // ✅ FORCE APP READY: Don't wait longer than 1 second
+  // ✅ PERFORMANCE: Force app ready quickly
   useEffect(() => {
-    const forceReady = setTimeout(() => {
-      setAppReady(true);
-      console.log('✅ App forced ready');
-    }, 1000);
-
-    return () => clearTimeout(forceReady);
+    const timer = setTimeout(() => setAppReady(true), 500);
+    return () => clearTimeout(timer);
   }, []);
 
-  // ✅ KNOWLEDGE BASE
+  // ✅ PERFORMANCE: Initialize knowledge base
   useEffect(() => {
-    const initializeKnowledgeBase = () => {
-      const bookContent = localStorage.getItem('roa_book_content');
-      setKnowledgeBaseReady(true); // Always set as ready
-    };
-    initializeKnowledgeBase();
+    setKnowledgeBaseReady(true);
   }, []);
 
-  // ✅ ALL YOUR ORIGINAL EVENT HANDLERS
-  const handleStartPracticeWrapper = useCallback(() => {
-    if (!completionStatus.selfAssessment) {
-      alert('Please complete your self-assessment first before starting practice sessions.');
-      navigate('/self-assessment');
-      return;
-    }
-    navigate('/stage1');
-  }, [completionStatus.selfAssessment, navigate]);
-
-  const handleViewProgress = useCallback(() => navigate('/analytics'), [navigate]);
-  const handleViewLearning = useCallback(() => navigate('/learning/pahm'), [navigate]);
-  const handleShowPostureGuide = useCallback(() => navigate("/posture-guide"), [navigate]);
-  const handleShowPAHMExplanation = useCallback(() => navigate('/learning/pahm'), [navigate]);
-  const handleShowWhatIsPAHM = useCallback(() => navigate('/learning/pahm'), [navigate]);
-  const handleStartStage2 = useCallback(() => navigate('/stage2'), [navigate]);
-  const handleStartStage3 = useCallback(() => navigate('/stage3'), [navigate]);
-  const handleStartStage4 = useCallback(() => navigate('/stage4'), [navigate]);
-  const handleStartStage5 = useCallback(() => navigate('/stage5'), [navigate]);
-  const handleStartStage6 = useCallback(() => navigate('/stage6'), [navigate]);
-
-  const handleLogout = useCallback(async () => {
-    try {
-      await logout();
-      navigate('/');
-    } catch (error) {
-      navigate('/');
-    }
-  }, [logout, navigate]);
-
-  const handleSignUp = useCallback(async (email: string, password: string, name: string, rememberMe: boolean = false) => {
-    try {
-      await signUp(email, password, name);
-      navigate('/questionnaire');
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        alert('This email is already registered. Please sign in instead.');
-        navigate('/signin');
-      } else {
-        alert(`Signup failed: ${error.message || 'Unknown error'}`);
+  // ✅ PERFORMANCE: Stable event handlers with proper dependencies
+  const handlers = useMemo(() => ({
+    // ✅ NAVIGATION HANDLERS
+    startPractice: () => {
+      if (!completionStatus.selfAssessment) {
+        alert('Please complete your self-assessment first before starting practice sessions.');
+        navigate('/self-assessment');
+        return;
       }
-    }
-  }, [signUp, navigate]);
-
-  const handleSignIn = useCallback(async (email: string, password: string, rememberMe: boolean = false) => {
-    try {
-      await signIn(email, password);
-      setTimeout(async () => {
-        await recheckStatus();
-      }, 500);
-    } catch (error: any) {
-      alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
-    }
-  }, [signIn, recheckStatus]);
-
-  const handleQuestionnaireComplete = useCallback(async (answers: any) => {
-    try {
-      await markQuestionnaireComplete(answers);
-      await recheckStatus();
-      
-      setTimeout(() => {
-        navigate('/introduction');
-      }, 100);
-    } catch (error) {
-      navigate('/introduction');
-    }
-  }, [markQuestionnaireComplete, recheckStatus, navigate]);
-
-  const handleSelfAssessmentComplete = useCallback(async (data?: any) => {
-    try {
-      await markSelfAssessmentComplete(data);
-      
+      navigate('/stage1');
+    },
+    viewProgress: () => navigate('/analytics'),
+    viewLearning: () => navigate('/learning/pahm'),
+    showPostureGuide: () => navigate("/posture-guide"),
+    showPAHMExplanation: () => navigate('/learning/pahm'),
+    showWhatIsPAHM: () => navigate('/learning/pahm'),
+    startStage2: () => navigate('/stage2'),
+    startStage3: () => navigate('/stage3'),
+    startStage4: () => navigate('/stage4'),
+    startStage5: () => navigate('/stage5'),
+    startStage6: () => navigate('/stage6'),
+    navigateToSignUp: () => navigate('/signup'),
+    navigateToSignIn: () => navigate('/signin'),
+    
+    // ✅ AUTH HANDLERS
+    logout: async () => {
       try {
-        await updateUserProfile({ 
-          currentStage: '1'
-        });
-      } catch (profileError) {
-        // Silently handle profile update errors
+        await logout();
+        navigate('/');
+      } catch (error) {
+        navigate('/');
       }
-      
-      await recheckStatus();
-      
-      setTimeout(() => {
-        navigate('/self-assessment-completion');
-      }, 200);
-    } catch (error) {
-      alert('Failed to complete self-assessment. Please try again.');
-    }
-  }, [markSelfAssessmentComplete, updateUserProfile, recheckStatus, navigate]);
-
-  const handleGoogleSignIn = useCallback(async () => {
-    try {
-      alert('Google Sign In not fully implemented yet - please use regular sign in');
-    } catch (error: any) {
-      alert(`Google sign-in failed: ${error.message || 'Unknown error'}`);
-    }
-  }, []);
-
-  const handleGoogleSignUp = useCallback(async (googleUser: any) => {
-    try {
-      const response = await fetch('/api/auth/google-signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: googleUser.email,
-          name: googleUser.name,
-          googleId: googleUser.googleId,
-          picture: googleUser.picture,
-          token: googleUser.token
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('authToken', data.token);
+    },
+    
+    signUp: async (email: string, password: string, name: string) => {
+      try {
+        await signUp(email, password, name);
         navigate('/questionnaire');
+      } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+          alert('This email is already registered. Please sign in instead.');
+          navigate('/signin');
+        } else {
+          alert(`Signup failed: ${error.message || 'Unknown error'}`);
+        }
       }
-    } catch (error: any) {
-      alert(`Google sign-up failed: ${error.message || 'Unknown error'}`);
-    }
-  }, [navigate]);
-
-  const handleForgotPassword = useCallback(() => {
-    alert('Forgot password functionality not implemented yet');
-  }, []);
-
-  const handleIntroductionComplete = useCallback(() => {
-    navigate('/self-assessment');
-  }, [navigate]);
-
-  const handleIntroductionSkip = useCallback(() => {
-    navigate('/self-assessment');
-  }, [navigate]);
-
-  const handleSelfAssessmentBack = useCallback(() => {
-    navigate('/introduction');
-  }, [navigate]);
-
-  const handleSelfAssessmentCompletionGetStarted = useCallback(() => {
-    navigate('/home');
-  }, [navigate]);
-
-  const handleSelfAssessmentCompletionBack = useCallback(() => {
-    navigate('/self-assessment');
-  }, [navigate]);
-
-  const handleNavigateToSignUp = useCallback(() => navigate('/signup'), [navigate]);
-  const handleNavigateToSignIn = useCallback(() => navigate('/signin'), [navigate]);
+    },
+    
+    signIn: async (email: string, password: string) => {
+      try {
+        await signIn(email, password);
+        // ✅ FIXED: Recheck status after successful login
+        setTimeout(() => {
+          recheckStatus();
+        }, 500);
+      } catch (error: any) {
+        alert(`Failed to sign in: ${error.message || 'Please check your credentials.'}`);
+      }
+    },
+    
+    // ✅ COMPLETION HANDLERS
+    questionnaireComplete: async (answers: any) => {
+      try {
+        await markQuestionnaireComplete(answers);
+        await recheckStatus();
+        navigate('/introduction');
+      } catch (error) {
+        console.error('Error completing questionnaire:', error);
+        navigate('/introduction');
+      }
+    },
+    
+    selfAssessmentComplete: async (data?: any) => {
+      try {
+        await markSelfAssessmentComplete(data);
+        
+        // ✅ SAFE: Update user profile without blocking flow
+        try {
+          await updateUserProfile({ currentStage: '1' });
+        } catch (profileError) {
+          console.warn('Profile update failed, continuing anyway:', profileError);
+        }
+        
+        await recheckStatus();
+        navigate('/self-assessment-completion');
+      } catch (error) {
+        console.error('Error completing self-assessment:', error);
+        alert('Failed to complete self-assessment. Please try again.');
+      }
+    },
+    
+    // ✅ OTHER HANDLERS
+    googleSignIn: async () => {
+      alert('Google Sign In not fully implemented yet - please use regular sign in');
+    },
+    
+    googleSignUp: async (googleUser: any) => {
+      try {
+        const response = await fetch('/api/auth/google-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: googleUser.email,
+            name: googleUser.name,
+            googleId: googleUser.googleId,
+            picture: googleUser.picture,
+            token: googleUser.token
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          localStorage.setItem('authToken', data.token);
+          navigate('/questionnaire');
+        }
+      } catch (error: any) {
+        alert(`Google sign-up failed: ${error.message || 'Unknown error'}`);
+      }
+    },
+    
+    forgotPassword: () => {
+      alert('Forgot password functionality not implemented yet');
+    },
+    
+    introductionComplete: () => navigate('/self-assessment'),
+    introductionSkip: () => navigate('/self-assessment'),
+    selfAssessmentBack: () => navigate('/introduction'),
+    selfAssessmentCompletionGetStarted: () => navigate('/home'),
+    selfAssessmentCompletionBack: () => navigate('/self-assessment')
+    
+  }), [
+    completionStatus.selfAssessment, 
+    navigate, 
+    logout, 
+    signUp, 
+    signIn, 
+    markQuestionnaireComplete, 
+    markSelfAssessmentComplete, 
+    updateUserProfile,
+    recheckStatus
+  ]);
 
   // ✅ ADMIN BYPASS
   if (isAdminUser) {
     return <AdminBypassApp />;
   }
 
-  // ✅ CRITICAL FIX: Only show loading if actually loading AND not ready yet
-  if ((isLoading || !appReady) && !currentUser) {
+  // ✅ OPTIMIZED: Only show loading when necessary
+  if (isLoading && !currentUser && !appReady) {
     return <FastLoader message="Initializing practices for the happiness that stays..." />;
   }
 
-  // ✅ UNAUTHENTICATED ROUTES: Complete original functionality
+  // ✅ UNAUTHENTICATED ROUTES
   if (!isAuthenticated) {
     return (
       <div className="app-container">
@@ -630,17 +569,18 @@ const AppContent: React.FC = React.memo(() => {
           
           <Route path="/signin" element={
             <SignIn 
-              onSignIn={handleSignIn}
-              onGoogleSignIn={handleGoogleSignIn}
-              onSignUp={handleNavigateToSignUp}
-              onForgotPassword={handleForgotPassword}
+              onSignIn={handlers.signIn}
+              onGoogleSignIn={handlers.googleSignIn}
+              onSignUp={handlers.navigateToSignUp}
+              onForgotPassword={handlers.forgotPassword}
             />
           } />
+          
           <Route path="/signup" element={
             <SignUp 
-              onSignUp={handleSignUp}
-              onGoogleSignUp={handleGoogleSignUp}
-              onSignIn={handleNavigateToSignIn}
+              onSignUp={handlers.signUp}
+              onGoogleSignUp={handlers.googleSignUp}
+              onSignIn={handlers.navigateToSignIn}
             />
           } />
           
@@ -650,78 +590,79 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES: Complete original functionality
+  // ✅ AUTHENTICATED ROUTES
   return (
     <div className="app-container">
       <PageViewTracker />
       <LogoutWarning />
       
       <Routes>
-        {/* ✅ SMART ROOT ROUTE */}
+        {/* ✅ SIMPLIFIED ROOT ROUTE LOGIC */}
         <Route path="/" element={
           (() => {
             if (completionStatus.questionnaire && completionStatus.selfAssessment) {
-              return NavigateToHome;
+              return navigationComponents.home;
             } else if (!completionStatus.questionnaire) {
-              return NavigateToQuestionnaire;
+              return navigationComponents.questionnaire;
             } else {
-              return NavigateToIntroduction;
+              return navigationComponents.introduction;
             }
           })()
         } />
         
-        {/* ✅ ALL YOUR ORIGINAL ROUTES */}
+        {/* ✅ ONBOARDING ROUTES */}
         <Route path="/questionnaire" element={
-          <Questionnaire onComplete={handleQuestionnaireComplete} />
+          <Questionnaire onComplete={handlers.questionnaireComplete} />
         } />
         
         <Route path="/introduction" element={
           !completionStatus.questionnaire ? 
-            NavigateToQuestionnaire :
+            navigationComponents.questionnaire :
             <Introduction 
-              onComplete={handleIntroductionComplete}
-              onSkip={handleIntroductionSkip}
+              onComplete={handlers.introductionComplete}
+              onSkip={handlers.introductionSkip}
             />
         } />
         
         <Route path="/self-assessment" element={
           !completionStatus.questionnaire ? 
-            NavigateToQuestionnaire :
+            navigationComponents.questionnaire :
             <SelfAssessment 
-              onComplete={handleSelfAssessmentComplete}
-              onBack={handleSelfAssessmentBack}
+              onComplete={handlers.selfAssessmentComplete}
+              onBack={handlers.selfAssessmentBack}
             />
         } />
         
         <Route path="/self-assessment-completion" element={
           <SelfAssessmentCompletion 
-            onGetStarted={handleSelfAssessmentCompletionGetStarted}
-            onBack={handleSelfAssessmentCompletionBack}
+            onGetStarted={handlers.selfAssessmentCompletionGetStarted}
+            onBack={handlers.selfAssessmentCompletionBack}
           />
         } />
         
+        {/* ✅ MAIN DASHBOARD */}
         <Route path="/home" element={
           <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
             <MainNavigation>
               <HomeDashboard 
-                onStartPractice={handleStartPracticeWrapper}
-                onStartStage2={handleStartStage2}
-                onStartStage3={handleStartStage3}
-                onStartStage4={handleStartStage4}
-                onStartStage5={handleStartStage5}
-                onStartStage6={handleStartStage6}
-                onViewProgress={handleViewProgress}
-                onViewLearning={handleViewLearning}
-                onShowPostureGuide={handleShowPostureGuide}
-                onShowPAHMExplanation={handleShowPAHMExplanation}
-                onShowWhatIsPAHM={handleShowWhatIsPAHM}
-                onLogout={handleLogout}
+                onStartPractice={handlers.startPractice}
+                onStartStage2={handlers.startStage2}
+                onStartStage3={handlers.startStage3}
+                onStartStage4={handlers.startStage4}
+                onStartStage5={handlers.startStage5}
+                onStartStage6={handlers.startStage6}
+                onViewProgress={handlers.viewProgress}
+                onViewLearning={handlers.viewLearning}
+                onShowPostureGuide={handlers.showPostureGuide}
+                onShowPAHMExplanation={handlers.showPAHMExplanation}
+                onShowWhatIsPAHM={handlers.showWhatIsPAHM}
+                onLogout={handlers.logout}
               />
             </MainNavigation>
           </Suspense>
         } />
         
-        {/* ✅ ALL OTHER ROUTES - Complete original functionality */}
+        {/* ✅ ALL OTHER ROUTES */}
         <Route path="/*" element={
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
@@ -803,7 +744,7 @@ const AppContent: React.FC = React.memo(() => {
                 } />
                 <Route path="/profile" element={
                   <Suspense fallback={<FastLoader message="Loading your practice profile..." />}>
-                    <UserProfile onBack={() => navigate('/home')} onLogout={handleLogout} />
+                    <UserProfile onBack={() => navigate('/home')} onLogout={handlers.logout} />
                   </Suspense>
                 } />
                 <Route 
@@ -841,7 +782,7 @@ const AppContent: React.FC = React.memo(() => {
   );
 });
 
-// ✅ MAIN App component with your complete original functionality
+// ✅ MAIN App component
 const App: React.FC = React.memo(() => {
   return (
     <BrowserRouter>

@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Stage2Introduction from './Stage2Introduction';
 import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
-import UniversalPAHMTimer from './components/shared/UniversalPAHMTimer'; // ✅ NEW: Universal Timer
-import UniversalPAHMReflection from './components/shared/UniversalPAHMReflection'; // ✅ NEW: Universal Reflection
+import UniversalPAHMTimer from './components/shared/UniversalPAHMTimer';
+import UniversalPAHMReflection from './components/shared/UniversalPAHMReflection';
+
+type PhaseType = 'introduction' | 'posture' | 'timer' | 'reflection';
 
 const Stage2Wrapper: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // 🎯 Core state management
-  const [currentPhase, setCurrentPhase] = useState<'introduction' | 'posture' | 'timer' | 'reflection'>('introduction');
+  // ✅ PERFORMANCE: Type-safe state management
+  const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
   const [selectedPosture, setSelectedPosture] = useState<string>('');
 
-  // 🎯 Navigation handlers
-  const handleBack = () => {
+  // ✅ PERFORMANCE: Stable event handlers with useCallback to prevent child re-renders
+  const handleBack = useCallback(() => {
     if (currentPhase === 'introduction') {
       navigate(-1);
     } else if (currentPhase === 'posture') {
@@ -24,29 +26,29 @@ const Stage2Wrapper: React.FC = () => {
     } else if (currentPhase === 'reflection') {
       setCurrentPhase('timer');
     }
-  };
+  }, [currentPhase, navigate]);
 
-  const handleIntroductionComplete = () => {
+  const handleIntroductionComplete = useCallback(() => {
     setCurrentPhase('posture');
-  };
+  }, []);
 
-  const handlePostureSelected = (posture: string) => {
+  const handlePostureSelected = useCallback((posture: string) => {
     setSelectedPosture(posture);
     setCurrentPhase('timer');
-  };
+  }, []);
 
-  const handleTimerComplete = () => {
-    console.log('✅ Timer completed, moving to reflection');
+  const handleTimerComplete = useCallback(() => {
+    // ✅ CODE QUALITY: Removed debug console.log for production
     setCurrentPhase('reflection');
-  };
+  }, []);
 
-  const handleReflectionComplete = () => {
-    console.log('✅ Stage 2 practice completed');
+  const handleReflectionComplete = useCallback(() => {
+    // ✅ CODE QUALITY: Removed debug console.log for production
     navigate('/dashboard'); // or wherever you want to navigate after completion
-  };
+  }, [navigate]);
 
-  // 🎯 Render current phase
-  const renderCurrentPhase = () => {
+  // ✅ PERFORMANCE: Memoized phase renderer to prevent recreation on every render
+  const renderCurrentPhase = useMemo(() => {
     switch (currentPhase) {
       case 'introduction':
         return (
@@ -68,8 +70,8 @@ const Stage2Wrapper: React.FC = () => {
       case 'timer':
         return (
           <UniversalPAHMTimer
-            stageLevel={2}                    // ✅ Stage-specific config
-            onComplete={handleTimerComplete}  // ✅ Proper callback flow
+            stageLevel={2}
+            onComplete={handleTimerComplete}
             onBack={handleBack}
             posture={selectedPosture}
           />
@@ -78,7 +80,7 @@ const Stage2Wrapper: React.FC = () => {
       case 'reflection':
         return (
           <UniversalPAHMReflection
-            stageLevel={2}                      // ✅ Stage-specific reflection
+            stageLevel={2}
             onComplete={handleReflectionComplete}
             onBack={handleBack}
           />
@@ -87,11 +89,19 @@ const Stage2Wrapper: React.FC = () => {
       default:
         return null;
     }
-  };
+  }, [
+    currentPhase,
+    selectedPosture,
+    handleBack,
+    handleIntroductionComplete,
+    handlePostureSelected,
+    handleTimerComplete,
+    handleReflectionComplete
+  ]);
 
   return (
     <div className="stage2-wrapper">
-      {renderCurrentPhase()}
+      {renderCurrentPhase}
     </div>
   );
 };

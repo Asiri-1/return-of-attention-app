@@ -12,7 +12,8 @@ import {
   updateEmail,
   updatePassword,
   reauthenticateWithCredential,
-  EmailAuthProvider
+  EmailAuthProvider,
+  Auth
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -21,13 +22,15 @@ import {
   getDoc, 
   updateDoc, 
   serverTimestamp,
-  FieldValue
+  FieldValue,
+  Firestore
 } from 'firebase/firestore';
-import app from './firebase';
+import { FirebaseApp } from 'firebase/app';
+import app, { auth as firebaseAuth, db as firebaseDb } from './firebase';
 
 // Enhanced Local Storage Manager (for auth-only data)
 class EnhancedLocalStorageManager {
-  setItem(key: string, value: string) {
+  setItem(key: string, value: string): void {
     try {
       localStorage.setItem(key, value);
     } catch (error) {
@@ -44,7 +47,7 @@ class EnhancedLocalStorageManager {
     }
   }
 
-  removeItem(key: string) {
+  removeItem(key: string): void {
     try {
       localStorage.removeItem(key);
     } catch (error) {
@@ -55,7 +58,7 @@ class EnhancedLocalStorageManager {
 
 // Smart Intent Detection (for auth actions only)
 class SmartIntentDetection {
-  logUserAction(action: string, data: any) {
+  logUserAction(action: string, data: any): void {
     // Production ready - no debug logging
   }
 }
@@ -143,8 +146,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [showLogoutWarning, setShowLogoutWarning] = useState<boolean>(false);
   const [sessionTimeRemaining, setSessionTimeRemaining] = useState<number>(0);
   
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  // ✅ FIXED: Use pre-initialized Firebase instances from firebase.js
+  const auth: Auth = firebaseAuth;
+  const db: Firestore = firebaseDb;
   
   // ✅ PERFORMANCE FIX: Create stable instances to avoid dependency issues
   const localStorageManager = useCallback(() => new EnhancedLocalStorageManager(), []);
@@ -188,6 +192,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as FirestoreUserProfile);
     } catch (firestoreError) {
       // Continue with local profile even if Firestore fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Failed to save user profile to Firestore:', firestoreError);
+      }
     }
     
     return newUserProfile;
@@ -226,6 +233,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return await createUserDocument(user);
       }
     } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error loading user profile:', error);
+      }
       // Fallback to creating a basic profile
       return await createUserDocument(user);
     }
@@ -263,7 +273,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Unknown error occurred';
+      setError(errorMessage);
       throw err;
     }
   }, [currentUser, userProfile, db, localStorageManager, intentDetection]);
@@ -288,7 +299,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       storage.removeItem('userProfile');
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Logout failed';
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -311,6 +323,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         } catch (error) {
           // Silent error handling
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Failed to update last login time:', error);
+          }
         }
       } else {
         setCurrentUser(null);
@@ -324,8 +339,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ PERFORMANCE FIX: Session timeout management with proper dependencies
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    let warningTimeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | undefined;
+    let warningTimeoutId: NodeJS.Timeout | undefined;
+    let countdownInterval: NodeJS.Timeout | undefined;
     
     if (currentUser) {
       // Show warning 5 minutes before logout (25 minutes)
@@ -334,10 +350,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSessionTimeRemaining(300); // 5 minutes
         
         // Start countdown
-        const countdownInterval = setInterval(() => {
+        countdownInterval = setInterval(() => {
           setSessionTimeRemaining(prev => {
             if (prev <= 1) {
-              clearInterval(countdownInterval);
+              if (countdownInterval) clearInterval(countdownInterval);
               logout();
               return 0;
             }
@@ -354,8 +370,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(warningTimeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (warningTimeoutId) clearTimeout(warningTimeoutId);
+      if (countdownInterval) clearInterval(countdownInterval);
     };
   }, [currentUser, logout]);
 
@@ -389,7 +406,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Signup failed';
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -414,7 +432,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Login failed';
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -436,7 +455,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Password reset failed';
+      setError(errorMessage);
       throw err;
     }
   }, [auth, intentDetection]);
@@ -471,7 +491,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Email update failed';
+      setError(errorMessage);
       throw err;
     }
   }, [currentUser, updateUserProfile, intentDetection]);
@@ -496,7 +517,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Password update failed';
+      setError(errorMessage);
       throw err;
     }
   }, [currentUser, intentDetection]);
@@ -516,7 +538,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err?.message || 'Verification email failed';
+      setError(errorMessage);
       throw err;
     }
   }, [currentUser, intentDetection]);

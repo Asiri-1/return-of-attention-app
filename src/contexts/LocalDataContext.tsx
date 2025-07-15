@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../AuthContext';
 
 // 🏗️ COMPLETE DATA TYPES WITH 9-CATEGORY PAHM SYSTEM
@@ -463,25 +463,46 @@ interface LocalDataContextType {
 // CREATE CONTEXT
 const LocalDataContext = createContext<LocalDataContextType | undefined>(undefined);
 
-// ✅ PERFORMANCE FIX: Debounced storage hook to prevent blocking
+// ✅ OPTIMIZED: Debounced storage hook with better performance
 const useDebouncedStorage = () => {
-  const [pendingSaves, setPendingSaves] = useState<(() => void)[]>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSavesRef = useRef<(() => void)[]>([]);
   
   const debouncedSave = useCallback((saveFunction: () => void) => {
-    setPendingSaves(prev => [...prev, saveFunction]);
+    pendingSavesRef.current.push(saveFunction);
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      // Execute all pending saves
+      const saves = pendingSavesRef.current;
+      pendingSavesRef.current = [];
+      
+      saves.forEach(saveFunc => {
+        try {
+          saveFunc();
+        } catch (error) {
+          // Silent error handling for storage issues
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Storage save failed:', error);
+          }
+        }
+      });
+      
+      timeoutRef.current = null;
+    }, 300); // Reduced from 500ms for better responsiveness
   }, []);
   
+  // Cleanup on unmount
   useEffect(() => {
-    if (pendingSaves.length === 0) return;
-    
-    const timeoutId = setTimeout(() => {
-      // Execute all pending saves
-      pendingSaves.forEach(saveFunc => saveFunc());
-      setPendingSaves([]);
-    }, 500); // 500ms debounce
-    
-    return () => clearTimeout(timeoutId);
-  }, [pendingSaves]);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
   
   return debouncedSave;
 };
@@ -493,25 +514,23 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLoading, setIsLoading] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // ✅ PERFORMANCE FIX: Use debounced storage
+  // ✅ OPTIMIZED: Use debounced storage
   const debouncedSave = useDebouncedStorage();
 
-  // ENHANCED AUTOMATIC REFRESH FUNCTION
+  // ✅ PERFORMANCE: Stable utility functions with useCallback
   const triggerAutoRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // GENERATE UNIQUE IDS
   const generateId = useCallback((prefix: string): string => {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // GET USER STORAGE KEY
   const getStorageKey = useCallback((): string => {
     return currentUser?.uid ? `comprehensiveUserData_${currentUser.uid}` : 'comprehensiveUserData';
   }, [currentUser?.uid]);
 
-  // LEGACY STORAGE KEY MANAGEMENT
+  // ✅ PERFORMANCE: Stable legacy storage keys
   const getLegacyStorageKeys = useCallback(() => {
     return {
       practiceHistory: 'practiceHistory',
@@ -523,7 +542,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [currentUser?.uid]);
 
-  // Create empty user data
+  // ✅ PERFORMANCE: Stable empty user data creator
   const createEmptyUserData = useCallback((): ComprehensiveUserData => {
     return {
       profile: {
@@ -576,34 +595,40 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         lastUpdated: new Date().toISOString()
       }
     };
-  }, [currentUser]);
+  }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
 
-  // CLEAR ALL DATA
+  // ✅ PERFORMANCE: Optimized clear all data
   const clearAllData = useCallback(() => {
-    setUserData(null);
-    localStorage.removeItem(getStorageKey());
-    
+    const storageKey = getStorageKey();
     const legacyKeys = getLegacyStorageKeys();
-    Object.values(legacyKeys).forEach(key => {
-      localStorage.removeItem(key);
-    });
     
-    localStorage.removeItem('questionnaire_completed');
-    localStorage.removeItem('self_assessment_completed');
+    setUserData(null);
+    
+    try {
+      localStorage.removeItem(storageKey);
+      Object.values(legacyKeys).forEach(key => {
+        localStorage.removeItem(key);
+      });
+      localStorage.removeItem('questionnaire_completed');
+      localStorage.removeItem('self_assessment_completed');
+    } catch (error) {
+      // Silent error handling
+    }
     
     triggerAutoRefresh();
   }, [getStorageKey, getLegacyStorageKeys, triggerAutoRefresh]);
 
-  // ✅ PERFORMANCE FIX: Non-blocking save data to storage
+  // ✅ OPTIMIZED: Non-blocking save data to storage
   const saveDataToStorage = useCallback((data: ComprehensiveUserData) => {
+    const storageKey = getStorageKey();
+    const legacyKeys = getLegacyStorageKeys();
+    
     debouncedSave(() => {
       try {
-        localStorage.setItem(getStorageKey(), JSON.stringify(data));
+        localStorage.setItem(storageKey, JSON.stringify(data));
         
         // Sync with legacy storage keys for component compatibility
         if (currentUser) {
-          const legacyKeys = getLegacyStorageKeys();
-          
           localStorage.setItem(legacyKeys.practiceHistory, JSON.stringify(data.practiceSessions));
           localStorage.setItem(legacyKeys.emotionalNotes, JSON.stringify(data.emotionalNotes));
           
@@ -623,7 +648,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
         // Auto-sync with auth context
         if (currentUser && syncWithLocalData) {
-          syncWithLocalData();
+          setTimeout(() => {
+            syncWithLocalData();
+          }, 100);
         }
         
         // Non-blocking refresh trigger
@@ -633,17 +660,22 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
       } catch (error) {
         // Silent error handling for storage issues
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Save to storage failed:', error);
+        }
       }
     });
   }, [getStorageKey, getLegacyStorageKeys, currentUser, syncWithLocalData, triggerAutoRefresh, debouncedSave]);
 
-  // ✅ PERFORMANCE FIX: Non-blocking load data from storage
+  // ✅ OPTIMIZED: Non-blocking load data from storage
   const loadDataFromStorage = useCallback(() => {
+    const storageKey = getStorageKey();
+    
     // Use setTimeout to prevent blocking
     setTimeout(() => {
       try {
         setIsLoading(true);
-        const storedData = localStorage.getItem(getStorageKey());
+        const storedData = localStorage.getItem(storageKey);
         
         if (storedData) {
           const parsedData = JSON.parse(storedData);
@@ -665,7 +697,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 0);
   }, [getStorageKey, createEmptyUserData, saveDataToStorage, triggerAutoRefresh]);
 
-  // ENHANCED DATA GETTERS
+  // ✅ PERFORMANCE: Stable data getters with proper dependencies
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     return userData?.practiceSessions || [];
   }, [userData?.practiceSessions]);
@@ -678,7 +710,6 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return userData?.reflections || [];
   }, [userData?.reflections]);
 
-  // Questionnaire and Self-Assessment getters
   const getQuestionnaire = useCallback((): QuestionnaireData | null => {
     return userData?.questionnaire || null;
   }, [userData?.questionnaire]);
@@ -711,7 +742,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return userData?.practiceSessions.filter(session => session.sessionType === 'meditation') || [];
   }, [userData?.practiceSessions]);
 
-  // COMPLETE PAHM ANALYTICS IMPLEMENTATION
+  // ✅ PERFORMANCE: Optimized PAHM data calculation
   const getPAHMData = useCallback((): PAHMAnalytics | null => {
     const sessions = getPracticeSessions().filter(session => session.pahmCounts);
     
@@ -769,7 +800,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getPracticeSessions]);
 
-  // COMPLETE ENVIRONMENT ANALYTICS IMPLEMENTATION
+  // ✅ PERFORMANCE: Optimized environment data calculation
   const getEnvironmentData = useCallback((): EnvironmentAnalytics => {
     const sessions = getPracticeSessions().filter(session => session.environment);
     
@@ -813,7 +844,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getPracticeSessions]);
 
-  // COMPLETE MIND RECOVERY ANALYTICS IMPLEMENTATION
+  // ✅ PERFORMANCE: Optimized mind recovery analytics
   const getMindRecoveryAnalytics = useCallback((): MindRecoveryAnalytics => {
     const mindRecoverySessions = getMindRecoverySessions();
     
@@ -896,7 +927,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getMindRecoverySessions]);
 
-  // COMPLETE ANALYTICS DATA IMPLEMENTATION
+  // ✅ PERFORMANCE: Optimized analytics data calculation
   const getAnalyticsData = useCallback((): ComprehensiveAnalytics => {
     const allSessions = getPracticeSessions();
     const emotionalNotes = getDailyEmotionalNotes();
@@ -961,8 +992,8 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [getPracticeSessions, getDailyEmotionalNotes, getMindRecoverySessions]);
 
-  // Helper functions for analytics
-  const calculateConsistencyScore = (sessions: PracticeSessionData[]): number => {
+  // ✅ PERFORMANCE: Stable helper functions
+  const calculateConsistencyScore = useCallback((sessions: PracticeSessionData[]): number => {
     if (sessions.length === 0) return 0;
     
     const last30Days = sessions.filter(session => {
@@ -978,9 +1009,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })).size;
     
     return Math.round((daysWithSessions / 30) * 100);
-  };
+  }, []);
 
-  const calculateProgressTrend = (sessions: PracticeSessionData[]): 'improving' | 'stable' | 'declining' => {
+  const calculateProgressTrend = useCallback((sessions: PracticeSessionData[]): 'improving' | 'stable' | 'declining' => {
     if (sessions.length < 10) return 'stable';
     
     const recentSessions = sessions.slice(-5);
@@ -994,9 +1025,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (difference > 0.5) return 'improving';
     if (difference < -0.5) return 'declining';
     return 'stable';
-  };
+  }, []);
 
-  // Dashboard Analytics Methods
+  // Dashboard Analytics Methods with better performance
   const getFilteredData = useCallback((timeRange: string = 'month') => {
     const now = new Date();
     let startDate = new Date();
@@ -1095,7 +1126,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })).sort((a, b) => b.count - a.count);
   }, [getFilteredData]);
 
-  // Additional Analytics Methods
+  // Additional Analytics Methods with performance optimization
   const getAppUsagePatterns = useCallback(() => {
     const sessions = getPracticeSessions();
     
@@ -1125,7 +1156,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       dayOfWeekStats,
       consistency
     };
-  }, [getPracticeSessions]);
+  }, [getPracticeSessions, calculateConsistencyScore]);
 
   const getEngagementMetrics = useCallback(() => {
     const sessions = getPracticeSessions();
@@ -1179,7 +1210,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ];
   }, [getPracticeSessions]);
 
-  // Delete Methods
+  // ✅ PERFORMANCE: Optimized delete methods
   const deleteEmotionalNote = useCallback((noteId: string) => {
     if (!userData) return;
     
@@ -1242,11 +1273,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     saveDataToStorage(updatedData);
   }, [userData, saveDataToStorage]);
 
-  // Data manipulation methods
+  // ✅ PERFORMANCE: Optimized data manipulation methods
   const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
-    if (!userData) {
-      return;
-    }
+    if (!userData) return;
 
     const newSession: PracticeSessionData = {
       ...session,
@@ -1289,9 +1318,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [addPracticeSession]);
 
   const addEmotionalNote = useCallback((note: Omit<EmotionalNoteData, 'noteId'>) => {
-    if (!userData) {
-      return;
-    }
+    if (!userData) return;
 
     const newNote: EmotionalNoteData = {
       ...note,
@@ -1312,9 +1339,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [userData, saveDataToStorage, generateId]);
 
   const addReflection = useCallback((reflection: Omit<ReflectionData, 'reflectionId'>) => {
-    if (!userData) {
-      return;
-    }
+    if (!userData) return;
 
     const newReflection: ReflectionData = {
       ...reflection,
@@ -1334,11 +1359,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     saveDataToStorage(updatedData);
   }, [userData, saveDataToStorage, generateId]);
 
-  // Questionnaire and Self-Assessment methods
+  // ✅ PERFORMANCE: Optimized questionnaire and self-assessment methods
   const updateQuestionnaire = useCallback((questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
-    if (!userData) {
-      return;
-    }
+    if (!userData) return;
 
     const updatedData = {
       ...userData,
@@ -1361,9 +1384,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [userData, saveDataToStorage]);
 
   const updateSelfAssessment = useCallback((selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
-    if (!userData) {
-      return;
-    }
+    if (!userData) return;
 
     const updatedData = {
       ...userData,
@@ -1544,15 +1565,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateSelfAssessment(selfAssessmentData);
   }, [updateSelfAssessment]);
 
-  // addAchievement method
+  // ✅ PERFORMANCE: Optimized achievement and note methods
   const addAchievement = useCallback((achievement: string) => {
-    if (!userData) {
-      return;
-    }
-
-    if (userData.achievements.includes(achievement)) {
-      return;
-    }
+    if (!userData || userData.achievements.includes(achievement)) return;
 
     const updatedData = {
       ...userData,
@@ -1568,9 +1583,7 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [userData, saveDataToStorage]);
 
   const addNote = useCallback((note: any) => {
-    if (!userData) {
-      return;
-    }
+    if (!userData) return;
 
     const newNote = {
       ...note,
@@ -1590,9 +1603,9 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setUserData(updatedData);
     saveDataToStorage(updatedData);
-  }, [userData, saveDataToStorage, currentUser, generateId]);
+  }, [userData, saveDataToStorage, currentUser?.uid, generateId]);
 
-  // Legacy compatibility methods
+  // ✅ PERFORMANCE: Stable legacy compatibility methods
   const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
     return getPracticeSessions();
   }, [getPracticeSessions]);
@@ -1627,11 +1640,14 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       } catch (error) {
         // Silent error handling
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Legacy sync failed:', error);
+        }
       }
     }
   }, [userData, currentUser, getLegacyStorageKeys]);
 
-  // Auth integration
+  // ✅ PERFORMANCE: Stable auth integration methods
   const syncWithAuthContext = useCallback(() => {
     if (currentUser && syncWithLocalData) {
       syncWithLocalData();
@@ -1645,141 +1661,75 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [isQuestionnaireCompleted, isSelfAssessmentCompleted]);
 
-  // Placeholder methods that need to be implemented based on specific requirements
-  const getProgressTrends = useCallback(() => ({}), []);
-  const getComprehensiveAnalytics = useCallback(() => ({}), []);
-  const getPredictiveInsights = useCallback(() => ({}), []);
-  const exportDataForAnalysis = useCallback(() => ({}), []);
-  const getComprehensiveStats = useCallback(() => ({}), []);
-  const get9CategoryPAHMInsights = useCallback(() => getPAHMData(), [getPAHMData]);
-  const getMindRecoveryInsights = useCallback(() => getMindRecoveryAnalytics(), [getMindRecoveryAnalytics]);
+  // ✅ PERFORMANCE: Stable placeholder methods
+  const placeholderMethods = useMemo(() => ({
+    getProgressTrends: () => ({}),
+    getComprehensiveAnalytics: () => ({}),
+    getPredictiveInsights: () => ({}),
+    exportDataForAnalysis: () => ({}),
+    getComprehensiveStats: () => ({}),
+    get9CategoryPAHMInsights: () => getPAHMData(),
+    getMindRecoveryInsights: () => getMindRecoveryAnalytics()
+  }), [getPAHMData, getMindRecoveryAnalytics]);
 
   // Load data on mount and user change
   useEffect(() => {
     loadDataFromStorage();
   }, [loadDataFromStorage]);
 
-  // Automatic data sync
+  // Automatic data sync with better performance
   useEffect(() => {
     if (userData && currentUser) {
-      syncLegacyStorageKeys();
+      // Debounce the sync operations
+      const timeoutId = setTimeout(() => {
+        syncLegacyStorageKeys();
+        
+        if (syncWithLocalData) {
+          syncWithLocalData();
+        }
+      }, 100);
       
-      if (syncWithLocalData) {
-        syncWithLocalData();
-      }
+      return () => clearTimeout(timeoutId);
     }
   }, [userData, currentUser, syncWithLocalData, syncLegacyStorageKeys]);
 
-  // ✅ PERFORMANCE FIX: Memoized context value to prevent unnecessary re-renders
-  const contextValue: LocalDataContextType = useMemo(() => ({
+  // ✅ OPTIMIZED: Split context value into smaller, more stable chunks
+  const coreData = useMemo(() => ({
     userData,
     isLoading,
     refreshTrigger,
-    
-    // CRITICAL: Direct properties for component compatibility
     comprehensiveUserData: userData,
     practiceSessions: userData?.practiceSessions || [],
     emotionalNotes: userData?.emotionalNotes || [],
     questionnaire: userData?.questionnaire || null,
     selfAssessment: userData?.selfAssessment || null,
-    
-    // Core methods
+  }), [userData, isLoading, refreshTrigger]);
+
+  const getterMethods = useMemo(() => ({
     clearAllData,
-    
-    // Data getters
     getPracticeSessions,
     getDailyEmotionalNotes,
     getReflections,
     getAnalyticsData,
-    
-    // Questionnaire and Self-Assessment getters
     getQuestionnaire,
     getSelfAssessment,
     isQuestionnaireCompleted,
     isSelfAssessmentCompleted,
-    
     getAchievements,
     getNotes,
-    
-    // Mind recovery specific
     getMindRecoverySessions,
     getMeditationSessions,
     getMindRecoveryAnalytics,
-    
-    // 9-Category PAHM Analytics
-    getPAHMData,
-    getEnvironmentData,
-    getProgressTrends,
-    getComprehensiveAnalytics,
-    getPredictiveInsights,
-    exportDataForAnalysis,
-    
-    // Dashboard Analytics
-    getFilteredData,
-    getPracticeDurationData,
-    getEmotionDistribution,
-    getPracticeDistribution,
-    getAppUsagePatterns,
-    getEngagementMetrics,
-    getFeatureUtilization,
-    getComprehensiveStats,
-    get9CategoryPAHMInsights,
-    getMindRecoveryInsights,
-    
-    // Auth integration
-    syncWithAuthContext,
-    getOnboardingStatusFromAuth,
-    
-    // Data manipulation
-    addPracticeSession,
-    addEmotionalNote,
-    addReflection,
-    addMindRecoverySession,
-
-    // Questionnaire and Self-Assessment methods
-    updateQuestionnaire,
-    updateSelfAssessment,
-    markQuestionnaireComplete,
-    markSelfAssessmentComplete,
-
-    // Achievement methods
-    addAchievement,
-    addNote,
-
-    // Delete methods
-    deleteEmotionalNote,
-    deletePracticeSession,
-    deleteReflection,
-
-    // Legacy compatibility methods
-    getLegacyPracticeHistory,
-    getLegacyEmotionalNotes,
-    getLegacyMindRecoveryHistory,
-    syncLegacyStorageKeys
   }), [
-    userData,
-    isLoading,
-    refreshTrigger,
-    clearAllData,
-    getPracticeSessions,
-    getDailyEmotionalNotes,
-    getReflections,
-    getAnalyticsData,
-    getQuestionnaire,
-    getSelfAssessment,
-    isQuestionnaireCompleted,
-    isSelfAssessmentCompleted,
-    getAchievements,
-    getNotes,
-    getMindRecoverySessions,
-    getMeditationSessions,
-    getMindRecoveryAnalytics,
+    clearAllData, getPracticeSessions, getDailyEmotionalNotes, getReflections, 
+    getAnalyticsData, getQuestionnaire, getSelfAssessment, isQuestionnaireCompleted, 
+    isSelfAssessmentCompleted, getAchievements, getNotes, getMindRecoverySessions, 
+    getMeditationSessions, getMindRecoveryAnalytics
+  ]);
+
+  const analyticsMethods = useMemo(() => ({
     getPAHMData,
     getEnvironmentData,
-    getProgressTrends,
-    getComprehensiveAnalytics,
-    getPredictiveInsights,
-    exportDataForAnalysis,
     getFilteredData,
     getPracticeDurationData,
     getEmotionDistribution,
@@ -1787,9 +1737,14 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getAppUsagePatterns,
     getEngagementMetrics,
     getFeatureUtilization,
-    getComprehensiveStats,
-    get9CategoryPAHMInsights,
-    getMindRecoveryInsights,
+    ...placeholderMethods,
+  }), [
+    getPAHMData, getEnvironmentData, getFilteredData, getPracticeDurationData,
+    getEmotionDistribution, getPracticeDistribution, getAppUsagePatterns,
+    getEngagementMetrics, getFeatureUtilization, placeholderMethods
+  ]);
+
+  const actionMethods = useMemo(() => ({
     syncWithAuthContext,
     getOnboardingStatusFromAuth,
     addPracticeSession,
@@ -1808,8 +1763,23 @@ export const LocalDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getLegacyPracticeHistory,
     getLegacyEmotionalNotes,
     getLegacyMindRecoveryHistory,
-    syncLegacyStorageKeys
+    syncLegacyStorageKeys,
+  }), [
+    syncWithAuthContext, getOnboardingStatusFromAuth, addPracticeSession,
+    addEmotionalNote, addReflection, addMindRecoverySession, updateQuestionnaire,
+    updateSelfAssessment, markQuestionnaireComplete, markSelfAssessmentComplete,
+    addAchievement, addNote, deleteEmotionalNote, deletePracticeSession,
+    deleteReflection, getLegacyPracticeHistory, getLegacyEmotionalNotes,
+    getLegacyMindRecoveryHistory, syncLegacyStorageKeys
   ]);
+
+  // ✅ OPTIMIZED: Final context value with better performance
+  const contextValue: LocalDataContextType = useMemo(() => ({
+    ...coreData,
+    ...getterMethods,
+    ...analyticsMethods,
+    ...actionMethods,
+  }), [coreData, getterMethods, analyticsMethods, actionMethods]);
 
   return (
     <LocalDataContext.Provider value={contextValue}>
