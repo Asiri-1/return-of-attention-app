@@ -17,7 +17,7 @@ function AdminPanel() {
   const [debugMode, setDebugMode] = useState(false);
 
   const { isAdmin, isLoading: adminLoading } = useAdmin();
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth(); // Added logout from useAuth
   const { getAllUsers, isLocalMode } = useLocalData();
 
   // Admin email for fallback checking
@@ -48,6 +48,31 @@ function AdminPanel() {
     console.log('❌ AdminPanel: Admin status not confirmed');
     return false;
   }, [isAdmin, adminLoading, currentUser?.email]);
+
+  // Handle logout functionality
+  const handleLogout = async () => {
+    try {
+      console.log('🚪 Admin logout initiated');
+      
+      // Try multiple logout methods
+      if (logout) {
+        await logout();
+      } else if (currentUser?.signOut) {
+        await currentUser.signOut();
+      } else {
+        // Fallback to Firebase auth directly
+        const { getAuth, signOut } = await import('firebase/auth');
+        const auth = getAuth();
+        await signOut(auth);
+      }
+      
+      setIsExpanded(false); // Close admin panel
+      console.log('✅ Admin logged out successfully');
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      alert('Logout failed. Please try again.');
+    }
+  };
 
   // Load admin data
   useEffect(() => {
@@ -227,7 +252,7 @@ function AdminPanel() {
           border: '1px solid #e2e8f0',
           overflow: 'hidden'
         }}>
-          {/* Header */}
+          {/* Header with Logout Button */}
           <div style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
@@ -240,6 +265,31 @@ function AdminPanel() {
               🛠️ Admin Dashboard
             </h3>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.9)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'background 0.2s'
+                }}
+                title="Logout Admin"
+                onMouseOver={(e) => e.target.style.background = 'rgba(220, 38, 38, 0.9)'}
+                onMouseOut={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.9)'}
+              >
+                🚪 Logout
+              </button>
+              
+              {/* Debug Button */}
               <button
                 onClick={() => setDebugMode(!debugMode)}
                 style={{
@@ -254,6 +304,8 @@ function AdminPanel() {
               >
                 {debugMode ? 'Debug ON' : 'Debug'}
               </button>
+              
+              {/* Close Button */}
               <button
                 onClick={() => setIsExpanded(false)}
                 style={{

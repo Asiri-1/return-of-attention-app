@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainNavigation.css';
 import { useAuth } from './AuthContext';
@@ -19,26 +19,30 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, logout } = useAuth();
+  
   const [showQuickActions, setShowQuickActions] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Determine active tab based on current path
-  const getActiveTab = (): string => {
+  // ✅ PERFORMANCE: Memoized active tab calculation to prevent recalculation on every render
+  const activeTab = useMemo((): string => {
     const path = location.pathname;
     if (path.includes('/mind-recovery')) return 'mind-recovery';
     if (path.includes('/analytics')) return 'analytics';
     if (path.includes('/notes')) return 'notes';
     if (path.includes('/learn')) return 'learn';
     if (path.includes('/profile')) return 'profile';
-    if (path.includes('/chatwithguru')) return 'chatwithguru'; // Added for Chat with Guru
+    if (path.includes('/chatwithguru')) return 'chatwithguru';
     return 'home'; // Default to home
-  };
+  }, [location.pathname]);
 
-  const activeTab = getActiveTab();
+  // ✅ PERFORMANCE: Memoized profile initial to prevent string operations on every render
+  const profileInitial = useMemo(() => {
+    return currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'D';
+  }, [currentUser?.displayName]);
 
-  // Handle tab clicks
-  const handleTabClick = (tab: string) => {
+  // ✅ PERFORMANCE: Stable event handlers with useCallback to prevent unnecessary re-renders
+  const handleTabClick = useCallback((tab: string) => {
     switch (tab) {
       case 'practice':
         onPracticeClick();
@@ -52,59 +56,83 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
       default:
         navigate('/home');
     }
-  };
+  }, [onPracticeClick, onProgressClick, onLearnClick, navigate]);
 
-  // Handle navigation with mobile menu close
-  const handleNavigation = (path: string) => {
+  const handleNavigation = useCallback((path: string) => {
     navigate(path);
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
-  };
+  }, [navigate]);
 
-  // Toggle quick actions menu
-  const toggleQuickActions = () => {
-    setShowQuickActions(!showQuickActions);
-  };
+  const handleHomeNavigation = useCallback(() => {
+    navigate('/home');
+  }, [navigate]);
 
-  // Handle quick start practice
-  const handleQuickStart = () => {
+  const handleMindRecoveryNavigation = useCallback(() => {
+    navigate('/mind-recovery');
+  }, [navigate]);
+
+  const handleNotesNavigation = useCallback(() => {
+    navigate('/notes');
+  }, [navigate]);
+
+  const handleAnalyticsNavigation = useCallback(() => {
+    navigate('/analytics');
+  }, [navigate]);
+
+  const handleChatNavigation = useCallback(() => {
+    navigate('/chatwithguru');
+  }, [navigate]);
+
+  const handleLearnClick = useCallback(() => {
+    handleTabClick('learn');
+  }, [handleTabClick]);
+
+  const toggleQuickActions = useCallback(() => {
+    setShowQuickActions(prev => !prev);
+  }, []);
+
+  const handleQuickStart = useCallback(() => {
     setShowQuickActions(false);
     onPracticeClick();
-  };
+  }, [onPracticeClick]);
 
-  // Handle quick access to mind recovery
-  const handleMindRecovery = () => {
+  const handleMindRecovery = useCallback(() => {
     setShowQuickActions(false);
     navigate('/mind-recovery');
-  };
+  }, [navigate]);
 
-  // Handle profile dropdown toggle
-  const toggleProfileDropdown = () => {
-    setShowProfileDropdown(!showProfileDropdown);
-  };
+  const toggleProfileDropdown = useCallback(() => {
+    setShowProfileDropdown(prev => !prev);
+  }, []);
 
-  // Toggle mobile menu
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
+  const toggleMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(prev => !prev);
     setShowProfileDropdown(false); // Close profile dropdown when opening mobile menu
-  };
+  }, []);
 
-  // Handle logout
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
     navigate('/'); // Redirect to sign-in or home after logout
-  };
+  }, [logout, navigate]);
 
-  // Handle My Details click
-  const handleMyDetailsClick = () => {
-    console.log('My Details clicked');
+  const handleMyDetailsClick = useCallback(() => {
+    // ✅ CODE QUALITY: Removed debug console.log statements
     setShowProfileDropdown(false); // Close dropdown
     setIsMobileMenuOpen(false); // Close mobile menu
-    console.log('Navigating to /profile');
     navigate('/profile'); // Navigate to profile page
-  };
+  }, [navigate]);
+
+  // ✅ PERFORMANCE: Memoized mobile navigation handlers to prevent recreation
+  const handleMobileHomeNav = useCallback(() => handleNavigation('/home'), [handleNavigation]);
+  const handleMobileMindRecoveryNav = useCallback(() => handleNavigation('/mind-recovery'), [handleNavigation]);
+  const handleMobileNotesNav = useCallback(() => handleNavigation('/notes'), [handleNavigation]);
+  const handleMobileAnalyticsNav = useCallback(() => handleNavigation('/analytics'), [handleNavigation]);
+  const handleMobileLearnNav = useCallback(() => handleNavigation('/learn'), [handleNavigation]);
+  const handleMobileChatNav = useCallback(() => handleNavigation('/chatwithguru'), [handleNavigation]);
+  const handleMobileProfileNav = useCallback(() => handleNavigation('/profile'), [handleNavigation]);
 
   return (
     <div className="main-navigation">
@@ -124,7 +152,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
         <div className="desktop-nav-tabs">
           <div 
             className={`nav-tab ${activeTab === 'home' ? 'active' : ''}`}
-            onClick={() => navigate('/home')}
+            onClick={handleHomeNavigation}
           >
             <div className="tab-icon">🏠</div>
             <div className="tab-label">Home</div>
@@ -132,7 +160,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`nav-tab ${activeTab === 'mind-recovery' ? 'active' : ''}`}
-            onClick={() => navigate('/mind-recovery')}
+            onClick={handleMindRecoveryNavigation}
           >
             <div className="tab-icon">🧠</div>
             <div className="tab-label">Mind Recovery</div>
@@ -140,7 +168,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`nav-tab ${activeTab === 'notes' ? 'active' : ''}`}
-            onClick={() => navigate('/notes')}
+            onClick={handleNotesNavigation}
           >
             <div className="tab-icon">📝</div>
             <div className="tab-label">Daily Notes</div>
@@ -148,7 +176,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => navigate('/analytics')}
+            onClick={handleAnalyticsNavigation}
           >
             <div className="tab-icon">📊</div>
             <div className="tab-label">My Analytics</div>
@@ -156,16 +184,16 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`nav-tab ${activeTab === 'learn' ? 'active' : ''}`}
-            onClick={() => handleTabClick('learn')}
+            onClick={handleLearnClick}
           >
             <div className="tab-icon">📚</div>
             <div className="tab-label">Learn</div>
           </div>
           
-          {/* New Chat with Guru tab */}
+          {/* Chat with Guru tab */}
           <div 
             className={`nav-tab ${activeTab === 'chatwithguru' ? 'active' : ''}`}
-            onClick={() => navigate('/chatwithguru')}
+            onClick={handleChatNavigation}
           >
             <div className="tab-icon">💬</div>
             <div className="tab-label">Wisdom Guide</div>
@@ -179,7 +207,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
             onClick={toggleProfileDropdown}
           >
             <div className="profile-icon">
-              {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'D'}
+              {profileInitial}
             </div>
           </div>
           {showProfileDropdown && (
@@ -200,7 +228,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
         <div className="mobile-nav-menu">
           <div 
             className={`mobile-nav-item ${activeTab === 'home' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/home')}
+            onClick={handleMobileHomeNav}
           >
             <div className="mobile-nav-icon">🏠</div>
             <div className="mobile-nav-label">Home</div>
@@ -208,7 +236,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`mobile-nav-item ${activeTab === 'mind-recovery' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/mind-recovery')}
+            onClick={handleMobileMindRecoveryNav}
           >
             <div className="mobile-nav-icon">🧠</div>
             <div className="mobile-nav-label">Mind Recovery</div>
@@ -216,7 +244,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`mobile-nav-item ${activeTab === 'notes' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/notes')}
+            onClick={handleMobileNotesNav}
           >
             <div className="mobile-nav-icon">📝</div>
             <div className="mobile-nav-label">Daily Notes</div>
@@ -224,7 +252,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`mobile-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/analytics')}
+            onClick={handleMobileAnalyticsNav}
           >
             <div className="mobile-nav-icon">📊</div>
             <div className="mobile-nav-label">My Analytics</div>
@@ -232,16 +260,16 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`mobile-nav-item ${activeTab === 'learn' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/learn')}
+            onClick={handleMobileLearnNav}
           >
             <div className="mobile-nav-icon">📚</div>
             <div className="mobile-nav-label">Learn</div>
           </div>
           
-          {/* New Chat with Guru mobile menu item */}
+          {/* Chat with Guru mobile menu item */}
           <div 
             className={`mobile-nav-item ${activeTab === 'chatwithguru' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/chatwithguru')}
+            onClick={handleMobileChatNav}
           >
             <div className="mobile-nav-icon">💬</div>
             <div className="mobile-nav-label">Wisdom Guide</div>
@@ -249,7 +277,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
           
           <div 
             className={`mobile-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile')}
+            onClick={handleMobileProfileNav}
           >
             <div className="mobile-nav-icon">👤</div>
             <div className="mobile-nav-label">My Details</div>
