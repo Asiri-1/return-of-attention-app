@@ -1,17 +1,23 @@
+/* iPhone-Optimized Introduction.css */
+
 .introduction-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh; /* ✅ FIXED: Dynamic viewport for iOS Safari */
   width: 100%;
   background-color: #f8f9fa;
-  padding: 20px;
+  padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 20px); /* ✅ ADDED: Safe area support */
   box-sizing: border-box;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* ✅ ADDED: Smooth iOS scrolling */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; /* ✅ ADDED: Native iOS fonts */
 }
 
 .logo-container {
   display: flex;
   justify-content: center;
-  margin-bottom: 30px;
+  margin-bottom: clamp(20px, 5vw, 30px); /* ✅ FIXED: Responsive spacing */
 }
 
 .introduction-content {
@@ -21,105 +27,292 @@
   justify-content: space-between;
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px;
+  padding: clamp(15px, 4vw, 20px); /* ✅ FIXED: Responsive padding */
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .slide {
   text-align: center;
-  padding: 20px 0;
+  padding: clamp(15px, 4vw, 20px) 0; /* ✅ FIXED: Responsive padding */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .slide-image {
-  font-size: 72px;
-  margin-bottom: 20px;
+  font-size: clamp(50px, 12vw, 72px); /* ✅ FIXED: Responsive emoji size */
+  margin-bottom: clamp(16px, 4vw, 20px); /* ✅ FIXED: Responsive spacing */
+  line-height: 1;
 }
 
 .slide h1 {
-  font-size: 24px;
-  margin-bottom: 16px;
+  font-size: clamp(20px, 5vw, 24px); /* ✅ FIXED: Responsive title */
+  margin-bottom: clamp(12px, 3vw, 16px); /* ✅ FIXED: Responsive spacing */
   color: #2c3e50;
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .slide p {
-  font-size: 16px;
+  font-size: clamp(14px, 3.5vw, 16px); /* ✅ FIXED: Responsive text */
   line-height: 1.6;
   color: #5d6778;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .slide-indicators {
   display: flex;
   justify-content: center;
-  margin: 30px 0;
+  margin: clamp(20px, 5vw, 30px) 0; /* ✅ FIXED: Responsive spacing */
+  gap: 8px; /* ✅ ADDED: Better spacing */
 }
 
 .indicator {
-  width: 10px;
-  height: 10px;
+  width: 12px; /* ✅ FIXED: Larger touch target */
+  height: 12px; /* ✅ FIXED: Larger touch target */
   border-radius: 50%;
   background-color: #ddd;
-  margin: 0 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease; /* ✅ IMPROVED: Better transition */
+  -webkit-tap-highlight-color: rgba(74, 144, 226, 0.2); /* ✅ ADDED: Touch feedback */
+  touch-action: manipulation; /* ✅ ADDED: Better touch handling */
+  padding: 4px; /* ✅ ADDED: Larger tap area */
+  margin: 0 2px; /* ✅ ADDED: Better spacing */
 }
 
 .indicator.active {
   background-color: #4a90e2;
+  transform: scale(1.2); /* ✅ ADDED: Visual feedback */
+  box-shadow: 0 0 10px rgba(74, 144, 226, 0.3); /* ✅ ADDED: Glow effect */
+}
+
+.indicator:hover:not(.active) {
+  background-color: #bbb;
+  transform: scale(1.1); /* ✅ ADDED: Hover feedback */
 }
 
 .navigation-buttons {
   display: flex;
   justify-content: space-between;
-  margin-top: 20px;
+  align-items: center;
+  margin-top: clamp(15px, 4vw, 20px); /* ✅ FIXED: Responsive spacing */
+  gap: 12px; /* ✅ ADDED: Better spacing */
+  flex-wrap: wrap; /* ✅ ADDED: Wrap on very small screens */
 }
 
 .nav-button {
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-size: 16px;
+  padding: 16px 24px; /* ✅ FIXED: Larger touch target (48px+ minimum) */
+  border-radius: 8px; /* ✅ IMPROVED: Better border radius */
+  font-size: clamp(14px, 3.5vw, 16px); /* ✅ FIXED: Responsive font */
+  font-weight: 600; /* ✅ ADDED: Better readability */
   cursor: pointer;
   transition: all 0.3s ease;
+  min-height: 48px; /* ✅ ADDED: Minimum touch target */
+  min-width: 80px; /* ✅ ADDED: Minimum button width */
+  -webkit-tap-highlight-color: rgba(74, 144, 226, 0.1); /* ✅ ADDED: Touch feedback */
+  touch-action: manipulation; /* ✅ ADDED: Better touch handling */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-button.back {
   background-color: transparent;
   color: #5d6778;
-  border: 1px solid #ddd;
+  border: 2px solid #ddd; /* ✅ IMPROVED: Better border */
+  flex: 0 0 auto;
+}
+
+.nav-button.back:hover:not(:disabled) {
+  background-color: #f8f9fa;
+  border-color: #bbb;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* ✅ ADDED: Shadow */
 }
 
 .nav-button.skip {
   background-color: transparent;
   color: #5d6778;
-  border: none;
+  border: 2px solid transparent; /* ✅ IMPROVED: Better border */
+  flex: 0 0 auto;
+}
+
+.nav-button.skip:hover {
+  background-color: #f8f9fa;
+  border-color: #ddd;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
 }
 
 .nav-button.next {
   background-color: #4a90e2;
   color: white;
-  border: none;
+  border: 2px solid #4a90e2; /* ✅ IMPROVED: Better border */
+  flex: 1;
+  min-width: 120px; /* ✅ ADDED: Minimum width for primary button */
 }
 
-.nav-button:hover {
-  opacity: 0.9;
+.nav-button.next:hover {
+  background-color: #357abd;
+  border-color: #357abd;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
+  box-shadow: 0 6px 20px rgba(74, 144, 226, 0.3); /* ✅ ADDED: Glow effect */
 }
 
-@media (max-width: 768px) {
+.nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important; /* ✅ ADDED: Disabled state */
+}
+
+/* ✅ ADDED: iPhone-specific optimizations */
+@media screen and (max-width: 430px) {
+  .introduction-container {
+    padding: env(safe-area-inset-top, 15px) env(safe-area-inset-right, 15px) env(safe-area-inset-bottom, 15px) env(safe-area-inset-left, 15px);
+  }
+  
   .introduction-content {
     padding: 15px;
+    border-radius: 8px; /* Smaller radius on small screens */
   }
   
-  .slide-image {
-    font-size: 60px;
+  .slide {
+    padding: 15px 0;
   }
   
-  .slide h1 {
-    font-size: 20px;
+  .navigation-buttons {
+    gap: 10px;
+    margin-top: 15px;
   }
   
   .nav-button {
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: 14px 20px;
+    min-width: 70px;
   }
+}
+
+/* ✅ ADDED: iPhone landscape support */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .introduction-container {
+    padding: env(safe-area-inset-top, 10px) env(safe-area-inset-right, 20px) env(safe-area-inset-bottom, 10px) env(safe-area-inset-left, 20px);
+  }
+  
+  .introduction-content {
+    padding: 10px 15px;
+  }
+  
+  .slide {
+    padding: 10px 0;
+  }
+  
+  .slide-image {
+    font-size: clamp(40px, 8vw, 50px);
+    margin-bottom: 10px;
+  }
+  
+  .slide h1 {
+    font-size: clamp(18px, 4vw, 20px);
+    margin-bottom: 8px;
+  }
+  
+  .slide p {
+    font-size: clamp(13px, 3vw, 14px);
+  }
+  
+  .slide-indicators {
+    margin: 15px 0;
+  }
+  
+  .navigation-buttons {
+    margin-top: 10px;
+  }
+  
+  .nav-button {
+    padding: 12px 18px;
+    min-height: 42px;
+  }
+}
+
+/* ✅ ADDED: Dark mode support (iOS 13+) */
+@media (prefers-color-scheme: dark) {
+  .introduction-container {
+    background-color: #1a1a1a;
+  }
+  
+  .introduction-content {
+    background-color: #2d2d2d;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .slide h1 {
+    color: #ffffff;
+  }
+  
+  .slide p {
+    color: #cccccc;
+  }
+  
+  .indicator {
+    background-color: #555;
+  }
+  
+  .indicator.active {
+    background-color: #4a90e2;
+  }
+  
+  .nav-button.back {
+    color: #cccccc;
+    border-color: #555;
+  }
+  
+  .nav-button.skip {
+    color: #cccccc;
+  }
+  
+  .nav-button.back:hover {
+    background-color: #3a3a3a;
+    border-color: #777;
+  }
+  
+  .nav-button.skip:hover {
+    background-color: #3a3a3a;
+    border-color: #555;
+  }
+}
+
+/* ✅ ADDED: Reduced motion support (accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  .indicator,
+  .nav-button {
+    transition: none;
+  }
+  
+  .indicator:hover,
+  .nav-button:hover {
+    transform: none;
+  }
+}
+
+/* ✅ ADDED: Better touch feedback */
+.nav-button:active {
+  transform: scale(0.98);
+}
+
+.indicator:active {
+  transform: scale(0.9);
+}
+
+/* ✅ ADDED: Prevent text selection on navigation */
+.slide-indicators,
+.navigation-buttons {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }

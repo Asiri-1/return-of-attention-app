@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './StageLevelIntroduction.css';
 
@@ -15,23 +15,55 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
   const stageNumber = 6; // Hardcoded to stage 6
   const navigate = useNavigate();
   
-  // Mark this stage's introduction as completed
-  const markIntroCompleted = () => {
+  // ✅ ENHANCED: iOS Safari viewport fix
+  useEffect(() => {
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
+  
+  // ✅ ENHANCED: Memoized function to mark intro completed
+  const markIntroCompleted = useCallback(() => {
     const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
     if (!completedIntros.includes(stageNumber)) {
       completedIntros.push(stageNumber);
       localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
     }
-  };
+  }, [stageNumber]);
   
-  // Handle skip button click
-  const handleSkip = () => {
+  // ✅ ENHANCED: Touch feedback for iPhone users
+  const handleTouchStart = useCallback(() => {
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  }, []);
+
+  // ✅ ENHANCED: Keyboard navigation support
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, action: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  }, []);
+  
+  // ✅ ENHANCED: Memoized skip handler
+  const handleSkip = useCallback(() => {
     markIntroCompleted();
     onComplete();
-  };
+  }, [markIntroCompleted, onComplete]);
   
-  // Handle refresh PAHM button click
-  const handleRefreshPAHM = () => {
+  // ✅ ENHANCED: Optimized refresh PAHM handler
+  const handleRefreshPAHM = useCallback(() => {
     markIntroCompleted();
     // Use React Router navigation instead of custom event
     navigate('/learning/pahm', {
@@ -40,11 +72,13 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
         fromStage: true
       }
     });
-  };
+  }, [markIntroCompleted, navigate]);
   
-  const stageTitle = "PAHM Illuminator: Continuous Awareness";
+  // ✅ ENHANCED: Memoized stage title
+  const stageTitle = useMemo(() => "PAHM Illuminator: Continuous Awareness", []);
   
-  const slides = [
+  // ✅ ENHANCED: Memoized slides data
+  const slides = useMemo(() => [
     {
       title: "Welcome to Stage Six",
       content: "As a PAHM Illuminator, you'll develop continuous awareness - the ability to maintain presence throughout your daily activities. This is the most advanced stage of practice."
@@ -61,9 +95,10 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
       title: "Living Presence",
       content: "This stage represents the integration of all previous stages, allowing presence to become your natural state rather than something you practice."
     }
-  ];
+  ], []);
   
-  const nextSlide = () => {
+  // ✅ ENHANCED: Memoized navigation functions
+  const nextSlide = useCallback(() => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
@@ -73,37 +108,64 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
       // Complete the introduction and move to the next step
       onComplete();
     }
-  };
+  }, [currentSlide, slides.length, markIntroCompleted, onComplete]);
   
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     if (currentSlide > 0) {
       setCurrentSlide(currentSlide - 1);
     } else {
       onBack();
     }
-  };
+  }, [currentSlide, onBack]);
+
+  // ✅ ENHANCED: Direct slide navigation
+  const goToSlide = useCallback((index: number) => {
+    setCurrentSlide(index);
+  }, []);
   
-  // For stage 6 and above, show both buttons on the last slide
-  const showRefreshPAHMButton = currentSlide === slides.length - 1;
+  // ✅ ENHANCED: Memoized show refresh button logic
+  const showRefreshPAHMButton = useMemo(() => currentSlide === slides.length - 1, [currentSlide, slides.length]);
   
   return (
     <div className="stage-level-introduction">
       <div className="stage-instructions-header">
-        <button className="back-button" onClick={onBack}>Back</button>
+        <button 
+          className="back-button" 
+          onClick={onBack}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, onBack)}
+          aria-label="Go back to previous page"
+        >
+          Back
+        </button>
         <h1>{stageTitle}</h1>
-        <button className="skip-button" onClick={handleSkip}>Skip</button>
+        <button 
+          className="skip-button" 
+          onClick={handleSkip}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, handleSkip)}
+          aria-label="Skip Stage 6 introduction"
+        >
+          Skip
+        </button>
       </div>
       
       <div className="introduction-content">
-        <div className="slide-container">
+        <div className="slide-container" role="region" aria-live="polite">
           <h2>{slides[currentSlide].title}</h2>
           <p>{slides[currentSlide].content}</p>
           
-          <div className="slide-progress">
+          <div className="slide-progress" role="tablist" aria-label="Slide navigation">
             {slides.map((_, index) => (
-              <div 
+              <button
                 key={index} 
                 className={`progress-dot ${index === currentSlide ? 'active' : ''}`}
+                onClick={() => goToSlide(index)}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, () => goToSlide(index))}
+                role="tab"
+                aria-selected={index === currentSlide}
+                aria-label={`Go to slide ${index + 1} of ${slides.length}: ${slides[index].title}`}
               />
             ))}
           </div>
@@ -111,7 +173,13 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
         
         <div className="navigation-buttons">
           {currentSlide > 0 && (
-            <button className="nav-button back" onClick={prevSlide}>
+            <button 
+              className="nav-button back" 
+              onClick={prevSlide}
+              onTouchStart={handleTouchStart}
+              onKeyDown={(e) => handleKeyDown(e, prevSlide)}
+              aria-label="Go to previous slide"
+            >
               Back
             </button>
           )}
@@ -121,15 +189,30 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
               <button 
                 className="nav-button refresh-pahm" 
                 onClick={handleRefreshPAHM}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, handleRefreshPAHM)}
+                aria-label="Refresh knowledge about PAHM Matrix"
               >
                 Refresh about PAHM
               </button>
-              <button className="nav-button next" onClick={nextSlide}>
+              <button 
+                className="nav-button next" 
+                onClick={nextSlide}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, nextSlide)}
+                aria-label="Start Stage 6 practice - the highest level of continuous awareness"
+              >
                 Start Practice
               </button>
             </>
           ) : (
-            <button className="nav-button next" onClick={nextSlide}>
+            <button 
+              className="nav-button next" 
+              onClick={nextSlide}
+              onTouchStart={handleTouchStart}
+              onKeyDown={(e) => handleKeyDown(e, nextSlide)}
+              aria-label="Go to next slide"
+            >
               Next
             </button>
           )}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import './StageLevelIntroduction.css';
 
 interface StageLevelIntroductionProps {
@@ -14,7 +14,7 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
 }) => {
   const [currentSlide, setCurrentSlide] = React.useState(0);
   
-  // Check if this stage's introduction has been completed before
+  // ✅ ENHANCED: Check if this stage's introduction has been completed before
   useEffect(() => {
     // Only apply auto-skip for stages other than Stage Two (2)
     if (stageNumber !== 2) {
@@ -26,23 +26,56 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
     }
     // Stage Two introduction will always be shown, never auto-skipped
   }, [stageNumber, onComplete]);
+
+  // ✅ ENHANCED: iOS Safari viewport fix
+  useEffect(() => {
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
   
-  // Mark this stage's introduction as completed
-  const markIntroCompleted = () => {
+  // ✅ ENHANCED: Memoized function to mark intro completed
+  const markIntroCompleted = useCallback(() => {
     const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
     if (!completedIntros.includes(stageNumber)) {
       completedIntros.push(stageNumber);
       localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
     }
-  };
+  }, [stageNumber]);
   
-  // Handle skip button click
-  const handleSkip = () => {
+  // ✅ ENHANCED: Touch feedback for iPhone users
+  const handleTouchStart = useCallback(() => {
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  }, []);
+
+  // ✅ ENHANCED: Keyboard navigation support
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, action: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  }, []);
+  
+  // ✅ ENHANCED: Memoized skip handler
+  const handleSkip = useCallback(() => {
     markIntroCompleted();
     onComplete();
-  };
+  }, [markIntroCompleted, onComplete]);
   
-  const getStageTitle = () => {
+  // ✅ ENHANCED: Memoized stage title function
+  const getStageTitle = useCallback(() => {
     switch (stageNumber) {
       case 1: return "Seeker: Physical Readiness";
       case 2: return "PAHM Trainer: Understanding Thought Patterns";
@@ -52,9 +85,10 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
       case 6: return "PAHM Illuminator: Integration & Teaching";
       default: return "Unknown Stage";
     }
-  };
+  }, [stageNumber]);
   
-  const getStageSlides = () => {
+  // ✅ ENHANCED: Memoized slides function
+  const getStageSlides = useCallback(() => {
     switch (stageNumber) {
       case 1:
         return [
@@ -178,11 +212,12 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
           }
         ];
     }
-  };
+  }, [stageNumber]);
   
   const slides = getStageSlides();
   
-  const nextSlide = () => {
+  // ✅ ENHANCED: Memoized navigation functions
+  const nextSlide = useCallback(() => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
@@ -197,34 +232,61 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
         onComplete();
       }
     }
-  };
+  }, [currentSlide, slides.length, markIntroCompleted, stageNumber, onComplete]);
   
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     if (currentSlide > 0) {
       setCurrentSlide(currentSlide - 1);
     } else {
       onBack();
     }
-  };
+  }, [currentSlide, onBack]);
+
+  // ✅ ENHANCED: Direct slide navigation
+  const goToSlide = useCallback((index: number) => {
+    setCurrentSlide(index);
+  }, []);
   
   return (
     <div className="stage-level-introduction">
       <div className="stage-instructions-header">
-        <button className="back-button" onClick={onBack}>Back</button>
+        <button 
+          className="back-button" 
+          onClick={onBack}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, onBack)}
+          aria-label="Go back to previous page"
+        >
+          Back
+        </button>
         <h1>{getStageTitle()}</h1>
-        <button className="skip-button" onClick={handleSkip}>Skip</button>
+        <button 
+          className="skip-button" 
+          onClick={handleSkip}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, handleSkip)}
+          aria-label="Skip introduction"
+        >
+          Skip
+        </button>
       </div>
       
       <div className="introduction-content">
-        <div className="slide-container">
+        <div className="slide-container" role="region" aria-live="polite">
           <h2>{slides[currentSlide].title}</h2>
           <p>{slides[currentSlide].content}</p>
           
-          <div className="slide-progress">
+          <div className="slide-progress" role="tablist" aria-label="Slide navigation">
             {slides.map((_, index) => (
-              <div 
+              <button
                 key={index} 
                 className={`progress-dot ${index === currentSlide ? 'active' : ''}`}
+                onClick={() => goToSlide(index)}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, () => goToSlide(index))}
+                role="tab"
+                aria-selected={index === currentSlide}
+                aria-label={`Go to slide ${index + 1} of ${slides.length}`}
               />
             ))}
           </div>
@@ -232,12 +294,27 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
         
         <div className="navigation-buttons">
           {currentSlide > 0 && (
-            <button className="nav-button back" onClick={prevSlide}>
+            <button 
+              className="nav-button back" 
+              onClick={prevSlide}
+              onTouchStart={handleTouchStart}
+              onKeyDown={(e) => handleKeyDown(e, prevSlide)}
+              aria-label="Go to previous slide"
+            >
               Back
             </button>
           )}
           
-          <button className="nav-button next" onClick={nextSlide}>
+          <button 
+            className="nav-button next" 
+            onClick={nextSlide}
+            onTouchStart={handleTouchStart}
+            onKeyDown={(e) => handleKeyDown(e, nextSlide)}
+            aria-label={currentSlide === slides.length - 1 ? 
+              (stageNumber === 2 ? 'Learn about PAHM' : 'Begin Practice') : 
+              'Go to next slide'
+            }
+          >
             {currentSlide === slides.length - 1 ? (stageNumber === 2 ? 'Learn about PAHM' : 'Begin Practice') : 'Next'}
           </button>
         </div>
