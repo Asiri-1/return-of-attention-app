@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './StageLevelIntroduction.css';
 
@@ -15,28 +15,59 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
   const stageNumber = 2; // Hardcoded to stage 2
   const navigate = useNavigate();
   
-  // Check if this stage's introduction has been completed before
-  // Stage 2 introduction will always be shown, never auto-skipped
+  // ✅ ENHANCED: iOS Safari viewport fix
+  useEffect(() => {
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
   
-  // Mark this stage's introduction as completed
-  const markIntroCompleted = () => {
+  // ✅ ENHANCED: Memoized function to mark intro completed
+  const markIntroCompleted = useCallback(() => {
     const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
     if (!completedIntros.includes(stageNumber)) {
       completedIntros.push(stageNumber);
       localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
     }
-  };
+  }, [stageNumber]);
   
-  // Handle skip button click
-  const handleSkip = () => {
+  // ✅ ENHANCED: Touch feedback for iPhone users
+  const handleTouchStart = useCallback(() => {
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  }, []);
+
+  // ✅ ENHANCED: Keyboard navigation support
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, action: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  }, []);
+  
+  // ✅ ENHANCED: Memoized skip handler
+  const handleSkip = useCallback(() => {
     markIntroCompleted();
     // Skip directly to posture selection, not to PAHM explanation
     onComplete();
-  };
+  }, [markIntroCompleted, onComplete]);
   
-  const stageTitle = "PAHM Trainee: Understanding Thought Patterns";
+  // ✅ ENHANCED: Memoized stage title
+  const stageTitle = useMemo(() => "PAHM Trainee: Understanding Thought Patterns", []);
   
-  const slides = [
+  // ✅ ENHANCED: Memoized slides data
+  const slides = useMemo(() => [
     {
       title: "Welcome to Stage Two",
       content: "As a PAHM Trainee, you'll learn to witness your thought patterns without becoming entangled in them. This stage builds on the physical foundation you established in Stage One."
@@ -53,9 +84,10 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
       title: "Your PAHM Trainee Practice",
       content: "In this stage, you'll practice noticing your thoughts without judgment, identifying patterns, and using the PAHM Matrix to understand your mental habits."
     }
-  ];
+  ], []);
   
-  const nextSlide = () => {
+  // ✅ ENHANCED: Memoized navigation functions
+  const nextSlide = useCallback(() => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
@@ -63,32 +95,31 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
       markIntroCompleted();
       
       // Complete the introduction and move to the next step
-      // Pass state to indicate coming from intro
       onComplete();
       
       // Use navigate with state instead of direct location change
       window.history.pushState({ fromIntro: true }, '', window.location.pathname);
     }
-  };
+  }, [currentSlide, slides.length, markIntroCompleted, onComplete]);
   
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     if (currentSlide > 0) {
       setCurrentSlide(currentSlide - 1);
     } else {
       onBack();
     }
-  };
+  }, [currentSlide, onBack]);
   
-  // Determine button text based on current slide
-  const getButtonText = () => {
+  // ✅ ENHANCED: Memoized button text
+  const getButtonText = useCallback(() => {
     if (currentSlide < slides.length - 1) {
       return "Next";
     }
     return "Learn about PAHM";
-  };
+  }, [currentSlide, slides.length]);
   
-  // Handle learn about PAHM button click
-  const handleLearnAboutPAHM = () => {
+  // ✅ ENHANCED: Optimized PAHM navigation handler
+  const handleLearnAboutPAHM = useCallback(() => {
     if (currentSlide === slides.length - 1) {
       // If on the last slide and the button says "Learn about PAHM"
       // Mark as completed but go directly to PAHM learning page
@@ -107,26 +138,53 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     
     // Otherwise, proceed to next slide
     nextSlide();
-  };
+  }, [currentSlide, slides.length, markIntroCompleted, navigate, nextSlide]);
+
+  // ✅ ENHANCED: Direct slide navigation
+  const goToSlide = useCallback((index: number) => {
+    setCurrentSlide(index);
+  }, []);
   
   return (
     <div className="stage-level-introduction">
       <div className="stage-instructions-header">
-        <button className="back-button" onClick={onBack}>Back</button>
+        <button 
+          className="back-button" 
+          onClick={onBack}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, onBack)}
+          aria-label="Go back to previous page"
+        >
+          Back
+        </button>
         <h1>{stageTitle}</h1>
-        <button className="skip-button" onClick={handleSkip}>Skip</button>
+        <button 
+          className="skip-button" 
+          onClick={handleSkip}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, handleSkip)}
+          aria-label="Skip Stage 2 introduction"
+        >
+          Skip
+        </button>
       </div>
       
       <div className="introduction-content">
-        <div className="slide-container">
+        <div className="slide-container" role="region" aria-live="polite">
           <h2>{slides[currentSlide].title}</h2>
           <p>{slides[currentSlide].content}</p>
           
-          <div className="slide-progress">
+          <div className="slide-progress" role="tablist" aria-label="Slide navigation">
             {slides.map((_, index) => (
-              <div 
+              <button
                 key={index} 
                 className={`progress-dot ${index === currentSlide ? 'active' : ''}`}
+                onClick={() => goToSlide(index)}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, () => goToSlide(index))}
+                role="tab"
+                aria-selected={index === currentSlide}
+                aria-label={`Go to slide ${index + 1} of ${slides.length}: ${slides[index].title}`}
               />
             ))}
           </div>
@@ -134,12 +192,27 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
         
         <div className="navigation-buttons">
           {currentSlide > 0 && (
-            <button className="nav-button back" onClick={prevSlide}>
+            <button 
+              className="nav-button back" 
+              onClick={prevSlide}
+              onTouchStart={handleTouchStart}
+              onKeyDown={(e) => handleKeyDown(e, prevSlide)}
+              aria-label="Go to previous slide"
+            >
               Back
             </button>
           )}
           
-          <button className="nav-button next" onClick={handleLearnAboutPAHM}>
+          <button 
+            className="nav-button next" 
+            onClick={handleLearnAboutPAHM}
+            onTouchStart={handleTouchStart}
+            onKeyDown={(e) => handleKeyDown(e, handleLearnAboutPAHM)}
+            aria-label={getButtonText() === "Learn about PAHM" ? 
+              "Proceed to learn about PAHM Matrix" : 
+              "Go to next slide"
+            }
+          >
             {getButtonText()}
           </button>
         </div>

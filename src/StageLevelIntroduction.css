@@ -1,110 +1,189 @@
+/* iPhone-Optimized StageLevelIntroduction.css */
+
 .stage-level-introduction {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 20px); /* ✅ ADDED: Safe area support */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* ✅ IMPROVED: iOS-first fonts */
+  min-height: 100vh;
+  min-height: 100dvh; /* ✅ ADDED: Dynamic viewport for iOS Safari */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* ✅ ADDED: Smooth iOS scrolling */
+  box-sizing: border-box;
 }
 
 .stage-instructions-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 30px;
+  margin-bottom: clamp(20px, 5vw, 30px); /* ✅ FIXED: Responsive spacing */
+  gap: clamp(8px, 2vw, 12px); /* ✅ ADDED: Responsive gap */
+  flex-wrap: wrap; /* ✅ ADDED: Wrap on small screens */
 }
 
 .back-button, .skip-button {
   background-color: #f0f0f0;
   border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
+  border-radius: 8px; /* ✅ IMPROVED: Larger radius */
+  padding: 14px 20px; /* ✅ FIXED: Larger touch target (48px+ height) */
   cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.2s;
+  font-size: clamp(14px, 3.5vw, 16px); /* ✅ FIXED: Responsive font */
+  font-weight: 600; /* ✅ ADDED: Better readability */
+  transition: all 0.3s ease; /* ✅ IMPROVED: Better transition */
+  min-height: 48px; /* ✅ ADDED: Minimum touch target */
+  min-width: 80px; /* ✅ ADDED: Minimum width */
+  -webkit-tap-highlight-color: rgba(92, 107, 192, 0.1); /* ✅ ADDED: Touch feedback */
+  touch-action: manipulation; /* ✅ ADDED: Better touch handling */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .back-button {
-  margin-right: 20px;
+  margin-right: clamp(8px, 2vw, 20px); /* ✅ FIXED: Responsive margin */
 }
 
 .skip-button {
-  margin-left: 20px;
+  margin-left: clamp(8px, 2vw, 20px); /* ✅ FIXED: Responsive margin */
 }
 
 .back-button:hover, .skip-button:hover {
   background-color: #e0e0e0;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* ✅ ADDED: Shadow */
+}
+
+.back-button:active, .skip-button:active {
+  transform: scale(0.98); /* ✅ ADDED: Touch feedback */
 }
 
 .stage-instructions-header h1 {
-  font-size: 32px;
+  font-size: clamp(20px, 5vw, 32px); /* ✅ FIXED: Responsive title */
   color: #333;
   margin: 0;
   flex-grow: 1;
   text-align: center;
+  line-height: 1.2; /* ✅ ADDED: Better line height */
+  font-weight: 700; /* ✅ IMPROVED: Better weight */
+  padding: 0 clamp(8px, 2vw, 16px); /* ✅ ADDED: Responsive padding */
 }
 
 .introduction-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
+  padding: clamp(16px, 4vw, 20px); /* ✅ FIXED: Responsive padding */
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px; /* ✅ IMPROVED: Larger radius */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); /* ✅ IMPROVED: Better shadow */
+  border: 1px solid rgba(0, 0, 0, 0.05); /* ✅ ADDED: Subtle border */
 }
 
 .slide-container {
   width: 100%;
   max-width: 800px;
   text-align: center;
-  padding: 30px;
+  padding: clamp(20px, 5vw, 30px); /* ✅ FIXED: Responsive padding */
 }
 
 .slide-container h2 {
-  font-size: 28px;
+  font-size: clamp(22px, 5.5vw, 28px); /* ✅ FIXED: Responsive font */
   color: #5c6bc0;
-  margin-bottom: 20px;
+  margin-bottom: clamp(16px, 4vw, 20px); /* ✅ FIXED: Responsive margin */
+  line-height: 1.3; /* ✅ ADDED: Better line height */
+  font-weight: 600; /* ✅ IMPROVED: Better weight */
 }
 
 .slide-container p {
-  font-size: 18px;
+  font-size: clamp(16px, 4vw, 18px); /* ✅ FIXED: Responsive font */
   line-height: 1.6;
   color: #555;
-  margin-bottom: 40px;
+  margin-bottom: clamp(30px, 7vw, 40px); /* ✅ FIXED: Responsive margin */
 }
 
 .slide-progress {
   display: flex;
   justify-content: center;
-  margin-top: 40px;
-  gap: 10px;
+  margin-top: clamp(30px, 7vw, 40px); /* ✅ FIXED: Responsive margin */
+  gap: clamp(8px, 2vw, 10px); /* ✅ FIXED: Responsive gap */
+  flex-wrap: wrap; /* ✅ ADDED: Wrap on small screens */
 }
 
 .progress-dot {
-  width: 12px;
-  height: 12px;
+  width: clamp(14px, 3.5vw, 16px); /* ✅ FIXED: Responsive size */
+  height: clamp(14px, 3.5vw, 16px); /* ✅ FIXED: Responsive size */
   border-radius: 50%;
   background-color: #ddd;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease; /* ✅ IMPROVED: Better transition */
+  cursor: pointer; /* ✅ ADDED: Cursor pointer */
+  border: none; /* ✅ ADDED: Remove default button border */
+  padding: 4px; /* ✅ ADDED: Touch padding for easier tapping */
+  min-width: 24px; /* ✅ ADDED: Minimum touch target */
+  min-height: 24px; /* ✅ ADDED: Minimum touch target */
+  -webkit-tap-highlight-color: rgba(92, 107, 192, 0.1); /* ✅ ADDED: Touch feedback */
+  touch-action: manipulation; /* ✅ ADDED: Better touch handling */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-dot:hover {
+  background-color: #bbb;
+  transform: scale(1.1); /* ✅ ADDED: Hover feedback */
+}
+
+.progress-dot:active {
+  transform: scale(0.95); /* ✅ ADDED: Touch feedback */
 }
 
 .progress-dot.active {
   background-color: #5c6bc0;
+  box-shadow: 0 2px 8px rgba(92, 107, 192, 0.3); /* ✅ ADDED: Active glow */
 }
 
 .navigation-buttons {
   display: flex;
   justify-content: center;
-  gap: 20px;
-  margin-top: 30px;
+  gap: clamp(16px, 4vw, 20px); /* ✅ FIXED: Responsive gap */
+  margin-top: clamp(24px, 6vw, 30px); /* ✅ FIXED: Responsive margin */
+  flex-wrap: wrap; /* ✅ ADDED: Wrap on small screens */
+  width: 100%; /* ✅ ADDED: Full width */
 }
 
 .nav-button {
-  padding: 12px 24px;
+  padding: 16px 24px; /* ✅ FIXED: Larger touch target */
   border: none;
-  border-radius: 4px;
-  font-size: 16px;
+  border-radius: 8px; /* ✅ IMPROVED: Larger radius */
+  font-size: clamp(14px, 3.5vw, 16px); /* ✅ FIXED: Responsive font */
+  font-weight: 600; /* ✅ ADDED: Better weight */
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease; /* ✅ IMPROVED: Better transition */
+  min-height: 52px; /* ✅ ADDED: Minimum touch target */
+  min-width: 120px; /* ✅ ADDED: Minimum width */
+  -webkit-tap-highlight-color: rgba(92, 107, 192, 0.1); /* ✅ ADDED: Touch feedback */
+  touch-action: manipulation; /* ✅ ADDED: Better touch handling */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-button.back {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 2px solid #dee2e6; /* ✅ ADDED: Border for better definition */
+}
+
+.nav-button.back:hover {
+  background-color: #e0e0e0;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* ✅ ADDED: Shadow */
+}
+
+.nav-button.back:active {
+  transform: scale(0.98); /* ✅ ADDED: Touch feedback */
 }
 
 .nav-button.refresh-pahm {
@@ -114,6 +193,12 @@
 
 .nav-button.refresh-pahm:hover {
   background-color: #3a7bc8;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
+  box-shadow: 0 6px 20px rgba(74, 144, 226, 0.3); /* ✅ ADDED: Shadow */
+}
+
+.nav-button.refresh-pahm:active {
+  transform: scale(0.98); /* ✅ ADDED: Touch feedback */
 }
 
 .nav-button.next {
@@ -123,19 +208,45 @@
 
 .nav-button.next:hover {
   background-color: #3f51b5;
+  transform: translateY(-2px); /* ✅ ADDED: Hover feedback */
+  box-shadow: 0 6px 20px rgba(92, 107, 192, 0.3); /* ✅ ADDED: Shadow */
 }
 
-@media (max-width: 768px) {
-  .slide-container {
-    padding: 20px;
+.nav-button.next:active {
+  transform: scale(0.98); /* ✅ ADDED: Touch feedback */
+}
+
+/* ✅ ADDED: iPhone-Specific Breakpoints */
+@media screen and (max-width: 430px) { /* iPhone 15 Pro Max and smaller */
+  .stage-level-introduction {
+    padding: env(safe-area-inset-top, 12px) env(safe-area-inset-right, 12px) env(safe-area-inset-bottom, 12px) env(safe-area-inset-left, 12px);
   }
   
-  .slide-container h2 {
-    font-size: 24px;
+  .stage-instructions-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
   
-  .slide-container p {
-    font-size: 16px;
+  .back-button, .skip-button {
+    margin: 0;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .stage-instructions-header h1 {
+    text-align: center;
+    padding: 0;
+    order: -1; /* Move title to top */
+  }
+  
+  .slide-progress {
+    gap: 6px;
+  }
+  
+  .progress-dot {
+    min-width: 20px;
+    min-height: 20px;
   }
   
   .navigation-buttons {
@@ -145,6 +256,171 @@
   
   .nav-button {
     width: 100%;
-    max-width: 300px;
+    max-width: 280px;
+  }
+}
+
+@media screen and (max-width: 390px) { /* iPhone 12/13/14 and smaller */
+  .stage-level-introduction {
+    padding: env(safe-area-inset-top, 10px) env(safe-area-inset-right, 10px) env(safe-area-inset-bottom, 10px) env(safe-area-inset-left, 10px);
+  }
+  
+  .slide-container {
+    padding: 16px;
+  }
+  
+  .introduction-content {
+    padding: 12px;
+  }
+}
+
+@media screen and (max-width: 375px) { /* iPhone SE and smaller */
+  .stage-level-introduction {
+    padding: env(safe-area-inset-top, 8px) env(safe-area-inset-right, 8px) env(safe-area-inset-bottom, 8px) env(safe-area-inset-left, 8px);
+  }
+  
+  .slide-container {
+    padding: 12px;
+  }
+  
+  .introduction-content {
+    padding: 10px;
+  }
+  
+  .slide-progress {
+    gap: 4px;
+  }
+  
+  .progress-dot {
+    min-width: 18px;
+    min-height: 18px;
+  }
+}
+
+/* ✅ ADDED: Landscape Optimization for iPhones */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .stage-level-introduction {
+    padding: env(safe-area-inset-top, 8px) env(safe-area-inset-right, 8px) env(safe-area-inset-bottom, 8px) env(safe-area-inset-left, 8px);
+  }
+  
+  .stage-instructions-header {
+    margin-bottom: 16px;
+  }
+  
+  .stage-instructions-header h1 {
+    font-size: 20px;
+  }
+  
+  .slide-container {
+    padding: 12px;
+  }
+  
+  .introduction-content {
+    padding: 12px;
+  }
+  
+  .slide-container h2 {
+    margin-bottom: 12px;
+  }
+  
+  .slide-container p {
+    margin-bottom: 20px;
+  }
+  
+  .slide-progress {
+    margin-top: 20px;
+  }
+  
+  .navigation-buttons {
+    margin-top: 16px;
+  }
+}
+
+/* ✅ ADDED: Dark Mode Support (iOS 13+) */
+@media (prefers-color-scheme: dark) {
+  .stage-level-introduction {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+  
+  .back-button, .skip-button, .nav-button.back {
+    background-color: #2a2a2a;
+    color: #ffffff;
+    border-color: #404040;
+  }
+  
+  .back-button:hover, .skip-button:hover, .nav-button.back:hover {
+    background-color: #3a3a3a;
+  }
+  
+  .introduction-content {
+    background-color: #2a2a2a;
+    border-color: #404040;
+    color: #ffffff;
+  }
+  
+  .stage-instructions-header h1 {
+    color: #ffffff;
+  }
+  
+  .slide-container h2 {
+    color: #7986cb;
+  }
+  
+  .slide-container p {
+    color: #cccccc;
+  }
+  
+  .progress-dot {
+    background-color: #555555;
+  }
+  
+  .progress-dot:hover {
+    background-color: #666666;
+  }
+  
+  .progress-dot.active {
+    background-color: #7986cb;
+  }
+}
+
+/* ✅ ADDED: Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .back-button:hover, .skip-button:hover, .nav-button:hover, .progress-dot:hover {
+    transform: none;
+  }
+  
+  .back-button:active, .skip-button:active, .nav-button:active, .progress-dot:active {
+    transform: none;
+  }
+}
+
+/* ✅ ADDED: High contrast mode support */
+@media (prefers-contrast: high) {
+  .back-button, .skip-button, .nav-button.back {
+    border: 2px solid #000000;
+  }
+  
+  .nav-button.next, .nav-button.refresh-pahm {
+    border: 2px solid #ffffff;
+  }
+  
+  .progress-dot {
+    border: 2px solid #000000;
+  }
+  
+  .progress-dot.active {
+    border-color: #ffffff;
+  }
+  
+  .introduction-content {
+    border: 2px solid #000000;
   }
 }

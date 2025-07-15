@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import './StageInstructions.css';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,7 +13,8 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
   const [selectedSubstage, setSelectedSubstage] = useState("t1");
   const navigate = useNavigate();
   
-  const handleStageSelect = (stage: number) => {
+  // ✅ ENHANCED: Memoized callbacks for better performance
+  const handleStageSelect = useCallback((stage: number) => {
     setSelectedStage(stage);
     // Reset substage when changing main stage
     if (stage === 1) {
@@ -21,17 +22,55 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
     } else {
       setSelectedSubstage("");
     }
-  };
+  }, []);
 
-  const handlePAHMClick = () => {
+  const handleSubstageSelect = useCallback((substage: string) => {
+    setSelectedSubstage(substage);
+  }, []);
+
+  const handlePAHMClick = useCallback(() => {
     navigate('/learning/pahm');
-  };
+  }, [navigate]);
 
-  const handlePoisonThoughtsClick = () => {
+  const handlePoisonThoughtsClick = useCallback(() => {
     navigate('/learning/poison-thoughts');
-  };
+  }, [navigate]);
+
+  // ✅ ENHANCED: Keyboard navigation support for accessibility
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, action: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  }, []);
+
+  // ✅ ENHANCED: Touch feedback for iPhone users
+  const handleTouchStart = useCallback((event: React.TouchEvent) => {
+    // Add subtle haptic feedback hint for supported devices
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  }, []);
+
+  // ✅ ENHANCED: iOS Safari viewport fix
+  useEffect(() => {
+    // Fix iOS Safari viewport height issues
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
   
-  const renderStageOneContent = () => {
+  const renderStageOneContent = useCallback(() => {
     switch (selectedSubstage) {
       case "t1":
         return (
@@ -132,57 +171,51 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
           </div>
         );
     }
-  };
+  }, [selectedSubstage]);
   
   return (
     <div className="stage-instructions">
       <div className="stage-instructions-header">
-        <button className="back-button" onClick={onBack}>Back</button>
+        <button 
+          className="back-button" 
+          onClick={onBack}
+          onTouchStart={handleTouchStart}
+          onKeyDown={(e) => handleKeyDown(e, onBack)}
+          aria-label="Go back to previous page"
+        >
+          Back
+        </button>
         <h1>Stage Instructions</h1>
       </div>
       
       <div className="stage-instructions-content">
-        <div className="stage-selector">
-          <button 
-            className={selectedStage === 1 ? "active" : ""} 
-            onClick={() => handleStageSelect(1)}
-          >
-            Seeker: Physical Readiness
-          </button>
-          <button 
-            className={selectedStage === 2 ? "active" : ""} 
-            onClick={() => handleStageSelect(2)}
-          >
-            Observer: Understanding Thought Patterns
-          </button>
-          <button 
-            className={selectedStage === 3 ? "active" : ""} 
-            onClick={() => handleStageSelect(3)}
-          >
-            Tracker: Dot Tracking Practice
-          </button>
-          <button 
-            className={selectedStage === 4 ? "active" : ""} 
-            onClick={() => handleStageSelect(4)}
-          >
-            Practitioner: Tool-Free Practice
-          </button>
-          <button 
-            className={selectedStage === 5 ? "active" : ""} 
-            onClick={() => handleStageSelect(5)}
-          >
-            Master: Sustained Presence
-          </button>
-          <button 
-            className={selectedStage === 6 ? "active" : ""} 
-            onClick={() => handleStageSelect(6)}
-          >
-            Illuminator: Integration & Teaching
-          </button>
+        <div className="stage-selector" role="tablist" aria-label="Stage selection">
+          {[
+            { id: 1, title: "Seeker: Physical Readiness" },
+            { id: 2, title: "Observer: Understanding Thought Patterns" },
+            { id: 3, title: "Tracker: Dot Tracking Practice" },
+            { id: 4, title: "Practitioner: Tool-Free Practice" },
+            { id: 5, title: "Master: Sustained Presence" },
+            { id: 6, title: "Illuminator: Integration & Teaching" }
+          ].map((stage) => (
+            <button 
+              key={stage.id}
+              className={selectedStage === stage.id ? "active" : ""} 
+              onClick={() => handleStageSelect(stage.id)}
+              onTouchStart={handleTouchStart}
+              onKeyDown={(e) => handleKeyDown(e, () => handleStageSelect(stage.id))}
+              role="tab"
+              aria-selected={selectedStage === stage.id}
+              aria-controls={`stage-${stage.id}-content`}
+              aria-label={`Select ${stage.title}`}
+            >
+              {stage.title}
+            </button>
+          ))}
         </div>
         
         {selectedStage === 1 && (
-          <div className="stage-one-content">
+          <div className="stage-one-content" id="stage-1-content" role="tabpanel">
             <div className="stage-overview">
               <h2>Seeker: Physical Readiness</h2>
               <p>Stage One focuses on developing the physical foundation necessary for all subsequent practice. The goal is to build the capacity to remain physically still for extended periods, creating a stable container for mental work.</p>
@@ -191,64 +224,51 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
                 <h3>T1-T5 Progression</h3>
                 <p>Stage One is divided into 5 progressive levels, gradually building your capacity for physical stillness:</p>
                 <div className="progression-steps">
-                  <div className="progression-step">
-                    <div className="step-indicator">T1</div>
-                    <div className="step-description">10 minutes</div>
-                  </div>
-                  <div className="progression-step">
-                    <div className="step-indicator">T2</div>
-                    <div className="step-description">15 minutes</div>
-                  </div>
-                  <div className="progression-step">
-                    <div className="step-indicator">T3</div>
-                    <div className="step-description">20 minutes</div>
-                  </div>
-                  <div className="progression-step">
-                    <div className="step-indicator">T4</div>
-                    <div className="step-description">25 minutes</div>
-                  </div>
-                  <div className="progression-step">
-                    <div className="step-indicator">T5</div>
-                    <div className="step-description">30+ minutes</div>
-                  </div>
+                  {[
+                    { id: "T1", description: "10 minutes" },
+                    { id: "T2", description: "15 minutes" },
+                    { id: "T3", description: "20 minutes" },
+                    { id: "T4", description: "25 minutes" },
+                    { id: "T5", description: "30+ minutes" }
+                  ].map((step) => (
+                    <div key={step.id} className="progression-step">
+                      <div className="step-indicator" aria-label={`${step.id}: ${step.description}`}>
+                        {step.id}
+                      </div>
+                      <div className="step-description">{step.description}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
             
-            <div className="substage-selector">
-              <button 
-                className={selectedSubstage === "t1" ? "active" : ""} 
-                onClick={() => setSelectedSubstage("t1")}
-              >
-                T1: 10 minutes
-              </button>
-              <button 
-                className={selectedSubstage === "t2" ? "active" : ""} 
-                onClick={() => setSelectedSubstage("t2")}
-              >
-                T2: 15 minutes
-              </button>
-              <button 
-                className={selectedSubstage === "t3" ? "active" : ""} 
-                onClick={() => setSelectedSubstage("t3")}
-              >
-                T3: 20 minutes
-              </button>
-              <button 
-                className={selectedSubstage === "t4" ? "active" : ""} 
-                onClick={() => setSelectedSubstage("t4")}
-              >
-                T4: 25 minutes
-              </button>
-              <button 
-                className={selectedSubstage === "t5" ? "active" : ""} 
-                onClick={() => setSelectedSubstage("t5")}
-              >
-                T5: 30+ minutes
-              </button>
+            <div className="substage-selector" role="tablist" aria-label="Substage selection">
+              {[
+                { id: "t1", title: "T1: 10 minutes" },
+                { id: "t2", title: "T2: 15 minutes" },
+                { id: "t3", title: "T3: 20 minutes" },
+                { id: "t4", title: "T4: 25 minutes" },
+                { id: "t5", title: "T5: 30+ minutes" }
+              ].map((substage) => (
+                <button 
+                  key={substage.id}
+                  className={selectedSubstage === substage.id ? "active" : ""} 
+                  onClick={() => handleSubstageSelect(substage.id)}
+                  onTouchStart={handleTouchStart}
+                  onKeyDown={(e) => handleKeyDown(e, () => handleSubstageSelect(substage.id))}
+                  role="tab"
+                  aria-selected={selectedSubstage === substage.id}
+                  aria-controls={`substage-${substage.id}-content`}
+                  aria-label={`Select ${substage.title}`}
+                >
+                  {substage.title}
+                </button>
+              ))}
             </div>
             
-            {renderStageOneContent()}
+            <div id={`substage-${selectedSubstage}-content`} role="tabpanel">
+              {renderStageOneContent()}
+            </div>
             
             <div className="important-notes">
               <h3>Important Notes for Stage One</h3>
@@ -270,7 +290,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
         )}
         
         {selectedStage === 2 && (
-          <div className="stage-content">
+          <div className="stage-content" id="stage-2-content" role="tabpanel">
             <h2>Observer: Understanding Thought Patterns</h2>
             <p>In Stage Two, you'll learn to observe your thought patterns without becoming entangled in them. This stage builds on the physical foundation established in Stage One.</p>
             
@@ -278,7 +298,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
               <h3>The PAHM Matrix</h3>
               <p>Stage Two introduces the PAHM (Present Attention and Happiness Matrix), a powerful tool for understanding your mental patterns and the relationship between presence and emotional states.</p>
               <div className="tool-preview">
-                <div className="matrix-preview">
+                <div className="matrix-preview" role="img" aria-label="PAHM Matrix with four quadrants showing different combinations of presence and happiness states">
                   <div className="matrix-row">
                     <div className="matrix-cell" style={{ backgroundColor: '#C8E6C9' }}>Present & Happy</div>
                     <div className="matrix-cell" style={{ backgroundColor: '#FFECB3' }}>Present & Unhappy</div>
@@ -288,7 +308,13 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
                     <div className="matrix-cell" style={{ backgroundColor: '#FFCDD2' }}>Not Present & Unhappy</div>
                   </div>
                 </div>
-                <button className="tool-button" onClick={handlePAHMClick}>
+                <button 
+                  className="tool-button" 
+                  onClick={handlePAHMClick}
+                  onTouchStart={handleTouchStart}
+                  onKeyDown={(e) => handleKeyDown(e, handlePAHMClick)}
+                  aria-label="Explore the PAHM Matrix tool"
+                >
                   Explore the PAHM Matrix
                 </button>
               </div>
@@ -310,14 +336,20 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
         )}
         
         {selectedStage === 3 && (
-          <div className="stage-content">
+          <div className="stage-content" id="stage-3-content" role="tabpanel">
             <h2>Tracker: Dot Tracking Practice</h2>
             <p>Stage Three introduces the dot tracking technique, a powerful method for developing sustained attention.</p>
             
             <div className="stage-tool-highlight">
               <h3>Poison Thoughts</h3>
               <p>This stage introduces the concept of "poison thoughts" - recurring thought patterns that pull you away from presence and into suffering.</p>
-              <button className="tool-button" onClick={handlePoisonThoughtsClick}>
+              <button 
+                className="tool-button" 
+                onClick={handlePoisonThoughtsClick}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, handlePoisonThoughtsClick)}
+                aria-label="Learn about poison thoughts"
+              >
                 Learn About Poison Thoughts
               </button>
             </div>
@@ -339,7 +371,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
         )}
         
         {selectedStage === 4 && (
-          <div className="stage-content">
+          <div className="stage-content" id="stage-4-content" role="tabpanel">
             <h2>Practitioner: Tool-Free Practice</h2>
             <p>In Stage Four, you'll learn to practice without external tools or supports, relying solely on your developed capacity for attention.</p>
             
@@ -359,7 +391,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
         )}
         
         {selectedStage === 5 && (
-          <div className="stage-content">
+          <div className="stage-content" id="stage-5-content" role="tabpanel">
             <h2>Master: Sustained Presence</h2>
             <p>Stage Five focuses on maintaining presence throughout daily activities, not just during formal practice sessions.</p>
             
@@ -379,7 +411,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
         )}
         
         {selectedStage === 6 && (
-          <div className="stage-content">
+          <div className="stage-content" id="stage-6-content" role="tabpanel">
             <h2>Illuminator: Integration & Teaching</h2>
             <p>The final stage involves fully integrating the practice into your life and potentially sharing it with others.</p>
             

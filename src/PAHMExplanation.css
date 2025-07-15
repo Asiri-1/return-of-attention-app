@@ -1,146 +1,288 @@
-/* PAHMExplanation.css */
+/* iPhone-Optimized PAHMExplanation.css */
+
+/* ✅ ENHANCED: CSS Custom Properties for iPhone optimization */
+:root {
+  --primary-color: #5865F2;
+  --primary-hover: #4752C4;
+  --background-color: #F8F9FA;
+  --surface-color: #FFFFFF;
+  --text-primary: #212529;
+  --text-secondary: #6C757D;
+  --border-color: #E9ECEF;
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --border-radius: 12px;
+  --border-radius-small: 8px;
+  --transition-fast: 0.2s ease;
+  --transition-medium: 0.3s ease;
+  
+  /* ✅ iPhone-specific variables */
+  --touch-target-min: 48px;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --vh: 1vh; /* Will be set by JavaScript for iOS Safari */
+}
+
+/* ✅ ENHANCED: Dark mode support for iOS */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1a1a1a;
+    --surface-color: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --border-color: #404040;
+  }
+}
+
+/* ✅ ENHANCED: Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .pahm-explanation-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: #F8F9FA;
+  min-height: calc(100 * var(--vh, 1vh)); /* ✅ iOS Safari viewport fix */
+  background-color: var(--background-color);
+  /* ✅ ENHANCED: Safe area padding */
+  padding-top: var(--safe-area-top);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
+  padding-bottom: var(--safe-area-bottom);
 }
 
 .explanation-header {
-  background-color: #FFFFFF;
-  padding: 16px 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: var(--surface-color);
+  padding: clamp(12px, 4vw, 24px); /* ✅ Responsive padding */
+  box-shadow: var(--shadow-light);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: clamp(12px, 4vw, 16px);
+  position: sticky;
+  top: var(--safe-area-top);
+  z-index: 100;
+  /* ✅ Enhanced for iPhone */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .back-button {
+  /* ✅ ENHANCED: iPhone-optimized touch target */
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
   background: none;
   border: none;
-  color: #5865F2;
-  font-size: 16px;
+  color: var(--primary-color);
+  font-size: clamp(14px, 4vw, 16px);
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 14px 16px; /* ✅ Proper touch target */
+  border-radius: var(--border-radius-small);
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* ✅ iPhone touch feedback */
+  -webkit-tap-highlight-color: rgba(88, 101, 242, 0.1);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .back-button:hover {
   background-color: rgba(88, 101, 242, 0.05);
+  transform: translateY(-1px);
+}
+
+.back-button:active {
+  transform: translateY(0);
+  background-color: rgba(88, 101, 242, 0.1);
+}
+
+/* ✅ ENHANCED: Focus styles for accessibility */
+.back-button:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .explanation-header h1 {
-  font-size: 20px;
-  color: #212529;
+  font-size: clamp(18px, 5vw, 20px); /* ✅ Responsive typography */
+  color: var(--text-primary);
   margin: 0;
-  font-weight: 500;
+  font-weight: 600;
+  /* ✅ iOS system font stack */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  flex: 1;
+  text-align: center;
 }
 
 .explanation-content {
   flex: 1;
-  padding: 24px;
+  padding: clamp(16px, 5vw, 24px);
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: clamp(16px, 5vw, 24px);
 }
 
 .matrix-overview {
-  background-color: #FFFFFF;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius);
+  padding: clamp(16px, 5vw, 24px);
+  box-shadow: var(--shadow-light);
+  /* ✅ Enhanced for modern iOS */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.app-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
 }
 
 .matrix-overview h2 {
-  font-size: 20px;
-  color: #212529;
+  font-size: clamp(18px, 5vw, 20px);
+  color: var(--text-primary);
   margin: 0 0 16px 0;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .matrix-description {
-  font-size: 16px;
-  color: #6C757D;
-  line-height: 1.5;
+  font-size: clamp(14px, 4vw, 16px);
+  color: var(--text-secondary);
+  line-height: 1.6;
   margin-bottom: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+.interactive-matrix-demo {
+  margin-top: 24px;
+}
+
+.interactive-matrix-demo h3 {
+  font-size: clamp(16px, 4.5vw, 18px);
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.interaction-hint {
+  font-size: clamp(13px, 3.5vw, 14px);
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+/* ✅ ENHANCED: iPhone-optimized PAHM Matrix */
 .pahm-matrix {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-bottom: 16px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .matrix-row {
   display: flex;
   gap: 4px;
-  height: 80px;
+  height: clamp(60px, 15vw, 80px); /* ✅ Responsive height */
+  width: 100%;
 }
 
 .matrix-cell {
   flex: 1;
-  border-radius: 8px;
+  border-radius: var(--border-radius-small);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: var(--transition-fast);
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+  
+  /* ✅ ENHANCED: iPhone touch optimization */
+  min-height: var(--touch-target-min);
+  -webkit-tap-highlight-color: rgba(88, 101, 242, 0.1);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  
+  /* ✅ Improved accessibility */
+  outline: none;
 }
 
 .matrix-cell:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-medium);
+}
+
+.matrix-cell:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-light);
 }
 
 .matrix-cell.selected {
-  box-shadow: 0 0 0 2px #5865F2;
+  box-shadow: 0 0 0 2px var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.matrix-cell:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .cell-content {
-  font-size: 14px;
+  font-size: clamp(11px, 3vw, 14px); /* ✅ Responsive font size */
   font-weight: 500;
   text-align: center;
-  padding: 8px;
-}
-
-.interaction-hint {
-  font-size: 14px;
-  color: #6C757D;
-  text-align: center;
-  margin: 0;
+  padding: clamp(4px, 2vw, 8px);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.2;
 }
 
 .position-details {
-  background-color: #FFFFFF;
-  border-radius: 12px;
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-light);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .position-header {
-  padding: 16px 24px;
+  padding: clamp(12px, 4vw, 16px) clamp(16px, 5vw, 24px);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
 }
 
 .position-header h2 {
-  font-size: 20px;
-  color: #212529;
+  font-size: clamp(18px, 5vw, 20px);
   margin: 0;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .position-content {
-  padding: 24px;
+  padding: clamp(16px, 5vw, 24px);
 }
 
 .position-description {
-  font-size: 16px;
-  color: #6C757D;
-  line-height: 1.5;
+  font-size: clamp(14px, 4vw, 16px);
+  color: var(--text-secondary);
+  line-height: 1.6;
   margin-bottom: 24px;
 }
 
@@ -149,61 +291,76 @@
 }
 
 .detail-section h3 {
-  font-size: 18px;
-  color: #212529;
+  font-size: clamp(16px, 4.5vw, 18px);
+  color: var(--text-primary);
   margin: 0 0 12px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #E9ECEF;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
 }
 
 .characteristics-list, .examples-list, .tips-list {
-  padding-left: 24px;
+  padding-left: 20px;
   margin: 0;
 }
 
 .characteristics-list li, .examples-list li, .tips-list li {
   margin-bottom: 8px;
-  color: #495057;
+  color: var(--text-secondary);
+  font-size: clamp(13px, 3.5vw, 14px);
+  line-height: 1.5;
 }
 
 .return-tips {
-  background-color: #F1F8FF;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #F1F8FF, #E3F2FD);
+  border-radius: var(--border-radius-small);
   padding: 16px;
-  border-left: 4px solid #5865F2;
+  border-left: 4px solid var(--primary-color);
+  margin-top: 16px;
 }
 
 .return-tips h3 {
   border-bottom: none;
   padding-bottom: 0;
   margin-bottom: 12px;
+  color: var(--primary-color);
 }
 
 .matrix-practice {
-  background-color: #FFFFFF;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius);
+  padding: clamp(16px, 5vw, 24px);
+  box-shadow: var(--shadow-light);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .matrix-practice h2 {
-  font-size: 20px;
-  color: #212529;
+  font-size: clamp(18px, 5vw, 20px);
+  color: var(--text-primary);
   margin: 0 0 16px 0;
+  font-weight: 600;
 }
 
 .practice-steps {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
 
 .step-card {
-  background-color: #F8F9FA;
-  border-radius: 8px;
-  padding: 16px;
+  background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
+  border-radius: var(--border-radius-small);
+  padding: clamp(12px, 4vw, 16px);
   position: relative;
+  transition: var(--transition-fast);
+  border: 1px solid var(--border-color);
+}
+
+.step-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
 }
 
 .step-number {
@@ -212,7 +369,7 @@
   left: 16px;
   width: 24px;
   height: 24px;
-  background-color: #5865F2;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
   color: white;
   border-radius: 12px;
   display: flex;
@@ -220,56 +377,194 @@
   justify-content: center;
   font-weight: 600;
   font-size: 14px;
+  box-shadow: var(--shadow-light);
 }
 
 .step-card h3 {
-  font-size: 16px;
-  color: #212529;
+  font-size: clamp(14px, 4vw, 16px);
+  color: var(--text-primary);
   margin: 8px 0 8px 0;
+  font-weight: 600;
 }
 
 .step-card p {
-  font-size: 14px;
-  color: #6C757D;
+  font-size: clamp(12px, 3.5vw, 14px);
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.5;
 }
 
 .practice-note {
-  background-color: #FFF9DB;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #FFF9DB, #FFF3CD);
+  border-radius: var(--border-radius-small);
   padding: 16px;
   border-left: 4px solid #FFC107;
+  margin-bottom: 24px;
 }
 
 .practice-note p {
-  font-size: 14px;
-  color: #6C757D;
+  font-size: clamp(13px, 3.5vw, 14px);
+  color: var(--text-secondary);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-@media (max-width: 768px) {
+.continue-section {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+.continue-button {
+  /* ✅ ENHANCED: iPhone-optimized button */
+  min-height: var(--touch-target-min);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-small);
+  padding: 14px 32px;
+  font-size: clamp(14px, 4vw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-light);
+  
+  /* ✅ iPhone touch optimization */
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.continue-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.continue-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-light);
+}
+
+.continue-button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+/* ✅ ENHANCED: iPhone-specific responsive breakpoints */
+
+/* iPhone 15 Pro Max and similar large iPhones */
+@media screen and (max-width: 430px) {
+  .explanation-content {
+    padding: 16px;
+    gap: 20px;
+  }
+  
   .practice-steps {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .matrix-row {
+    height: clamp(50px, 12vw, 60px);
+  }
+  
+  .step-card {
+    padding: 12px;
+  }
+}
+
+/* iPhone 12/13/14 and similar */
+@media screen and (max-width: 390px) {
+  .explanation-header {
+    padding: 12px 16px;
   }
   
   .explanation-content {
+    padding: 12px;
+    gap: 16px;
+  }
+  
+  .matrix-overview, .position-details, .matrix-practice {
+    padding: 16px;
+  }
+  
+  .practice-steps {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* iPhone SE and smaller devices */
+@media screen and (max-width: 375px) {
+  .explanation-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .explanation-header h1 {
+    font-size: 16px;
+  }
+  
+  .back-button {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  .matrix-row {
+    height: 50px;
+  }
+  
+  .cell-content {
+    font-size: 10px;
+    padding: 2px;
+  }
+  
+  .step-number {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+}
+
+/* ✅ ENHANCED: Landscape orientation optimizations for iPhone */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .explanation-header {
+    padding: 8px 16px;
+  }
+  
+  .explanation-content {
+    padding: 12px 24px;
+  }
+  
+  .practice-steps {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .matrix-overview, .position-details, .matrix-practice {
     padding: 16px;
   }
 }
 
-@media (max-width: 480px) {
-  .practice-steps {
-    grid-template-columns: 1fr;
+/* ✅ ENHANCED: High contrast mode support */
+@media (prefers-contrast: high) {
+  .matrix-cell {
+    border-width: 2px;
   }
   
-  .matrix-row {
-    height: 60px;
+  .back-button, .continue-button {
+    border: 2px solid currentColor;
   }
-  
+}
+
+/* ✅ ENHANCED: Large text support for accessibility */
+@media (min-font-size: 20px) {
   .cell-content {
-    font-size: 12px;
-    padding: 4px;
+    font-size: max(12px, 1em);
+  }
+  
+  .back-button, .continue-button {
+    padding: 16px 20px;
   }
 }
