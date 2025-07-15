@@ -54,43 +54,7 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     };
   }, [locationState.fromPAHM, locationState.fromIntro, urlParams.returnToStage, urlParams.fromStage]);
 
-  // ✅ PERFORMANCE: Memoized localStorage check with error handling
-  const hasCompletedIntro = useMemo(() => {
-    try {
-      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-      return Array.isArray(completedIntros) && completedIntros.includes(6);
-    } catch (error) {
-      // ✅ CODE QUALITY: Silent error handling for production
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Error checking completed intros:", error);
-      }
-      return false;
-    }
-  }, []);
-
   // ✅ PERFORMANCE: Stable sessionStorage operations with error handling
-  const getStoredPosture = useCallback((): string => {
-    try {
-      return sessionStorage.getItem('selectedPosture') || '';
-    } catch (error) {
-      // ✅ CODE QUALITY: Silent error handling for production
-      if (process.env.NODE_ENV === 'development') {
-        console.warn("Error reading selectedPosture from sessionStorage:", error);
-      }
-      return '';
-    }
-  }, []);
-
-  const setStoredPosture = useCallback((posture: string): void => {
-    try {
-      sessionStorage.setItem('selectedPosture', posture);
-    } catch (error) {
-      // ✅ CODE QUALITY: Silent error handling for production
-      if (process.env.NODE_ENV === 'development') {
-        console.warn("Error saving selectedPosture to sessionStorage:", error);
-      }
-    }
-  }, []);
 
   const removeStoredPosture = useCallback((): void => {
     try {
@@ -127,15 +91,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
   }, [navigationFlags, removeStoredPosture]);
 
   // ✅ PERFORMANCE: Stable event handlers with useCallback
-  const handleComplete = useCallback(() => {
-    // For Stage 6, navigate to PAHM explanation
-    navigate('/learning/pahm', { 
-      state: { 
-        returnToStage: 6,
-        fromStage: true
-      } 
-    });
-  }, [navigate]);
 
   const handleBack = useCallback(() => {
     if (currentPhase === 'reflection') {
@@ -160,11 +115,20 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     
     // When posture is selected and practice starts, show timer
     setSelectedPosture(posture);
-    setStoredPosture(posture); // Save selected posture to session storage
+    
+    // Save selected posture to session storage with error handling
+    try {
+      sessionStorage.setItem('selectedPosture', posture);
+    } catch (error) {
+      // ✅ CODE QUALITY: Silent error handling for production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Error saving selectedPosture to sessionStorage:", error);
+      }
+    }
     
     // ✅ PERFORMANCE: Direct state update instead of requestAnimationFrame
     setCurrentPhase('timer');
-  }, [setStoredPosture]);
+  }, []);
   
   const handleTimerComplete = useCallback(() => {
     // When timer completes, store the selected posture for reflection
