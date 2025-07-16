@@ -1,6 +1,9 @@
-// src/hooks/useHappinessCalculation.ts
+// ✅ Fixed useHappinessCalculation.ts - Progressive Onboarding Integration
+// File: src/hooks/useHappinessCalculation.ts
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocalData } from '../contexts/LocalDataContext';
+import { useProgressiveOnboarding } from './useProgressiveOnboarding';
 
 // Component calculation interfaces
 interface ComponentResult {
@@ -54,6 +57,13 @@ interface UserProgress {
   practice_streak: number;
   breakdown: ComponentBreakdown | null;
   pahmAnalysis: PAHMAnalysis | null;
+  hasMinimumData: boolean; // ✅ NEW: Flag for sufficient data
+  dataCompleteness: {
+    questionnaire: boolean;
+    selfAssessment: boolean;
+    practiceSessions: boolean;
+    sufficientForCalculation: boolean;
+  };
 }
 
 export interface UseHappinessCalculationReturn {
@@ -70,20 +80,47 @@ export interface UseHappinessCalculationReturn {
   testComponents: () => void;
 }
 
-// ✅ CLEANED: calculateCurrentMoodState - Better utilize lifestyle factors from questionnaire
-const calculateCurrentMoodState = (questionnaire: any, notes: any[]): ComponentResult => {
+// ✅ FIXED: Check if user has sufficient data for happiness calculation
+const hasMinimumDataForCalculation = (
+  questionnaire: any,
+  selfAssessment: any,
+  sessions: any[]
+): boolean => {
+  // Require at least one of these conditions:
+  // 1. Completed questionnaire AND self-assessment
+  // 2. At least 3 practice sessions
+  // 3. Questionnaire AND at least 1 practice session
+  
+  const hasQuestionnaire = questionnaire?.completed || questionnaire?.responses;
+  const hasSelfAssessment = selfAssessment?.completed;
+  const hasMinimumSessions = sessions && sessions.length >= 3;
+  const hasAnySessions = sessions && sessions.length >= 1;
+  
+  return (
+    (hasQuestionnaire && hasSelfAssessment) ||
+    hasMinimumSessions ||
+    (hasQuestionnaire && hasAnySessions)
+  );
+};
+
+// ✅ FIXED: Progressive calculation based on available data
+const calculateCurrentMoodState = (questionnaire: any, notes: any[], hasMinimumData: boolean): ComponentResult => {
+  if (!hasMinimumData) {
+    return { currentMoodScore: 0 }; // No score without data
+  }
+  
   if (!questionnaire && (!notes || notes.length === 0)) {
-    return { currentMoodScore: 50 }; // Default baseline
+    return { currentMoodScore: 25 }; // Very low baseline only if we have other data
   }
   
   let moodScore = 50;
   
   // Better utilize questionnaire lifestyle factors
   if (questionnaire?.responses) {
-    // Sleep quality impact (sleep_pattern instead of sleepQuality)
+    // Sleep quality impact
     const sleepPattern = questionnaire.responses.sleep_pattern;
     if (sleepPattern >= 8) {
-      moodScore += 20; // 8/10 gets 20 points
+      moodScore += 20;
     } else if (sleepPattern >= 6) {
       moodScore += 10;
     }
@@ -109,69 +146,65 @@ const calculateCurrentMoodState = (questionnaire: any, notes: any[]): ComponentR
     }
   }
   
-  // Factor in recent emotional notes (secondary)
+  // Factor in recent emotional notes
   if (notes && notes.length > 0) {
     const recentNotes = notes.slice(-5);
     const avgMood = recentNotes.reduce((sum, note) => {
       return sum + (note.mood || 5);
     }, 0) / recentNotes.length;
-    moodScore = (moodScore * 0.8) + (avgMood * 10 * 0.2); // 80% questionnaire, 20% notes
+    moodScore = (moodScore * 0.8) + (avgMood * 10 * 0.2);
   }
   
   return { currentMoodScore: Math.max(0, Math.min(100, Math.round(moodScore))) };
 };
 
-// calculateAttachmentFlexibility - Use actual attachment assessment data
-const calculateAttachmentFlexibility = (selfAssessment: any): ComponentResult => {
-  if (!selfAssessment?.completed) {
-    return { flexibilityScore: 40 }; // Default baseline
+// ✅ FIXED: Require self-assessment for attachment flexibility
+const calculateAttachmentFlexibility = (selfAssessment: any, hasMinimumData: boolean): ComponentResult => {
+  if (!hasMinimumData || !selfAssessment?.completed) {
+    return { flexibilityScore: 0 }; // No score without self-assessment
   }
   
-  // Use actual attachment score and nonAttachmentCount from assessment
   const attachmentScore = selfAssessment.attachmentScore || 0;
   const nonAttachmentCount = selfAssessment.nonAttachmentCount || selfAssessment.nonAttachmentCategories || 0;
   
-  // Convert attachment score to flexibility score
-  // -14 score with 4/6 categories should be ~75/100
-  let flexibilityScore = 50; // Base score
+  let flexibilityScore = 50;
   
-  // Attachment score contribution (higher negative = better)
-  if (attachmentScore <= -10) flexibilityScore += 25;      // -14 gets 25 points
+  // Attachment score contribution
+  if (attachmentScore <= -10) flexibilityScore += 25;
   else if (attachmentScore <= -5) flexibilityScore += 15;
   else if (attachmentScore <= 0) flexibilityScore += 10;
-  else if (attachmentScore > 0) flexibilityScore -= 10;    // Positive score reduces
+  else if (attachmentScore > 0) flexibilityScore -= 10;
   
-  // Non-attachment categories contribution (4/6 = ~17 points)
+  // Non-attachment categories contribution
   flexibilityScore += (nonAttachmentCount / 6) * 25;
   
   return { flexibilityScore: Math.max(0, Math.min(100, Math.round(flexibilityScore))) };
 };
 
-// calculateSocialConnection - Better utilize questionnaire social data
-const calculateSocialConnection = (questionnaire: any): ComponentResult => {
-  if (!questionnaire?.responses) {
-    return { connectionScore: 45 }; // Default baseline
+// ✅ FIXED: Require questionnaire for social connection
+const calculateSocialConnection = (questionnaire: any, hasMinimumData: boolean): ComponentResult => {
+  if (!hasMinimumData || !questionnaire?.responses) {
+    return { connectionScore: 0 }; // No score without questionnaire
   }
   
   const responses = questionnaire.responses;
   let connectionScore = 50;
   
-  // Check for "Deep, meaningful relationships" response
+  // Check for social connections response
   if (responses.social_connections === "Deep, meaningful relationships") {
-    connectionScore = 85; // High score for expert-level social connection
+    connectionScore = 85;
   } else if (responses.social_connections) {
-    // Handle other social connection responses
     if (responses.social_connections.includes("meaningful")) connectionScore += 25;
     else if (responses.social_connections.includes("good")) connectionScore += 15;
     else if (responses.social_connections.includes("average")) connectionScore += 5;
   }
   
-  // Work-life balance as secondary indicator
+  // Work-life balance bonus
   if (responses.work_life_balance === "Perfect integration of work and practice") {
-    connectionScore += 10; // Bonus for work-life integration
+    connectionScore += 10;
   }
   
-  // Motivation factor (service to others indicates strong social connection)
+  // Motivation factor
   if (responses.motivation === "Service to others and spiritual awakening") {
     connectionScore += 10;
   }
@@ -179,15 +212,23 @@ const calculateSocialConnection = (questionnaire: any): ComponentResult => {
   return { connectionScore: Math.max(0, Math.min(100, Math.round(connectionScore))) };
 };
 
-// calculateEmotionalStabilityProgress - Use questionnaire emotional data first
-const calculateEmotionalStabilityProgress = (sessions: any[], questionnaire?: any): ComponentResult => {
-  let stabilityScore = 40; // Base score
+// ✅ FIXED: Require data for emotional stability
+const calculateEmotionalStabilityProgress = (
+  sessions: any[], 
+  questionnaire: any, 
+  hasMinimumData: boolean
+): ComponentResult => {
+  if (!hasMinimumData) {
+    return { stabilityScore: 0 }; // No score without data
+  }
   
-  // Utilize questionnaire emotional awareness data first
+  let stabilityScore = 40;
+  
+  // Utilize questionnaire emotional data
   if (questionnaire?.responses) {
     const emotionalAwareness = questionnaire.responses.emotional_awareness;
     if (emotionalAwareness >= 9) {
-      stabilityScore = 65; // High baseline for very high emotional awareness (9/10)
+      stabilityScore = 65;
     } else if (emotionalAwareness >= 7) {
       stabilityScore = 55;
     } else if (emotionalAwareness >= 5) {
@@ -210,26 +251,27 @@ const calculateEmotionalStabilityProgress = (sessions: any[], questionnaire?: an
     }
   }
   
-  // Then add practice session bonuses if available
+  // Add practice session bonuses
   if (sessions && sessions.length > 0) {
     const recentSessions = sessions.slice(-10);
     if (recentSessions.length >= 5) {
-      stabilityScore += 15; // Reduced impact since questionnaire is primary
+      stabilityScore += 15;
     }
     
     const avgQuality = recentSessions.reduce((sum, session) => {
       return sum + (session.quality || 3);
     }, 0) / recentSessions.length;
     
-    stabilityScore += avgQuality * 3; // Reduced impact since questionnaire is primary
+    stabilityScore += avgQuality * 3;
   }
   
   return { stabilityScore: Math.max(0, Math.min(100, Math.round(stabilityScore))) };
 };
 
-const calculateMindRecoveryEffectiveness = (sessions: any[]): ComponentResult => {
-  if (!sessions || sessions.length === 0) {
-    return { recoveryScore: 35 }; // Low baseline
+// ✅ FIXED: Require practice sessions for mind recovery
+const calculateMindRecoveryEffectiveness = (sessions: any[], hasMinimumData: boolean): ComponentResult => {
+  if (!hasMinimumData || !sessions || sessions.length === 0) {
+    return { recoveryScore: 0 }; // No score without practice sessions
   }
   
   let recoveryScore = 40;
@@ -249,32 +291,40 @@ const calculateMindRecoveryEffectiveness = (sessions: any[]): ComponentResult =>
   return { recoveryScore: Math.max(0, Math.min(100, Math.round(recoveryScore))) };
 };
 
-// calculateEmotionalRegulation - Heavy weight on questionnaire emotional data
-const calculateEmotionalRegulation = (sessions: any[], questionnaire?: any): ComponentResult => {
+// ✅ FIXED: Require data for emotional regulation
+const calculateEmotionalRegulation = (
+  sessions: any[], 
+  questionnaire: any, 
+  hasMinimumData: boolean
+): ComponentResult => {
+  if (!hasMinimumData) {
+    return { regulationScore: 0 }; // No score without data
+  }
+  
   let regulationScore = 45;
   
-  // Primary scoring from questionnaire data
+  // Primary scoring from questionnaire
   if (questionnaire?.responses) {
     const emotionalAwareness = questionnaire.responses.emotional_awareness;
     if (emotionalAwareness >= 9) {
-      regulationScore = 75; // High score for very high awareness (9/10)
+      regulationScore = 75;
     } else if (emotionalAwareness >= 7) {
       regulationScore = 60;
     } else if (emotionalAwareness >= 5) {
       regulationScore = 50;
     }
     
-    // Decision making style bonus
+    // Decision making bonus
     if (questionnaire.responses.decision_making === "Intuitive with mindful consideration") {
       regulationScore += 10;
     }
     
-    // Self reflection bonus  
+    // Self reflection bonus
     if (questionnaire.responses.self_reflection === "Daily meditation and contemplation") {
       regulationScore += 10;
     }
     
-    // Daily mindfulness bonus
+    // Mindfulness bonus
     if (questionnaire.responses.mindfulness_in_daily_life === "Constant awareness and presence") {
       regulationScore += 5;
     }
@@ -283,30 +333,26 @@ const calculateEmotionalRegulation = (sessions: any[], questionnaire?: any): Com
   // Secondary scoring from practice sessions
   if (sessions && sessions.length > 0) {
     const practiceWeeks = Math.floor(sessions.length / 3);
-    regulationScore += Math.min(10, practiceWeeks * 2); // Reduced impact
+    regulationScore += Math.min(10, practiceWeeks * 2);
     
     const qualitySessions = sessions.filter(session => (session.quality || 0) >= 4);
     if (qualitySessions.length > 0) {
-      regulationScore += (qualitySessions.length / sessions.length) * 8; // Reduced impact
+      regulationScore += (qualitySessions.length / sessions.length) * 8;
     }
   }
   
   return { regulationScore: Math.max(0, Math.min(100, Math.round(regulationScore))) };
 };
 
-const calculatePracticeConsistency = (sessions: any[]): ComponentResult => {
-  if (!sessions || sessions.length === 0) {
-    return { consistencyScore: 0 };
+// ✅ FIXED: Require practice sessions for consistency
+const calculatePracticeConsistency = (sessions: any[], hasMinimumData: boolean): ComponentResult => {
+  if (!hasMinimumData || !sessions || sessions.length === 0) {
+    return { consistencyScore: 0 }; // No score without practice sessions
   }
   
-  // Calculate streak and frequency
-  const sortedSessions = [...sessions].sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  let consistencyScore = 20;
   
-  let consistencyScore = 20; // Base score for having any sessions
-  
-  // Frequency bonus
+  // Frequency calculation
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
@@ -314,10 +360,10 @@ const calculatePracticeConsistency = (sessions: any[]): ComponentResult => {
     new Date(session.timestamp) > thirtyDaysAgo
   );
   
-  if (recentSessions.length >= 20) consistencyScore += 40; // Excellent
-  else if (recentSessions.length >= 15) consistencyScore += 30; // Good
-  else if (recentSessions.length >= 10) consistencyScore += 20; // Fair
-  else if (recentSessions.length >= 5) consistencyScore += 10; // Basic
+  if (recentSessions.length >= 20) consistencyScore += 40;
+  else if (recentSessions.length >= 15) consistencyScore += 30;
+  else if (recentSessions.length >= 10) consistencyScore += 20;
+  else if (recentSessions.length >= 5) consistencyScore += 10;
   
   // Streak calculation
   const currentStreak = calculateSessionStreak(sessions);
@@ -328,46 +374,49 @@ const calculatePracticeConsistency = (sessions: any[]): ComponentResult => {
   return { consistencyScore: Math.max(0, Math.min(100, Math.round(consistencyScore))) };
 };
 
-// calculatePAHMCentralDevelopment - Give baseline for stated experience
-const calculatePAHMCentralDevelopment = (sessions: any[], questionnaire?: any): ComponentResult => {
-  let baselinePAHMScore = 15; // Default for no data
+// ✅ FIXED: PAHM calculation with proper baseline
+const calculatePAHMCentralDevelopment = (
+  sessions: any[], 
+  questionnaire: any, 
+  hasMinimumData: boolean
+): ComponentResult => {
+  if (!hasMinimumData) {
+    return {
+      overallPAHMScore: 0,
+      presentMomentRatio: 0,
+      presentNeutralRatio: 0,
+      developmentStage: 'Data Collection Needed',
+      stageDescription: 'Complete questionnaire and practice sessions to begin PAHM assessment',
+      progressionPath: 'Start with questionnaire or begin practice sessions',
+      insights: ['No data available for PAHM analysis'],
+      recommendations: ['Complete the questionnaire', 'Begin practice sessions', 'Complete self-assessment'],
+      breakdown: {
+        presentNeutralMastery: 0,
+        presentMomentDevelopment: 0,
+        therapeuticProgress: 0,
+        sessionQuality: 0
+      }
+    };
+  }
   
-  // Provide baseline from questionnaire experience level
+  let baselinePAHMScore = 15;
+  
+  // Provide baseline from questionnaire experience
   if (questionnaire?.responses) {
     const experienceLevel = questionnaire.responses.experience_level;
     const mindfulnessExperience = questionnaire.responses.mindfulness_experience;
-    const meditationBackground = questionnaire.responses.meditation_background;
     
-    // Experience level baseline (8/10 Expert should get ~25-30)
     if (experienceLevel >= 8) {
-      baselinePAHMScore = 25; // Higher baseline for experts
+      baselinePAHMScore = 25;
     } else if (experienceLevel >= 6) {
       baselinePAHMScore = 20;
     } else if (experienceLevel >= 4) {
       baselinePAHMScore = 18;
     }
     
-    // Mindfulness experience bonus (9/10 Expert)
     if (mindfulnessExperience >= 9) {
       baselinePAHMScore += 5;
     } else if (mindfulnessExperience >= 7) {
-      baselinePAHMScore += 3;
-    }
-    
-    // Advanced background bonus
-    if (meditationBackground === "Advanced Vipassana and Zen practice") {
-      baselinePAHMScore += 5;
-    } else if (meditationBackground && meditationBackground.includes("Advanced")) {
-      baselinePAHMScore += 3;
-    }
-    
-    // Daily mindfulness bonus
-    if (questionnaire.responses.mindfulness_in_daily_life === "Constant awareness and presence") {
-      baselinePAHMScore += 5;
-    }
-    
-    // Practice goals bonus
-    if (questionnaire.responses.practice_goals === "Liberation from suffering") {
       baselinePAHMScore += 3;
     }
   }
@@ -376,50 +425,33 @@ const calculatePAHMCentralDevelopment = (sessions: any[], questionnaire?: any): 
   if (!sessions || sessions.length === 0) {
     return {
       overallPAHMScore: baselinePAHMScore,
-      presentMomentRatio: Math.min(1, baselinePAHMScore / 50), // Convert to ratio
-      presentNeutralRatio: Math.min(1, baselinePAHMScore / 60), // Slightly higher threshold
+      presentMomentRatio: Math.min(1, baselinePAHMScore / 50),
+      presentNeutralRatio: Math.min(1, baselinePAHMScore / 60),
       developmentStage: baselinePAHMScore >= 30 ? 'Initial Awareness' : 
                        baselinePAHMScore >= 20 ? 'Scattered Mind with Experience' : 'Scattered Mind',
-      stageDescription: baselinePAHMScore >= 30 ? 
-        'Starting to recognize patterns of mental activity based on stated experience' : 
-        baselinePAHMScore >= 20 ?
-        'Mind scattered but with meditation background and skills' :
-        'Mind scattered across time and emotions without awareness',
-      progressionPath: baselinePAHMScore >= 30 ? 
-        'Begin logging practice sessions to develop skills' : 
-        baselinePAHMScore >= 20 ?
-        'Start consistent practice to build on existing foundation' :
-        'Start the Return of Attention journey',
-      insights: [
-        'Your stated experience suggests good foundation',
-        'Begin logging practice sessions to unlock your true potential',
-        baselinePAHMScore >= 25 ? 'Expert background provides strong starting point' : 'Building on existing meditation experience'
-      ],
-      recommendations: [
-        'Start daily practice logging',
-        'Begin with your preferred duration and style',
-        baselinePAHMScore >= 25 ? 'Focus on present-neutral awareness development' : 'Establish consistent routine first'
-      ],
+      stageDescription: 'Assessment based on stated experience level',
+      progressionPath: 'Begin practice sessions to develop actual skills',
+      insights: ['Assessment based on questionnaire responses', 'Practice sessions needed for accurate measurement'],
+      recommendations: ['Start daily practice sessions', 'Complete self-assessment', 'Begin with your preferred duration'],
       breakdown: {
-        presentNeutralMastery: Math.round(baselinePAHMScore * 0.4), // 40% for experts
-        presentMomentDevelopment: Math.round(baselinePAHMScore * 0.3), // 30%
-        therapeuticProgress: Math.round(baselinePAHMScore * 0.2), // 20%
-        sessionQuality: 0 // No sessions yet
+        presentNeutralMastery: Math.round(baselinePAHMScore * 0.4),
+        presentMomentDevelopment: Math.round(baselinePAHMScore * 0.3),
+        therapeuticProgress: Math.round(baselinePAHMScore * 0.2),
+        sessionQuality: 0
       }
     };
   }
   
-  // If practice sessions exist, use the existing detailed calculation
-  // PAHM Development Analysis
+  // Calculate with practice sessions (existing logic)
   const totalSessions = sessions.length;
   const totalDuration = sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
   const avgQuality = sessions.reduce((sum, session) => sum + (session.quality || 3), 0) / totalSessions;
   
   // Present Moment Development (0-30 points)
   let presentMomentDev = Math.min(30, totalSessions * 2);
-  if (totalDuration > 300) presentMomentDev += 5; // 5+ hours bonus
+  if (totalDuration > 300) presentMomentDev += 5;
   
-  // Present-Neutral Mastery (0-50 points) - The ultimate goal
+  // Present-Neutral Mastery (0-50 points)
   let presentNeutralMastery = 0;
   if (totalSessions >= 20) presentNeutralMastery += 15;
   if (totalSessions >= 50) presentNeutralMastery += 15;
@@ -436,7 +468,7 @@ const calculatePAHMCentralDevelopment = (sessions: any[], questionnaire?: any): 
   // Determine development stage
   let developmentStage = 'Scattered Mind';
   let stageDescription = 'Mind scattered across time and emotions without awareness';
-  let progressionPath = 'Start the Return of Attention journey';
+  let progressionPath = 'Build consistent practice routine';
   
   if (overallPAHMScore >= 80) {
     developmentStage = 'Present-Neutral Mastery';
@@ -461,19 +493,14 @@ const calculatePAHMCentralDevelopment = (sessions: any[], questionnaire?: any): 
   const recommendations = [];
   
   if (totalSessions < 10) {
-    insights.push('You\'re in the early stages of building present attention');
+    insights.push('Building foundation of present attention practice');
     recommendations.push('Aim for daily 5-10 minute sessions');
   } else if (totalSessions < 30) {
-    insights.push('Your practice foundation is developing');
+    insights.push('Developing consistent practice routine');
     recommendations.push('Gradually increase session length');
   } else {
-    insights.push('You have established a solid practice foundation');
+    insights.push('Established solid practice foundation');
     recommendations.push('Focus on quality over quantity');
-  }
-  
-  if (avgQuality < 3) {
-    insights.push('Session quality can be improved');
-    recommendations.push('Practice returning attention gently when mind wanders');
   }
   
   return {
@@ -523,7 +550,7 @@ const calculateSessionStreak = (sessions: any[]): number => {
   return streak;
 };
 
-// ✅ PERFORMANCE FIX: Main hook with optimizations
+// ✅ FIXED: Main hook with progressive onboarding integration
 export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   const { 
     practiceSessions,
@@ -533,31 +560,37 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   } = useLocalData();
 
   const [userProgress, setUserProgress] = useState<UserProgress>({
-    happiness_points: 15,
-    user_level: 'Newcomer',
+    happiness_points: 0, // ✅ FIXED: Start with 0 instead of 15
+    user_level: 'New User',
     focus_ability: 0,
     habit_change_score: 0,
     practice_streak: 0,
     breakdown: null,
-    pahmAnalysis: null
+    pahmAnalysis: null,
+    hasMinimumData: false,
+    dataCompleteness: {
+      questionnaire: false,
+      selfAssessment: false,
+      practiceSessions: false,
+      sufficientForCalculation: false
+    }
   });
 
   const [componentBreakdown, setComponentBreakdown] = useState<ComponentBreakdown | null>(null);
   const [calculationDebugInfo, setCalculationDebugInfo] = useState<any>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // ✅ PERFORMANCE FIX: Memoized questionnaire and self-assessment data
+  // Get questionnaire and self-assessment data
   const questionnaire = useMemo(() => getQuestionnaire(), [getQuestionnaire]);
   const selfAssessment = useMemo(() => getSelfAssessment(), [getSelfAssessment]);
 
-  // Extract numeric scores from calculation function objects
+  // Extract numeric scores from calculation results
   const extractNumericScore = useCallback((result: ComponentResult): number => {
     if (typeof result === 'number') {
       return result;
     }
     
     if (result && typeof result === 'object') {
-      // Try different possible score properties
       return result.score || 
              result.flexibilityScore || 
              result.recoveryScore || 
@@ -574,41 +607,68 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     return 0;
   }, []);
 
-  // ✅ PERFORMANCE FIX: Memoized calculation function
+  // ✅ FIXED: Main calculation with data validation
   const calculateHappinessScore = useCallback(() => {
     setIsCalculating(true);
     
     try {
-      // Get fresh data
       const sessions = practiceSessions || [];
       const notes = emotionalNotes || [];
       
-      // Calculate individual components with questionnaire data passed to functions that need it
-      const currentMoodResult = calculateCurrentMoodState(questionnaire, notes);
+      // ✅ Check if we have minimum data for calculation
+      const hasMinimumData = hasMinimumDataForCalculation(questionnaire, selfAssessment, sessions);
+      
+      // ✅ Calculate data completeness
+      const dataCompleteness = {
+        questionnaire: !!(questionnaire?.completed || questionnaire?.responses),
+        selfAssessment: !!(selfAssessment?.completed),
+        practiceSessions: sessions.length > 0,
+        sufficientForCalculation: hasMinimumData
+      };
+      
+      // ✅ If insufficient data, return early with guidance
+      if (!hasMinimumData) {
+        const result: UserProgress = {
+          happiness_points: 0,
+          user_level: 'New User',
+          focus_ability: 0,
+          habit_change_score: 0,
+          practice_streak: 0,
+          breakdown: null,
+          pahmAnalysis: null,
+          hasMinimumData: false,
+          dataCompleteness
+        };
+        
+        setUserProgress(result);
+        setComponentBreakdown(null);
+        setIsCalculating(false);
+        return;
+      }
+      
+      // ✅ Calculate components with data validation
+      const currentMoodResult = calculateCurrentMoodState(questionnaire, notes, hasMinimumData);
       const currentMoodScore = extractNumericScore(currentMoodResult);
       
-      const attachmentResult = calculateAttachmentFlexibility(selfAssessment);
+      const attachmentResult = calculateAttachmentFlexibility(selfAssessment, hasMinimumData);
       const attachmentScore = extractNumericScore(attachmentResult);
       
-      const socialResult = calculateSocialConnection(questionnaire);
+      const socialResult = calculateSocialConnection(questionnaire, hasMinimumData);
       const socialScore = extractNumericScore(socialResult);
       
-      // Pass questionnaire parameter to functions that need it
-      const emotionalStabilityResult = calculateEmotionalStabilityProgress(sessions, questionnaire);
+      const emotionalStabilityResult = calculateEmotionalStabilityProgress(sessions, questionnaire, hasMinimumData);
       const emotionalStabilityScore = extractNumericScore(emotionalStabilityResult);
       
-      const mindRecoveryResult = calculateMindRecoveryEffectiveness(sessions);
+      const mindRecoveryResult = calculateMindRecoveryEffectiveness(sessions, hasMinimumData);
       const mindRecoveryScore = extractNumericScore(mindRecoveryResult);
       
-      // Pass questionnaire parameter to emotional regulation
-      const emotionalRegulationResult = calculateEmotionalRegulation(sessions, questionnaire);
+      const emotionalRegulationResult = calculateEmotionalRegulation(sessions, questionnaire, hasMinimumData);
       const emotionalRegulationScore = extractNumericScore(emotionalRegulationResult);
       
-      const practiceConsistencyResult = calculatePracticeConsistency(sessions);
+      const practiceConsistencyResult = calculatePracticeConsistency(sessions, hasMinimumData);
       const practiceConsistencyScore = extractNumericScore(practiceConsistencyResult);
       
-      // Pass questionnaire parameter to PAHM development
-      const pahmResult = calculatePAHMCentralDevelopment(sessions, questionnaire);
+      const pahmResult = calculatePAHMCentralDevelopment(sessions, questionnaire, hasMinimumData);
       const pahmScore = extractNumericScore(pahmResult);
 
       // Set component breakdown
@@ -625,26 +685,27 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
       setComponentBreakdown(breakdown);
 
-      // PAHM-Centered Weighted Calculation (Total: 100%)
+      // ✅ PAHM-Centered Weighted Calculation
       const weightedScore = Math.round(
-        (pahmScore * 0.30) +                    // 30% PAHM Development - THE CORE
-        (emotionalStabilityScore * 0.20) +      // 20% Emotional Stability  
-        (currentMoodScore * 0.15) +             // 15% Current Mood
-        (mindRecoveryScore * 0.12) +            // 12% Mind Recovery
-        (emotionalRegulationScore * 0.10) +     // 10% Emotional Regulation
-        (attachmentScore * 0.08) +              // 8% Attachment Flexibility
-        (socialScore * 0.03) +                  // 3% Social Connection
-        (practiceConsistencyScore * 0.02)       // 2% Practice Consistency
+        (pahmScore * 0.30) +
+        (emotionalStabilityScore * 0.20) +
+        (currentMoodScore * 0.15) +
+        (mindRecoveryScore * 0.12) +
+        (emotionalRegulationScore * 0.10) +
+        (attachmentScore * 0.08) +
+        (socialScore * 0.03) +
+        (practiceConsistencyScore * 0.02)
       );
 
-      // Determine user level based on score
-      let userLevel = 'Newcomer';
+      // Determine user level
+      let userLevel = 'New User';
       if (weightedScore >= 80) userLevel = 'Master Practitioner';
       else if (weightedScore >= 65) userLevel = 'Advanced Practitioner';
       else if (weightedScore >= 45) userLevel = 'Developing Practitioner';
       else if (weightedScore >= 25) userLevel = 'Emerging Practitioner';
+      else if (weightedScore >= 10) userLevel = 'Beginner';
 
-      // Create PAHM analysis from detailed result
+      // Create PAHM analysis
       let pahmAnalysis: PAHMAnalysis | null = null;
       if (typeof pahmResult === 'object' && pahmResult !== null) {
         pahmAnalysis = {
@@ -652,9 +713,9 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
           presentNeutralRatio: pahmResult.presentNeutralRatio || 0,
           neutralRatio: pahmResult.neutralRatio || pahmResult.presentNeutralRatio || 0,
           overallPAHMScore: pahmScore,
-          developmentStage: pahmResult.developmentStage || 'Scattered Mind',
-          stageDescription: pahmResult.stageDescription || 'Mind scattered across time and emotions without awareness',
-          progressionPath: pahmResult.progressionPath || 'Start the Return of Attention journey',
+          developmentStage: pahmResult.developmentStage || 'Data Collection Needed',
+          stageDescription: pahmResult.stageDescription || 'Complete more data collection',
+          progressionPath: pahmResult.progressionPath || 'Begin your journey',
           insights: pahmResult.insights || [],
           recommendations: pahmResult.recommendations || [],
           breakdown: pahmResult.breakdown || {
@@ -671,7 +732,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       const habitChangeScore = Math.min(Math.round(pahmScore + (practiceConsistencyScore * 0.8)), 100);
       const practiceStreak = sessions.length > 0 ? calculateSessionStreak(sessions) : 0;
 
-      // Create comprehensive result
+      // Create result
       const result: UserProgress = {
         happiness_points: weightedScore,
         user_level: userLevel,
@@ -679,77 +740,90 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         habit_change_score: habitChangeScore,
         practice_streak: practiceStreak,
         breakdown: breakdown,
-        pahmAnalysis: pahmAnalysis
+        pahmAnalysis: pahmAnalysis,
+        hasMinimumData: true,
+        dataCompleteness
       };
 
       setUserProgress(result);
 
-      // Save to localStorage for persistence
+      // Save to localStorage
       localStorage.setItem('happiness_points', weightedScore.toString());
       localStorage.setItem('user_level', userLevel);
       localStorage.setItem('focus_ability', focusAbility.toString());
       localStorage.setItem('habit_change_score', habitChangeScore.toString());
       localStorage.setItem('practice_streak', practiceStreak.toString());
 
-      // Emit event for other components
+      // Emit event
       const event = new CustomEvent('happinessUpdated', {
         detail: {
           happiness_points: weightedScore,
           user_level: userLevel,
           breakdown: breakdown,
-          pahmAnalysis: pahmAnalysis
+          pahmAnalysis: pahmAnalysis,
+          hasMinimumData: true
         }
       });
       window.dispatchEvent(event);
 
     } catch (error) {
-      // Fallback to default values
+      console.error('Error calculating happiness score:', error);
       setUserProgress({
-        happiness_points: 15,
-        user_level: 'Newcomer',
+        happiness_points: 0,
+        user_level: 'New User',
         focus_ability: 0,
         habit_change_score: 0,
         practice_streak: 0,
         breakdown: null,
-        pahmAnalysis: null
+        pahmAnalysis: null,
+        hasMinimumData: false,
+        dataCompleteness: {
+          questionnaire: false,
+          selfAssessment: false,
+          practiceSessions: false,
+          sufficientForCalculation: false
+        }
       });
     } finally {
       setIsCalculating(false);
     }
   }, [questionnaire, selfAssessment, practiceSessions, emotionalNotes, extractNumericScore]);
 
-  // ✅ PERFORMANCE FIX: Debug functions with useCallback
+  // Debug functions
   const debugCalculation = useCallback(() => {
-    // Debug information available for development
     const debugInfo = {
       questionnaire: questionnaire ? 'Available' : 'Missing',
       selfAssessment: selfAssessment ? 'Available' : 'Missing',
       practiceSessions: practiceSessions?.length || 0,
       emotionalNotes: emotionalNotes?.length || 0,
+      hasMinimumData: hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions || []),
       currentResults: userProgress
     };
     
     setCalculationDebugInfo(debugInfo);
+    console.log('🔍 Happiness Calculation Debug:', debugInfo);
   }, [questionnaire, selfAssessment, practiceSessions, emotionalNotes, userProgress]);
 
   const logProgress = useCallback(() => {
-    // Progress logging available for development
+    console.log('📊 Current Progress:', userProgress);
+    console.log('📊 Component Breakdown:', componentBreakdown);
   }, [userProgress, componentBreakdown]);
 
   const testComponents = useCallback(() => {
-    // Component testing available for development
-  }, [questionnaire, selfAssessment, practiceSessions, emotionalNotes, extractNumericScore]);
+    console.log('🧪 Testing Components...');
+    const hasMinimumData = hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions || []);
+    console.log('Has minimum data:', hasMinimumData);
+  }, [questionnaire, selfAssessment, practiceSessions]);
 
-  // ✅ PERFORMANCE FIX: Auto-calculate when data changes with debouncing
+  // Auto-calculate when data changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       calculateHappinessScore();
-    }, 100); // Small delay to batch updates
+    }, 100);
     
     return () => clearTimeout(timeoutId);
   }, [calculateHappinessScore]);
 
-  // ✅ PERFORMANCE FIX: Memoized return value
   return useMemo(() => ({
     userProgress,
     componentBreakdown,

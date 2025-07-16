@@ -1,0 +1,436 @@
+/* ✅ Stage1Wrapper.css - Complete styling for Stage 1 T-stages */
+
+.stage1-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.stage1-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stage-header {
+  text-align: center;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.back-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #667eea;
+  color: #667eea;
+  padding: 12px 20px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.back-button:hover {
+  background: #667eea;
+  color: white;
+  transform: translateX(-5px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.stage-header h1 {
+  font-size: 36px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 15px 0;
+  line-height: 1.2;
+}
+
+.stage-description {
+  font-size: 18px;
+  color: #6c757d;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.t-stages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+  margin-top: 40px;
+}
+
+.t-stage-card {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid transparent;
+}
+
+.t-stage-card:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.t-stage-card:hover:before {
+  opacity: 1;
+}
+
+.t-stage-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.t-stage-card.available {
+  cursor: pointer;
+}
+
+.t-stage-card.available:hover {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+}
+
+.t-stage-card.completed {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+  border-color: rgba(40, 167, 69, 0.3);
+}
+
+.t-stage-card.completed:before {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  opacity: 1;
+}
+
+.t-stage-card.locked {
+  background: #f8f9fa;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.t-stage-card.locked:hover {
+  transform: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.t-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  gap: 15px;
+}
+
+.t-stage-header h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.available {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.status-badge.completed {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.status-badge.locked {
+  background: #e9ecef;
+  color: #6c757d;
+}
+
+.t-stage-info {
+  margin-bottom: 20px;
+}
+
+.duration {
+  font-size: 16px;
+  color: #7f8c8d;
+  margin: 0 0 15px 0;
+  font-weight: 500;
+}
+
+.progress-info {
+  margin-bottom: 10px;
+}
+
+.progress-info span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  position: relative;
+}
+
+.t-stage-card.completed .progress-fill {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.progress-fill:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.requirement-hint {
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  border: 1px solid #ffeaa7;
+  margin-top: 15px;
+}
+
+.t-stage-container {
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.practice-placeholder {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.practice-placeholder h2 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+.practice-placeholder p {
+  color: #7f8c8d;
+  margin-bottom: 30px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.practice-placeholder button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.practice-placeholder button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* ✅ Responsive Design */
+@media (max-width: 768px) {
+  .stage1-container {
+    padding: 15px;
+  }
+  
+  .stage-header {
+    margin-bottom: 30px;
+  }
+  
+  .back-button {
+    position: relative;
+    margin-bottom: 20px;
+    left: auto;
+    top: auto;
+  }
+  
+  .stage-header h1 {
+    font-size: 28px;
+  }
+  
+  .stage-description {
+    font-size: 16px;
+  }
+  
+  .t-stages-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .t-stage-card {
+    padding: 25px;
+  }
+  
+  .t-stage-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .t-stage-header h3 {
+    font-size: 18px;
+  }
+  
+  .practice-placeholder {
+    padding: 30px 20px;
+  }
+  
+  .practice-placeholder h2 {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stage1-container {
+    padding: 10px;
+  }
+  
+  .t-stage-card {
+    padding: 20px;
+  }
+  
+  .stage-header h1 {
+    font-size: 24px;
+  }
+  
+  .stage-description {
+    font-size: 14px;
+  }
+  
+  .practice-placeholder {
+    padding: 25px 15px;
+  }
+  
+  .practice-placeholder h2 {
+    font-size: 20px;
+  }
+  
+  .practice-placeholder button {
+    padding: 12px 25px;
+    font-size: 15px;
+  }
+}
+
+/* ✅ Loading states */
+.t-stage-card.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.t-stage-card.loading:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* ✅ Accessibility improvements */
+.t-stage-card:focus {
+  outline: 3px solid rgba(102, 126, 234, 0.5);
+  outline-offset: 3px;
+}
+
+.back-button:focus {
+  outline: 2px solid rgba(102, 126, 234, 0.8);
+  outline-offset: 2px;
+}
+
+/* ✅ Print styles */
+@media print {
+  .stage1-container {
+    background: white;
+    padding: 0;
+  }
+  
+  .t-stage-card {
+    box-shadow: none;
+    border: 1px solid #ddd;
+    break-inside: avoid;
+  }
+  
+  .back-button {
+    display: none;
+  }
+}
