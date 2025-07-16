@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-// ✅ iPhone-Optimized SignIn Component with Embedded CSS
+// ✅ iPhone-Optimized SignIn Component with Password Visibility Toggle
 interface SignInProps {
   onSignIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
@@ -20,6 +20,8 @@ const SignIn: React.FC<SignInProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSecurityTooltip, setShowSecurityTooltip] = useState(false);
+  // ✅ NEW: Password visibility state
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,10 +50,15 @@ const SignIn: React.FC<SignInProps> = ({
     }
   };
 
+  // ✅ NEW: Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
     <div className="signin-container">
       <style>{`
-        /* ✅ IPHONE-OPTIMIZED CSS WITH FULL RESPONSIVENESS */
+        /* ✅ IPHONE-OPTIMIZED CSS WITH PASSWORD TOGGLE */
         .signin-container {
           min-height: 100vh;
           min-height: 100dvh; /* Dynamic viewport height for iPhone */
@@ -152,6 +159,67 @@ const SignIn: React.FC<SignInProps> = ({
           min-height: 50px; /* iPhone touch target minimum */
           -webkit-appearance: none;
           -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+        }
+
+        /* ✅ NEW: Password input with space for eye icon */
+        .password-input-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .password-input-wrapper input {
+          padding-right: 55px; /* Make space for eye icon */
+        }
+
+        /* ✅ NEW: Eye icon button styling */
+        .password-toggle-btn {
+          position: absolute;
+          right: 16px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 6px;
+          color: #6c757d;
+          transition: all 0.2s ease;
+          min-width: 32px;
+          min-height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+          touch-action: manipulation;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+
+        .password-toggle-btn:hover {
+          background-color: rgba(102, 126, 234, 0.1);
+          color: #667eea;
+        }
+
+        .password-toggle-btn:active {
+          background-color: rgba(102, 126, 234, 0.15);
+          transform: translateY(-50%) scale(0.95);
+        }
+
+        .password-toggle-btn:focus {
+          outline: 2px solid #667eea;
+          outline-offset: 2px;
+        }
+
+        /* ✅ Eye icon animations */
+        .eye-icon {
+          width: 18px;
+          height: 18px;
+          transition: all 0.2s ease;
+        }
+
+        .password-toggle-btn:hover .eye-icon {
+          transform: scale(1.1);
         }
 
         .form-group input:focus {
@@ -474,6 +542,21 @@ const SignIn: React.FC<SignInProps> = ({
           .forgot-link {
             align-self: flex-end;
           }
+
+          /* ✅ Smaller eye icon on very small screens */
+          .password-toggle-btn {
+            min-width: 28px;
+            min-height: 28px;
+          }
+
+          .eye-icon {
+            width: 16px;
+            height: 16px;
+          }
+
+          .password-input-wrapper input {
+            padding-right: 50px;
+          }
         }
 
         /* ✅ IPHONE STANDARD (375px - 414px) */
@@ -534,6 +617,10 @@ const SignIn: React.FC<SignInProps> = ({
           .error-message {
             border-left: 4px solid #dc3545;
           }
+
+          .password-toggle-btn {
+            border: 2px solid currentColor;
+          }
         }
 
         /* ✅ REDUCED MOTION SUPPORT */
@@ -547,6 +634,14 @@ const SignIn: React.FC<SignInProps> = ({
           }
           
           .primary-button::before {
+            transition: none;
+          }
+
+          .eye-icon {
+            transition: none;
+          }
+
+          .password-toggle-btn {
             transition: none;
           }
         }
@@ -574,6 +669,19 @@ const SignIn: React.FC<SignInProps> = ({
           .form-group input::placeholder {
             color: #6c757d;
           }
+
+          .password-toggle-btn {
+            color: #adb5bd;
+          }
+
+          .password-toggle-btn:hover {
+            background-color: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+          }
+
+          .divider span {
+            background-color: rgba(30, 30, 30, 0.95);
+          }
         }
       `}</style>
 
@@ -599,15 +707,39 @@ const SignIn: React.FC<SignInProps> = ({
               />
             </div>
 
+            {/* ✅ NEW: Password input with visibility toggle */}
             <div className="form-group">
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={togglePasswordVisibility}
+                  disabled={loading}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    // Eye with slash (password visible - click to hide)
+                    <svg className="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    // Regular eye (password hidden - click to show)
+                    <svg className="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Professional Remember Me Section */}

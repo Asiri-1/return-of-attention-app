@@ -1,6 +1,11 @@
+// ✅ Fixed PracticeComplete - Works with Progressive Onboarding
+// File: src/PracticeComplete.tsx
+
 import React, { useState } from 'react';
 import './PracticeComplete.css';
 import Logo from './Logo';
+import { useProgressiveOnboarding } from './hooks/useProgressiveOnboarding';
+import { usePractice } from './PracticeContext';
 
 interface PracticeCompleteProps {
   onBack: () => void;
@@ -9,6 +14,7 @@ interface PracticeCompleteProps {
     duration: number;
     stage: number;
     stageTitle: string;
+    level?: string; // T-stage level (T1, T2, etc.) for Stage 1
     pahmDistribution?: {
       present: number;
       past: number;
@@ -34,6 +40,10 @@ const PracticeComplete: React.FC<PracticeCompleteProps> = ({
   const [challenges, setChallenges] = useState<string[]>([]);
   const [insights, setInsights] = useState<string>('');
   
+  // ✅ INTEGRATION: Use progressive onboarding and practice context
+  const { handleSessionComplete } = useProgressiveOnboarding();
+  const { addSession } = usePractice();
+  
   const handleRatingSelect = (selectedRating: number) => {
     setRating(selectedRating);
   };
@@ -52,11 +62,75 @@ const PracticeComplete: React.FC<PracticeCompleteProps> = ({
       challenges,
       insights
     };
+    
+    // ✅ INTEGRATION: Create complete session data for both systems
+    const completeSessionData = {
+      ...sessionData,
+      rating,
+      reflectionData,
+      isCompleted: true,
+      timeSpent: sessionData.duration
+    };
+    
+    // ✅ Update progressive onboarding system
+    handleSessionComplete(completeSessionData);
+    
+    // ✅ Update practice context for statistics and streaks
+    if (sessionData.pahmDistribution) {
+      addSession({
+        duration: sessionData.duration,
+        positions: sessionData.pahmDistribution,
+        lastPosition: 'present' // You can determine this from pahmDistribution
+      });
+    } else {
+      // For T-stage sessions, create a basic positions object
+      addSession({
+        duration: sessionData.duration,
+        positions: { present: sessionData.duration }, // Stage 1 is all "present"
+        lastPosition: 'present'
+      });
+    }
+    
+    // ✅ Call original handler
     onSaveAndContinue(rating, reflectionData);
   };
   
   // For Stage 1 (Physical Stillness), we don't show PAHM distribution
   const showPAHM = sessionData.stage !== 1 && sessionData.pahmDistribution;
+  
+  // ✅ INTEGRATION: Show progression hints based on current stage
+  const getProgressionHint = () => {
+    if (sessionData.stage === 1 && sessionData.level) {
+      const currentTStage = sessionData.level;
+      const sessions = JSON.parse(localStorage.getItem(`${currentTStage.toLowerCase()}Sessions`) || '[]');
+      const completedSessions = sessions.filter((s: any) => s.isCompleted).length + 1; // +1 for current session
+      
+      if (completedSessions >= 3) {
+        const nextStages = ['T1', 'T2', 'T3', 'T4', 'T5'];
+        const currentIndex = nextStages.indexOf(currentTStage);
+        const nextStage = nextStages[currentIndex + 1];
+        
+        if (nextStage) {
+          return `🎉 ${currentTStage} completed! ${nextStage} is now unlocked.`;
+        } else {
+          return `🏆 Stage 1 completed! PAHM Stage 2 is now unlocked.`;
+        }
+      } else {
+        return `✨ ${completedSessions}/3 ${currentTStage} sessions completed.`;
+      }
+    } else if (sessionData.stage >= 2) {
+      const currentHours = parseFloat(localStorage.getItem(`stage${sessionData.stage}Hours`) || '0');
+      const sessionHours = sessionData.duration / 60;
+      const newTotal = currentHours + sessionHours;
+      
+      if (newTotal >= 15) {
+        return `🎉 Stage ${sessionData.stage} completed! Stage ${sessionData.stage + 1} is now unlocked.`;
+      } else {
+        return `✨ ${newTotal.toFixed(1)}/15 hours completed for Stage ${sessionData.stage}.`;
+      }
+    }
+    return '';
+  };
   
   return (
     <div className="practice-complete">
@@ -76,7 +150,24 @@ const PracticeComplete: React.FC<PracticeCompleteProps> = ({
         
         <div className="session-info">
           <div className="session-detail">Session Duration: {sessionData.duration} minutes</div>
-          <div className="session-detail">Stage: {sessionData.stage} • {sessionData.stageTitle}</div>
+          <div className="session-detail">
+            Stage: {sessionData.stage} • {sessionData.stageTitle}
+            {sessionData.level && ` • ${sessionData.level}`}
+          </div>
+        </div>
+        
+        {/* ✅ INTEGRATION: Show progression hint */}
+        <div className="progression-hint" style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          margin: '20px 0',
+          textAlign: 'center',
+          fontSize: '16px',
+          fontWeight: '500'
+        }}>
+          {getProgressionHint()}
         </div>
         
         {/* PAHM distribution is only shown for stages other than Stage 1 */}
@@ -85,8 +176,24 @@ const PracticeComplete: React.FC<PracticeCompleteProps> = ({
             <h2>PAHM Position Distribution</h2>
             
             <div className="chart-container">
-              {/* PAHM chart implementation */}
-              {/* This section is hidden for Stage 1 */}
+              <div className="distribution-stats">
+                <div className="stat-item">
+                  <span className="stat-label">Present:</span>
+                  <span className="stat-value">{sessionData.pahmDistribution.present}%</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Past:</span>
+                  <span className="stat-value">{sessionData.pahmDistribution.past}%</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Future:</span>
+                  <span className="stat-value">{sessionData.pahmDistribution.future}%</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Other:</span>
+                  <span className="stat-value">{sessionData.pahmDistribution.other}%</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -105,60 +212,24 @@ const PracticeComplete: React.FC<PracticeCompleteProps> = ({
         <div className="reflection-section">
           <h3>Challenges</h3>
           <div className="challenges-options">
-            <div className="challenge-option">
-              <input 
-                type="checkbox" 
-                id="mind-wandering" 
-                checked={challenges.includes('mind-wandering')}
-                onChange={() => handleChallengeToggle('mind-wandering')}
-              />
-              <label htmlFor="mind-wandering">Mind wandering</label>
-            </div>
-            <div className="challenge-option">
-              <input 
-                type="checkbox" 
-                id="physical-discomfort" 
-                checked={challenges.includes('physical-discomfort')}
-                onChange={() => handleChallengeToggle('physical-discomfort')}
-              />
-              <label htmlFor="physical-discomfort">Physical discomfort</label>
-            </div>
-            <div className="challenge-option">
-              <input 
-                type="checkbox" 
-                id="sleepiness" 
-                checked={challenges.includes('sleepiness')}
-                onChange={() => handleChallengeToggle('sleepiness')}
-              />
-              <label htmlFor="sleepiness">Sleepiness</label>
-            </div>
-            <div className="challenge-option">
-              <input 
-                type="checkbox" 
-                id="restlessness" 
-                checked={challenges.includes('restlessness')}
-                onChange={() => handleChallengeToggle('restlessness')}
-              />
-              <label htmlFor="restlessness">Restlessness</label>
-            </div>
-            <div className="challenge-option">
-              <input 
-                type="checkbox" 
-                id="strong-emotions" 
-                checked={challenges.includes('strong-emotions')}
-                onChange={() => handleChallengeToggle('strong-emotions')}
-              />
-              <label htmlFor="strong-emotions">Strong emotions</label>
-            </div>
-            <div className="challenge-option">
-              <input 
-                type="checkbox" 
-                id="external-distractions" 
-                checked={challenges.includes('external-distractions')}
-                onChange={() => handleChallengeToggle('external-distractions')}
-              />
-              <label htmlFor="external-distractions">External distractions</label>
-            </div>
+            {[
+              { id: 'mind-wandering', label: 'Mind wandering' },
+              { id: 'physical-discomfort', label: 'Physical discomfort' },
+              { id: 'sleepiness', label: 'Sleepiness' },
+              { id: 'restlessness', label: 'Restlessness' },
+              { id: 'strong-emotions', label: 'Strong emotions' },
+              { id: 'external-distractions', label: 'External distractions' }
+            ].map(challenge => (
+              <div key={challenge.id} className="challenge-option">
+                <input 
+                  type="checkbox" 
+                  id={challenge.id}
+                  checked={challenges.includes(challenge.id)}
+                  onChange={() => handleChallengeToggle(challenge.id)}
+                />
+                <label htmlFor={challenge.id}>{challenge.label}</label>
+              </div>
+            ))}
           </div>
         </div>
         
@@ -188,7 +259,13 @@ const PracticeComplete: React.FC<PracticeCompleteProps> = ({
           </div>
         </div>
         
-        <button className="save-continue-button" onClick={handleSaveAndContinue}>
+        <button 
+          className="save-continue-button" 
+          onClick={handleSaveAndContinue}
+          style={{
+            background: rating > 0 ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : undefined
+          }}
+        >
           Save & Continue
         </button>
         

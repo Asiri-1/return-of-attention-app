@@ -1,10 +1,13 @@
-// src/components/HappinessTrackerPage.tsx
+// ✅ Fixed HappinessTrackerPage.tsx - Progressive Onboarding Integration
+// File: src/components/HappinessTrackerPage.tsx
+
 import React, { useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
 
-// ✅ PERFORMANCE FIX: Memoized component
 const HappinessTrackerPage: React.FC = React.memo(() => {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const {
     userProgress,
@@ -21,26 +24,28 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
 
   const [showDebug, setShowDebug] = useState(false);
 
-  // ✅ PERFORMANCE FIX: Memoized quick stats
+  // ✅ FIXED: Quick stats with proper data validation
   const quickStats = useMemo(() => {
     const totalSessions = practiceSessions?.length || 0;
     const totalHours = practiceSessions?.reduce((sum: number, session: any) => sum + (session.duration || 0), 0) / 60 || 0;
-    const hasData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
+    const hasData = userProgress.hasMinimumData;
+    const hasAnyData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
 
     return {
       totalSessions,
       totalHours: totalHours.toFixed(1),
       hasData,
-      happinessPoints: userProgress.happiness_points
+      hasAnyData,
+      happinessPoints: userProgress.happiness_points,
+      dataCompleteness: userProgress.dataCompleteness
     };
-  }, [practiceSessions, questionnaire?.completed, selfAssessment?.completed, userProgress.happiness_points]);
+  }, [practiceSessions, questionnaire?.completed, selfAssessment?.completed, userProgress]);
 
-  // ✅ PERFORMANCE FIX: Memoized debug toggle handler
+  // Memoized button handlers
   const handleDebugToggle = useCallback(() => {
     setShowDebug(prev => !prev);
   }, []);
 
-  // ✅ PERFORMANCE FIX: Memoized button handlers
   const handleDebugCalculation = useCallback(() => {
     debugCalculation();
   }, [debugCalculation]);
@@ -52,6 +57,19 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
   const handleTestComponents = useCallback(() => {
     testComponents();
   }, [testComponents]);
+
+  // ✅ NEW: Navigation handlers for onboarding
+  const handleStartQuestionnaire = useCallback(() => {
+    navigate('/questionnaire');
+  }, [navigate]);
+
+  const handleStartSelfAssessment = useCallback(() => {
+    navigate('/self-assessment');
+  }, [navigate]);
+
+  const handleStartPractice = useCallback(() => {
+    navigate('/stage1');
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -85,51 +103,133 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* 🎭 WELCOME MESSAGE FOR NEW USERS */}
-      {!quickStats.hasData && (
+      {/* ✅ LOADING STATE */}
+      {isCalculating && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-3xl p-8 text-center mb-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+            <h2 className="text-2xl font-bold text-indigo-700 mb-2">Calculating Your Present Attention Progress...</h2>
+            <p className="text-gray-600">Using PAHM-centered analysis</p>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ INSUFFICIENT DATA - Show onboarding guidance */}
+      {!isCalculating && !quickStats.hasData && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-3xl p-8 text-center border-2 border-blue-200">
             <div className="text-6xl mb-4">🧘</div>
-            <h2 className="text-2xl font-bold text-blue-800 mb-4">Welcome to Your Present Attention Journey!</h2>
+            <h2 className="text-2xl font-bold text-blue-800 mb-4">
+              Welcome to Your Present Attention Journey!
+            </h2>
             <p className="text-blue-700 mb-6 max-w-2xl mx-auto">
               Your happiness tracking will appear here as you complete practice sessions, questionnaires, and self-assessments. 
               Present attention is a skill that develops through consistent practice - every moment of awareness counts!
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-              <div className="bg-white rounded-xl p-6">
-                <div className="text-3xl mb-3">📝</div>
-                <h3 className="font-bold text-gray-800 mb-2">Complete Questionnaire</h3>
-                <p className="text-sm text-gray-600">Share your current state and goals to establish your baseline</p>
+            {/* ✅ DATA COMPLETENESS INDICATOR */}
+            <div className="bg-white rounded-2xl p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Complete Your Setup</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`p-4 rounded-xl border-2 ${
+                  quickStats.dataCompleteness.questionnaire 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="text-2xl mb-2">
+                    {quickStats.dataCompleteness.questionnaire ? '✅' : '📝'}
+                  </div>
+                  <h4 className="font-bold text-gray-800 mb-2">Questionnaire</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Share your current state and goals to establish your baseline
+                  </p>
+                  {!quickStats.dataCompleteness.questionnaire && (
+                    <button
+                      onClick={handleStartQuestionnaire}
+                      className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      Start Questionnaire
+                    </button>
+                  )}
+                </div>
+                
+                <div className={`p-4 rounded-xl border-2 ${
+                  quickStats.dataCompleteness.selfAssessment 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="text-2xl mb-2">
+                    {quickStats.dataCompleteness.selfAssessment ? '✅' : '🎯'}
+                  </div>
+                  <h4 className="font-bold text-gray-800 mb-2">Self-Assessment</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Understand your current attachment patterns and goals
+                  </p>
+                  {!quickStats.dataCompleteness.selfAssessment && (
+                    <button
+                      onClick={handleStartSelfAssessment}
+                      className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+                    >
+                      Take Assessment
+                    </button>
+                  )}
+                </div>
+                
+                <div className={`p-4 rounded-xl border-2 ${
+                  quickStats.dataCompleteness.practiceSessions 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="text-2xl mb-2">
+                    {quickStats.dataCompleteness.practiceSessions ? '✅' : '🧘'}
+                  </div>
+                  <h4 className="font-bold text-gray-800 mb-2">Practice Sessions</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Begin with just 5 minutes of present attention practice
+                  </p>
+                  {!quickStats.dataCompleteness.practiceSessions && (
+                    <button
+                      onClick={handleStartPractice}
+                      className="w-full bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors"
+                    >
+                      Start Practice
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="bg-white rounded-xl p-6">
-                <div className="text-3xl mb-3">🧘</div>
-                <h3 className="font-bold text-gray-800 mb-2">Start Practicing</h3>
-                <p className="text-sm text-gray-600">Begin with just 5 minutes of present attention practice</p>
-              </div>
-              <div className="bg-white rounded-xl p-6">
-                <div className="text-3xl mb-3">📊</div>
-                <h3 className="font-bold text-gray-800 mb-2">Track Progress</h3>
-                <p className="text-sm text-gray-600">Watch your happiness and skills grow over time</p>
+            </div>
+
+            {/* ✅ MINIMUM DATA REQUIREMENTS */}
+            <div className="bg-yellow-50 rounded-2xl p-6 border-2 border-yellow-200">
+              <h3 className="text-lg font-bold text-yellow-800 mb-4">
+                🎯 Minimum Requirements for Happiness Tracking
+              </h3>
+              <p className="text-yellow-700 mb-4">
+                To begin tracking your happiness, you need <strong>one</strong> of the following:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="bg-white rounded-xl p-4">
+                  <div className="font-bold text-gray-800 mb-2">Option 1</div>
+                  <p className="text-gray-600">Complete <strong>Questionnaire + Self-Assessment</strong></p>
+                </div>
+                <div className="bg-white rounded-xl p-4">
+                  <div className="font-bold text-gray-800 mb-2">Option 2</div>
+                  <p className="text-gray-600">Complete <strong>3+ Practice Sessions</strong></p>
+                </div>
+                <div className="bg-white rounded-xl p-4">
+                  <div className="font-bold text-gray-800 mb-2">Option 3</div>
+                  <p className="text-gray-600">Complete <strong>Questionnaire + 1 Session</strong></p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 🎯 MAIN HAPPINESS DISPLAY */}
-      {quickStats.hasData && (
+      {/* ✅ SUFFICIENT DATA - Show full happiness tracking */}
+      {!isCalculating && quickStats.hasData && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* ✅ LOADING STATE */}
-          {isCalculating && (
-            <div className="bg-white rounded-3xl p-8 text-center mb-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-              <h2 className="text-2xl font-bold text-indigo-700 mb-2">Calculating Your Present Attention Progress...</h2>
-              <p className="text-gray-600">Using PAHM-centered analysis</p>
-            </div>
-          )}
-
           {/* ✅ MAIN HAPPINESS SCORE CARD */}
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-8 text-white text-center mb-8 shadow-2xl">
             <div className="text-6xl font-bold mb-4">{userProgress.happiness_points}</div>
@@ -344,7 +444,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             </div>
           )}
 
-          {/* ✅ DEBUG PANEL - Only visible when toggled */}
+          {/* ✅ DEBUG PANEL */}
           {showDebug && (
             <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-gray-200">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">🔍 PAHM-Centered Debug Information</h2>
@@ -357,6 +457,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                     <div>• Emotional Notes: {emotionalNotes?.length || 0}</div>
                     <div>• Questionnaire: {questionnaire?.completed ? '✅' : '❌'}</div>
                     <div>• Self-Assessment: {selfAssessment?.completed ? '✅' : '❌'}</div>
+                    <div>• Has Minimum Data: {quickStats.hasData ? '✅' : '❌'}</div>
                   </div>
                 </div>
                 
@@ -364,14 +465,14 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   <h3 className="font-semibold text-gray-700 mb-3">🧮 Component Scores:</h3>
                   {componentBreakdown && (
                     <div className="space-y-2 text-sm font-mono">
-                      <div>• Current Mood: {Math.round(componentBreakdown.currentMoodState || 0)}/100</div>
-                      <div>• Attachment: {Math.round(componentBreakdown.attachmentFlexibility || 0)}/100</div>
-                      <div>• Social: {Math.round(componentBreakdown.socialConnection || 0)}/100</div>
+                      <div>• PAHM Development: {Math.round(componentBreakdown.pahmDevelopment || 0)}/100</div>
                       <div>• Emotional Stability: {Math.round(componentBreakdown.emotionalStabilityProgress || 0)}/100</div>
+                      <div>• Current Mood: {Math.round(componentBreakdown.currentMoodState || 0)}/100</div>
                       <div>• Mind Recovery: {Math.round(componentBreakdown.mindRecoveryEffectiveness || 0)}/100</div>
                       <div>• Emotional Regulation: {Math.round(componentBreakdown.emotionalRegulation || 0)}/100</div>
+                      <div>• Attachment Flexibility: {Math.round(componentBreakdown.attachmentFlexibility || 0)}/100</div>
+                      <div>• Social Connection: {Math.round(componentBreakdown.socialConnection || 0)}/100</div>
                       <div>• Practice Consistency: {Math.round(componentBreakdown.practiceConsistency || 0)}/100</div>
-                      <div>• PAHM: {Math.round(componentBreakdown.pahmDevelopment || 0)}/100</div>
                     </div>
                   )}
                 </div>
@@ -507,10 +608,16 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               Your practice is building skills that last a lifetime. Each moment of awareness contributes to greater happiness and peace.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors">
+              <button 
+                onClick={handleStartPractice}
+                className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors"
+              >
                 🧘 Start Practice Session
               </button>
-              <button className="bg-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors border-2 border-white border-opacity-50">
+              <button 
+                onClick={() => navigate('/analytics')}
+                className="bg-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors border-2 border-white border-opacity-50"
+              >
                 📊 View Detailed Stats
               </button>
             </div>
