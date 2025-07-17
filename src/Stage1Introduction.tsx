@@ -62,17 +62,17 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   }, [stageNumber, updateUserProfileInContext]);
   
-  // ✅ OPTIMIZED: Memoized skip handler
+  // ✅ UPDATED: Skip handler now goes to T-level selection
   const handleSkip = useCallback(() => {
     markIntroCompleted();
     
     setTimeout(() => {
-      console.log('🔍 Navigating to /home after skip');
-      navigate('/home');
+      console.log('🔍 Navigating to T-level selection after skip');
+      navigate('/stage1-tlevel-selection');
     }, 100);
   }, [markIntroCompleted, navigate]);
   
-  // ✅ OPTIMIZED: Memoized navigation
+  // ✅ UPDATED: Next slide handler goes to T-level selection after completion
   const nextSlide = useCallback(() => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
@@ -80,8 +80,8 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
       markIntroCompleted();
       
       setTimeout(() => {
-        console.log('🔍 Navigating to /home after completion');
-        navigate('/home');
+        console.log('🔍 Navigating to T-level selection after completion');
+        navigate('/stage1-tlevel-selection');
       }, 100);
     }
   }, [currentSlide, slides.length, markIntroCompleted, navigate]);
@@ -155,11 +155,12 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [nextSlide, prevSlide, handleSkip]);
   
+  // ✅ UPDATED: Button text now says "Choose Practice Level"
   const getButtonText = () => {
     if (currentSlide < slides.length - 1) {
       return "Next";
     }
-    return "Begin Practice";
+    return "Choose Practice Level"; // Changed from "Begin Practice"
   };
 
   return (
@@ -174,7 +175,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
         <div className="welcome-back-message">
           <div className="welcome-back-content">
             <h3>Welcome Back! 👋</h3>
-            <p>Continue your Stage 1 journey or skip to practice.</p>
+            <p>Continue your Stage 1 journey or skip to practice selection.</p>
           </div>
         </div>
       )}
@@ -191,7 +192,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
         <button 
           className="skip-button" 
           onClick={handleSkip}
-          aria-label={hasSeenBefore ? "Skip to practice" : "Skip introduction"}
+          aria-label={hasSeenBefore ? "Skip to practice selection" : "Skip introduction"}
         >
           {hasSeenBefore ? "Skip to Practice" : "Skip"}
         </button>
@@ -222,33 +223,93 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
               />
             ))}
           </div>
-        </div>
-        
-        <div className="navigation-buttons">
-          {currentSlide > 0 && (
+
+          {/* ✅ MOVED: Navigation buttons now below progress dots with blue styling */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '32px',
+            gap: '16px'
+          }}>
+            {currentSlide > 0 ? (
+              <button 
+                onClick={prevSlide}
+                aria-label="Go to previous slide"
+                style={{
+                  background: 'rgba(102, 126, 234, 0.1)',
+                  color: '#667eea',
+                  border: '2px solid rgba(102, 126, 234, 0.3)',
+                  borderRadius: '12px',
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  minWidth: '100px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}
+              >
+                ← Back
+              </button>
+            ) : (
+              <div style={{ minWidth: '100px' }}></div> // Spacer
+            )}
+            
             <button 
-              className="nav-button back" 
-              onClick={prevSlide}
-              aria-label="Go to previous slide"
+              onClick={nextSlide}
+              aria-label={currentSlide === slides.length - 1 ? 'Choose practice level' : 'Go to next slide'}
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '12px 32px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                minWidth: '180px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+              }}
             >
-              Back
+              {getButtonText()} →
             </button>
-          )}
-          
-          <button 
-            className="nav-button next" 
-            onClick={nextSlide}
-            aria-label={currentSlide === slides.length - 1 ? 'Begin practice' : 'Go to next slide'}
-          >
-            {getButtonText()}
-          </button>
+          </div>
         </div>
         
-        {/* ✅ NEW: Progress indicator */}
-        <div className="slide-progress-bar" aria-hidden="true">
+        {/* ✅ IMPROVED: Progress indicator now integrated above navigation */}
+        <div style={{
+          width: '100%',
+          height: '4px',
+          background: 'rgba(102, 126, 234, 0.1)',
+          borderRadius: '2px',
+          marginTop: '24px',
+          overflow: 'hidden'
+        }}>
           <div 
-            className="progress-fill"
-            style={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
+            style={{ 
+              width: `${((currentSlide + 1) / slides.length) * 100}%`,
+              height: '100%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '2px',
+              transition: 'width 0.3s ease'
+            }}
           />
         </div>
       </div>

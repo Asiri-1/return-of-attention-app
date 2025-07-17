@@ -1,8 +1,8 @@
-// ✅ Fixed Stage1Wrapper.tsx - All TypeScript errors resolved
+// ✅ Complete Stage1Wrapper.tsx - Fixed Practice Reflection Navigation
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useProgressiveOnboarding } from './hooks/useProgressiveOnboarding';
 import { 
   QuestionnaireRequiredModal, 
@@ -10,7 +10,7 @@ import {
   ProgressRequiredModal 
 } from './components/OnboardingModals';
 
-// ✅ Import your existing T-components (directly from src folder)
+// ✅ Import your existing T-components
 import T1Introduction from './T1Introduction';
 import T1PracticeRecorder from './T1PracticeRecorder';
 import T2Introduction from './T2Introduction';
@@ -21,6 +21,10 @@ import T4Introduction from './T4Introduction';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5Introduction from './T5Introduction';
 import T5PracticeRecorder from './T5PracticeRecorder';
+
+// ✅ Import your existing universal components
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
+import PracticeTimer from './PracticeTimer';
 
 import './Stage1Wrapper.css';
 
@@ -36,6 +40,7 @@ interface TStageInfo {
 const Stage1Wrapper: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
+  const location = useLocation();
   
   const {
     checkTStageAccess,
@@ -185,13 +190,22 @@ const Stage1Wrapper: React.FC = () => {
     </div>
   );
 
-  // ✅ T-Stage Component Wrapper
+  // ✅ T-Stage Component Wrapper - Fixed Navigation to Practice Reflection
   const TStageComponent: React.FC<{ tStage: string }> = ({ tStage }) => {
     const [currentView, setCurrentView] = useState('introduction');
+    const [practiceData, setPracticeData] = useState<any>(null);
     
+    // Get T-level duration
+    const getDuration = (stage: string) => {
+      const durations: { [key: string]: number } = {
+        'T1': 10, 'T2': 15, 'T3': 20, 'T4': 25, 'T5': 30
+      };
+      return durations[stage] || 10;
+    };
+
     const getIntroductionComponent = () => {
       const commonProps = {
-        onComplete: () => setCurrentView('practice'),
+        onComplete: () => setCurrentView('posture'),
         onBack: () => navigate('/stage1')
       };
 
@@ -220,20 +234,129 @@ const Stage1Wrapper: React.FC = () => {
       }
     };
 
+    // ✅ Handle posture selection
+    const handlePostureSelected = (selectedPosture: string) => {
+      sessionStorage.setItem('currentPosture', selectedPosture);
+      sessionStorage.setItem('currentTLevel', tStage.toLowerCase());
+      
+      const duration = getDuration(tStage);
+      const stageLevel = `${tStage}: Physical Stillness for ${duration} minutes`;
+      
+      setPracticeData({
+        posture: selectedPosture,
+        level: tStage.toLowerCase(),
+        duration: duration,
+        stageLevel: stageLevel
+      });
+      
+      setCurrentView('practice');
+    };
+
+    // ✅ FIXED: Handle practice completion with proper navigation to practice reflection
+    const handlePracticeComplete = React.useCallback(() => {
+      console.log('🚀 Practice completed! Starting navigation to practice reflection...');
+      console.log('T-Stage:', tStage);
+      console.log('Practice data:', practiceData);
+      
+      // Record session completion
+      handleSessionRecord({ 
+        tStage, 
+        completed: true,
+        duration: getDuration(tStage),
+        posture: practiceData?.posture || 'seated'
+      });
+      
+      // Store practice data for reflection
+      const reflectionData = {
+        level: tStage.toLowerCase(),
+        targetDuration: getDuration(tStage),
+        timeSpent: getDuration(tStage),
+        isCompleted: true,
+        completedAt: new Date().toISOString(),
+        posture: practiceData?.posture || 'seated',
+        stageLevel: practiceData?.stageLevel || `${tStage}: Physical Stillness`,
+        fromStage1: true
+      };
+      
+      sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
+      
+      // Check if this is T5 completion for special handling
+      const isT5Completion = tStage === 'T5';
+      if (isT5Completion) {
+        // Set T5 completion flags
+        sessionStorage.setItem('t5Completed', 'true');
+        localStorage.setItem('t5Completed', 'true');
+        
+        // Set stage progress to allow Stage 2 access
+        sessionStorage.setItem('stageProgress', '2');
+        localStorage.setItem('devCurrentStage', '2');
+        
+        // Force current T level to be beyond T5 to ensure unlock
+        sessionStorage.setItem('currentTLevel', 't6');
+        
+        console.log('T5 completed, unlocking Stage 2');
+      }
+
+      // ✅ FIXED: Navigate to practice-reflection with proper timeout
+      setTimeout(() => {
+        console.log('🔄 Navigating to practice reflection...');
+        
+        try {
+          navigate('/practice-reflection', {
+            state: {
+              tLevel: tStage,
+              duration: getDuration(tStage),
+              posture: practiceData?.posture || 'seated',
+              stageLevel: practiceData?.stageLevel || `${tStage}: Physical Stillness`,
+              completed: true,
+              fromStage1: true,
+              isT5Completion: isT5Completion
+            }
+          });
+          console.log('✅ Navigation to practice reflection completed successfully!');
+        } catch (error) {
+          console.error('❌ Navigation failed:', error);
+          // Fallback navigation
+          console.log('🔄 Trying fallback navigation to immediate-reflection...');
+          navigate('/immediate-reflection', {
+            state: {
+              tLevel: tStage,
+              duration: getDuration(tStage),
+              posture: practiceData?.posture || 'seated',
+              stageLevel: practiceData?.stageLevel || `${tStage}: Physical Stillness`,
+              completed: true,
+              fromStage1: true,
+              isT5Completion: isT5Completion
+            }
+          });
+        }
+      }, 100);
+    }, [tStage, practiceData, navigate]);
+
     return (
       <div className="t-stage-container">
+        {/* Introduction View */}
         {currentView === 'introduction' && getIntroductionComponent()}
-        {currentView === 'practice' && (
-          <div>
-            {/* Your practice interface would go here */}
-            <div className="practice-placeholder">
-              <h2>{tStage} Practice Session</h2>
-              <p>Practice interface for {tStage} would be rendered here.</p>
-              <button onClick={() => setCurrentView('introduction')}>
-                Back to Introduction
-              </button>
-            </div>
-          </div>
+        
+        {/* Posture Selection View - Using your UniversalPostureSelection */}
+        {currentView === 'posture' && (
+          <UniversalPostureSelection
+            onBack={() => setCurrentView('introduction')}
+            onStartPractice={handlePostureSelected}
+            currentTLevel={tStage}
+            sessionType="meditation"
+            showDuration={true}
+          />
+        )}
+        
+        {/* Practice View - Using your PracticeTimer with FIXED completion */}
+        {currentView === 'practice' && practiceData && (
+          <PracticeTimer
+            onComplete={handlePracticeComplete}
+            onBack={() => setCurrentView('posture')}
+            stageLevel={practiceData.stageLevel}
+            initialMinutes={practiceData.duration}
+          />
         )}
         
         {/* ✅ Always include the practice recorder */}

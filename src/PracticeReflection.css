@@ -1,184 +1,602 @@
+/* ✅ Modern Practice Reflection Styles - Enhanced Design & Responsiveness */
+
 .practice-reflection {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f5f7fa;
-  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Animated background pattern */
+.practice-reflection::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .practice-reflection-header {
   display: flex;
   align-items: center;
-  padding: 15px 20px;
-  background-color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 10;
+}
+
+.practice-reflection-header .back-button {
+  background: rgba(102, 126, 234, 0.1);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+  width: auto;
+}
+
+.practice-reflection-header .back-button:hover {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.5);
+  transform: translateY(-1px);
+}
+
+.practice-reflection-header .back-button:active {
+  transform: translateY(0);
 }
 
 .practice-reflection-header h1 {
   flex-grow: 1;
   text-align: center;
   margin: 0;
-  font-size: 20px;
-  color: #333;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2d3748;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .practice-reflection-content {
   flex: 1;
-  padding: 20px;
-  max-width: 800px;
-  margin: 20px auto;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 32px;
+  max-width: 900px;
+  margin: 24px auto;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    0 8px 16px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  z-index: 5;
+  animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .practice-reflection-content h2 {
-  font-size: 24px;
-  color: #333;
-  margin-bottom: 20px;
+  font-size: 32px;
+  font-weight: 800;
+  color: #2d3748;
+  margin-bottom: 32px;
   text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
 }
 
 .reflection-section {
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+.reflection-section:nth-child(1) { animation-delay: 0.1s; }
+.reflection-section:nth-child(2) { animation-delay: 0.2s; }
+.reflection-section:nth-child(3) { animation-delay: 0.3s; }
+.reflection-section:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .reflection-section h3 {
-  font-size: 18px;
-  color: #555;
-  margin-bottom: 15px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a5568;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reflection-section h3::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .reflection-textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 18px 20px;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 16px;
   font-size: 16px;
-  min-height: 120px;
+  min-height: 140px;
   resize: vertical;
   font-family: inherit;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  color: #2d3748;
+  line-height: 1.6;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.reflection-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 0 0 4px rgba(102, 126, 234, 0.1),
+    0 8px 20px rgba(102, 126, 234, 0.15);
+  transform: translateY(-1px);
+}
+
+.reflection-textarea::placeholder {
+  color: #a0aec0;
+  font-style: italic;
 }
 
 .challenges-options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
 }
 
 .challenge-option {
   display: flex;
   align-items: center;
-  background-color: #f9f9f9;
-  border: 1px solid #eee;
-  border-radius: 6px;
-  padding: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(102, 126, 234, 0.15);
+  border-radius: 16px;
+  padding: 16px 20px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.challenge-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  transition: left 0.5s ease;
 }
 
 .challenge-option:hover {
-  background-color: #f0f0f0;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+}
+
+.challenge-option:hover::before {
+  left: 100%;
 }
 
 .challenge-option input[type="checkbox"] {
-  margin-right: 10px;
-  transform: scale(1.2);
+  margin-right: 16px;
+  width: 20px;
+  height: 20px;
+  accent-color: #667eea;
+  cursor: pointer;
+  border-radius: 6px;
 }
 
 .challenge-option label {
-  font-size: 15px;
-  color: #333;
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a5568;
   cursor: pointer;
+  flex: 1;
+  user-select: none;
+}
+
+.challenge-option:has(input:checked) {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+}
+
+.challenge-option:has(input:checked) label {
+  color: #667eea;
+  font-weight: 600;
 }
 
 .save-reflection-button {
   display: block;
   width: 100%;
-  padding: 15px;
-  background-color: #6c63ff;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 16px;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 32px;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.save-reflection-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
 }
 
 .save-reflection-button:hover {
-  background-color: #5a52d5;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
 }
 
-.back-button {
+.save-reflection-button:hover::before {
+  left: 100%;
+}
+
+.save-reflection-button:active {
+  transform: translateY(0);
+}
+
+.back-button-bottom {
   display: block;
   width: 100%;
-  padding: 15px;
-  background-color: #ccc;
-  color: #333;
-  border: none;
-  border-radius: 6px;
-  font-size: 18px;
-  font-weight: bold;
+  padding: 16px;
+  background: rgba(160, 174, 192, 0.2);
+  backdrop-filter: blur(10px);
+  color: #4a5568;
+  border: 2px solid rgba(160, 174, 192, 0.3);
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 16px;
 }
 
-.back-button:hover {
-  background-color: #bbb;
+.back-button-bottom:hover {
+  background: rgba(160, 174, 192, 0.3);
+  border-color: rgba(160, 174, 192, 0.5);
+  transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
+/* Mobile-first responsive design */
+@media (max-width: 640px) {
   .practice-reflection-header {
-    padding: 10px 15px;
+    padding: 16px 20px;
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .practice-reflection-header .back-button {
+    padding: 10px 16px;
+    font-size: 13px;
+    border-radius: 10px;
   }
 
   .practice-reflection-header h1 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .practice-reflection-content {
-    margin: 10px auto;
-    padding: 15px;
+    margin: 16px 20px;
+    padding: 24px 20px;
+    border-radius: 20px;
   }
 
   .practice-reflection-content h2 {
-    font-size: 20px;
-    margin-bottom: 15px;
+    font-size: 26px;
+    margin-bottom: 24px;
   }
 
   .reflection-section {
-    margin-bottom: 20px;
+    margin-bottom: 32px;
   }
 
   .reflection-section h3 {
-    font-size: 16px;
-    margin-bottom: 10px;
+    font-size: 18px;
+    margin-bottom: 12px;
   }
 
   .reflection-textarea {
-    font-size: 14px;
-    min-height: 100px;
+    padding: 16px;
+    font-size: 15px;
+    min-height: 120px;
+    border-radius: 14px;
   }
 
   .challenges-options {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 12px;
   }
 
   .challenge-option {
-    padding: 8px;
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .challenge-option input[type="checkbox"] {
+    margin-right: 12px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .challenge-option label {
+    font-size: 15px;
+  }
+
+  .save-reflection-button {
+    padding: 18px;
+    font-size: 17px;
+    border-radius: 14px;
+    margin-top: 24px;
+  }
+
+  .back-button-bottom {
+    padding: 14px;
+    font-size: 15px;
+    border-radius: 14px;
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .practice-reflection-content {
+    margin: 12px 16px;
+    padding: 20px 16px;
+    border-radius: 18px;
+  }
+
+  .practice-reflection-content h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .reflection-section {
+    margin-bottom: 28px;
+  }
+
+  .reflection-section h3 {
+    font-size: 17px;
+    margin-bottom: 10px;
+  }
+
+  .reflection-textarea {
+    padding: 14px;
+    font-size: 14px;
+    min-height: 100px;
+    border-radius: 12px;
+  }
+
+  .challenge-option {
+    padding: 12px 14px;
+    border-radius: 12px;
+  }
+
+  .challenge-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
   }
 
   .challenge-option label {
     font-size: 14px;
   }
 
-  .save-reflection-button,
-  .back-button {
-    padding: 12px;
+  .save-reflection-button {
+    padding: 16px;
     font-size: 16px;
+    border-radius: 12px;
+    margin-top: 20px;
+  }
+
+  .back-button-bottom {
+    padding: 12px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+}
+
+/* Tablet landscape */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .practice-reflection-content {
+    max-width: 750px;
+    padding: 40px;
+  }
+
+  .challenges-options {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1200px) {
+  .practice-reflection-content {
+    max-width: 1000px;
+    padding: 48px;
+  }
+
+  .practice-reflection-content h2 {
+    font-size: 36px;
+    margin-bottom: 40px;
+  }
+
+  .challenges-options {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .reflection-section {
+    margin-bottom: 48px;
+  }
+}
+
+/* High-resolution displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+  .practice-reflection-header {
+    border-bottom-width: 0.5px;
+  }
+  
+  .challenge-option {
+    border-width: 1px;
+  }
+  
+  .reflection-textarea {
+    border-width: 1px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .practice-reflection {
+    background: linear-gradient(135deg, #1a1f36 0%, #2d1b69 100%);
+  }
+
+  .practice-reflection-header {
+    background: rgba(26, 32, 54, 0.95);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .practice-reflection-header h1 {
+    color: #e2e8f0;
+  }
+
+  .practice-reflection-content {
+    background: rgba(26, 32, 54, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .practice-reflection-content h2 {
+    color: #e2e8f0;
+  }
+
+  .reflection-section h3 {
+    color: #cbd5e0;
+  }
+
+  .reflection-textarea {
+    background: rgba(45, 55, 72, 0.8);
+    border-color: rgba(102, 126, 234, 0.3);
+    color: #e2e8f0;
+  }
+
+  .challenge-option {
+    background: rgba(45, 55, 72, 0.7);
+    border-color: rgba(102, 126, 234, 0.2);
+  }
+
+  .challenge-option label {
+    color: #cbd5e0;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus improvements for accessibility */
+.practice-reflection-header .back-button:focus,
+.challenge-option:focus-within,
+.save-reflection-button:focus,
+.back-button-bottom:focus {
+  outline: 3px solid rgba(102, 126, 234, 0.5);
+  outline-offset: 2px;
+}
+
+.reflection-textarea:focus {
+  outline: none; /* Already has custom focus styles */
+}
+
+/* Print styles */
+@media print {
+  .practice-reflection {
+    background: white !important;
+  }
+  
+  .practice-reflection-header .back-button,
+  .save-reflection-button,
+  .back-button-bottom {
+    display: none;
+  }
+  
+  .practice-reflection-content {
+    box-shadow: none;
+    border: 1px solid #ccc;
   }
 }
