@@ -31,17 +31,91 @@ const T1Introduction: React.FC<T1IntroductionProps> = ({
           <div className="slide-progress">
             <div className="progress-dot active" />
           </div>
+
+          {/* ✅ MOVED: Navigation buttons now below progress dots with blue styling */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '32px',
+            gap: '16px'
+          }}>
+            <button 
+              onClick={onBack}
+              aria-label="Go back"
+              style={{
+                background: 'rgba(102, 126, 234, 0.1)',
+                color: '#667eea',
+                border: '2px solid rgba(102, 126, 234, 0.3)',
+                borderRadius: '12px',
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                minWidth: '100px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}
+            >
+              ← Back
+            </button>
+            
+            <button 
+              onClick={onComplete}
+              aria-label="Begin practice"
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '12px 32px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                minWidth: '180px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+              }}
+            >
+              Begin Practice →
+            </button>
+          </div>
         </div>
         
-        <div className="navigation-buttons">
-          <button className="nav-button back" onClick={onBack}>
-            Back
-          </button>
-          
-          <button className="nav-button next" onClick={onComplete}>
-            Begin Practice
-          </button>
-        </div>a
+        {/* ✅ IMPROVED: Progress indicator now integrated above navigation */}
+        <div style={{
+          width: '100%',
+          height: '4px',
+          background: 'rgba(102, 126, 234, 0.1)',
+          borderRadius: '2px',
+          marginTop: '24px',
+          overflow: 'hidden'
+        }}>
+          <div 
+            style={{ 
+              width: '100%', // Single slide, so 100% complete
+              height: '100%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '2px',
+              transition: 'width 0.3s ease'
+            }}
+          />
+        </div>
       </div>
     </div>
   );

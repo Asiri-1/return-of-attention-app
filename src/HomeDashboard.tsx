@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLocalData } from './contexts/LocalDataContext';
@@ -270,13 +270,30 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     navigate('/happiness-tracker');
   }, [navigate]);
 
+  // ✅ NEW: Updated Stage 1 Click Logic
   const handleStageClick = useCallback((stageNumber: number) => {
     const savedStage = localStorage.getItem('devCurrentStage');
     const highestStage = savedStage ? parseInt(savedStage, 10) : 1;
 
     if (stageNumber === 1) {
-      setShowT1T5Dropdown(prev => !prev);
-      return;
+      // ✅ NEW: Check if user has seen Stage 1 introduction before
+      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
+      const hasSeenIntroduction = completedIntros.includes(1);
+      
+      if (!hasSeenIntroduction) {
+        // First time - go to introduction
+        navigate('/stage1-introduction', { 
+          state: { 
+            hasSeenBefore: false,
+            returnToHome: true
+          } 
+        });
+        return;
+      } else {
+        // Second time and onwards - show T-level dropdown
+        setShowT1T5Dropdown(prev => !prev);
+        return;
+      }
     }
 
     // ✅ FIXED: Sequential progression logic - complete previous stage to unlock next
@@ -300,16 +317,21 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     navigate(`/stage${stageNumber}`);
   }, [navigate, currentStage]);
 
+  // ✅ UPDATED: T-Level click handler - now checks for introduction completion
   const handleTLevelClick = useCallback((level: string, duration: number) => {
     sessionStorage.setItem('currentTLevel', level.toLowerCase());
 
+    // ✅ NEW: Check if user has seen T-level introduction
+    const hasSeenTLevelIntro = localStorage.getItem('hasSeenTLevelIntro') === 'true';
+    
     navigate(`/stage1`, { 
       state: { 
-        showT1Introduction: true,
+        showT1Introduction: !hasSeenTLevelIntro, // Show intro only if not seen before
         level: level,
         duration: duration,
         stageLevel: `${level}: Physical Stillness for ${duration} minutes`,
-        returnToStage: 1
+        returnToStage: 1,
+        hasSeenBefore: hasSeenTLevelIntro
       } 
     });
   }, [navigate]);

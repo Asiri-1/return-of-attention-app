@@ -1,4 +1,4 @@
-// ✅ Complete App.tsx - All TypeScript errors fixed
+// ✅ Complete App.tsx - Final Version with Legacy Cleanup
 // File: src/App.tsx
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
@@ -25,6 +25,9 @@ import Questionnaire from './Questionnaire';
 import SelfAssessment from './SelfAssessment';
 import SelfAssessmentCompletion from './SelfAssessmentCompletion';
 
+// ✅ NEW: Import Stage1Introduction directly (not lazy loaded for better UX)
+import Stage1Introduction from './Stage1Introduction';
+
 // ✅ FIXED: Import PublicLandingHero directly
 import PublicLandingHero from './components/PublicLandingHero';
 
@@ -44,10 +47,11 @@ const Stage4Wrapper = lazy(() => import('./Stage4Wrapper'));
 const Stage5Wrapper = lazy(() => import('./Stage5Wrapper'));
 const Stage6Wrapper = lazy(() => import('./Stage6Wrapper'));
 const WhatIsPAHMWrapper = lazy(() => import('./WhatIsPAHMWrapper'));
-const SeekerPracticeTimerWrapper = lazy(() => import('./SeekerPracticeTimerWrapper'));
-const SeekerPracticeCompleteWrapper = lazy(() => import('./SeekerPracticeCompleteWrapper'));
 const ImmediateReflectionWrapper = lazy(() => import('./ImmediateReflectionWrapper'));
 const ChatInterface = lazy(() => import('./components/Chatwithguru/ChatInterface'));
+
+// ✅ NEW: Practice Reflection Component (for T1-T5)
+const PracticeReflection = lazy(() => import('./PracticeReflection'));
 
 // Public landing pages
 const AboutMethod = lazy(() => import('./components/AboutMethod'));
@@ -115,6 +119,302 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
     </div>
   );
 });
+
+// ✅ NEW: T-Level Selection Page Component
+const TLevelSelectionPage: React.FC = () => {
+  const navigate = useNavigate();
+
+  const tLevels = [
+    { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes', desc: 'Perfect for beginners' },
+    { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes', desc: 'Building endurance' },
+    { level: 'T3', duration: 20, title: 'T3: Physical Stillness for 20 minutes', desc: 'Intermediate practice' },
+    { level: 'T4', duration: 25, title: 'T4: Physical Stillness for 25 minutes', desc: 'Advanced focus' },
+    { level: 'T5', duration: 30, title: 'T5: Physical Stillness for 30 minutes', desc: 'Master level practice' }
+  ];
+
+  const handleTLevelClick = useCallback((level: string, duration: number) => {
+    sessionStorage.setItem('currentTLevel', level.toLowerCase());
+
+    navigate(`/stage1/${level}`, { 
+      state: { 
+        showT1Introduction: false, // Skip intro since they came from introduction
+        level: level,
+        duration: duration,
+        stageLevel: `${level}: Physical Stillness for ${duration} minutes`,
+        returnToStage: 1
+      } 
+    });
+  }, [navigate]);
+
+  const handleBack = useCallback(() => {
+    navigate('/home');
+  }, [navigate]);
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      padding: '20px'
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '20px',
+        padding: '20px',
+        marginBottom: '30px',
+        textAlign: 'center'
+      }}>
+        <button 
+          onClick={handleBack}
+          style={{
+            position: 'absolute',
+            left: '30px',
+            top: '30px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '10px 20px',
+            color: 'white',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+        >
+          ← Back
+        </button>
+        
+        <h1 style={{
+          color: 'white',
+          fontSize: '32px',
+          fontWeight: '700',
+          margin: '0 0 10px 0',
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+        }}>
+          🧘‍♂️ Choose Your Practice Level
+        </h1>
+        <p style={{
+          color: 'rgba(255, 255, 255, 0.9)',
+          fontSize: '18px',
+          margin: 0
+        }}>
+          Select a T-level to begin your Stage 1 physical stillness practice
+        </p>
+      </div>
+
+      {/* T-Levels Grid */}
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '20px'
+      }}>
+        {tLevels.map((tLevel, index) => (
+          <button
+            key={tLevel.level}
+            onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '30px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-5px)';
+              e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0px)';
+              e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.1)';
+            }}
+          >
+            {/* Level badge */}
+            <div style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '50px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              {tLevel.level}
+            </div>
+
+            {/* Duration */}
+            <div style={{
+              fontSize: '48px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              marginBottom: '10px'
+            }}>
+              {tLevel.duration}
+              <span style={{ fontSize: '24px', color: '#666' }}>min</span>
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '8px',
+              margin: '0 0 8px 0'
+            }}>
+              Physical Stillness Practice
+            </h3>
+
+            {/* Description */}
+            <p style={{
+              fontSize: '16px',
+              color: '#666',
+              margin: '0 0 20px 0',
+              lineHeight: '1.5'
+            }}>
+              {tLevel.desc}
+            </p>
+
+            {/* Start button */}
+            <div style={{
+              marginTop: '20px',
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              textAlign: 'center'
+            }}>
+              Start {tLevel.level} Practice →
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Footer guidance */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '20px',
+        padding: '20px',
+        marginTop: '30px',
+        textAlign: 'center',
+        maxWidth: '600px',
+        margin: '30px auto 0 auto'
+      }}>
+        <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '10px' }}>
+          💡 Practice Guidance
+        </h3>
+        <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.6' }}>
+          Start with T1 if you're new to meditation. Progress to higher levels as you become comfortable maintaining physical stillness. Each level builds the foundation for deeper practice.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ✅ NEW: Practice Reflection Wrapper for T1-T5
+const PracticeReflectionWrapper: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const handleBack = () => {
+    navigate('/home');
+  };
+  
+  const handleSaveReflection = (reflectionData: any) => {
+    // Save reflection data to localStorage
+    const existingReflections = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+    existingReflections.push({
+      ...reflectionData,
+      timestamp: new Date().toISOString(),
+      sessionData: location.state || {}
+    });
+    localStorage.setItem('practiceReflections', JSON.stringify(existingReflections));
+    
+    console.log('Practice reflection saved:', reflectionData);
+    
+    // Check if this is T5 completion
+    const state = location.state as any;
+    if (state?.tLevel === 'T5' || state?.isT5Completion) {
+      // Set T5 completion flags
+      sessionStorage.setItem('t5Completed', 'true');
+      localStorage.setItem('t5Completed', 'true');
+      
+      // Set stage progress to allow Stage 2 access
+      sessionStorage.setItem('stageProgress', '2');
+      localStorage.setItem('devCurrentStage', '2');
+      
+      // Force current T level to be beyond T5 to ensure unlock
+      sessionStorage.setItem('currentTLevel', 't6');
+      
+      console.log('T5 completed, unlocking Stage 2');
+      
+      // Force a page reload to ensure all components update
+      window.location.href = '/home';
+      return;
+    }
+    
+    navigate('/home');
+  };
+  
+  return (
+    <Suspense fallback={<FastLoader message="Loading practice reflection..." />}>
+      <PracticeReflection 
+        onBack={handleBack}
+        onSaveReflection={handleSaveReflection}
+      />
+    </Suspense>
+  );
+};
+
+// ✅ NEW: Legacy Redirect Components for Backward Compatibility
+const SeekerPracticeTimerRedirect: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  React.useEffect(() => {
+    // Get T-level from state or default to T1
+    const state = location.state as { level?: string } || {};
+    const tLevel = (state.level || 't1').toLowerCase();
+    
+    // Extract just the T-level (T1, T2, etc.)
+    const tLevelUpper = tLevel.toUpperCase();
+    
+    console.log('🔄 Redirecting legacy seeker-practice-timer to Stage1Wrapper');
+    console.log('Target T-Level:', tLevelUpper);
+    
+    // Redirect to modern Stage1Wrapper flow
+    navigate(`/stage1/${tLevelUpper}`, { replace: true });
+  }, [navigate, location]);
+  
+  return (
+    <FastLoader message="Redirecting to modern practice flow..." />
+  );
+};
+
+const SeekerPracticeCompleteRedirect: React.FC = () => {
+  const navigate = useNavigate();
+  
+  React.useEffect(() => {
+    console.log('🔄 Redirecting legacy seeker-practice-complete to home');
+    navigate('/home', { replace: true });
+  }, [navigate]);
+  
+  return (
+    <FastLoader message="Redirecting to dashboard..." />
+  );
+};
 
 // ✅ OPTIMIZED: AdminBypassApp with better performance
 const AdminBypassApp: React.FC = React.memo(() => {
@@ -421,7 +721,7 @@ const SelfAssessmentComponent: React.FC = () => {
   );
 };
 
-// ✅ OPTIMIZED: Main app content with PROGRESSIVE ONBOARDING
+// ✅ OPTIMIZED: Main app content with PROGRESSIVE ONBOARDING + NEW STAGE 1 FLOW
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
@@ -620,7 +920,7 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES WITH PROGRESSIVE ONBOARDING
+  // ✅ AUTHENTICATED ROUTES WITH PROGRESSIVE ONBOARDING + NEW STAGE 1 FLOW
   return (
     <div className="app-container">
       <PageViewTracker />
@@ -629,6 +929,24 @@ const AppContent: React.FC = React.memo(() => {
       <Routes>
         {/* ✅ NEW: ALWAYS GO TO HOME AFTER AUTHENTICATION */}
         <Route path="/" element={<Navigate to="/home" replace />} />
+        
+        {/* ✅ NEW: Stage 1 Introduction Route */}
+        <Route 
+          path="/stage1-introduction" 
+          element={
+            <Stage1Introduction 
+              onComplete={() => navigate('/stage1-tlevel-selection')}
+              onBack={() => navigate('/home')}
+              hasSeenBefore={JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1)}
+            />
+          } 
+        />
+        
+        {/* ✅ NEW: T-Level Selection Route */}
+        <Route 
+          path="/stage1-tlevel-selection" 
+          element={<TLevelSelectionPage />} 
+        />
         
         {/* ✅ OPTIONAL ONBOARDING ROUTES (accessible via modals) */}
         <Route path="/questionnaire" element={<QuestionnaireComponent />} />
@@ -718,17 +1036,12 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                <Route path="/seeker-practice-timer" element={
-                  <Suspense fallback={<FastLoader message="Starting your practice session..." />}>
-                    <SeekerPracticeTimerWrapper />
-                  </Suspense>
-                } />
+                {/* ✅ NEW: Practice Reflection Route for T1-T5 */}
+                <Route path="/practice-reflection" element={<PracticeReflectionWrapper />} />
                 
-                <Route path="/seeker-practice-complete" element={
-                  <Suspense fallback={<FastLoader message="Celebrating your progress..." />}>
-                    <SeekerPracticeCompleteWrapper />
-                  </Suspense>
-                } />
+                {/* ✅ LEGACY REDIRECTS: Backward Compatibility */}
+                <Route path="/seeker-practice-timer" element={<SeekerPracticeTimerRedirect />} />
+                <Route path="/seeker-practice-complete" element={<SeekerPracticeCompleteRedirect />} />
                 
                 <Route path="/immediate-reflection" element={
                   <Suspense fallback={<FastLoader message="Preparing reflection space..." />}>
