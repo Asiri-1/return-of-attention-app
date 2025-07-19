@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './PracticeReflection.css';
-import Logo from './Logo';
 
 interface PracticeReflectionProps {
   onBack: () => void;
@@ -40,7 +39,6 @@ const PracticeReflection: React.FC<PracticeReflectionProps> = ({
   return (
     <div className="practice-reflection">
       <div className="practice-reflection-header">
-        <Logo />
         <h1>The Return of Attention</h1>
       </div>
       

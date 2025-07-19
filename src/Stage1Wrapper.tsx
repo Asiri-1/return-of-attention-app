@@ -1,4 +1,4 @@
-// ✅ Complete Stage1Wrapper.tsx - Fixed Practice Reflection Navigation
+// ✅ Complete Stage1Wrapper.tsx - Final Clean Version
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -39,8 +39,6 @@ interface TStageInfo {
 
 const Stage1Wrapper: React.FC = () => {
   const navigate = useNavigate();
-  const params = useParams();
-  const location = useLocation();
   
   const {
     checkTStageAccess,
@@ -56,40 +54,52 @@ const Stage1Wrapper: React.FC = () => {
 
   const [tStages, setTStages] = useState<TStageInfo[]>([]);
 
-  // ✅ Calculate T-stage completion status
+  // ✅ Calculate T-stage completion status with real-time updates
   const calculateTStageStatus = React.useCallback((tStage: string): TStageInfo => {
-    const sessions = JSON.parse(localStorage.getItem(`${tStage}Sessions`) || '[]');
-    const completedSessions = sessions.filter((s: any) => s.isCompleted).length;
-    const requiredSessions = 3;
-    const isCompleted = localStorage.getItem(`${tStage}Complete`) === 'true';
-    
-    const access = checkTStageAccess(tStage);
-    
-    let status: 'locked' | 'available' | 'completed';
-    if (isCompleted) {
-      status = 'completed';
-    } else if (access.allowed) {
-      status = 'available';
-    } else {
-      status = 'locked';
+    try {
+      const sessions = JSON.parse(localStorage.getItem(`${tStage}Sessions`) || '[]');
+      const completedSessions = sessions.filter((s: any) => s.isCompleted).length;
+      const requiredSessions = 3;
+      const isCompleted = localStorage.getItem(`${tStage}Complete`) === 'true';
+      
+      const access = checkTStageAccess(tStage);
+      
+      let status: 'locked' | 'available' | 'completed';
+      if (isCompleted) {
+        status = 'completed';
+      } else if (access.allowed) {
+        status = 'available';
+      } else {
+        status = 'locked';
+      }
+
+      const durations: { [key: string]: string } = {
+        'T1': '10 min',
+        'T2': '15 min', 
+        'T3': '20 min',
+        'T4': '25 min',
+        'T5': '30 min'
+      };
+
+      return {
+        id: tStage,
+        title: `${tStage.toUpperCase()}: Physical Stillness`,
+        duration: durations[tStage] || '10 min',
+        status,
+        completedSessions,
+        requiredSessions
+      };
+    } catch (error) {
+      console.warn(`Error calculating status for ${tStage}:`, error);
+      return {
+        id: tStage,
+        title: `${tStage.toUpperCase()}: Physical Stillness`,
+        duration: '10 min',
+        status: 'locked',
+        completedSessions: 0,
+        requiredSessions: 3
+      };
     }
-
-    const durations: { [key: string]: string } = {
-      'T1': '10 min',
-      'T2': '15 min', 
-      'T3': '20 min',
-      'T4': '25 min',
-      'T5': '30 min'
-    };
-
-    return {
-      id: tStage,
-      title: `${tStage.toUpperCase()}: Physical Stillness`,
-      duration: durations[tStage] || '10 min',
-      status,
-      completedSessions,
-      requiredSessions
-    };
   }, [checkTStageAccess]);
 
   // ✅ Update T-stage status when component mounts or localStorage changes
@@ -101,14 +111,26 @@ const Stage1Wrapper: React.FC = () => {
 
     updateTStages();
     
-    // Listen for localStorage changes
-    const handleStorageChange = () => {
+    // Listen for localStorage changes and custom storage events
+    const handleStorageChange = (event?: StorageEvent) => {
       updateTStages();
       recheckStatus();
     };
-    
+
+    // Listen for both storage events and custom events
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    
+    // Custom event listener for immediate updates
+    const handleCustomUpdate = () => {
+      setTimeout(updateTStages, 50); // Small delay to ensure storage is written
+    };
+    
+    window.addEventListener('sessionUpdate', handleCustomUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('sessionUpdate', handleCustomUpdate);
+    };
   }, [calculateTStageStatus, recheckStatus]);
 
   // ✅ Handle T-stage selection with access checking
@@ -123,12 +145,12 @@ const Stage1Wrapper: React.FC = () => {
   // ✅ Handle session recording for any T-stage
   const handleSessionRecord = (sessionData: any) => {
     console.log('Session recorded:', sessionData);
-    // Trigger status update
-    const updateTStages = () => {
+    
+    // Force immediate update of T-stage status
+    setTimeout(() => {
       const stages = ['T1', 'T2', 'T3', 'T4', 'T5'].map(calculateTStageStatus);
       setTStages(stages);
-    };
-    updateTStages();
+    }, 100);
   };
 
   // ✅ T-Stage Overview Component
@@ -252,11 +274,9 @@ const Stage1Wrapper: React.FC = () => {
       setCurrentView('practice');
     };
 
-    // ✅ FIXED: Handle practice completion with proper navigation to practice reflection
+    // ✅ Handle practice completion with proper navigation to practice reflection
     const handlePracticeComplete = React.useCallback(() => {
-      console.log('🚀 Practice completed! Starting navigation to practice reflection...');
-      console.log('T-Stage:', tStage);
-      console.log('Practice data:', practiceData);
+      console.log('🚀 Practice completed! Navigating to practice reflection...');
       
       // Record session completion
       handleSessionRecord({ 
@@ -297,10 +317,8 @@ const Stage1Wrapper: React.FC = () => {
         console.log('T5 completed, unlocking Stage 2');
       }
 
-      // ✅ FIXED: Navigate to practice-reflection with proper timeout
+      // ✅ Navigate to practice-reflection with proper timing
       setTimeout(() => {
-        console.log('🔄 Navigating to practice reflection...');
-        
         try {
           navigate('/practice-reflection', {
             state: {
@@ -317,7 +335,6 @@ const Stage1Wrapper: React.FC = () => {
         } catch (error) {
           console.error('❌ Navigation failed:', error);
           // Fallback navigation
-          console.log('🔄 Trying fallback navigation to immediate-reflection...');
           navigate('/immediate-reflection', {
             state: {
               tLevel: tStage,
@@ -331,14 +348,16 @@ const Stage1Wrapper: React.FC = () => {
           });
         }
       }, 100);
-    }, [tStage, practiceData, navigate]);
+      // navigate is stable from useNavigate hook, safe to exclude from deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tStage, practiceData]);
 
     return (
       <div className="t-stage-container">
         {/* Introduction View */}
         {currentView === 'introduction' && getIntroductionComponent()}
         
-        {/* Posture Selection View - Using your UniversalPostureSelection */}
+        {/* Posture Selection View */}
         {currentView === 'posture' && (
           <UniversalPostureSelection
             onBack={() => setCurrentView('introduction')}
@@ -349,7 +368,7 @@ const Stage1Wrapper: React.FC = () => {
           />
         )}
         
-        {/* Practice View - Using your PracticeTimer with FIXED completion */}
+        {/* Practice View - Using PracticeTimer with unified storage */}
         {currentView === 'practice' && practiceData && (
           <PracticeTimer
             onComplete={handlePracticeComplete}
@@ -359,7 +378,7 @@ const Stage1Wrapper: React.FC = () => {
           />
         )}
         
-        {/* ✅ Always include the practice recorder */}
+        {/* Practice recorder - always included */}
         {getPracticeRecorderComponent()}
       </div>
     );

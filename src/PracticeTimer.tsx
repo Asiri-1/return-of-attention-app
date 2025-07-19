@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './PracticeTimer.css';
-import { PAHMCounts } from './types/PAHMTypes';
 import T1PracticeRecorder from './T1PracticeRecorder';
 import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
@@ -27,8 +26,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
+  
+  // Bell settings
+  const [bellEnabled, setBellEnabled] = useState<boolean>(true);
+  const [lastBellMinute, setLastBellMinute] = useState<number>(0);
+  
+  // Voice settings
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
+  const [lastVoiceAnnouncement, setLastVoiceAnnouncement] = useState<number>(0);
   
   // Enhanced analytics integration
   const { addPracticeSession, addEmotionalNote } = useLocalData();
@@ -40,17 +46,142 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const t4RecorderRef = useRef<any>(null);
   const t5RecorderRef = useRef<any>(null);
   
-  // Ref for interval - FIXED: Only one timer needed
+  // Audio refs for bells
+  const startBellRef = useRef<HTMLAudioElement>(null);
+  const endBellRef = useRef<HTMLAudioElement>(null);
+  const minuteBellRef = useRef<HTMLAudioElement>(null);
+  
+  // Ref for interval
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Extract T-level from stageLevel (e.g., "T1: Physical Stillness for 10 minutes")
-  const getTLevel = (): string => {
-    const tLevelMatch = stageLevel.match(/^(T[1-5])/i);
-    return tLevelMatch ? tLevelMatch[1].toLowerCase() : 't1';
-  };
+  // Bell Audio Functions - memoized to prevent useCallback deps changing
+  const playBell = useCallback((type: 'start' | 'end' | 'minute') => {
+    if (!bellEnabled) return;
+    
+    try {
+      let audioRef;
+      switch (type) {
+        case 'start':
+          audioRef = startBellRef;
+          break;
+        case 'end':
+          audioRef = endBellRef;
+          break;
+        case 'minute':
+          audioRef = minuteBellRef;
+          break;
+      }
+      
+      if (audioRef?.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
+      }
+    } catch (error) {
+      console.warn('Bell audio error:', error);
+    }
+  }, [bellEnabled]);
+
+  // Voice Synthesis Function - memoized to prevent useCallback deps changing
+  const announceTime = useCallback((remainingMinutes: number) => {
+    if (!voiceEnabled) return;
+    
+    try {
+      if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance();
+        
+        if (remainingMinutes === 0) {
+          utterance.text = "Practice session complete";
+        } else if (remainingMinutes === 1) {
+          utterance.text = "One minute remaining";
+        } else {
+          utterance.text = `${remainingMinutes} minutes remaining`;
+        }
+        
+        utterance.volume = 0.7;
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        
+        // Use a calm voice if available
+        const voices = speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+          voice.name.includes('Google') || 
+          voice.name.includes('Female') ||
+          voice.name.includes('Samantha')
+        );
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+        
+        speechSynthesis.speak(utterance);
+      }
+    } catch (error) {
+      console.warn('Voice synthesis error:', error);
+    }
+  }, [voiceEnabled]);
+
+  // Check for minute bells and voice announcements
+  const checkMinuteBell = useCallback((remainingSeconds: number) => {
+    const totalSeconds = initialMinutes * 60;
+    const elapsedSeconds = totalSeconds - remainingSeconds;
+    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+    const remainingMinutes = Math.ceil(remainingSeconds / 60);
+    
+    // Play bell every complete minute (but not at start)
+    if (elapsedMinutes > 0 && elapsedMinutes !== lastBellMinute) {
+      playBell('minute');
+      setLastBellMinute(elapsedMinutes);
+    }
+    
+    // Voice announcements every 5 minutes for remaining time
+    if (voiceEnabled && remainingMinutes > 0) {
+      // Announce at 5-minute intervals (when remaining time is 25, 20, 15, 10, 5 minutes)
+      if (remainingMinutes % 5 === 0 && remainingMinutes !== lastVoiceAnnouncement) {
+        announceTime(remainingMinutes);
+        setLastVoiceAnnouncement(remainingMinutes);
+      }
+      // Also announce at 1 minute remaining
+      else if (remainingMinutes === 1 && lastVoiceAnnouncement !== 1) {
+        announceTime(1);
+        setLastVoiceAnnouncement(1);
+      }
+    }
+  }, [initialMinutes, lastBellMinute, bellEnabled, voiceEnabled, lastVoiceAnnouncement, playBell, announceTime]);
+
+  // Extract T-level from stageLevel - memoized to prevent useCallback deps changing
+  const getTLevel = useCallback((): string => {
+    // Check multiple possible patterns for T-level detection
+    const patterns = [
+      /^(T[1-5])/i,  // T1, T2, etc.
+      /T([1-5])/i,   // Any T1, T2 in the string
+      /(Stage\s*1.*T[1-5])/i,  // Stage 1: T1, etc.
+      /Physical\s*Stillness.*([1-5])/i  // Physical Stillness with number
+    ];
+    
+    for (const pattern of patterns) {
+      const match = stageLevel.match(pattern);
+      if (match) {
+        // Extract T-level or convert number to T-level
+        if (match[1]?.toLowerCase().startsWith('t')) {
+          return match[1].toLowerCase();
+        } else if (match[1]) {
+          return `t${match[1]}`;
+        }
+      }
+    }
+    
+    // Fallback: check if it's a Stage 1 practice (default to T1)
+    if (stageLevel.toLowerCase().includes('stage 1') || stageLevel.toLowerCase().includes('stillness')) {
+      return 't1';
+    }
+    
+    return 't1';
+  }, [stageLevel]);
   
-  // Convert T-level to number for analytics
-  const getTLevelNumber = (tLevel: string): number => {
+  // Convert T-level to number for analytics - memoized to prevent useCallback deps changing
+  const getTLevelNumber = useCallback((tLevel: string): number => {
     const levelMap: { [key: string]: number } = {
       't1': 1,
       't2': 2, 
@@ -59,10 +190,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       't5': 5
     };
     return levelMap[tLevel] || 1;
-  };
+  }, []);
 
-  // Calculate session quality for basic stillness practice
-  const calculateSessionQuality = (duration: number, completed: boolean) => {
+  // Calculate session quality for basic stillness practice - memoized to prevent useCallback deps changing
+  const calculateSessionQuality = useCallback((duration: number, completed: boolean) => {
     let quality = 7; // Base quality
     
     // Completion bonus
@@ -73,28 +204,145 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     quality = quality * (0.8 + 0.2 * durationFactor);
     
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
-  };
+  }, []);
 
-  // FIXED: Simplified start timer - no duplicate interval
+  // 🔥 CRITICAL: Unified session tracking that ensures immediate synchronization
+  const saveSessionToAllStorageLocations = useCallback((sessionData: any, isCompleted: boolean) => {
+    const tLevel = getTLevel();
+    const tLevelUpper = tLevel.toUpperCase();
+    const timestamp = new Date().toISOString();
+    
+    try {
+      // 1. Create the session object in Stage1Wrapper compatible format
+      const sessionObject = {
+        id: `session_${Date.now()}`,
+        timestamp: timestamp,
+        duration: sessionData.duration || initialMinutes,
+        targetDuration: initialMinutes,
+        isCompleted: isCompleted,
+        completedAt: timestamp,
+        tLevel: tLevel,
+        rating: sessionData.rating || (isCompleted ? 8 : 6),
+        posture: sessionStorage.getItem('currentPosture') || 'seated',
+        notes: sessionData.notes || '',
+        metadata: sessionData.metadata || {}
+      };
+
+      // 2. IMMEDIATE localStorage write (no debounce) for Stage1Wrapper compatibility
+      const existingSessions = JSON.parse(localStorage.getItem(`${tLevelUpper}Sessions`) || '[]');
+      existingSessions.push(sessionObject);
+      localStorage.setItem(`${tLevelUpper}Sessions`, JSON.stringify(existingSessions));
+      
+      // 3. Update completion status immediately
+      if (isCompleted) {
+        localStorage.setItem(`${tLevelUpper}Complete`, 'true');
+        localStorage.setItem(`${tLevelUpper}LastCompleted`, timestamp);
+      }
+      
+      // 4. Update stage1Progress immediately
+      const existingProgress = JSON.parse(localStorage.getItem('stage1Progress') || '{"T1": 0, "T2": 0, "T3": 0, "T4": 0, "T5": 0}');
+      existingProgress[tLevelUpper] = existingSessions.filter((s: any) => s.isCompleted).length;
+      localStorage.setItem('stage1Progress', JSON.stringify(existingProgress));
+      
+      // 5. Enhanced session data for LocalDataContext
+      const enhancedSessionData = {
+        timestamp: timestamp,
+        duration: sessionData.duration || initialMinutes,
+        sessionType: 'meditation' as const,
+        stageLevel: getTLevelNumber(tLevel),
+        stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
+        rating: sessionData.rating || (isCompleted ? 8 : 6),
+        notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
+        presentPercentage: isCompleted ? 85 : 70,
+        environment: {
+          posture: sessionStorage.getItem('currentPosture') || 'seated',
+          location: 'indoor',
+          lighting: 'natural',
+          sounds: 'quiet'
+        },
+        pahmCounts: {
+          present_attachment: 0,
+          present_neutral: 0,
+          present_aversion: 0,
+          past_attachment: 0,
+          past_neutral: 0,
+          past_aversion: 0,
+          future_attachment: 0,
+          future_neutral: 0,
+          future_aversion: 0
+        }
+      };
+      
+      // 6. Add to LocalDataContext (this will handle debounced storage to comprehensiveUserData)
+      addPracticeSession(enhancedSessionData);
+      
+      // 7. Force a storage event to notify other components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: `${tLevelUpper}Sessions`,
+        newValue: JSON.stringify(existingSessions),
+        storageArea: localStorage
+      }));
+      
+      // 8. Dispatch custom event for immediate UI updates
+      window.dispatchEvent(new CustomEvent('sessionUpdate', {
+        detail: { tLevel: tLevelUpper, completed: isCompleted }
+      }));
+      
+      console.log(`✅ Session saved to all storage locations - ${tLevelUpper}: ${existingSessions.filter((s: any) => s.isCompleted).length}/3 completed`);
+      
+      return sessionObject;
+      
+    } catch (error) {
+      console.error('❌ Error saving session to storage:', error);
+      // Still try to save to LocalDataContext as fallback
+      const enhancedSessionData = {
+        timestamp: timestamp,
+        duration: sessionData.duration || initialMinutes,
+        sessionType: 'meditation' as const,
+        stageLevel: getTLevelNumber(tLevel),
+        stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
+        rating: sessionData.rating || (isCompleted ? 8 : 6),
+        notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
+        presentPercentage: isCompleted ? 85 : 70,
+        environment: {
+          posture: sessionStorage.getItem('currentPosture') || 'seated',
+          location: 'indoor',
+          lighting: 'natural',
+          sounds: 'quiet'
+        },
+        pahmCounts: {
+          present_attachment: 0,
+          present_neutral: 0,
+          present_aversion: 0,
+          past_attachment: 0,
+          past_neutral: 0,
+          past_aversion: 0,
+          future_attachment: 0,
+          future_neutral: 0,
+          future_aversion: 0
+        }
+      };
+      addPracticeSession(enhancedSessionData);
+    }
+  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
+
+  // Start timer
   const startTimer = () => {
     setIsActive(true);
     setIsPaused(false);
     setIsRunning(true);
     
+    // Play start bell
+    playBell('start');
+    
     // Store start time
     const now = new Date().toISOString();
     setSessionStartTime(now);
     sessionStorage.setItem('practiceStartTime', now);
-  };
-  
-  // Pause timer
-  const pauseTimer = () => {
-    setIsPaused(true);
-  };
-  
-  // Resume timer
-  const resumeTimer = () => {
-    setIsPaused(false);
+    
+    // Reset bell and voice tracking
+    setLastBellMinute(0);
+    setLastVoiceAnnouncement(0);
   };
   
   // Handle back button
@@ -102,13 +350,28 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+    // Cancel any ongoing speech
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
     onBack();
   };
 
-  // Record session data using the appropriate recorder
+  // Record session data with unified storage
   const recordSession = (isFullyCompleted: boolean) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
+    }
+    
+    // Cancel any ongoing speech
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+    
+    // Play completion bell and announce if completed
+    if (isFullyCompleted) {
+      playBell('end');
+      announceTime(0); // Announce "Practice session complete"
     }
     
     // Calculate time spent
@@ -116,78 +379,51 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     const endTime = new Date().toISOString();
     sessionStorage.setItem('practiceEndTime', endTime);
     
-    // Calculate time spent in minutes (or use initialMinutes if session wasn't started)
+    // Calculate time spent in minutes
     const timeSpentMs = sessionStartTime 
       ? new Date(endTime).getTime() - new Date(startTime).getTime() 
       : 0;
     const timeSpentMinutes = Math.round(timeSpentMs / (1000 * 60));
     
-    const tLevel = getTLevel();
-    
-    // 🔗 ENHANCED: Add to unified analytics system
-    const enhancedSessionData = {
-      timestamp: endTime,
+    const sessionData = {
       duration: timeSpentMinutes || initialMinutes,
-      sessionType: 'meditation' as const,
-      stageLevel: getTLevelNumber(tLevel), // Convert to number (this puts it in Stage 1)
-      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
       rating: isFullyCompleted ? 8 : 6,
-      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
-      presentPercentage: isFullyCompleted ? 85 : 70,
-      environment: {
-        posture: sessionStorage.getItem('currentPosture') || 'seated',
-        location: 'indoor',
-        lighting: 'natural',
-        sounds: 'quiet'
-      },
-      // 🔥 IMPORTANT: Add empty PAHM structure for consistency
-      pahmCounts: {
-        present_attachment: 0,
-        present_neutral: 0,
-        present_aversion: 0,
-        past_attachment: 0,
-        past_neutral: 0,
-        past_aversion: 0,
-        future_attachment: 0,
-        future_neutral: 0,
-        future_aversion: 0
+      notes: `${getTLevel().toUpperCase()} physical stillness training`,
+      metadata: {
+        startTime: startTime,
+        endTime: endTime,
+        wasFullyCompleted: isFullyCompleted,
+        initialMinutes: initialMinutes,
+        actualMinutes: timeSpentMinutes
       }
     };
     
-    // Add to unified analytics (enhances your existing dashboard!)
-    addPracticeSession(enhancedSessionData);
+    // 🔥 Save to all storage locations with immediate synchronization
+    saveSessionToAllStorageLocations(sessionData, isFullyCompleted);
     
     // Add achievement note for motivation
     if (isFullyCompleted) {
       addEmotionalNote({
         timestamp: endTime,
-        content: `Successfully completed ${tLevel.toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
+        content: `Successfully completed ${getTLevel().toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
         emotion: 'accomplished',
         energyLevel: 8,
-        tags: ['achievement', 'physical_training', tLevel, 't-level']
+        tags: ['achievement', 'physical_training', getTLevel(), 't-level']
       });
     }
     
-    console.log('✅ PracticeTimer - Session saved to LocalDataContext:', enhancedSessionData);
-    
-    // 🔒 PRESERVE: Keep all existing functionality exactly as is
-    const sessionData = {
-      level: tLevel,
+    // Store session data for reflection component
+    const reflectionData = {
+      level: getTLevel(),
       targetDuration: initialMinutes,
       timeSpent: timeSpentMinutes || 0,
       isCompleted: isFullyCompleted,
       completedAt: endTime
     };
     
-    // Store in sessionStorage for reflection component
-    sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
+    sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
     
-    // Only mark as complete for progression if fully completed
-    if (isFullyCompleted) {
-      localStorage.setItem(`${tLevel}Complete`, 'true');
-    }
-    
-    // Call onComplete to navigate to reflection
+    console.log('✅ Session recording completed, calling onComplete...');
     onComplete();
   };
 
@@ -197,42 +433,29 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     const isFullyCompleted = timeRemaining === 0;
     const sessionQuality = calculateSessionQuality(actualDuration, isFullyCompleted);
 
-    // Session data for basic stillness practice
+    // Play completion bell and announce completion
+    playBell('end');
+    announceTime(0); // Announce "Practice session complete"
+
     const sessionData = {
-      timestamp: endTime,
-      duration: Math.round(actualDuration / 60), // Convert to minutes
-      sessionType: 'meditation' as const,
-      stageLevel: 1,
-      stageLabel: stageLevel || 'Stage 1: Stillness Practice',
+      duration: Math.round(actualDuration / 60),
       rating: sessionQuality,
-      notes: `Stillness practice session completed successfully.`,
-      presentPercentage: isFullyCompleted ? 85 : 70,
-      environment: {
-        posture: sessionStorage.getItem('currentPosture') || 'seated',
-        location: 'indoor',
-        lighting: 'natural',
-        sounds: 'quiet'
-      },
-      // 🔥 IMPORTANT: Add empty PAHM structure for consistency
-      pahmCounts: {
-        present_attachment: 0,
-        present_neutral: 0,
-        present_aversion: 0,
-        past_attachment: 0,
-        past_neutral: 0,
-        past_aversion: 0,
-        future_attachment: 0,
-        future_neutral: 0,
-        future_aversion: 0
+      notes: `${getTLevel().toUpperCase()} stillness practice session completed successfully.`,
+      metadata: {
+        endTime: endTime,
+        actualDuration: actualDuration,
+        wasFullyCompleted: isFullyCompleted,
+        sessionQuality: sessionQuality
       }
     };
 
-    addPracticeSession(sessionData);
+    // 🔥 Save to all storage locations with immediate synchronization
+    saveSessionToAllStorageLocations(sessionData, isFullyCompleted);
 
     // Completion note
     const completionMessage = isFullyCompleted 
-      ? `Completed full ${initialMinutes}-minute stillness session! 🎯`
-      : `Completed ${Math.round(actualDuration / 60)}-minute stillness session.`;
+      ? `Completed full ${initialMinutes}-minute ${getTLevel().toUpperCase()} stillness session! 🎯`
+      : `Completed ${Math.round(actualDuration / 60)}-minute ${getTLevel().toUpperCase()} stillness session.`;
     
     const stillnessInsight = "Building foundation for deeper mindfulness practice.";
 
@@ -241,7 +464,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       content: `${completionMessage} ${stillnessInsight} Quality rating: ${sessionQuality}/10.`,
       emotion: isFullyCompleted ? 'accomplished' : 'content',
       energyLevel: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
-      tags: ['stillness-practice', 'stage-1', 'basic-meditation'],
+      tags: ['stillness-practice', 'stage-1', 'basic-meditation', getTLevel()],
       gratitude: [
         'meditation practice',
         'inner stillness',
@@ -249,12 +472,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       ]
     });
 
-    console.log('✅ PracticeTimer - Timer completion saved to LocalDataContext:', sessionData);
-
+    console.log('✅ Timer completion processed, calling onComplete...');
     onComplete();
-  }, [initialMinutes, timeRemaining, stageLevel, addPracticeSession, addEmotionalNote, onComplete]);
+  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToAllStorageLocations, calculateSessionQuality, getTLevel, playBell, announceTime]);
 
-  // Separate effect to handle timer completion
+  // Handle timer completion
   useEffect(() => {
     if (timeRemaining === 0 && isRunning) {
       setIsRunning(false);
@@ -262,7 +484,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // FIXED: Single timer effect - no duplicate
+  // Main timer effect
   useEffect(() => {
     if (isRunning && !isPaused && timeRemaining > 0) {
       timerRef.current = setInterval(() => {
@@ -270,6 +492,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           if (prev <= 1) {
             return 0;
           }
+          
+          // Check for minute bells
+          checkMinuteBell(prev - 1);
+          
           return prev - 1;
         });
       }, 1000);
@@ -286,7 +512,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         timerRef.current = null;
       }
     };
-  }, [isRunning, isPaused]);
+  }, [isRunning, isPaused, checkMinuteBell]);
 
   const handleStart = () => {
     if (initialMinutes < 5) {
@@ -300,95 +526,51 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setSessionStartTime(new Date().toISOString());
   };
 
-  const handlePause = () => {
-    setIsPaused(!isPaused);
-  };
-
-  const handleCompleteEarly = () => {
-    if (window.confirm('Complete this session early?')) {
-      handleTimerComplete();
-    }
-  };
-
   // Handle skip (early completion)
   const handleSkip = () => {
-    // Record session but mark as not fully completed
     recordSession(false);
   };
   
-  // Fast forward for development purposes
+  // Fast forward for development with unified storage
   const handleFastForward = () => {
-    // Record session and mark as fully completed for development
-    const tLevel = getTLevel();
-    
-    // Store start and end time
     const now = new Date().toISOString();
+    
     sessionStorage.setItem('practiceStartTime', now);
     sessionStorage.setItem('practiceEndTime', now);
     
-    // Mark this T-level as complete in localStorage for progression
-    localStorage.setItem(`${tLevel}Complete`, 'true');
-    
-    // Store practice data with fastForwarded flag
     const sessionData = {
-      level: tLevel,
+      duration: initialMinutes,
+      rating: 8,
+      notes: `${getTLevel().toUpperCase()} physical stillness training - DEV FAST-FORWARD`,
+      metadata: {
+        fastForwarded: true,
+        endTime: now
+      }
+    };
+    
+    // 🔥 Save to all storage locations with immediate synchronization
+    saveSessionToAllStorageLocations(sessionData, true);
+    
+    const reflectionData = {
+      level: getTLevel(),
       targetDuration: initialMinutes,
-      timeSpent: initialMinutes, // Assume full time for development
+      timeSpent: initialMinutes,
       isCompleted: true,
       completedAt: now,
       fastForwarded: true
     };
     
-    // Store in sessionStorage for reflection component
-    sessionStorage.setItem('lastPracticeData', JSON.stringify(sessionData));
+    sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
     
-    // 🔗 ENHANCED: Also add to analytics system for development
-    const enhancedSessionData = {
-      timestamp: now,
-      duration: initialMinutes,
-      sessionType: 'meditation' as const,
-      stageLevel: getTLevelNumber(tLevel),
-      stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training - DEV`,
-      rating: 8,
-      notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - DEV FAST-FORWARD`,
-      presentPercentage: 80,
-      environment: {
-        posture: sessionStorage.getItem('currentPosture') || 'seated',
-        location: 'indoor',
-        lighting: 'natural',
-        sounds: 'quiet'
-      },
-      // 🔥 IMPORTANT: Add empty PAHM structure for consistency
-      pahmCounts: {
-        present_attachment: 0,
-        present_neutral: 0,
-        present_aversion: 0,
-        past_attachment: 0,
-        past_neutral: 0,
-        past_aversion: 0,
-        future_attachment: 0,
-        future_neutral: 0,
-        future_aversion: 0
-      }
-    };
-    
-    addPracticeSession(enhancedSessionData);
-    
-    // Add dev completion note
     addEmotionalNote({
       timestamp: now,
-      content: `DEV: Fast-forwarded ${tLevel.toUpperCase()} training session for testing.`,
+      content: `DEV: Fast-forwarded ${getTLevel().toUpperCase()} training session for testing.`,
       emotion: 'accomplished',
       energyLevel: 8,
-      tags: ['dev', 'fast-forward', tLevel, 't-level']
+      tags: ['dev', 'fast-forward', getTLevel(), 't-level']
     });
     
-    console.log('✅ PracticeTimer - DEV fast-forward saved to LocalDataContext:', enhancedSessionData);
-    
-    // Log for development purposes
-    console.log(`DEV: Fast-forwarded ${tLevel} practice session`);
-    
-    // Call onComplete to navigate to reflection
+    console.log(`✅ DEV fast-forward completed, calling onComplete...`);
     onComplete();
   };
 
@@ -398,14 +580,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       const secondsToReduce = minutes * 60;
       const newTimeRemaining = Math.max(0, timeRemaining - secondsToReduce);
       setTimeRemaining(newTimeRemaining);
-      
-      console.log(`DEV: Fast-forwarded ${minutes} minutes`);
     }
   };
   
   // Handle session recording via appropriate recorder component
   const handleRecordSession = (sessionData: any) => {
-    // This function will be called by the recorder component
     console.log('Session recorded:', sessionData);
   };
   
@@ -414,6 +593,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      // Cancel any ongoing speech
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
       }
     };
   }, []);
@@ -477,6 +660,49 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               marginBottom: '20px'
             }}
           />
+          
+          {/* Bell and Voice Settings */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            padding: '20px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            textAlign: 'left'
+          }}>
+            <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>Audio Settings</h4>
+            
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={bellEnabled}
+                onChange={(e) => setBellEnabled(e.target.checked)}
+                style={{ marginRight: '10px' }}
+              />
+              🔔 Bell sounds (start/minute/end)
+            </label>
+            
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={voiceEnabled}
+                onChange={(e) => setVoiceEnabled(e.target.checked)}
+                style={{ marginRight: '10px' }}
+              />
+              🔊 Voice announcements (remaining time)
+            </label>
+            
+            <div style={{ 
+              fontSize: '12px', 
+              marginTop: '10px', 
+              opacity: 0.8,
+              background: 'rgba(255, 255, 255, 0.1)',
+              padding: '8px',
+              borderRadius: '5px'
+            }}>
+              📢 Bell rings every minute<br/>
+              🔊 Voice announces remaining time every 5 minutes
+            </div>
+          </div>
           
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
             <button
@@ -544,6 +770,17 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       padding: '10px',
       boxSizing: 'border-box'
     }}>
+      {/* Hidden audio elements for bells */}
+      <audio ref={startBellRef} preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmJADT+Pz+7XfSsELYnU8NVMA0w5jdLCq2MgAjiQ0vLGdyMKJ4fO7tR+NA4xe8vr2YNACkg+gtfpwWUhHTFsyO7Zhy4GQIzS7tN9HgY+j9Tv2ICyYgE2E7jVIIHMQoJQtjOAAi7YOoJSzDaSCQ7VW2CZkjU+Q4HOw2MjByq8b8rX0E6E3YLXPHI=" type="audio/wav" />
+      </audio>
+      <audio ref={minuteBellRef} preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmJADT+Pz+7XfSsELYnU8NVMA0w5jdLCq2MgAjiQ0vLGdyMKJ4fO7tR+NA4xe8vr2YNACkg+gtfpwWUhHTFsyO7Zhy4GQIzS7tN9HgY+j9Tv2ICyYgE2E7jVIIHMQoJQtjOAAi7YOoJSzDaSCQ7VW2CZkjU+Q4HOw2MjByq8b8rX0E6E3YLXPHI=" type="audio/wav" />
+      </audio>
+      <audio ref={endBellRef} preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmJADT+Pz+7XfSsELYnU8NVMA0w5jdLCq2MgAjiQ0vLGdyMKJ4fO7tR+NA4xe8vr2YNACkg+gtfpwWUhHTFsyO7Zhy4GQIzS7tN9HgY+j9Tv2ICyYgE2E7jVIIHMQoJQtjOAAi7YOoJSzDaSCQ7VW2CZkjU+Q4NOw2MjByq8b8rX0E6E3YLXPHI=" type="audio/wav" />
+      </audio>
+      
       {/* Include all recorder components but hide them */}
       <div style={{ display: 'none' }}>
         <T1PracticeRecorder onRecordSession={handleRecordSession} ref={t1RecorderRef} />
@@ -575,7 +812,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           flex: 1,
           padding: '0 10px'
         }}>{stageLevel}</h1>
-        <div style={{ width: '65px' }}></div> {/* Balance for back button */}
+        <div style={{ width: '65px' }}></div>
       </div>
       
       <div className="timer-content" style={{ 
@@ -605,6 +842,17 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
                 ? "Practice paused" 
                 : "Maintain physical stillness"}
           </div>
+          {(bellEnabled || voiceEnabled) && isActive && (
+            <div style={{
+              fontSize: '12px',
+              color: '#888',
+              marginTop: '5px'
+            }}>
+              {bellEnabled && <span>🔔 Bell rings every minute</span>}
+              {bellEnabled && voiceEnabled && <br/>}
+              {voiceEnabled && <span>🔊 Voice every 5 minutes</span>}
+            </div>
+          )}
         </div>
         
         <div className="timer-controls" style={{ 
@@ -629,7 +877,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               Start Practice
             </button>
           ) : isPaused ? (
-            <button className="resume-button" onClick={resumeTimer} style={{
+            <button className="resume-button" onClick={() => setIsPaused(false)} style={{
               padding: '16px 24px',
               fontSize: '18px',
               fontWeight: 'bold',
@@ -643,7 +891,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               Resume
             </button>
           ) : (
-            <button className="pause-button" onClick={pauseTimer} style={{
+            <button className="pause-button" onClick={() => setIsPaused(!isPaused)} style={{
               padding: '16px 24px',
               fontSize: '18px',
               fontWeight: 'bold',
@@ -675,7 +923,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           )}
         </div>
 
-        {/* Development Controls */}
+        {/* Development Controls - Clean Version */}
         {process.env.NODE_ENV !== 'production' && (
           <div style={{
             marginTop: '20px',
