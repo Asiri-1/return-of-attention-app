@@ -12,37 +12,83 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
   userData
 }) => {
   
-  // Original 4 exercises - keeping exact same structure
+  // ✅ UPDATED: Added 5th exercise for bedtime
   const exercises = [
     {
       id: 'morning-recharge',
       title: 'Morning Recharge',
       description: 'Start your day with clarity and focus',
       duration: '5 minutes',
-      icon: '🌅'
-    },
-    {
-      id: 'emotional-reset',
-      title: 'Emotional Reset',
-      description: 'Settle your emotions and find balance',
-      duration: '5 minutes',
-      icon: '🧘'
+      icon: '🌅',
+      timeOfDay: 'morning'
     },
     {
       id: 'mid-day-reset',
       title: 'Mid-Day Reset',
       description: 'Quick refresh to maintain focus',
       duration: '3 minutes',
-      icon: '☀️'
+      icon: '☀️',
+      timeOfDay: 'midday'
+    },
+    {
+      id: 'emotional-reset',
+      title: 'Emotional Reset',
+      description: 'Settle your emotions and find balance',
+      duration: '5 minutes',
+      icon: '🧘',
+      timeOfDay: 'anytime'
     },
     {
       id: 'work-home-transition',
       title: 'Work-Home Transition',
       description: 'Shift from work mode to personal time',
       duration: '5 minutes',
-      icon: '🏠'
+      icon: '🏠',
+      timeOfDay: 'evening'
+    },
+    {
+      id: 'bedtime-winddown',
+      title: 'Bedtime Wind Down',
+      description: 'Gentle preparation for restful sleep',
+      duration: '8 minutes',
+      icon: '🌙',
+      timeOfDay: 'bedtime'
     }
   ];
+
+  // ✅ NEW: Get time-based recommendations
+  const getTimeBasedRecommendation = () => {
+    const hour = new Date().getHours();
+    
+    if (hour >= 5 && hour < 10) {
+      return 'morning-recharge';
+    } else if (hour >= 10 && hour < 15) {
+      return 'mid-day-reset';
+    } else if (hour >= 15 && hour < 18) {
+      return 'emotional-reset';
+    } else if (hour >= 18 && hour < 21) {
+      return 'work-home-transition';
+    } else {
+      return 'bedtime-winddown';
+    }
+  };
+
+  const recommendedExercise = getTimeBasedRecommendation();
+
+  // ✅ NEW: Get time-based greeting
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    
+    if (hour >= 5 && hour < 12) {
+      return "Good morning! Start your day mindfully 🌅";
+    } else if (hour >= 12 && hour < 17) {
+      return "Good afternoon! Take a moment to reset ☀️";
+    } else if (hour >= 17 && hour < 21) {
+      return "Good evening! Transition peacefully 🌅";
+    } else {
+      return "Wind down for restful sleep 🌙";
+    }
+  };
 
   return (
     <div style={{
@@ -110,24 +156,33 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
       {/* Main Content */}
       <main style={{
         padding: 'clamp(20px, 4vw, 40px)',
-        maxWidth: '1000px',
+        maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {/* Description */}
+        {/* ✅ NEW: Time-based greeting */}
         <div style={{
           textAlign: 'center',
-          marginBottom: '40px',
+          marginBottom: '32px',
           background: 'rgba(255, 255, 255, 0.1)',
           borderRadius: '20px',
-          padding: 'clamp(24px, 4vw, 32px)',
+          padding: 'clamp(20px, 4vw, 28px)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           <p style={{ 
-            fontSize: 'clamp(16px, 3vw, 20px)', 
-            margin: '0',
+            fontSize: 'clamp(18px, 3vw, 22px)', 
+            margin: '0 0 8px 0',
             color: 'white',
             opacity: 0.95,
+            lineHeight: '1.4',
+            fontWeight: '600'
+          }}>
+            {getTimeBasedGreeting()}
+          </p>
+          <p style={{ 
+            fontSize: 'clamp(14px, 2.5vw, 16px)', 
+            margin: '0',
+            color: 'rgba(255, 255, 255, 0.8)',
             lineHeight: '1.5'
           }}>
             Choose a PAHM practice to reset and recover your mind
@@ -137,110 +192,208 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
         {/* Exercises Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: '24px',
-          maxWidth: '800px',
+          maxWidth: '1000px',
           margin: '0 auto'
         }}>
-          {exercises.map(exercise => (
-            <div
-              key={exercise.id}
-              onClick={() => onExerciseSelect(exercise.id)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '20px',
-                padding: '32px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-                textAlign: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
-              }}
-            >
-              {/* Icon */}
-              <div style={{
-                fontSize: '48px',
-                marginBottom: '20px',
-                padding: '16px',
-                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
-                borderRadius: '20px',
-                display: 'inline-block'
-              }}>
-                {exercise.icon}
-              </div>
-              
-              {/* Title */}
-              <h3 style={{ 
-                fontSize: '24px', 
-                fontWeight: '700', 
-                margin: '0 0 12px 0',
-                color: '#1f2937'
-              }}>
-                {exercise.title}
-              </h3>
-              
-              {/* Description */}
-              <p style={{ 
-                fontSize: '16px', 
-                lineHeight: '1.5', 
-                margin: '0 0 16px 0',
-                color: '#6b7280'
-              }}>
-                {exercise.description}
-              </p>
-              
-              {/* Duration */}
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
-                color: '#667eea',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                border: '1px solid rgba(102, 126, 234, 0.2)',
-                display: 'inline-block',
-                marginBottom: '24px'
-              }}>
-                {exercise.duration}
-              </div>
-              
-              {/* Start Button */}
-              <div style={{ marginTop: '24px' }}>
-                <button style={{
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '16px',
-                  padding: '16px 24px',
-                  fontSize: '16px',
-                  fontWeight: '600',
+          {exercises.map(exercise => {
+            const isRecommended = exercise.id === recommendedExercise;
+            
+            return (
+              <div
+                key={exercise.id}
+                onClick={() => onExerciseSelect(exercise.id)}
+                style={{
+                  background: isRecommended 
+                    ? 'rgba(255, 255, 255, 1)' 
+                    : 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: '20px',
+                  padding: '32px',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)'
+                  backdropFilter: 'blur(20px)',
+                  border: isRecommended 
+                    ? '2px solid rgba(255, 215, 0, 0.8)' 
+                    : '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: isRecommended 
+                    ? '0 15px 35px rgba(255, 215, 0, 0.2)' 
+                    : '0 10px 25px rgba(0, 0, 0, 0.1)',
+                  textAlign: 'center',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 12px 30px rgba(102, 126, 234, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = isRecommended 
+                    ? '0 20px 45px rgba(255, 215, 0, 0.25)' 
+                    : '0 20px 40px rgba(0, 0, 0, 0.15)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = isRecommended 
+                    ? '0 15px 35px rgba(255, 215, 0, 0.2)' 
+                    : '0 10px 25px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                {/* ✅ NEW: Recommended badge */}
+                {isRecommended && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                    color: '#1f2937',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 4px 12px rgba(255, 215, 0, 0.4)'
+                  }}>
+                    ⭐ Recommended
+                  </div>
+                )}
+                
+                {/* Icon */}
+                <div style={{
+                  fontSize: exercise.id === 'bedtime-winddown' ? '52px' : '48px',
+                  marginBottom: '20px',
+                  padding: '16px',
+                  background: exercise.id === 'bedtime-winddown' 
+                    ? 'linear-gradient(135deg, rgba(75, 0, 130, 0.15) 0%, rgba(25, 25, 112, 0.15) 100%)'
+                    : 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                  borderRadius: '20px',
+                  display: 'inline-block'
                 }}>
-                  Start Exercise →
-                </button>
+                  {exercise.icon}
+                </div>
+                
+                {/* Title */}
+                <h3 style={{ 
+                  fontSize: '24px', 
+                  fontWeight: '700', 
+                  margin: '0 0 12px 0',
+                  color: '#1f2937'
+                }}>
+                  {exercise.title}
+                </h3>
+                
+                {/* Description */}
+                <p style={{ 
+                  fontSize: '16px', 
+                  lineHeight: '1.5', 
+                  margin: '0 0 16px 0',
+                  color: '#6b7280'
+                }}>
+                  {exercise.description}
+                </p>
+                
+                {/* Duration */}
+                <div style={{
+                  background: exercise.id === 'bedtime-winddown'
+                    ? 'linear-gradient(135deg, rgba(75, 0, 130, 0.15) 0%, rgba(25, 25, 112, 0.15) 100%)'
+                    : 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                  color: exercise.id === 'bedtime-winddown' ? '#4B0082' : '#667eea',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  border: exercise.id === 'bedtime-winddown'
+                    ? '1px solid rgba(75, 0, 130, 0.3)'
+                    : '1px solid rgba(102, 126, 234, 0.2)',
+                  display: 'inline-block',
+                  marginBottom: '24px'
+                }}>
+                  {exercise.duration}
+                </div>
+                
+                {/* Start Button */}
+                <div style={{ marginTop: '24px' }}>
+                  <button style={{
+                    width: '100%',
+                    background: exercise.id === 'bedtime-winddown'
+                      ? 'linear-gradient(135deg, #4B0082 0%, #191970 100%)'
+                      : isRecommended
+                        ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)'
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: exercise.id === 'bedtime-winddown' || !isRecommended ? 'white' : '#1f2937',
+                    border: 'none',
+                    borderRadius: '16px',
+                    padding: '16px 24px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: exercise.id === 'bedtime-winddown'
+                      ? '0 8px 25px rgba(75, 0, 130, 0.3)'
+                      : isRecommended
+                        ? '0 8px 25px rgba(255, 215, 0, 0.3)'
+                        : '0 8px 25px rgba(102, 126, 234, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = exercise.id === 'bedtime-winddown'
+                      ? '0 12px 30px rgba(75, 0, 130, 0.4)'
+                      : isRecommended
+                        ? '0 12px 30px rgba(255, 215, 0, 0.4)'
+                        : '0 12px 30px rgba(102, 126, 234, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = exercise.id === 'bedtime-winddown'
+                      ? '0 8px 25px rgba(75, 0, 130, 0.3)'
+                      : isRecommended
+                        ? '0 8px 25px rgba(255, 215, 0, 0.3)'
+                        : '0 8px 25px rgba(102, 126, 234, 0.3)';
+                  }}>
+                    {exercise.id === 'bedtime-winddown' ? 'Prepare for Sleep' : 'Start Exercise'} →
+                  </button>
+                </div>
               </div>
+            );
+          })}
+        </div>
+
+        {/* ✅ NEW: Daily Schedule Guide */}
+        <div style={{
+          marginTop: '48px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '20px',
+          padding: 'clamp(24px, 4vw, 32px)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            color: 'white',
+            fontSize: 'clamp(18px, 3vw, 22px)',
+            fontWeight: '600',
+            margin: '0 0 20px 0'
+          }}>
+            💡 Daily Practice Guide
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.5' }}>
+              <strong>🌅 Morning:</strong> Start with clarity and intention
             </div>
-          ))}
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.5' }}>
+              <strong>☀️ Midday:</strong> Quick reset to maintain focus
+            </div>
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.5' }}>
+              <strong>🏠 Evening:</strong> Transition from work to personal
+            </div>
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.5' }}>
+              <strong>🌙 Bedtime:</strong> Gentle preparation for sleep
+            </div>
+          </div>
         </div>
       </main>
 

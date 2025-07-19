@@ -1,4 +1,4 @@
-// ✅ Complete App.tsx - Final Version with Legacy Cleanup
+// ✅ Complete App.tsx - Progress Tracker Only on Home Dashboard
 // File: src/App.tsx
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
@@ -137,7 +137,7 @@ const TLevelSelectionPage: React.FC = () => {
 
     navigate(`/stage1/${level}`, { 
       state: { 
-        showT1Introduction: false, // Skip intro since they came from introduction
+        showT1Introduction: false,
         level: level,
         duration: duration,
         stageLevel: `${level}: Physical Stillness for ${duration} minutes`,
@@ -724,6 +724,7 @@ const SelfAssessmentComponent: React.FC = () => {
 // ✅ OPTIMIZED: Main app content with PROGRESSIVE ONBOARDING + NEW STAGE 1 FLOW
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ ADD: Get current location for progress tracker
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
   
   // ✅ FIXED: Define isAuthenticated BEFORE using it
@@ -1117,8 +1118,8 @@ const AppContent: React.FC = React.memo(() => {
         } />
       </Routes>
 
-      {/* ✅ Progress Tracker - shows current stage dynamically (only when authenticated) */}
-      {isAuthenticated && <PAHMProgressTracker currentStage={currentStage} />}
+      {/* ✅ OPTION 2: Progress Tracker - ONLY shows on Home Dashboard */}
+      {isAuthenticated && location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );
 });
