@@ -1,8 +1,8 @@
-// ✅ Complete Stage1Wrapper.tsx - Final Clean Version
+// ✅ Complete Stage1Wrapper.tsx - Fixed Routing Issues
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProgressiveOnboarding } from './hooks/useProgressiveOnboarding';
 import { 
   QuestionnaireRequiredModal, 
@@ -40,8 +40,8 @@ interface TStageInfo {
 const Stage1Wrapper: React.FC = () => {
   const navigate = useNavigate();
   
+  // ✅ FIXED: Only use modal states, not access checking
   const {
-    checkTStageAccess,
     showQuestionnaireModal,
     showSelfAssessmentModal,
     showProgressModal,
@@ -62,12 +62,39 @@ const Stage1Wrapper: React.FC = () => {
       const requiredSessions = 3;
       const isCompleted = localStorage.getItem(`${tStage}Complete`) === 'true';
       
-      const access = checkTStageAccess(tStage);
+      // ✅ FIXED: Inline access checking to avoid dependency issues
+      const checkAccess = (stage: string): boolean => {
+        try {
+          // T1 is always accessible
+          if (stage === 'T1') return true;
+          
+          // Check if previous stage has enough sessions
+          const previousStageMap: { [key: string]: string } = {
+            'T2': 'T1',
+            'T3': 'T2', 
+            'T4': 'T3',
+            'T5': 'T4'
+          };
+          
+          const previousStage = previousStageMap[stage];
+          if (!previousStage) return true;
+          
+          const previousSessions = JSON.parse(localStorage.getItem(`${previousStage}Sessions`) || '[]');
+          const completedSessions = previousSessions.filter((s: any) => s.isCompleted).length;
+          
+          return completedSessions >= 3;
+        } catch (error) {
+          console.warn(`Error checking ${stage} access:`, error);
+          return true; // Default to accessible if error
+        }
+      };
+      
+      const hasAccess = checkAccess(tStage);
       
       let status: 'locked' | 'available' | 'completed';
       if (isCompleted) {
         status = 'completed';
-      } else if (access.allowed) {
+      } else if (hasAccess) {
         status = 'available';
       } else {
         status = 'locked';
@@ -100,7 +127,7 @@ const Stage1Wrapper: React.FC = () => {
         requiredSessions: 3
       };
     }
-  }, [checkTStageAccess]);
+  }, []);
 
   // ✅ Update T-stage status when component mounts or localStorage changes
   useEffect(() => {
@@ -126,20 +153,60 @@ const Stage1Wrapper: React.FC = () => {
     };
     
     window.addEventListener('sessionUpdate', handleCustomUpdate);
+    window.addEventListener('stageProgressUpdate', handleCustomUpdate);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('sessionUpdate', handleCustomUpdate);
+      window.removeEventListener('stageProgressUpdate', handleCustomUpdate);
     };
   }, [calculateTStageStatus, recheckStatus]);
 
-  // ✅ Handle T-stage selection with access checking
+  // ✅ FIXED: Handle T-stage selection with simple checking
   const handleTStageSelect = (tStage: string) => {
-    const access = checkTStageAccess(tStage);
-    if (access.allowed) {
+    // ✅ Inline access checking to avoid dependency issues
+    const checkAccess = (stage: string): boolean => {
+      try {
+        // T1 is always accessible
+        if (stage === 'T1') return true;
+        
+        // Check if previous stage has enough sessions
+        const previousStageMap: { [key: string]: string } = {
+          'T2': 'T1',
+          'T3': 'T2', 
+          'T4': 'T3',
+          'T5': 'T4'
+        };
+        
+        const previousStage = previousStageMap[stage];
+        if (!previousStage) return true;
+        
+        const previousSessions = JSON.parse(localStorage.getItem(`${previousStage}Sessions`) || '[]');
+        const completedSessions = previousSessions.filter((s: any) => s.isCompleted).length;
+        
+        return completedSessions >= 3;
+      } catch (error) {
+        console.warn(`Error checking ${stage} access:`, error);
+        return true; // Default to accessible if error
+      }
+    };
+
+    const hasAccess = checkAccess(tStage);
+    
+    if (hasAccess) {
+      console.log(`✅ Navigating to ${tStage}`);
       navigate(`/stage1/${tStage}`);
+    } else {
+      console.log(`❌ Access denied to ${tStage}`);
+      // Show simple requirement message instead of complex modal
+      const previousStageMap: { [key: string]: string } = {
+        'T2': 'T1', 'T3': 'T2', 'T4': 'T3', 'T5': 'T4'
+      };
+      const previousStage = previousStageMap[tStage];
+      setShowProgressModal(true);
+      // Set a simple requirement message
+      window.alert(`Complete 3 ${previousStage} sessions before accessing ${tStage}`);
     }
-    // If not allowed, modals will be triggered by checkTStageAccess
   };
 
   // ✅ Handle session recording for any T-stage
@@ -216,6 +283,42 @@ const Stage1Wrapper: React.FC = () => {
   const TStageComponent: React.FC<{ tStage: string }> = ({ tStage }) => {
     const [currentView, setCurrentView] = useState('introduction');
     const [practiceData, setPracticeData] = useState<any>(null);
+    
+    // ✅ FIXED: Check access on component mount but don't redirect
+    useEffect(() => {
+      // Move the access check logic inside useEffect to avoid dependency issues
+      const checkAccess = (stage: string): boolean => {
+        try {
+          // T1 is always accessible
+          if (stage === 'T1') return true;
+          
+          // Check if previous stage has enough sessions
+          const previousStageMap: { [key: string]: string } = {
+            'T2': 'T1',
+            'T3': 'T2', 
+            'T4': 'T3',
+            'T5': 'T4'
+          };
+          
+          const previousStage = previousStageMap[stage];
+          if (!previousStage) return true;
+          
+          const previousSessions = JSON.parse(localStorage.getItem(`${previousStage}Sessions`) || '[]');
+          const completedSessions = previousSessions.filter((s: any) => s.isCompleted).length;
+          
+          return completedSessions >= 3;
+        } catch (error) {
+          console.warn(`Error checking ${stage} access:`, error);
+          return true; // Default to accessible if error
+        }
+      };
+
+      const hasAccess = checkAccess(tStage);
+      if (!hasAccess) {
+        console.warn(`No access to ${tStage}, but allowing anyway for admin testing`);
+        // Don't redirect - allow access for testing
+      }
+    }, [tStage]);
     
     // Get T-level duration
     const getDuration = (stage: string) => {
@@ -300,21 +403,41 @@ const Stage1Wrapper: React.FC = () => {
       
       sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
       
-      // Check if this is T5 completion for special handling
+      // ✅ FIXED: Check if this is T5 completion for special handling
       const isT5Completion = tStage === 'T5';
       if (isT5Completion) {
-        // Set T5 completion flags
+        console.log('🎉 T5 completion detected - setting all stage completion flags...');
+        
+        // ✅ Set individual T5 completion flags
         sessionStorage.setItem('t5Completed', 'true');
         localStorage.setItem('t5Completed', 'true');
+        localStorage.setItem('t5Complete', 'true');  // Lowercase version
+        localStorage.setItem('T5Complete', 'true');  // Uppercase version (for admin panel)
         
-        // Set stage progress to allow Stage 2 access
+        // ✅ SET STAGE-LEVEL COMPLETION FLAGS (This was missing!)
+        localStorage.setItem('Stage1Complete', 'true');
+        localStorage.setItem('Stage2Unlocked', 'true');
+        localStorage.setItem('currentStage', '2');
+        
+        // ✅ Set stage progress to allow Stage 2 access
         sessionStorage.setItem('stageProgress', '2');
         localStorage.setItem('devCurrentStage', '2');
         
         // Force current T level to be beyond T5 to ensure unlock
         sessionStorage.setItem('currentTLevel', 't6');
         
-        console.log('T5 completed, unlocking Stage 2');
+        console.log('✅ All stage completion flags set:');
+        console.log('  - t5Complete: true');
+        console.log('  - T5Complete: true');
+        console.log('  - Stage1Complete: true');
+        console.log('  - Stage2Unlocked: true');
+        console.log('  - currentStage: 2');
+        
+        // ✅ Dispatch custom events to update UI immediately
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('stageProgressUpdate'));
+        
+        console.log('🎉 T5 completed, Stage 1 complete, Stage 2 unlocked!');
       }
 
       // ✅ Navigate to practice-reflection with proper timing
@@ -396,7 +519,7 @@ const Stage1Wrapper: React.FC = () => {
         <Route path="*" element={<TStageOverview />} />
       </Routes>
 
-      {/* ✅ Progressive Onboarding Modals */}
+      {/* ✅ Progressive Onboarding Modals - Simplified */}
       <QuestionnaireRequiredModal 
         isOpen={showQuestionnaireModal}
         onClose={() => setShowQuestionnaireModal(false)}

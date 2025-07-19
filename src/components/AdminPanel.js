@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAdmin } from '../AdminContext';
 import { useAuth } from '../AuthContext';
 import { useLocalData } from '../contexts/LocalDataContext';
@@ -32,10 +32,11 @@ function AdminPanel() {
     selfAssessment: false,
     introduction: false
   });
+  const [userProfileData, setUserProfileData] = useState(null);
 
   const { isAdmin, isLoading: adminLoading } = useAdmin();
   const { currentUser, logout } = useAuth();
-  const { addPracticeSession, addEmotionalNote, getAllUsers, isLocalMode } = useLocalData();
+  const { addPracticeSession, addEmotionalNote, getAllUsers, isLocalMode, getQuestionnaire, getSelfAssessment } = useLocalData();
 
   // Admin email for fallback checking
   const ADMIN_EMAIL = 'asiriamarasinghe35@gmail.com';
@@ -66,26 +67,335 @@ function AdminPanel() {
     return false;
   }, [isAdmin, adminLoading, currentUser?.email]);
 
-  // Load session counts for testing tools
-  const loadSessionCounts = () => {
+  // ENHANCED DEBUG FUNCTIONS
+  const debugStorageData = () => {
+    console.log('🔍 DEBUG: Checking all localStorage data...');
+    
+    // Check individual keys (what admin panel creates)
+    const individualKeys = [
+      'questionnaireCompleted',
+      'selfAssessmentCompleted', 
+      'T1Sessions', 'T2Sessions', 'T3Sessions', 'T4Sessions', 'T5Sessions',
+      't1Sessions', 't2Sessions', 't3Sessions', 't4Sessions', 't5Sessions', // lowercase versions
+      'T1Complete', 'T2Complete', 'T3Complete', 'T4Complete', 'T5Complete',
+      't1Complete', 't2Complete', 't3Complete', 't4Complete', 't5Complete', // lowercase versions
+      'stage1Progress',
+      'stage2Hours', 'stage3Hours', 'stage4Hours', 'stage5Hours', 'stage6Hours'
+    ];
+    
+    console.log('📋 Individual Keys (Admin Panel format):');
+    individualKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      try {
+        console.log(`${key}:`, value ? JSON.parse(value) : null);
+      } catch (e) {
+        console.log(`${key}:`, value);
+      }
+    });
+    
+    // Check comprehensive data (what LocalDataContext expects)
+    const comprehensiveKeys = [
+      'comprehensiveUserData',
+      'comprehensiveUserData_guest',
+    ];
+    
+    console.log('📦 Comprehensive Data (LocalDataContext format):');
+    comprehensiveKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value) {
+        try {
+          const parsed = JSON.parse(value);
+          console.log(`${key}:`, {
+            questionnaire: parsed.questionnaire?.completed,
+            selfAssessment: parsed.selfAssessment?.completed,
+            practiceSessionsCount: parsed.practiceSessions?.length,
+            profile: parsed.profile
+          });
+        } catch (e) {
+          console.log(`${key}: Parse error`, e);
+        }
+      } else {
+        console.log(`${key}:`, null);
+      }
+    });
+    
+    // Check what Stage logic might be looking for
+    console.log('🎯 Stage Logic Keys (useProgressiveOnboarding expects):');
+    const stageKeys = ['t1Complete', 't2Complete', 't3Complete', 't4Complete', 't5Complete', 'Stage1Complete', 'Stage2Unlocked', 'currentStage'];
+    stageKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      console.log(`${key}:`, value);
+    });
+    
+    // Check happiness calculation dependencies
+    console.log('😊 Happiness Calculation Keys:');
+    const happinessKeys = ['questionnaireAnswers', 'selfAssessmentData'];
+    happinessKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value) {
+        try {
+          const parsed = JSON.parse(value);
+          console.log(`${key}:`, Object.keys(parsed));
+        } catch (e) {
+          console.log(`${key}:`, value);
+        }
+      } else {
+        console.log(`${key}:`, null);
+      }
+    });
+
+    // NEW: Check user profile data from LocalDataContext
+    console.log('👤 User Profile Data (LocalDataContext):');
+    const questionnaire = getQuestionnaire();
+    const selfAssessment = getSelfAssessment();
+    console.log('Questionnaire from LocalDataContext:', questionnaire);
+    console.log('Self-Assessment from LocalDataContext:', selfAssessment);
+    
+    window.alert('Debug data logged to console! Check browser console (F12) for detailed analysis.');
+  };
+
+  const forceSyncAdminDataToLocalDataContext = () => {
+    console.log('🔄 FORCE SYNC: Converting admin data to LocalDataContext format...');
+    
+    try {
+      const currentUser = { uid: 'guest' }; // Adjust based on your auth
+      const storageKey = currentUser?.uid ? `comprehensiveUserData_${currentUser.uid}` : 'comprehensiveUserData';
+      
+      // Create comprehensive data structure
+      const comprehensiveData = {
+        profile: {
+          userId: currentUser?.uid || 'guest',
+          displayName: 'Admin Test User',
+          email: 'admin@test.com',
+          totalSessions: 0,
+          totalMinutes: 0,
+          currentStreak: 0,
+          longestStreak: 0,
+          averageQuality: 0,
+          averagePresentPercentage: 0,
+          totalMindRecoverySessions: 0,
+          totalMindRecoveryMinutes: 0,
+          averageMindRecoveryRating: 0
+        },
+        practiceSessions: [],
+        emotionalNotes: [],
+        reflections: [],
+        questionnaire: null,
+        selfAssessment: null,
+        achievements: ['journey_started'],
+        notes: [],
+        analytics: {
+          totalPracticeTime: 0,
+          averageSessionLength: 0,
+          consistencyScore: 0,
+          progressTrend: 'stable',
+          lastUpdated: new Date().toISOString()
+        }
+      };
+      
+      // Convert questionnaire data
+      const questionnaireCompleted = localStorage.getItem('questionnaireCompleted') === 'true';
+      const questionnaireAnswers = localStorage.getItem('questionnaireAnswers');
+      if (questionnaireCompleted && questionnaireAnswers) {
+        try {
+          const answers = JSON.parse(questionnaireAnswers);
+          comprehensiveData.questionnaire = {
+            completed: true,
+            completedAt: new Date().toISOString(),
+            responses: answers.answers || answers
+          };
+        } catch (e) {
+          console.warn('Questionnaire data parse error:', e);
+        }
+      }
+      
+      // Convert self-assessment data
+      const selfAssessmentCompleted = localStorage.getItem('selfAssessmentCompleted') === 'true';
+      const selfAssessmentData = localStorage.getItem('selfAssessmentData');
+      if (selfAssessmentCompleted && selfAssessmentData) {
+        try {
+          const assessment = JSON.parse(selfAssessmentData);
+          comprehensiveData.selfAssessment = {
+            completed: true,
+            completedAt: new Date().toISOString(),
+            // Support multiple formats
+            taste: assessment.taste || 'none',
+            smell: assessment.smell || 'none', 
+            sound: assessment.sound || 'none',
+            sight: assessment.sight || 'none',
+            touch: assessment.touch || 'none',
+            mind: assessment.mind || 'none',
+            categories: assessment.categories || {},
+            responses: assessment.responses || assessment.categories || {},
+            attachmentScore: assessment.attachmentScore || 0,
+            nonAttachmentCount: assessment.nonAttachmentCount || 0,
+            metrics: assessment.metrics || {}
+          };
+        } catch (e) {
+          console.warn('Self-assessment data parse error:', e);
+        }
+      }
+      
+      // Convert T-stage sessions - check both uppercase and lowercase
+      ['T1', 'T2', 'T3', 'T4', 'T5'].forEach(tLevel => {
+        // Check both T1Sessions and t1Sessions
+        const upperSessions = localStorage.getItem(`${tLevel}Sessions`);
+        const lowerSessions = localStorage.getItem(`${tLevel.toLowerCase()}Sessions`);
+        const sessions = upperSessions || lowerSessions;
+        
+        if (sessions) {
+          try {
+            const parsed = JSON.parse(sessions);
+            parsed.forEach(session => {
+              if (session.isCompleted) {
+                comprehensiveData.practiceSessions.push({
+                  sessionId: session.id || `sync_${Date.now()}_${Math.random()}`,
+                  timestamp: session.timestamp || session.completedAt,
+                  duration: session.duration,
+                  sessionType: 'meditation',
+                  stageLevel: parseInt(tLevel.substring(1)),
+                  stageLabel: `${tLevel}: Physical Stillness Training`,
+                  rating: session.rating || 8,
+                  notes: session.notes || '',
+                  presentPercentage: 85,
+                  environment: {
+                    posture: session.posture || 'seated',
+                    location: 'indoor',
+                    lighting: 'natural',
+                    sounds: 'quiet'
+                  },
+                  pahmCounts: {
+                    present_attachment: 0, present_neutral: 0, present_aversion: 0,
+                    past_attachment: 0, past_neutral: 0, past_aversion: 0,
+                    future_attachment: 0, future_neutral: 0, future_aversion: 0
+                  }
+                });
+              }
+            });
+          } catch (e) {
+            console.warn(`${tLevel} sessions parse error:`, e);
+          }
+        }
+      });
+      
+      // Add emotional notes for admin sessions
+      if (comprehensiveData.practiceSessions.length > 0) {
+        comprehensiveData.emotionalNotes.push({
+          noteId: `admin_note_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          content: `Admin generated test data: ${comprehensiveData.practiceSessions.length} practice sessions created`,
+          emotion: 'accomplished',
+          energyLevel: 8,
+          tags: ['admin', 'test', 'data-sync']
+        });
+      }
+      
+      // Update profile stats
+      const totalMinutes = comprehensiveData.practiceSessions.reduce((sum, s) => sum + s.duration, 0);
+      const avgQuality = comprehensiveData.practiceSessions.length > 0 ? 
+        comprehensiveData.practiceSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / comprehensiveData.practiceSessions.length : 0;
+      
+      comprehensiveData.profile.totalSessions = comprehensiveData.practiceSessions.length;
+      comprehensiveData.profile.totalMinutes = totalMinutes;
+      comprehensiveData.profile.averageQuality = Math.round(avgQuality * 10) / 10;
+      
+      // Save to localStorage
+      localStorage.setItem(storageKey, JSON.stringify(comprehensiveData));
+      
+      // Also save to legacy keys for compatibility
+      localStorage.setItem('practiceHistory', JSON.stringify(comprehensiveData.practiceSessions));
+      localStorage.setItem('emotionalNotes', JSON.stringify(comprehensiveData.emotionalNotes));
+      
+      // 🔥 CRITICAL FIX: Create BOTH uppercase and lowercase completion keys
+      ['T1', 'T2', 'T3', 'T4', 'T5'].forEach(tLevel => {
+        const upperComplete = localStorage.getItem(`${tLevel}Complete`);
+        const lowerComplete = localStorage.getItem(`${tLevel.toLowerCase()}Complete`);
+        
+        if (upperComplete === 'true' && !lowerComplete) {
+          // Admin created uppercase, stage logic needs lowercase
+          localStorage.setItem(`${tLevel.toLowerCase()}Complete`, 'true');
+          console.log(`✅ Fixed case sensitivity: ${tLevel}Complete → ${tLevel.toLowerCase()}Complete`);
+        }
+      });
+      
+      console.log('✅ SYNC COMPLETE: Admin data converted to LocalDataContext format');
+      console.log('📊 Synced data:', {
+        questionnaire: comprehensiveData.questionnaire?.completed,
+        selfAssessment: comprehensiveData.selfAssessment?.completed,
+        practiceSessionsCount: comprehensiveData.practiceSessions.length,
+        totalMinutes: comprehensiveData.profile.totalMinutes
+      });
+      
+      window.alert('✅ Data sync complete! Fixed case sensitivity issues. Page will refresh to load new data format.');
+      
+      // Trigger page refresh to load new data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ SYNC ERROR:', error);
+      window.alert(`❌ Sync failed: ${error.message}`);
+    }
+  };
+
+  // ✅ FIXED: Load user profile data with useCallback to prevent infinite re-renders
+  const loadUserProfileData = useCallback(() => {
+    try {
+      const questionnaire = getQuestionnaire();
+      const selfAssessment = getSelfAssessment();
+      
+      const profileData = {
+        questionnaire: questionnaire,
+        selfAssessment: selfAssessment,
+        localStorage: {
+          questionnaireCompleted: localStorage.getItem('questionnaireCompleted'),
+          selfAssessmentCompleted: localStorage.getItem('selfAssessmentCompleted'),
+          questionnaireAnswers: localStorage.getItem('questionnaireAnswers'),
+          selfAssessmentData: localStorage.getItem('selfAssessmentData')
+        },
+        stageProgress: {
+          // Check both uppercase and lowercase
+          T1Complete: localStorage.getItem('T1Complete'),
+          t1Complete: localStorage.getItem('t1Complete'),
+          T5Complete: localStorage.getItem('T5Complete'),
+          t5Complete: localStorage.getItem('t5Complete')
+        }
+      };
+      
+      setUserProfileData(profileData);
+    } catch (error) {
+      console.error('Error loading user profile data:', error);
+    }
+  }, [getQuestionnaire, getSelfAssessment]);
+
+  // ✅ FIXED: Load session counts with useCallback
+  const loadSessionCounts = useCallback(() => {
     const counts = {
       T1: 0, T2: 0, T3: 0, T4: 0, T5: 0
     };
 
     ['T1', 'T2', 'T3', 'T4', 'T5'].forEach(tLevel => {
       try {
-        const sessions = JSON.parse(localStorage.getItem(`${tLevel}Sessions`) || '[]');
-        counts[tLevel] = sessions.filter(s => s.isCompleted).length;
+        // Check both uppercase and lowercase sessions
+        const upperSessions = localStorage.getItem(`${tLevel}Sessions`);
+        const lowerSessions = localStorage.getItem(`${tLevel.toLowerCase()}Sessions`);
+        const sessionsData = upperSessions || lowerSessions;
+        
+        if (sessionsData) {
+          const sessions = JSON.parse(sessionsData);
+          counts[tLevel] = sessions.filter(s => s.isCompleted).length;
+        }
       } catch (error) {
         console.warn(`Error loading ${tLevel} sessions:`, error);
       }
     });
 
     setSessionCounts(counts);
-  };
+  }, []);
 
-  // Load PAHM progress for testing tools
-  const loadPahmProgress = () => {
+  // ✅ FIXED: Load PAHM progress with useCallback
+  const loadPahmProgress = useCallback(() => {
     const progress = {
       stage2: { hours: 0, completed: false, name: 'PAHM Trainee' },
       stage3: { hours: 0, completed: false, name: 'PAHM Beginner' },
@@ -109,10 +419,10 @@ function AdminPanel() {
     });
 
     setPahmProgress(progress);
-  };
+  }, []);
 
-  // Load onboarding status for testing tools
-  const loadOnboardingStatus = () => {
+  // ✅ FIXED: Load onboarding status with useCallback
+  const loadOnboardingStatus = useCallback(() => {
     try {
       const status = {
         questionnaire: localStorage.getItem('questionnaireCompleted') === 'true',
@@ -123,7 +433,7 @@ function AdminPanel() {
     } catch (error) {
       console.warn('Error loading onboarding status:', error);
     }
-  };
+  }, []);
 
   // Complete questionnaire (admin testing)
   const completeQuestionnaire = () => {
@@ -162,6 +472,7 @@ function AdminPanel() {
 
       console.log('✅ Admin: Questionnaire completed');
       loadOnboardingStatus();
+      loadUserProfileData();
     } catch (error) {
       console.error('❌ Error completing questionnaire:', error);
     }
@@ -207,6 +518,7 @@ function AdminPanel() {
 
       console.log('✅ Admin: Self-assessment completed');
       loadOnboardingStatus();
+      loadUserProfileData();
     } catch (error) {
       console.error('❌ Error completing self-assessment:', error);
     }
@@ -331,6 +643,7 @@ function AdminPanel() {
         loadSessionCounts();
         loadPahmProgress();
         loadOnboardingStatus();
+        loadUserProfileData();
       }, 1000);
 
     } catch (error) {
@@ -450,6 +763,7 @@ function AdminPanel() {
         loadSessionCounts();
         loadPahmProgress();
         loadOnboardingStatus();
+        loadUserProfileData();
       }, 1000);
 
     } catch (error) {
@@ -533,7 +847,9 @@ function AdminPanel() {
           }
           
           localStorage.setItem(`${tLevel}Sessions`, JSON.stringify(sessions));
+          // 🔥 CRITICAL FIX: Set both uppercase and lowercase completion flags
           localStorage.setItem(`${tLevel}Complete`, 'true');
+          localStorage.setItem(`${tLevel.toLowerCase()}Complete`, 'true');
         });
 
         // Add PAHM stage sessions
@@ -595,6 +911,7 @@ function AdminPanel() {
         loadSessionCounts();
         loadPahmProgress();
         loadOnboardingStatus();
+        loadUserProfileData();
       }, 1000);
 
     } catch (error) {
@@ -620,12 +937,13 @@ function AdminPanel() {
 
       console.log('✅ Admin: Onboarding status cleared');
       loadOnboardingStatus();
+      loadUserProfileData();
     } catch (error) {
       console.error('❌ Error clearing onboarding status:', error);
     }
   };
 
-  // Fast forward function for testing T-stages
+  // 🔥 FIXED: Fast forward function with proper case sensitivity
   const fastForwardSession = (tLevel) => {
     try {
       const now = new Date().toISOString();
@@ -652,8 +970,9 @@ function AdminPanel() {
       existingSessions.push(sessionObject);
       localStorage.setItem(`${tLevel}Sessions`, JSON.stringify(existingSessions));
 
-      // 3. Update completion status
+      // 🔥 CRITICAL FIX: Set BOTH uppercase and lowercase completion status
       localStorage.setItem(`${tLevel}Complete`, 'true');
+      localStorage.setItem(`${tLevel.toLowerCase()}Complete`, 'true'); // This is what useProgressiveOnboarding expects!
       localStorage.setItem(`${tLevel}LastCompleted`, now);
 
       // 4. Update stage1Progress
@@ -712,10 +1031,11 @@ function AdminPanel() {
         detail: { tLevel: tLevel, completed: true }
       }));
 
-      console.log(`✅ Admin fast-forward: ${tLevel} session added`);
+      console.log(`✅ Admin fast-forward: ${tLevel} session added (set both ${tLevel}Complete and ${tLevel.toLowerCase()}Complete)`);
       
-      // Reload counts
+      // Reload counts and profile data
       loadSessionCounts();
+      loadUserProfileData();
 
     } catch (error) {
       console.error(`❌ Error fast-forwarding ${tLevel}:`, error);
@@ -913,18 +1233,21 @@ function AdminPanel() {
     }
   };
 
-  // Clear all progress (T-stages + PAHM stages)
+  // 🔥 ENHANCED: Clear all progress with case sensitivity fixes
   const clearAllProgress = () => {
     if (!window.confirm('Are you sure you want to clear ALL session progress (T-stages + PAHM stages + onboarding)? This cannot be undone.')) {
       return;
     }
 
     try {
-      // Clear T-stages
+      // Clear T-stages (both uppercase and lowercase)
       ['T1', 'T2', 'T3', 'T4', 'T5'].forEach(tLevel => {
         localStorage.removeItem(`${tLevel}Sessions`);
+        localStorage.removeItem(`${tLevel.toLowerCase()}Sessions`);
         localStorage.removeItem(`${tLevel}Complete`);
+        localStorage.removeItem(`${tLevel.toLowerCase()}Complete`);
         localStorage.removeItem(`${tLevel}LastCompleted`);
+        localStorage.removeItem(`${tLevel.toLowerCase()}LastCompleted`);
       });
 
       // Clear PAHM stages
@@ -948,35 +1271,43 @@ function AdminPanel() {
       // Clear other progress data
       localStorage.removeItem('stage1Progress');
       localStorage.removeItem('practiceHistory');
+      localStorage.removeItem('comprehensiveUserData');
+      localStorage.removeItem('comprehensiveUserData_guest');
 
-      console.log('✅ Admin: All progress cleared (T-stages + PAHM + onboarding)');
+      console.log('✅ Admin: All progress cleared (T-stages + PAHM + onboarding + comprehensive data)');
       window.alert('All session progress has been cleared (T-stages + PAHM stages + onboarding)!');
       
       loadSessionCounts();
       loadPahmProgress();
       loadOnboardingStatus();
+      loadUserProfileData();
     } catch (error) {
       console.error('❌ Error clearing progress:', error);
       window.alert(`Error clearing progress: ${error.message}`);
     }
   };
 
-  // Clear specific T-level
+  // 🔥 FIXED: Clear specific T-level with case sensitivity
   const clearTLevel = (tLevel) => {
     if (!window.confirm(`Clear all ${tLevel} progress?`)) return;
 
     try {
+      // Clear both uppercase and lowercase versions
       localStorage.removeItem(`${tLevel}Sessions`);
+      localStorage.removeItem(`${tLevel.toLowerCase()}Sessions`);
       localStorage.removeItem(`${tLevel}Complete`);
+      localStorage.removeItem(`${tLevel.toLowerCase()}Complete`);
       localStorage.removeItem(`${tLevel}LastCompleted`);
+      localStorage.removeItem(`${tLevel.toLowerCase()}LastCompleted`);
 
       // Update stage1Progress
       const existingProgress = JSON.parse(localStorage.getItem('stage1Progress') || '{"T1": 0, "T2": 0, "T3": 0, "T4": 0, "T5": 0}');
       existingProgress[tLevel] = 0;
       localStorage.setItem('stage1Progress', JSON.stringify(existingProgress));
 
-      console.log(`✅ Admin: ${tLevel} progress cleared`);
+      console.log(`✅ Admin: ${tLevel} progress cleared (both upper and lowercase)`);
       loadSessionCounts();
+      loadUserProfileData();
     } catch (error) {
       console.error(`❌ Error clearing ${tLevel}:`, error);
     }
@@ -1005,7 +1336,7 @@ function AdminPanel() {
     }
   };
 
-  // Load admin data
+  // ✅ FIXED: Load admin data with proper dependencies
   useEffect(() => {
     if (!isUserAdmin) {
       setIsLoading(false);
@@ -1067,6 +1398,7 @@ function AdminPanel() {
         loadSessionCounts();
         loadPahmProgress();
         loadOnboardingStatus();
+        loadUserProfileData();
 
       } catch (error) {
         console.error('❌ AdminPanel: Error loading data:', error);
@@ -1076,9 +1408,9 @@ function AdminPanel() {
     };
 
     loadAdminData();
-  }, [isUserAdmin, isLocalMode, getAllUsers]);
+  }, [isUserAdmin, isLocalMode, getAllUsers, loadSessionCounts, loadPahmProgress, loadOnboardingStatus, loadUserProfileData]);
 
-  // Auto-refresh session counts
+  // ✅ FIXED: Auto-refresh with proper dependencies
   useEffect(() => {
     if (!isUserAdmin) return;
 
@@ -1086,10 +1418,11 @@ function AdminPanel() {
       loadSessionCounts();
       loadPahmProgress();
       loadOnboardingStatus();
-    }, 2000); // Refresh every 2 seconds
+      loadUserProfileData();
+    }, 3000); // Refresh every 3 seconds
 
     return () => clearInterval(interval);
-  }, [isUserAdmin]);
+  }, [isUserAdmin, loadSessionCounts, loadPahmProgress, loadOnboardingStatus, loadUserProfileData]);
 
   // Don't render if not admin and not loading
   if (!adminLoading && !isUserAdmin) {
@@ -1270,6 +1603,7 @@ function AdminPanel() {
               { id: 'overview', label: '📊 Overview' },
               { id: 'users', label: '👥 Users' },
               { id: 'analytics', label: '📈 Analytics' },
+              { id: 'profile', label: '👤 Profile' },
               { id: 'testing', label: '🧪 Testing' }
             ].map(tab => (
               <button
@@ -1438,8 +1772,163 @@ function AdminPanel() {
               </div>
             )}
 
+            {activeTab === 'profile' && (
+              <div>
+                <div style={{
+                  background: '#f3e8ff',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  marginBottom: '20px',
+                  border: '1px solid #8b5cf6'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '16px', color: '#7c3aed' }}>
+                    👤 User Profile Data (LocalDataContext)
+                  </div>
+                  
+                  <button
+                    onClick={loadUserProfileData}
+                    style={{
+                      background: '#8b5cf6',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      marginBottom: '15px'
+                    }}
+                  >
+                    🔄 Refresh Profile Data
+                  </button>
+
+                  {userProfileData && (
+                    <div style={{ fontSize: '12px', fontFamily: 'monospace', background: 'white', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
+                      <div style={{ marginBottom: '10px' }}>
+                        <strong>Questionnaire Status:</strong><br/>
+                        LocalDataContext: {userProfileData.questionnaire ? '✅ Loaded' : '❌ Not loaded'}<br/>
+                        localStorage Flag: {userProfileData.localStorage.questionnaireCompleted || 'null'}<br/>
+                        Data Present: {userProfileData.localStorage.questionnaireAnswers ? '✅ Yes' : '❌ No'}
+                      </div>
+                      
+                      <div style={{ marginBottom: '10px' }}>
+                        <strong>Self-Assessment Status:</strong><br/>
+                        LocalDataContext: {userProfileData.selfAssessment ? '✅ Loaded' : '❌ Not loaded'}<br/>
+                        localStorage Flag: {userProfileData.localStorage.selfAssessmentCompleted || 'null'}<br/>
+                        Data Present: {userProfileData.localStorage.selfAssessmentData ? '✅ Yes' : '❌ No'}
+                      </div>
+
+                      <div style={{ marginBottom: '10px' }}>
+                        <strong>🔥 Stage Completion Flags (Case Sensitivity Check):</strong><br/>
+                        T5Complete (uppercase): {userProfileData.stageProgress.T5Complete || 'null'}<br/>
+                        t5Complete (lowercase): {userProfileData.stageProgress.t5Complete || 'null'}<br/>
+                        <span style={{ color: userProfileData.stageProgress.t5Complete === 'true' ? 'green' : 'red', fontWeight: 'bold' }}>
+                          {userProfileData.stageProgress.t5Complete === 'true' ? 
+                            '✅ Stage 2 should be unlocked!' : 
+                            '❌ Stage 2 locked - needs t5Complete=true'}
+                        </span>
+                      </div>
+
+                      {userProfileData.questionnaire && (
+                        <div style={{ marginBottom: '10px' }}>
+                          <strong>Questionnaire Data:</strong><br/>
+                          Completed: {userProfileData.questionnaire.completed ? '✅' : '❌'}<br/>
+                          Response Count: {userProfileData.questionnaire.responses ? Object.keys(userProfileData.questionnaire.responses).length : 0}
+                        </div>
+                      )}
+
+                      {userProfileData.selfAssessment && (
+                        <div style={{ marginBottom: '10px' }}>
+                          <strong>Self-Assessment Data:</strong><br/>
+                          Completed: {userProfileData.selfAssessment.completed ? '✅' : '❌'}<br/>
+                          Attachment Score: {userProfileData.selfAssessment.attachmentScore || 0}<br/>
+                          Non-Attachment Count: {userProfileData.selfAssessment.nonAttachmentCount || 0}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!userProfileData && (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                      Click "Refresh Profile Data" to load current user profile information
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'testing' && (
               <div>
+                {/* === DEBUG STORAGE DATA === */}
+                <div style={{
+                  background: '#f0f0f0',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  marginBottom: '20px',
+                  border: '1px solid #666'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '16px', color: '#333' }}>
+                    🔍 Debug Storage Data (Fix Data Mismatch Issues)
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
+                    Check if admin data format matches what the app expects for stage progression and happiness points
+                  </div>
+                  
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 1fr', 
+                    gap: '10px',
+                    marginBottom: '15px'
+                  }}>
+                    <button
+                      onClick={debugStorageData}
+                      style={{
+                        background: '#2196f3',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 16px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      🔍 Debug All Storage Data
+                    </button>
+                    
+                    <button
+                      onClick={forceSyncAdminDataToLocalDataContext}
+                      style={{
+                        background: '#ff9800',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 16px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      🔄 Force Sync Admin Data
+                    </button>
+                  </div>
+                  
+                  <div style={{
+                    background: 'white',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    color: '#666',
+                    lineHeight: '1.4'
+                  }}>
+                    <strong>💡 How to debug:</strong><br/>
+                    1. <strong>Debug All Storage Data:</strong> Logs all localStorage keys to console - check for format mismatches<br/>
+                    2. <strong>Force Sync Admin Data:</strong> Converts admin panel data to LocalDataContext format and <strong>fixes case sensitivity issues</strong><br/>
+                    3. After sync, check if Stage 2 unlocks and happiness points appear<br/>
+                    4. 🔥 This version specifically fixes <code>T5Complete → t5Complete</code> case sensitivity
+                  </div>
+                </div>
+
                 {/* === ONBOARDING STATUS === */}
                 <div style={{
                   background: '#fff7ed',
@@ -1687,7 +2176,7 @@ function AdminPanel() {
                     1. Click a scenario button to load test data<br/>
                     2. Go to Happiness Tracker page to see calculated points<br/>
                     3. Expected ranges are based on PAHM-centered calculation<br/>
-                    4. Scenarios include questionnaire + self-assessment + practice sessions
+                    4. Scenarios include questionnaire + self-assessment + practice sessions + case sensitivity fixes
                   </div>
                 </div>
 
@@ -1776,10 +2265,10 @@ function AdminPanel() {
                   border: '1px solid #f59e0b'
                 }}>
                   <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '16px', color: '#92400e' }}>
-                    🚀 T-Stage Fast Forward (Stage 1)
+                    🚀 T-Stage Fast Forward (Stage 1) - CASE SENSITIVITY FIXED
                   </div>
                   <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '15px' }}>
-                    Add single completed sessions for testing
+                    Add single completed sessions for testing - now sets both T5Complete AND t5Complete
                   </div>
                   
                   <div style={{ 
@@ -2060,7 +2549,7 @@ function AdminPanel() {
                       width: '100%'
                     }}
                   >
-                    🚨 Clear ALL Progress (T-Stages + PAHM)
+                    🚨 Clear ALL Progress (T-Stages + PAHM + Case Sensitivity Fixed)
                   </button>
                 </div>
               </div>
