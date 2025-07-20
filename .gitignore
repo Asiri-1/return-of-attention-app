@@ -26,3 +26,7 @@ functions/return-of-attention-app-firebase-adminsdk-fbsvc-34f46cc92c.json
 .firebase/
 admin-setup/serviceAccountKey.json
 admin-setup/node_modules/
+serviceAccountKey.json
+test-admin.js
+*.json
+node_modules/
