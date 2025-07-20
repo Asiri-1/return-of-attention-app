@@ -1,4 +1,4 @@
-// ✅ Complete Modern AdminPanel.js with T1-T5 Session Testing
+// ✅ COMPLETE AdminPanel.js with Full Testing Suite & Granular Reset Options
 // File: src/components/AdminPanel.js
 // 🔄 COMPLETELY REPLACE YOUR ADMINPANEL.JS WITH THIS VERSION
 
@@ -245,8 +245,9 @@ node admin-setup.js
     }
   }, [isAdmin, loadUserStats]);
 
-  // ✅ COMPLETE Enhanced testing tools with T1-T5 session progression and Stage 2-6 completion
+  // ✅ COMPLETE Enhanced testing tools with T1-T5 session progression, Stage 2-6 completion, and granular reset options
   const testingTools = [
+    // System Tools
     {
       name: '🔍 Debug All Storage Data',
       action: () => {
@@ -287,11 +288,11 @@ node admin-setup.js
         alert('✅ Self Assessment marked as complete');
       }
     },
-    // ✅ NEW: T1-T5 Progressive Session Completion Tools
+    
+    // ✅ T1-T5 Progressive Session Completion Tools
     {
-      name: '🌱 Complete T1 Session 1 (Unlock progress)',
+      name: '🌱 Complete T1 Session 1 (1/3 complete)',
       action: () => {
-        const completions = JSON.parse(localStorage.getItem('t1CompletionCount') || '0');
         localStorage.setItem('t1CompletionCount', '1');
         
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
@@ -359,7 +360,7 @@ node admin-setup.js
       }
     },
     {
-      name: '🌿 Complete T2 Session 1 (Attention practice)',
+      name: '🌿 Complete T2 Session 1 (1/3 complete)',
       action: () => {
         localStorage.setItem('t2CompletionCount', '1');
         
@@ -428,7 +429,7 @@ node admin-setup.js
       }
     },
     {
-      name: '🌳 Complete T3 Session 1 (Relaxation practice)',
+      name: '🌳 Complete T3 Session 1 (1/3 complete)',
       action: () => {
         localStorage.setItem('t3CompletionCount', '1');
         
@@ -497,7 +498,7 @@ node admin-setup.js
       }
     },
     {
-      name: '🌸 Complete T4 Session 1 (Effortless attention)',
+      name: '🌸 Complete T4 Session 1 (1/3 complete)',
       action: () => {
         localStorage.setItem('t4CompletionCount', '1');
         
@@ -566,7 +567,7 @@ node admin-setup.js
       }
     },
     {
-      name: '🌟 Complete T5 Session 1 (PAHM introduction)',
+      name: '🌟 Complete T5 Session 1 (1/3 complete)',
       action: () => {
         localStorage.setItem('t5CompletionCount', '1');
         
@@ -669,11 +670,14 @@ node admin-setup.js
         alert('🎉 T5 COMPLETE! (3/3 sessions)\n\n✅ Stage 2 Unlocked!\n\nPAHM foundation established. User can now access advanced PAHM training.');
       }
     },
+    
+    // ✅ Stage 2-6 Completion Tools
     {
       name: '🧘‍♀️ Complete Stage 2 (Unlock Stage 3)',
       action: () => {
         localStorage.setItem('stage2Complete', 'true');
         sessionStorage.setItem('stageProgress', '3');
+        localStorage.setItem('devCurrentStage', '3');
         
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
         sessions.push({
@@ -708,6 +712,7 @@ node admin-setup.js
       action: () => {
         localStorage.setItem('stage3Complete', 'true');
         sessionStorage.setItem('stageProgress', '4');
+        localStorage.setItem('devCurrentStage', '4');
         
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
         sessions.push({
@@ -742,6 +747,7 @@ node admin-setup.js
       action: () => {
         localStorage.setItem('stage4Complete', 'true');
         sessionStorage.setItem('stageProgress', '5');
+        localStorage.setItem('devCurrentStage', '5');
         
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
         sessions.push({
@@ -776,6 +782,7 @@ node admin-setup.js
       action: () => {
         localStorage.setItem('stage5Complete', 'true');
         sessionStorage.setItem('stageProgress', '6');
+        localStorage.setItem('devCurrentStage', '6');
         
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
         sessions.push({
@@ -811,6 +818,7 @@ node admin-setup.js
         localStorage.setItem('stage6Complete', 'true');
         localStorage.setItem('pahmMasterLevel', 'true');
         sessionStorage.setItem('stageProgress', '6');
+        localStorage.setItem('devCurrentStage', '6');
         
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
         sessions.push({
@@ -840,10 +848,194 @@ node admin-setup.js
         alert('🎉 Stage 6 completed! PAHM Master level achieved!\n\n95% present-moment awareness - Complete mastery of attention.');
       }
     },
+    
+    // ✅ GRANULAR RESET OPTIONS
     {
-      name: '🔄 Reset All Progress (Start Fresh)',
+      name: '📝 Reset Questionnaire Only',
       action: () => {
-        if (window.confirm('⚠️ This will reset ALL practice progress. Are you sure?')) {
+        if (window.confirm('Reset questionnaire completion? This will allow re-testing questionnaire flow.')) {
+          localStorage.removeItem('questionnaireComplete');
+          localStorage.removeItem('questionnaireData');
+          alert('✅ Questionnaire reset! User can complete it again.');
+        }
+      }
+    },
+    {
+      name: '🎯 Reset Self Assessment Only',
+      action: () => {
+        if (window.confirm('Reset self assessment completion? This will allow re-testing assessment flow.')) {
+          localStorage.removeItem('selfAssessmentComplete');
+          localStorage.removeItem('selfAssessmentData');
+          alert('✅ Self Assessment reset! User can complete it again.');
+        }
+      }
+    },
+    {
+      name: '🌱 Reset T1 Level Only',
+      action: () => {
+        if (window.confirm('Reset T1 level? This will reset T1 sessions to 0/3.')) {
+          localStorage.removeItem('t1Complete');
+          localStorage.removeItem('t1CompletionCount');
+          alert('✅ T1 Level reset! User needs to complete 3 T1 sessions again.');
+        }
+      }
+    },
+    {
+      name: '🌿 Reset T2 Level Only',
+      action: () => {
+        if (window.confirm('Reset T2 level? This will reset T2 sessions to 0/3.')) {
+          localStorage.removeItem('t2Complete');
+          localStorage.removeItem('t2CompletionCount');
+          alert('✅ T2 Level reset! User needs to complete 3 T2 sessions again.');
+        }
+      }
+    },
+    {
+      name: '🌳 Reset T3 Level Only',
+      action: () => {
+        if (window.confirm('Reset T3 level? This will reset T3 sessions to 0/3.')) {
+          localStorage.removeItem('t3Complete');
+          localStorage.removeItem('t3CompletionCount');
+          alert('✅ T3 Level reset! User needs to complete 3 T3 sessions again.');
+        }
+      }
+    },
+    {
+      name: '🌸 Reset T4 Level Only',
+      action: () => {
+        if (window.confirm('Reset T4 level? This will reset T4 sessions to 0/3.')) {
+          localStorage.removeItem('t4Complete');
+          localStorage.removeItem('t4CompletionCount');
+          alert('✅ T4 Level reset! User needs to complete 3 T4 sessions again.');
+        }
+      }
+    },
+    {
+      name: '🌟 Reset T5 Level Only',
+      action: () => {
+        if (window.confirm('Reset T5 level? This will reset T5 sessions to 0/3.')) {
+          localStorage.removeItem('t5Complete');
+          localStorage.removeItem('t5CompletionCount');
+          alert('✅ T5 Level reset! User needs to complete 3 T5 sessions again.');
+        }
+      }
+    },
+    {
+      name: '🧘‍♀️ Reset Stage 2 Only',
+      action: () => {
+        if (window.confirm('Reset Stage 2 completion? This will lock Stage 3 again.')) {
+          localStorage.removeItem('stage2Complete');
+          sessionStorage.setItem('stageProgress', '1');
+          localStorage.setItem('devCurrentStage', '1');
+          alert('✅ Stage 2 reset! User needs to complete Stage 2 again to unlock Stage 3.');
+        }
+      }
+    },
+    {
+      name: '🌟 Reset Stage 3 Only',
+      action: () => {
+        if (window.confirm('Reset Stage 3 completion? This will lock Stage 4 again.')) {
+          localStorage.removeItem('stage3Complete');
+          if (!localStorage.getItem('stage2Complete')) {
+            sessionStorage.setItem('stageProgress', '1');
+            localStorage.setItem('devCurrentStage', '1');
+          } else {
+            sessionStorage.setItem('stageProgress', '2');
+            localStorage.setItem('devCurrentStage', '2');
+          }
+          alert('✅ Stage 3 reset! User needs to complete Stage 3 again to unlock Stage 4.');
+        }
+      }
+    },
+    {
+      name: '💎 Reset Stage 4 Only',
+      action: () => {
+        if (window.confirm('Reset Stage 4 completion? This will lock Stage 5 again.')) {
+          localStorage.removeItem('stage4Complete');
+          if (localStorage.getItem('stage3Complete')) {
+            sessionStorage.setItem('stageProgress', '3');
+            localStorage.setItem('devCurrentStage', '3');
+          } else if (localStorage.getItem('stage2Complete')) {
+            sessionStorage.setItem('stageProgress', '2');
+            localStorage.setItem('devCurrentStage', '2');
+          } else {
+            sessionStorage.setItem('stageProgress', '1');
+            localStorage.setItem('devCurrentStage', '1');
+          }
+          alert('✅ Stage 4 reset! User needs to complete Stage 4 again to unlock Stage 5.');
+        }
+      }
+    },
+    {
+      name: '🔮 Reset Stage 5 Only',
+      action: () => {
+        if (window.confirm('Reset Stage 5 completion? This will lock Stage 6 again.')) {
+          localStorage.removeItem('stage5Complete');
+          if (localStorage.getItem('stage4Complete')) {
+            sessionStorage.setItem('stageProgress', '4');
+            localStorage.setItem('devCurrentStage', '4');
+          } else if (localStorage.getItem('stage3Complete')) {
+            sessionStorage.setItem('stageProgress', '3');
+            localStorage.setItem('devCurrentStage', '3');
+          } else if (localStorage.getItem('stage2Complete')) {
+            sessionStorage.setItem('stageProgress', '2');
+            localStorage.setItem('devCurrentStage', '2');
+          } else {
+            sessionStorage.setItem('stageProgress', '1');
+            localStorage.setItem('devCurrentStage', '1');
+          }
+          alert('✅ Stage 5 reset! User needs to complete Stage 5 again to unlock Stage 6.');
+        }
+      }
+    },
+    {
+      name: '🏔️ Reset Stage 6 Only',
+      action: () => {
+        if (window.confirm('Reset Stage 6 completion? This will remove master level status.')) {
+          localStorage.removeItem('stage6Complete');
+          localStorage.removeItem('pahmMasterLevel');
+          if (localStorage.getItem('stage5Complete')) {
+            sessionStorage.setItem('stageProgress', '5');
+            localStorage.setItem('devCurrentStage', '5');
+          } else if (localStorage.getItem('stage4Complete')) {
+            sessionStorage.setItem('stageProgress', '4');
+            localStorage.setItem('devCurrentStage', '4');
+          } else if (localStorage.getItem('stage3Complete')) {
+            sessionStorage.setItem('stageProgress', '3');
+            localStorage.setItem('devCurrentStage', '3');
+          } else if (localStorage.getItem('stage2Complete')) {
+            sessionStorage.setItem('stageProgress', '2');
+            localStorage.setItem('devCurrentStage', '2');
+          } else {
+            sessionStorage.setItem('stageProgress', '1');
+            localStorage.setItem('devCurrentStage', '1');
+          }
+          alert('✅ Stage 6 reset! User needs to complete Stage 6 again for master status.');
+        }
+      }
+    },
+    {
+      name: '📊 Reset All Happiness Data',
+      action: () => {
+        if (window.confirm('Reset all happiness tracking data? This will clear happiness entries and reflections.')) {
+          localStorage.removeItem('practiceReflections');
+          localStorage.removeItem('happinessEntries');
+          localStorage.removeItem('dailyEmotionalNotes');
+          localStorage.removeItem('emotionalWellbeingData');
+          alert('✅ All happiness and emotional data reset! Fresh start for tracking.');
+        }
+      }
+    },
+    {
+      name: '🔄 Reset All Progress (Complete Fresh Start)',
+      action: () => {
+        if (window.confirm('⚠️ This will reset ALL practice progress, questionnaire, assessment, and happiness data. Are you sure?')) {
+          // Reset questionnaire and assessment
+          localStorage.removeItem('questionnaireComplete');
+          localStorage.removeItem('questionnaireData');
+          localStorage.removeItem('selfAssessmentComplete');
+          localStorage.removeItem('selfAssessmentData');
+          
           // Reset T-level completions
           localStorage.removeItem('t1Complete');
           localStorage.removeItem('t2Complete');
@@ -864,21 +1056,17 @@ node admin-setup.js
           localStorage.removeItem('stage6Complete');
           localStorage.removeItem('pahmMasterLevel');
           
+          // Reset happiness and emotional data
+          localStorage.removeItem('practiceReflections');
+          localStorage.removeItem('happinessEntries');
+          localStorage.removeItem('dailyEmotionalNotes');
+          localStorage.removeItem('emotionalWellbeingData');
+          
           sessionStorage.setItem('stageProgress', '1');
           localStorage.setItem('devCurrentStage', '1');
           sessionStorage.removeItem('currentTLevel');
           
-          const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-          const resetSession = {
-            timestamp: new Date().toISOString(),
-            type: 'reset',
-            note: 'Admin reset - starting fresh practice journey',
-            source: 'admin_test'
-          };
-          sessions.push(resetSession);
-          localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-          
-          alert('✅ All progress reset! User is back to Stage 1 (T1-T5 practice).');
+          alert('✅ Everything reset! User is back to complete beginning - can test full flow from scratch.');
         }
       }
     }
@@ -1390,7 +1578,7 @@ node admin-setup.js
   const renderTestingTools = () => (
     <div style={{ padding: '30px' }}>
       <h3 style={{ color: 'white', marginBottom: '30px', fontSize: '24px', fontWeight: '600' }}>
-        🧪 Enhanced Testing Tools
+        🧪 Complete Testing Suite
       </h3>
       
       <div style={{ marginBottom: '40px' }}>
@@ -1448,7 +1636,7 @@ node admin-setup.js
           🏁 PAHM Stage Progression (Stages 2-6)
         </h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {testingTools.slice(20, -1).map((tool, index) => (
+          {testingTools.slice(19, 24).map((tool, index) => (
             <button
               key={index}
               onClick={tool.action}
@@ -1523,35 +1711,167 @@ node admin-setup.js
 
       <div style={{ marginBottom: '40px' }}>
         <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
-          🔄 Reset Options
+          🔄 Reset Options - Granular Testing Controls
         </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
-          <button
-            onClick={testingTools[testingTools.length - 1].action}
-            style={{
-              background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '12px',
-              padding: '20px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '15px',
-              fontWeight: '600',
-              transition: 'all 0.3s ease',
-              textAlign: 'left',
-              boxShadow: '0 8px 20px rgba(220, 53, 69, 0.3)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = '0 12px 30px rgba(220, 53, 69, 0.4)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0px)';
-              e.currentTarget.style.boxShadow = '0 8px 20px rgba(220, 53, 69, 0.3)';
-            }}
-          >
-            {testingTools[testingTools.length - 1].name}
-          </button>
+        
+        {/* Basic Reset Options */}
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            📝 Basic Components Reset
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            {testingTools.slice(24, 26).map((tool, index) => (
+              <button
+                key={index}
+                onClick={tool.action}
+                style={{
+                  background: 'linear-gradient(135deg, #fd7e14 0%, #e8590c 100%)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'left',
+                  boxShadow: '0 6px 16px rgba(253, 126, 20, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(253, 126, 20, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(253, 126, 20, 0.3)';
+                }}
+              >
+                {tool.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* T-Level Reset Options */}
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌱 Individual T-Level Reset (Stage 1)
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+            {testingTools.slice(26, 31).map((tool, index) => (
+              <button
+                key={index}
+                onClick={tool.action}
+                style={{
+                  background: 'linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'left',
+                  boxShadow: '0 6px 16px rgba(111, 66, 193, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(111, 66, 193, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(111, 66, 193, 0.3)';
+                }}
+              >
+                {tool.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stage Reset Options */}
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🏁 Individual PAHM Stage Reset (Stages 2-6)
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {testingTools.slice(31, 36).map((tool, index) => (
+              <button
+                key={index}
+                onClick={tool.action}
+                style={{
+                  background: 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'left',
+                  boxShadow: '0 6px 16px rgba(23, 162, 184, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(23, 162, 184, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(23, 162, 184, 0.3)';
+                }}
+              >
+                {tool.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Complete Reset Options */}
+        <div style={{ marginBottom: '20px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            ⚠️ Complete Reset Options
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+            {testingTools.slice(36).map((tool, index) => (
+              <button
+                key={index}
+                onClick={tool.action}
+                style={{
+                  background: index === 0 ? 
+                    'linear-gradient(135deg, #6c757d 0%, #495057 100%)' : 
+                    'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'left',
+                  boxShadow: index === 0 ? 
+                    '0 8px 20px rgba(108, 117, 125, 0.3)' : 
+                    '0 8px 20px rgba(220, 53, 69, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = index === 0 ? 
+                    '0 12px 30px rgba(108, 117, 125, 0.4)' : 
+                    '0 12px 30px rgba(220, 53, 69, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = index === 0 ? 
+                    '0 8px 20px rgba(108, 117, 125, 0.3)' : 
+                    '0 8px 20px rgba(220, 53, 69, 0.3)';
+                }}
+              >
+                {tool.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       
@@ -1749,7 +2069,7 @@ node admin-setup.js
               fontSize: '16px',
               fontWeight: '500'
             }}>
-              User management & admin access control
+              Complete testing suite & user management
             </p>
           </div>
           
@@ -1808,7 +2128,7 @@ node admin-setup.js
           {[
             { id: 'overview', label: '📊 Overview', icon: '📊' },
             { id: 'users', label: '👥 User Management', icon: '👥' },
-            { id: 'testing', label: '🧪 Testing Tools', icon: '🧪' },
+            { id: 'testing', label: '🧪 Complete Testing Suite', icon: '🧪' },
             { id: 'permissions', label: '🔐 Permissions', icon: '🔐' }
           ].map(tab => (
             <button
