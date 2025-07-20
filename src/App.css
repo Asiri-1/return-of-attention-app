@@ -1,3 +1,7 @@
+/* ✅ Add these styles to your existing src/App.css file */
+/* Append this to the bottom of your App.css file */
+
+/* Universal Interface Layout Styles */
 .full-screen-layout {
   display: flex;
   flex-direction: column;
@@ -31,6 +35,153 @@
   color: #4a90e2;
 }
 
+/* Access Denied Styles */
+.access-denied-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.access-denied-content {
+  background: white;
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  border: 1px solid #e1e5e9;
+}
+
+.access-denied-content h2 {
+  color: #dc3545;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.access-denied-content p {
+  color: #6c757d;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.access-denied-content code {
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: #e83e8c;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.9rem;
+}
+
+.access-denied-content .btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.access-denied-content .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.access-denied-content .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Universal App Container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f8f9fa;
+}
+
+/* Questionnaire and Assessment Containers */
+.questionnaire-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.self-assessment-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Admin Features Integration */
+.admin-integrated {
+  position: relative;
+}
+
+.admin-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .full-screen-layout,
+  .app-layout,
+  .app-container {
+    background-color: #1a1a1a;
+    color: #e9ecef;
+  }
+  
+  .access-denied-container {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  }
+  
+  .access-denied-content {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #e9ecef;
+  }
+  
+  .access-denied-content h2 {
+    color: #ff6b6b;
+  }
+  
+  .access-denied-content p {
+    color: #adb5bd;
+  }
+  
+  .access-denied-content code {
+    background: #343a40;
+    color: #ff6b9d;
+  }
+}
+
+/* Mobile responsive */
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
@@ -39,4 +190,97 @@
   .content-area {
     padding: 15px;
   }
+  
+  .access-denied-container {
+    padding: 1rem;
+    min-height: 50vh;
+  }
+  
+  .access-denied-content {
+    padding: 2rem 1.5rem;
+  }
+  
+  .access-denied-content h2 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Universal Interface Specific Styles */
+.universal-interface {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.universal-interface .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.universal-interface .admin-features {
+  border-top: 1px solid #e1e5e9;
+  background: rgba(220, 53, 69, 0.05);
+  padding: 1rem;
+  margin-top: auto;
+}
+
+.universal-interface .admin-toggle {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.universal-interface .admin-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Smooth transitions */
+* {
+  box-sizing: border-box;
+}
+
+.app-container,
+.app-layout,
+.universal-interface {
+  transition: all 0.3s ease;
+}
+
+/* Loading animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.content-area {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Admin panel integration styles */
+.admin-panel-integrated {
+  border: 2px solid #dc3545;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.05) 0%, rgba(200, 35, 51, 0.05) 100%);
+  margin: 20px 0;
+  padding: 20px;
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.admin-panel-header::before {
+  content: "🛡️";
+  font-size: 24px;
 }

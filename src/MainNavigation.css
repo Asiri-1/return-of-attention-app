@@ -1,53 +1,89 @@
+/* ✅ Enhanced MainNavigation.css with Left Alignment and Consistent Button Sizes */
+
 .main-navigation {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   width: 100%;
-  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* ✅ Enhanced navigation bar with INCREASED HEIGHT for badge visibility */
 .tab-navigation {
   display: flex;
-  flex-direction: row;
-  width: 100%;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  position: fixed;
-  left: 0;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 24px; /* ✅ REDUCED top/bottom padding to 12px */
+  position: sticky;
   top: 0;
-  z-index: 100;
-  padding: 0 20px;
-  justify-content: center;
-  height: 60px;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  min-height: 100px; /* ✅ REDUCED height back to 100px */
 }
 
-/* Mobile hamburger menu button */
+/* ✅ Admin context styling */
+.tab-navigation.admin-context {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tab-navigation.user-context {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ✅ Context indicator with compact height */
+.context-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px; /* ✅ REDUCED padding for compact look */
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  height: 30px; /* ✅ REDUCED height from 36px to 30px */
+}
+
+.context-indicator.admin-mode {
+  background: rgba(255, 255, 255, 0.25);
+  animation: adminPulse 2s ease-in-out infinite;
+}
+
+@keyframes adminPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+}
+
+/* Mobile menu toggle with compact sizing */
 .mobile-menu-toggle {
   display: none;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 101;
+  padding: 8px; /* ✅ REDUCED padding for compact look */
+  z-index: 1001;
+  width: 40px; /* ✅ REDUCED width for compact design */
+  height: 40px; /* ✅ REDUCED height for compact design */
+  justify-content: center;
+  align-items: center;
 }
 
 .hamburger-line {
   width: 24px;
   height: 3px;
-  background-color: #333;
+  background-color: white;
   margin: 3px 0;
-  transition: all 0.3s ease;
+  transition: 0.3s;
   border-radius: 2px;
 }
 
 .hamburger-line.open:nth-child(1) {
-  transform: rotate(45deg) translate(6px, 6px);
+  transform: rotate(-45deg) translate(-6px, 6px);
 }
 
 .hamburger-line.open:nth-child(2) {
@@ -55,57 +91,345 @@
 }
 
 .hamburger-line.open:nth-child(3) {
-  transform: rotate(-45deg) translate(6px, -6px);
+  transform: rotate(45deg) translate(-6px, -6px);
 }
 
-/* Desktop navigation tabs */
+/* ✅ Center-aligned desktop navigation tabs RIGHT AT THE BOTTOM */
 .desktop-nav-tabs {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
+  align-items: center; /* ✅ CENTER buttons instead of bottom */
+  gap: 10px; /* ✅ Consistent spacing */
+  flex: 1;
+  justify-content: center; /* ✅ CENTER ALIGNED */
+  padding: 0 20px 0 20px; /* ✅ NO bottom padding */
+  overflow: visible; /* ✅ Allow hover effects to show above */
+  scrollbar-width: none; /* ✅ Hide scrollbar for Firefox */
+  -ms-overflow-style: none; /* ✅ Hide scrollbar for IE */
+  margin-bottom: 0; /* ✅ NO bottom margin - right at the edge */
 }
 
+.desktop-nav-tabs::-webkit-scrollbar {
+  display: none; /* ✅ Hide scrollbar for Chrome/Safari */
+}
+
+/* ✅ Enhanced nav tab styling with reduced padding */
 .nav-tab {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 15px;
+  padding: 8px 8px; /* ✅ REDUCED padding for sleeker look */
   cursor: pointer;
-  transition: all 0.2s ease;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.95); /* ✅ Increased opacity for better visibility */
+  background: rgba(255, 255, 255, 0.15); /* ✅ Slightly more opaque background */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* ✅ More visible border */
   position: relative;
-  height: 100%;
+  width: 110px; /* ✅ FIXED WIDTH for all tabs */
+  height: 52px; /* ✅ REDUCED height for more compact look */
+  text-align: center;
+  flex-shrink: 0; /* ✅ Prevent shrinking */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); /* ✅ Add text shadow for better readability */
 }
 
 .nav-tab:hover {
-  background-color: #e9ecef;
+  background: rgba(255, 255, 255, 0.25); /* ✅ More opaque on hover */
+  color: rgba(255, 255, 255, 1); /* ✅ Full opacity on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); /* ✅ Enhanced text shadow on hover */
 }
 
 .nav-tab.active {
-  background-color: #e9ecef;
+  background: rgba(255, 255, 255, 0.3); /* ✅ Most opaque for active state */
+  color: rgba(255, 255, 255, 1); /* ✅ Full opacity for active */
+  border: 1px solid rgba(255, 255, 255, 0.4); /* ✅ More visible border */
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); /* ✅ Enhanced text shadow for active */
 }
 
+/* ✅ Special styling for admin tab with reduced padding */
+.nav-tab.admin-tab {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4); /* ✅ More visible border */
+  color: rgba(255, 255, 255, 1); /* ✅ Full opacity for better contrast */
+  position: relative;
+  width: 110px; /* ✅ Same fixed width as other tabs */
+  height: 52px; /* ✅ REDUCED height to match other tabs */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* ✅ Stronger text shadow for red background */
+}
+
+.nav-tab.admin-tab:hover {
+  background: linear-gradient(135deg, #e55a6a 0%, #d54450 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+  color: rgba(255, 255, 255, 1); /* ✅ Maintain full opacity */
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); /* ✅ Enhanced shadow on hover */
+}
+
+.nav-tab.admin-tab.active {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  color: #721c24; /* ✅ Dark red text for light background */
+  border: 2px solid #dc3545;
+  text-shadow: none; /* ✅ Remove shadow for dark text on light background */
+}
+
+.nav-tab.admin-tab.current-mode {
+  animation: adminGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes adminGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(220, 53, 69, 0.8); }
+}
+
+/* ✅ Admin level badge */
+.admin-level-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ffc107;
+  color: #212529;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 6px; /* ✅ Slightly larger for better readability */
+  border-radius: 12px;
+  border: 2px solid white;
+  min-width: 22px; /* ✅ Consistent minimum width */
+  text-align: center;
+  height: 18px; /* ✅ Consistent height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ✅ User return indicator */
+.nav-tab.user-return {
+  border: 2px solid #28a745;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.return-indicator {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 12px;
+  background: #28a745;
+  border-radius: 50%;
+  padding: 4px; /* ✅ Consistent padding */
+  width: 20px; /* ✅ Consistent size */
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ✅ Tab content with compact spacing */
 .tab-icon {
-  font-size: 20px;
-  margin-right: 8px;
+  font-size: 18px; /* ✅ Slightly reduced icon size for compact look */
+  margin-bottom: 2px; /* ✅ REDUCED margin for tighter spacing */
+  height: 20px; /* ✅ REDUCED icon container height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2)); /* ✅ Add icon shadow for better visibility */
 }
 
 .tab-label {
-  font-size: 14px;
+  font-size: 12px; /* ✅ Compact but readable size */
+  font-weight: 600; /* ✅ Bold for better visibility */
   text-align: center;
+  line-height: 1.1;
+  height: 14px; /* ✅ REDUCED label height for compact look */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* ✅ Hide overflow */
+  text-overflow: ellipsis; /* ✅ Show ellipsis for long text */
+  white-space: nowrap; /* ✅ Prevent wrapping */
+  width: 100%; /* ✅ Take full width of container */
+  text-shadow: inherit; /* ✅ Inherit text shadow from parent */
 }
 
-/* Mobile navigation overlay */
+/* ✅ Enhanced profile dropdown RIGHT AT THE BOTTOM */
+.profile-dropdown-container {
+  position: relative;
+  z-index: 1002;
+  margin-left: auto; /* ✅ Push to the right */
+  align-self: center; /* ✅ CENTER like nav tabs */
+  margin-bottom: 0; /* ✅ NO bottom margin - right at the edge */
+}
+
+.profile-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px; /* ✅ REDUCED padding for compact look */
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  height: 44px; /* ✅ REDUCED height to match compact navigation */
+  min-width: 120px; /* ✅ Minimum width for consistency */
+}
+
+.profile-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.profile-button.admin-user {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.profile-button.admin-user:hover {
+  background: linear-gradient(135deg, #e55a6a 0%, #d54450 100%);
+}
+
+.profile-icon {
+  width: 32px; /* ✅ Consistent size */
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  font-size: 14px;
+  flex-shrink: 0; /* ✅ Prevent shrinking */
+}
+
+/* ✅ Enhanced admin indicator with consistent sizing */
+.admin-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  color: white;
+  height: 24px; /* ✅ Consistent height */
+}
+
+.admin-shield {
+  font-size: 12px;
+}
+
+.admin-level {
+  background: #ffc107;
+  color: #212529;
+  padding: 2px 6px; /* ✅ Consistent padding */
+  border-radius: 8px;
+  font-size: 10px;
+  min-width: 20px; /* ✅ Consistent minimum width */
+  text-align: center;
+  height: 16px; /* ✅ Consistent height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ✅ Enhanced dropdown menu */
+.profile-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  min-width: 220px; /* ✅ Slightly wider for better readability */
+  overflow: hidden;
+  z-index: 1003;
+  margin-top: 8px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px; /* ✅ Consistent padding */
+  cursor: pointer;
+  color: #333;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  position: relative;
+  min-height: 44px; /* ✅ Consistent minimum height */
+}
+
+.dropdown-item:hover {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.dropdown-item.admin-dropdown-item {
+  background: linear-gradient(135deg, #dc354520 0%, #c8233320 100%);
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.dropdown-item.admin-dropdown-item:hover {
+  background: linear-gradient(135deg, #dc354540 0%, #c8233340 100%);
+}
+
+.dropdown-item.admin-dropdown-item.current {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+}
+
+.dropdown-item.logout-item {
+  border-top: 1px solid #dee2e6;
+  color: #dc3545;
+}
+
+.dropdown-item.logout-item:hover {
+  background: #f8d7da;
+}
+
+.dropdown-icon {
+  font-size: 16px;
+  width: 20px; /* ✅ Consistent width */
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #dee2e6;
+  margin: 4px 0;
+}
+
+.current-badge {
+  background: #28a745;
+  color: white;
+  font-size: 10px;
+  padding: 4px 8px; /* ✅ Consistent padding */
+  border-radius: 12px;
+  margin-left: auto;
+  height: 20px; /* ✅ Consistent height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ✅ Enhanced mobile navigation */
 .mobile-nav-overlay {
   position: fixed;
-  top: 60px;
+  top: 0;
   left: 0;
   width: 100%;
-  height: calc(100vh - 60px);
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 99;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  z-index: 999;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
@@ -117,268 +441,349 @@
 }
 
 .mobile-nav-menu {
-  background-color: white;
-  width: 100%; /* Change from 280px to 100% */
-  max-width: 280px; /* Add a max-width to constrain it */
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px; /* ✅ Slightly wider for better spacing */
   height: 100%;
-  padding: 20px 0;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  transform: translateX(-100%);
+  background: white;
+  transform: translateX(100%);
   transition: transform 0.3s ease;
-  overflow: hidden;
+  overflow-y: auto;
+  box-shadow: -5px 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .mobile-nav-overlay.open .mobile-nav-menu {
   transform: translateX(0);
 }
 
+/* ✅ Mobile navigation header */
+.mobile-nav-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px; /* ✅ More padding for better spacing */
+  color: white;
+}
+
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mobile-user-avatar {
+  width: 48px; /* ✅ Consistent size */
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.mobile-user-details {
+  flex: 1;
+  min-width: 0; /* ✅ Prevent overflow */
+}
+
+.mobile-user-email {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-admin-badge {
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.mobile-context-indicator {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ✅ Mobile navigation items with consistent sizing */
 .mobile-nav-item {
   display: flex;
   align-items: center;
-  padding: 16px 24px;
+  gap: 16px;
+  padding: 16px 20px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  box-sizing: border-box; /* Add this line */
+  color: #333;
+  border-bottom: 1px solid #f1f3f4;
+  transition: all 0.2s ease;
+  position: relative;
+  min-height: 56px; /* ✅ Consistent height */
 }
 
 .mobile-nav-item:hover {
-  background-color: #f8f9fa;
+  background: #f8f9fa;
 }
 
 .mobile-nav-item.active {
-  /* No highlighting for active item */
+  background: #e3f2fd;
+  color: #1976d2;
+  border-left: 4px solid #1976d2;
+}
+
+.mobile-nav-item.admin-mobile-item {
+  background: linear-gradient(135deg, #dc354520 0%, #c8233320 100%);
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.mobile-nav-item.admin-mobile-item.active {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border-left: 4px solid #dc3545;
+}
+
+.mobile-nav-item.admin-mobile-item.current-mode {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+}
+
+.mobile-nav-item.user-return {
+  background: linear-gradient(135deg, #28a74520 0%, #20c99720 100%);
+  color: #28a745;
+  font-weight: 600;
+}
+
+.mobile-nav-item.logout-item {
+  color: #dc3545;
+  border-top: 2px solid #dee2e6;
+  margin-top: 8px;
+}
+
+.mobile-nav-item.logout-item:hover {
+  background: #f8d7da;
 }
 
 .mobile-nav-icon {
-  font-size: 20px;
-  margin-right: 16px;
-  width: 24px;
+  font-size: 20px; /* ✅ Consistent icon size */
+  width: 24px; /* ✅ Consistent width */
   text-align: center;
+  flex-shrink: 0;
 }
 
 .mobile-nav-label {
   font-size: 16px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.return-text {
+  font-size: 12px;
+  color: #28a745;
+  font-weight: normal;
 }
 
 .mobile-nav-divider {
   height: 1px;
-  background-color: #e9ecef;
-  margin: 16px 24px;
+  background: #dee2e6;
+  margin: 8px 16px;
 }
 
-.logout-item {
-  color: #dc3545;
-}
-
-.logout-item:hover {
-  background-color: #f8d7da;
-}
-
-.floating-action-container {
-  position: relative;
-  margin: 0 10px;
-}
-
-.floating-action-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #6c63ff;
-  color: white;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.fab-icon {
-  line-height: 1;
-}
-
-.quick-actions-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  width: 180px;
-  z-index: 10;
-}
-
-.quick-action-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.quick-action-item:hover {
-  background-color: #f8f9fa;
-}
-
-.action-icon {
-  margin-right: 10px;
-  font-size: 18px;
-}
-
-.profile-button-container {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0 15px;
-}
-
-.profile-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #e9ecef;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.profile-button:hover {
-  background-color: #dee2e6;
-}
-
-.profile-button.active {
-  background-color: #6c63ff;
-  color: white;
-}
-
-.profile-icon {
-  font-weight: bold;
-}
-
+/* Main content area */
 .main-content {
-  margin-top: 70px;
   flex: 1;
-  padding: 20px;
-  box-sizing: border-box;
-  width: 100%;
-  overflow-y: auto;
+  background: #f8f9fa;
+  min-height: calc(100vh - 100px); /* ✅ Updated to match new navigation height */
 }
 
-.profile-dropdown-container {
-  position: relative;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0 15px;
-}
-
-.profile-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  width: 200px;
-  z-index: 100;
-  overflow: hidden;
-  margin-top: 10px;
-}
-
-.dropdown-item {
-  padding: 12px 15px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  color: #333;
-  font-size: 14px;
-  border-bottom: 1px solid #eee;
-}
-
-.dropdown-item:last-child {
-  border-bottom: none;
-}
-
-.dropdown-item:hover {
-  background-color: #f8f9fa;
-}
-
-.profile-details h3 {
-  margin: 0 0 5px 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.profile-details p {
-  margin: 0;
-  font-size: 12px;
-  color: #666;
-}
-
-/* Mobile responsive styles */
-@media (max-width: 768px) {
-  .tab-navigation {
-    height: 60px;
-    padding: 0 20px;
-    justify-content: space-between;
+/* ✅ Responsive design with increased heights for badge visibility */
+@media (max-width: 1200px) {
+  .desktop-nav-tabs {
+    gap: 8px;
+    padding: 0 16px; /* ✅ Equal padding for center alignment */
   }
   
-  /* Show hamburger menu on mobile */
+  .nav-tab {
+    width: 100px; /* ✅ Fixed width for tablets */
+    padding: 6px 8px; /* ✅ REDUCED padding for tablets */
+    height: 48px; /* ✅ REDUCED height for tablets */
+  }
+  
+  .nav-tab.admin-tab {
+    width: 100px; /* ✅ Same fixed width */
+    height: 48px; /* ✅ Same reduced height */
+  }
+  
+  .tab-label {
+    font-size: 11px; /* ✅ Slightly smaller but still readable */
+    font-weight: 600; /* ✅ Maintain bold weight */
+  }
+  
+  .tab-navigation {
+    padding: 10px 20px; /* ✅ Keep original padding */
+    min-height: 90px; /* ✅ REDUCED height proportionally */
+  }
+  
+  .profile-button {
+    height: 44px; /* ✅ REDUCED height for tablets */
+    padding: 8px 12px; /* ✅ REDUCED padding */
+  }
+}
+
+@media (max-width: 1024px) {
+  .desktop-nav-tabs {
+    gap: 6px;
+    padding: 0 12px; /* ✅ Equal padding for center alignment */
+  }
+  
+  .nav-tab {
+    width: 90px; /* ✅ Fixed width for smaller tablets */
+    padding: 6px 6px; /* ✅ REDUCED padding for compact look */
+    height: 46px; /* ✅ REDUCED height for smaller tablets */
+  }
+  
+  .nav-tab.admin-tab {
+    width: 90px; /* ✅ Same fixed width */
+    height: 46px; /* ✅ Same reduced height */
+  }
+  
+  .tab-icon {
+    font-size: 16px; /* ✅ Smaller icon for compact look */
+  }
+  
+  .tab-label {
+    font-size: 10px; /* ✅ Smaller but still bold */
+    font-weight: 600; /* ✅ Maintain bold weight for readability */
+  }
+  
+  .tab-navigation {
+    padding: 10px 18px; /* ✅ Keep original padding */
+    min-height: 86px; /* ✅ REDUCED height proportionally */
+  }
+  
+  .profile-button {
+    height: 42px; /* ✅ REDUCED height for smaller tablets */
+    padding: 7px 11px; /* ✅ REDUCED padding */
+  }
+}
+
+@media (max-width: 768px) {
   .mobile-menu-toggle {
     display: flex;
   }
   
-  /* Hide desktop navigation on mobile */
   .desktop-nav-tabs {
     display: none;
   }
   
-  /* Hide profile dropdown on mobile (it's in the mobile menu) */
-  .profile-dropdown-container {
+  .context-indicator {
     display: none;
   }
   
-  .main-content {
-    margin-top: 70px;
-    padding: 15px;
+  .tab-navigation {
+    padding: 14px 16px; /* ✅ Keep padding as is */
+    min-height: 88px; /* ✅ REDUCED mobile height proportionally */
   }
   
-  .mobile-nav-overlay {
-    top: 60px;
-    height: calc(100vh - 60px);
+  .profile-button {
+    padding: 8px 12px; /* ✅ Adjusted for mobile */
+    height: 44px; /* ✅ Increased mobile height */
+    min-width: 100px;
+  }
+  
+  .profile-icon {
+    width: 30px; /* ✅ Slightly larger for better touch */
+    height: 30px;
+    font-size: 13px;
+  }
+  
+  .admin-indicator {
+    padding: 3px 7px; /* ✅ Slightly larger for mobile */
+    font-size: 10px;
+    height: 22px;
   }
 }
 
-/* Tablet responsive styles */
-@media (max-width: 1024px) and (min-width: 769px) {
-  .tab-navigation {
-    padding: 0 15px;
-  }
-  
+/* ✅ Additional breakpoint for medium screens with improved text visibility */
+@media (max-width: 900px) and (min-width: 769px) {
   .nav-tab {
-    padding: 0 12px;
+    width: 85px; /* ✅ Smaller fixed width for medium screens */
   }
   
-  .tab-icon {
-    font-size: 18px;
+  .nav-tab.admin-tab {
+    width: 85px;
+  }
+  
+  .desktop-nav-tabs {
+    gap: 8px;
+    padding: 0 16px; /* ✅ Equal padding for center alignment */
   }
   
   .tab-label {
-    font-size: 13px;
+    font-size: 11px; /* ✅ Maintain readable size */
+    font-weight: 600; /* ✅ Keep bold for visibility */
   }
 }
 
+@media (max-width: 480px) {
+  .mobile-nav-menu {
+    width: 100%;
+  }
+  
+  .tab-navigation {
+    padding: 12px; /* ✅ Keep original padding */
+    min-height: 84px; /* ✅ REDUCED height proportionally */
+  }
+  
+  .profile-button {
+    min-width: 80px;
+    height: 40px; /* ✅ Smaller for very small screens */
+    padding: 6px 10px;
+  }
+  
+  .profile-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
+
+/* ✅ Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+.nav-tab:focus,
+.profile-button:focus,
+.mobile-nav-item:focus,
+.dropdown-item:focus {
+  outline: 2px solid #4285f4;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .nav-tab {
+    border: 2px solid white;
+  }
+  
+  .admin-tab {
+    border: 2px solid yellow;
+  }
+}

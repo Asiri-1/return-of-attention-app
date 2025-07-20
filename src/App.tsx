@@ -1,5 +1,6 @@
-// ✅ Complete App.tsx - Progress Tracker Only on Home Dashboard
+// ✅ CORRECTED App.tsx - Fixed Home Button Issue
 // File: src/App.tsx
+// 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -416,203 +417,6 @@ const SeekerPracticeCompleteRedirect: React.FC = () => {
   );
 };
 
-// ✅ OPTIMIZED: AdminBypassApp with better performance
-const AdminBypassApp: React.FC = React.memo(() => {
-  const navigate = useNavigate();
-  
-  // ✅ PERFORMANCE: Stable navigation handlers
-  const navigationHandlers = useMemo(() => ({
-    home: () => navigate('/home'),
-    happiness: () => navigate('/happiness-tracker'),
-    analytics: () => navigate('/analytics'),
-    notes: () => navigate('/notes'),
-    chat: () => navigate('/chatwithguru'),
-    stage1: () => navigate('/stage1'),
-    stage2: () => navigate('/stage2'),
-    stage3: () => navigate('/stage3'),
-    stage4: () => navigate('/stage4'),
-    stage5: () => navigate('/stage5'),
-    stage6: () => navigate('/stage6'),
-    learning: () => navigate('/learning/pahm'),
-    posture: () => navigate('/posture-guide')
-  }), [navigate]);
-
-  // ✅ FIXED: Proper TypeScript event handlers
-  const styleHandlers = useMemo(() => ({
-    onMouseOver: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
-    },
-    onMouseOut: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-    }
-  }), []);
-
-  const buttonStyle = useMemo(() => ({
-    padding: '15px 25px', 
-    fontSize: '16px', 
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    border: '2px solid white',
-    borderRadius: '8px',
-    color: 'white',
-    cursor: 'pointer',
-    transition: 'all 0.3s'
-  }), []);
-  
-  return (
-    <div className="app-container">
-      <AdminPanel />
-      <PageViewTracker />
-      
-      <div style={{ 
-        padding: '40px', 
-        textAlign: 'center', 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        minHeight: '100vh',
-        color: 'white'
-      }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>🔧 Admin Mode - Firebase Bypass</h1>
-        <p style={{ fontSize: '18px', marginBottom: '40px' }}>
-          Firebase authentication bypassed. All app features available for testing.
-        </p>
-        
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-          gap: '20px',
-          maxWidth: '1200px',
-          margin: '0 auto'
-        }}>
-          <button onClick={navigationHandlers.home} style={buttonStyle} {...styleHandlers}>
-            🏠 Go to Dashboard
-          </button>
-          <button onClick={navigationHandlers.happiness} style={buttonStyle} {...styleHandlers}>
-            😊 Happiness Tracker
-          </button>
-          <button onClick={navigationHandlers.analytics} style={buttonStyle} {...styleHandlers}>
-            📊 Analytics
-          </button>
-          <button onClick={navigationHandlers.notes} style={buttonStyle} {...styleHandlers}>
-            📝 Notes
-          </button>
-          <button onClick={navigationHandlers.chat} style={buttonStyle} {...styleHandlers}>
-            🧘 Chat with Guru
-          </button>
-          <button onClick={navigationHandlers.stage1} style={buttonStyle} {...styleHandlers}>
-            🎯 Practice Stage 1
-          </button>
-        </div>
-        
-        <Routes>
-          <Route path="/home" element={
-            <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
-              <HomeDashboard 
-                onStartPractice={navigationHandlers.stage1}
-                onStartStage2={navigationHandlers.stage2}
-                onStartStage3={navigationHandlers.stage3}
-                onStartStage4={navigationHandlers.stage4}
-                onStartStage5={navigationHandlers.stage5}
-                onStartStage6={navigationHandlers.stage6}
-                onViewProgress={navigationHandlers.analytics}
-                onViewLearning={navigationHandlers.learning}
-                onShowPostureGuide={navigationHandlers.posture}
-                onShowPAHMExplanation={navigationHandlers.learning}
-                onShowWhatIsPAHM={navigationHandlers.learning}
-                onLogout={() => navigate('/')}
-              />
-            </Suspense>
-          } />
-          
-          <Route path="/happiness-tracker" element={
-            <Suspense fallback={<FastLoader message="Calculating your happiness levels..." />}>
-              <HappinessTrackerPage />
-            </Suspense>
-          } />
-          
-          <Route path="/happiness-test" element={
-            <Suspense fallback={<FastLoader message="Calculating your happiness levels..." />}>
-              <HappinessTrackerPage />
-            </Suspense>
-          } />
-          
-          <Route path="/analytics" element={
-            <Suspense fallback={<FastLoader message="Loading your progress insights..." />}>
-              <AnalyticsBoardWrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/notes" element={
-            <Suspense fallback={<FastLoader message="Loading your practice notes..." />}>
-              <DailyEmotionalNotesWrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/chatwithguru" element={
-            <Suspense fallback={<FastLoader message="Connecting with your AI teacher..." />}>
-              <ChatInterface />
-            </Suspense>
-          } />
-          
-          <Route path="/stage1/*" element={
-            <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
-              <Stage1Wrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/stage2" element={
-            <Suspense fallback={<FastLoader message="Loading attention training..." />}>
-              <Stage2Wrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/stage3" element={
-            <Suspense fallback={<FastLoader message="Preparing structured practice..." />}>
-              <Stage3Wrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/stage4" element={
-            <Suspense fallback={<FastLoader message="Loading advanced techniques..." />}>
-              <Stage4Wrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/stage5" element={
-            <Suspense fallback={<FastLoader message="Preparing refined awareness..." />}>
-              <Stage5Wrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/stage6" element={
-            <Suspense fallback={<FastLoader message="Loading complete mastery..." />}>
-              <Stage6Wrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/mind-recovery" element={
-            <Suspense fallback={<FastLoader message="Preparing mind recovery practice..." />}>
-              <MindRecoverySelectionWrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/learning/pahm" element={
-            <Suspense fallback={<FastLoader message="Loading PAHM wisdom..." />}>
-              <WhatIsPAHMWrapper />
-            </Suspense>
-          } />
-          
-          <Route path="/posture-guide" element={
-            <Suspense fallback={<FastLoader message="Loading optimal posture guide..." />}>
-              <PostureGuide onContinue={navigationHandlers.home} />
-            </Suspense>
-          } />
-          
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </div>
-  );
-});
-
 // ✅ SIMPLIFIED: Completion status checker interface
 interface CompletionStatusState {
   questionnaire: boolean;
@@ -721,15 +525,14 @@ const SelfAssessmentComponent: React.FC = () => {
   );
 };
 
-// ✅ OPTIMIZED: Main app content with PROGRESSIVE ONBOARDING + NEW STAGE 1 FLOW
+// ✅ FIXED: Main app content with corrected routing structure
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ ADD: Get current location for progress tracker
+  const location = useLocation();
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
   
   // ✅ FIXED: Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
-  const isAdminUser = useMemo(() => currentUser?.email === 'asiriamarasinghe35@gmail.com', [currentUser?.email]);
   
   // ✅ SIMPLIFIED: Keep completion status for optional features only
   const { recheckStatus } = useCompletionStatus();
@@ -868,11 +671,6 @@ const AppContent: React.FC = React.memo(() => {
     recheckStatus
   ]);
 
-  // ✅ ADMIN BYPASS
-  if (isAdminUser) {
-    return <AdminBypassApp />;
-  }
-
   // ✅ OPTIMIZED: Only show loading when necessary
   if (isLoading && !currentUser && !appReady) {
     return <FastLoader message="Initializing practices for the happiness that stays..." />;
@@ -921,17 +719,16 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES WITH PROGRESSIVE ONBOARDING + NEW STAGE 1 FLOW
+  // ✅ AUTHENTICATED ROUTES - FIXED: Single MainNavigation wrapper with all routes inside
   return (
     <div className="app-container">
       <PageViewTracker />
       <LogoutWarning />
       
       <Routes>
-        {/* ✅ NEW: ALWAYS GO TO HOME AFTER AUTHENTICATION */}
+        {/* ✅ STANDALONE ROUTES (no navigation) */}
         <Route path="/" element={<Navigate to="/home" replace />} />
         
-        {/* ✅ NEW: Stage 1 Introduction Route */}
         <Route 
           path="/stage1-introduction" 
           element={
@@ -943,13 +740,11 @@ const AppContent: React.FC = React.memo(() => {
           } 
         />
         
-        {/* ✅ NEW: T-Level Selection Route */}
         <Route 
           path="/stage1-tlevel-selection" 
           element={<TLevelSelectionPage />} 
         />
         
-        {/* ✅ OPTIONAL ONBOARDING ROUTES (accessible via modals) */}
         <Route path="/questionnaire" element={<QuestionnaireComponent />} />
         
         <Route path="/introduction" element={
@@ -967,34 +762,40 @@ const AppContent: React.FC = React.memo(() => {
             onBack={handlers.selfAssessmentCompletionBack}
           />
         } />
-        
-        {/* ✅ MAIN DASHBOARD - ALWAYS ACCESSIBLE */}
-        <Route path="/home" element={
-          <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
-            <MainNavigation>
-              <HomeDashboard 
-                onStartPractice={handlers.startPractice}
-                onStartStage2={handlers.startStage2}
-                onStartStage3={handlers.startStage3}
-                onStartStage4={handlers.startStage4}
-                onStartStage5={handlers.startStage5}
-                onStartStage6={handlers.startStage6}
-                onViewProgress={handlers.viewProgress}
-                onViewLearning={handlers.viewLearning}
-                onShowPostureGuide={handlers.showPostureGuide}
-                onShowPAHMExplanation={handlers.showPAHMExplanation}
-                onShowWhatIsPAHM={handlers.showWhatIsPAHM}
-                onLogout={handlers.logout}
-              />
-            </MainNavigation>
-          </Suspense>
-        } />
-        
-        {/* ✅ ALL OTHER ROUTES - ALWAYS ACCESSIBLE */}
+
+        {/* ✅ MAIN APP ROUTES - Single MainNavigation wrapper */}
         <Route path="/*" element={
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
               <Routes>
+                {/* ✅ HOME DASHBOARD - Normal user interface */}
+                <Route path="/home" element={
+                  <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
+                    <HomeDashboard 
+                      onStartPractice={handlers.startPractice}
+                      onStartStage2={handlers.startStage2}
+                      onStartStage3={handlers.startStage3}
+                      onStartStage4={handlers.startStage4}
+                      onStartStage5={handlers.startStage5}
+                      onStartStage6={handlers.startStage6}
+                      onViewProgress={handlers.viewProgress}
+                      onViewLearning={handlers.viewLearning}
+                      onShowPostureGuide={handlers.showPostureGuide}
+                      onShowPAHMExplanation={handlers.showPAHMExplanation}
+                      onShowWhatIsPAHM={handlers.showWhatIsPAHM}
+                      onLogout={handlers.logout}
+                    />
+                  </Suspense>
+                } />
+                
+                {/* ✅ ADMIN PANEL - Only accessible via admin button */}
+                <Route path="/admin" element={
+                  <Suspense fallback={<FastLoader message="Loading admin panel..." />}>
+                    <AdminPanel />
+                  </Suspense>
+                } />
+                
+                {/* ✅ ALL OTHER PRACTICE ROUTES */}
                 <Route path="/stage1/*" element={
                   <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
                     <Stage1Wrapper />
@@ -1037,10 +838,8 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ NEW: Practice Reflection Route for T1-T5 */}
                 <Route path="/practice-reflection" element={<PracticeReflectionWrapper />} />
                 
-                {/* ✅ LEGACY REDIRECTS: Backward Compatibility */}
                 <Route path="/seeker-practice-timer" element={<SeekerPracticeTimerRedirect />} />
                 <Route path="/seeker-practice-complete" element={<SeekerPracticeCompleteRedirect />} />
                 
@@ -1118,7 +917,7 @@ const AppContent: React.FC = React.memo(() => {
         } />
       </Routes>
 
-      {/* ✅ OPTION 2: Progress Tracker - ONLY shows on Home Dashboard */}
+      {/* ✅ Progress Tracker - ONLY shows on Home Dashboard */}
       {isAuthenticated && location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );

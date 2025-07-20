@@ -1,9 +1,14 @@
+// ✅ FIXED HomeDashboard.tsx - AdminPanel completely removed
+// File: src/HomeDashboard.tsx
+// 🔄 REPLACE YOUR ENTIRE HOMEDASHBOARD.TSX WITH THIS CODE
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLocalData } from './contexts/LocalDataContext';
-import { useHappinessCalculation } from './hooks/useHappinessCalculation'; // ✅ Import the hook
-import AdminPanel from './components/AdminPanel';
+import { useHappinessCalculation } from './hooks/useHappinessCalculation';
+
+// ✅ REMOVED: AdminPanel import completely - should only be accessible via /admin route
 
 // ✅ FIXED: Correct interface for HomeDashboard component
 interface HomeDashboardProps {
@@ -456,7 +461,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   return (
     <div style={styles.container}>
-      <AdminPanel />
+      {/* ✅ REMOVED: <AdminPanel /> - This was the issue! */}
+      {/* AdminPanel should only be accessible via /admin route */}
 
       <header style={styles.header}>
         <div style={{ 
