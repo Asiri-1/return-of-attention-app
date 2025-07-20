@@ -1,4 +1,4 @@
-// ✅ Modern Styled AdminPanel.js with Accurate Data
+// ✅ Complete Modern AdminPanel.js with T1-T5 Session Testing
 // File: src/components/AdminPanel.js
 // 🔄 COMPLETELY REPLACE YOUR ADMINPANEL.JS WITH THIS VERSION
 
@@ -245,7 +245,7 @@ node admin-setup.js
     }
   }, [isAdmin, loadUserStats]);
 
-  // Enhanced testing tools with Stage 2-5 completion
+  // ✅ COMPLETE Enhanced testing tools with T1-T5 session progression and Stage 2-6 completion
   const testingTools = [
     {
       name: '🔍 Debug All Storage Data',
@@ -287,21 +287,386 @@ node admin-setup.js
         alert('✅ Self Assessment marked as complete');
       }
     },
+    // ✅ NEW: T1-T5 Progressive Session Completion Tools
     {
-      name: '✅ Complete T5 (Unlock Stage 2)',
+      name: '🌱 Complete T1 Session 1 (Unlock progress)',
       action: () => {
-        localStorage.setItem('t5Complete', 'true');
-        sessionStorage.setItem('stageProgress', '2');
+        const completions = JSON.parse(localStorage.getItem('t1CompletionCount') || '0');
+        localStorage.setItem('t1CompletionCount', '1');
+        
         const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
         sessions.push({
-          tLevel: 'T5',
-          duration: 30,
-          completedAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          tLevel: 'T1',
+          duration: 15,
+          sessionNumber: 1,
+          totalSessions: 1,
+          requiredSessions: 3,
+          rating: 6.5,
+          notes: 'T1 Session 1 - Basic stillness practice. Learning to observe breath.',
           source: 'admin_test',
-          unlocked: 'Stage 2'
+          progress: 'T1: 1/3 sessions complete'
         });
         localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T5 completed! Stage 2 unlocked!');
+        alert('✅ T1 Session 1 completed! (1/3 sessions)\n\nProgress: Still need 2 more T1 sessions to unlock T2.');
+      }
+    },
+    {
+      name: '🌱 Complete T1 Session 2 (2/3 complete)',
+      action: () => {
+        localStorage.setItem('t1CompletionCount', '2');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T1',
+          duration: 15,
+          sessionNumber: 2,
+          totalSessions: 2,
+          requiredSessions: 3,
+          rating: 7.0,
+          notes: 'T1 Session 2 - Improving breath awareness. Less mind wandering.',
+          source: 'admin_test',
+          progress: 'T1: 2/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T1 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T1 session needed to unlock T2.');
+      }
+    },
+    {
+      name: '🌱 Complete T1 Session 3 (Unlock T2)',
+      action: () => {
+        localStorage.setItem('t1CompletionCount', '3');
+        localStorage.setItem('t1Complete', 'true');
+        sessionStorage.setItem('currentTLevel', 't2');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T1',
+          duration: 15,
+          sessionNumber: 3,
+          totalSessions: 3,
+          requiredSessions: 3,
+          rating: 7.5,
+          notes: 'T1 Session 3 - COMPLETE! Basic stillness mastered. Ready for T2.',
+          source: 'admin_test',
+          progress: 'T1: 3/3 sessions complete',
+          unlocked: 'T2 Level'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('🎉 T1 COMPLETE! (3/3 sessions)\n\n✅ T2 Level Unlocked!\n\nUser can now practice T2: Attention to Breathing.');
+      }
+    },
+    {
+      name: '🌿 Complete T2 Session 1 (Attention practice)',
+      action: () => {
+        localStorage.setItem('t2CompletionCount', '1');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T2',
+          duration: 20,
+          sessionNumber: 1,
+          totalSessions: 1,
+          requiredSessions: 3,
+          rating: 6.8,
+          notes: 'T2 Session 1 - Attention to breathing. Learning sustained focus.',
+          source: 'admin_test',
+          progress: 'T2: 1/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T2 Session 1 completed! (1/3 sessions)\n\nProgress: Learning attention to breathing. Need 2 more T2 sessions to unlock T3.');
+      }
+    },
+    {
+      name: '🌿 Complete T2 Session 2 (2/3 complete)',
+      action: () => {
+        localStorage.setItem('t2CompletionCount', '2');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T2',
+          duration: 20,
+          sessionNumber: 2,
+          totalSessions: 2,
+          requiredSessions: 3,
+          rating: 7.2,
+          notes: 'T2 Session 2 - Better sustained attention. Less distraction.',
+          source: 'admin_test',
+          progress: 'T2: 2/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T2 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T2 session needed to unlock T3.');
+      }
+    },
+    {
+      name: '🌿 Complete T2 Session 3 (Unlock T3)',
+      action: () => {
+        localStorage.setItem('t2CompletionCount', '3');
+        localStorage.setItem('t2Complete', 'true');
+        sessionStorage.setItem('currentTLevel', 't3');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T2',
+          duration: 20,
+          sessionNumber: 3,
+          totalSessions: 3,
+          requiredSessions: 3,
+          rating: 7.8,
+          notes: 'T2 Session 3 - COMPLETE! Attention to breathing mastered. Ready for T3.',
+          source: 'admin_test',
+          progress: 'T2: 3/3 sessions complete',
+          unlocked: 'T3 Level'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('🎉 T2 COMPLETE! (3/3 sessions)\n\n✅ T3 Level Unlocked!\n\nUser can now practice T3: Attention with Relaxation.');
+      }
+    },
+    {
+      name: '🌳 Complete T3 Session 1 (Relaxation practice)',
+      action: () => {
+        localStorage.setItem('t3CompletionCount', '1');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T3',
+          duration: 25,
+          sessionNumber: 1,
+          totalSessions: 1,
+          requiredSessions: 3,
+          rating: 7.0,
+          notes: 'T3 Session 1 - Attention with relaxation. Balancing focus and ease.',
+          source: 'admin_test',
+          progress: 'T3: 1/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T3 Session 1 completed! (1/3 sessions)\n\nProgress: Learning relaxed attention. Need 2 more T3 sessions to unlock T4.');
+      }
+    },
+    {
+      name: '🌳 Complete T3 Session 2 (2/3 complete)',
+      action: () => {
+        localStorage.setItem('t3CompletionCount', '2');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T3',
+          duration: 25,
+          sessionNumber: 2,
+          totalSessions: 2,
+          requiredSessions: 3,
+          rating: 7.5,
+          notes: 'T3 Session 2 - Better balance of attention and relaxation.',
+          source: 'admin_test',
+          progress: 'T3: 2/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T3 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T3 session needed to unlock T4.');
+      }
+    },
+    {
+      name: '🌳 Complete T3 Session 3 (Unlock T4)',
+      action: () => {
+        localStorage.setItem('t3CompletionCount', '3');
+        localStorage.setItem('t3Complete', 'true');
+        sessionStorage.setItem('currentTLevel', 't4');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T3',
+          duration: 25,
+          sessionNumber: 3,
+          totalSessions: 3,
+          requiredSessions: 3,
+          rating: 8.0,
+          notes: 'T3 Session 3 - COMPLETE! Relaxed attention mastered. Ready for T4.',
+          source: 'admin_test',
+          progress: 'T3: 3/3 sessions complete',
+          unlocked: 'T4 Level'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('🎉 T3 COMPLETE! (3/3 sessions)\n\n✅ T4 Level Unlocked!\n\nUser can now practice T4: Attention without Force.');
+      }
+    },
+    {
+      name: '🌸 Complete T4 Session 1 (Effortless attention)',
+      action: () => {
+        localStorage.setItem('t4CompletionCount', '1');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T4',
+          duration: 30,
+          sessionNumber: 1,
+          totalSessions: 1,
+          requiredSessions: 3,
+          rating: 7.3,
+          notes: 'T4 Session 1 - Attention without force. Learning effortless awareness.',
+          source: 'admin_test',
+          progress: 'T4: 1/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T4 Session 1 completed! (1/3 sessions)\n\nProgress: Learning effortless attention. Need 2 more T4 sessions to unlock T5.');
+      }
+    },
+    {
+      name: '🌸 Complete T4 Session 2 (2/3 complete)',
+      action: () => {
+        localStorage.setItem('t4CompletionCount', '2');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T4',
+          duration: 30,
+          sessionNumber: 2,
+          totalSessions: 2,
+          requiredSessions: 3,
+          rating: 7.8,
+          notes: 'T4 Session 2 - More natural effortless attention developing.',
+          source: 'admin_test',
+          progress: 'T4: 2/3 sessions complete'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T4 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T4 session needed to unlock T5.');
+      }
+    },
+    {
+      name: '🌸 Complete T4 Session 3 (Unlock T5)',
+      action: () => {
+        localStorage.setItem('t4CompletionCount', '3');
+        localStorage.setItem('t4Complete', 'true');
+        sessionStorage.setItem('currentTLevel', 't5');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T4',
+          duration: 30,
+          sessionNumber: 3,
+          totalSessions: 3,
+          requiredSessions: 3,
+          rating: 8.3,
+          notes: 'T4 Session 3 - COMPLETE! Effortless attention mastered. Ready for T5.',
+          source: 'admin_test',
+          progress: 'T4: 3/3 sessions complete',
+          unlocked: 'T5 Level'
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('🎉 T4 COMPLETE! (3/3 sessions)\n\n✅ T5 Level Unlocked!\n\nUser can now practice T5: Present Attention Happiness Method.');
+      }
+    },
+    {
+      name: '🌟 Complete T5 Session 1 (PAHM introduction)',
+      action: () => {
+        localStorage.setItem('t5CompletionCount', '1');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T5',
+          duration: 30,
+          sessionNumber: 1,
+          totalSessions: 1,
+          requiredSessions: 3,
+          rating: 7.5,
+          notes: 'T5 Session 1 - PAHM introduction. Learning to observe present attention states.',
+          source: 'admin_test',
+          progress: 'T5: 1/3 sessions complete',
+          pahmCounts: {
+            present_attachment: 5,
+            present_neutral: 8,
+            present_aversion: 2,
+            past_attachment: 3,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 2,
+            future_neutral: 1,
+            future_aversion: 1
+          }
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T5 Session 1 completed! (1/3 sessions)\n\nProgress: PAHM practice begun. Need 2 more T5 sessions to unlock Stage 2.');
+      }
+    },
+    {
+      name: '🌟 Complete T5 Session 2 (2/3 complete)',
+      action: () => {
+        localStorage.setItem('t5CompletionCount', '2');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T5',
+          duration: 30,
+          sessionNumber: 2,
+          totalSessions: 2,
+          requiredSessions: 3,
+          rating: 8.0,
+          notes: 'T5 Session 2 - Better PAHM observation. More present-moment awareness.',
+          source: 'admin_test',
+          progress: 'T5: 2/3 sessions complete',
+          pahmCounts: {
+            present_attachment: 8,
+            present_neutral: 12,
+            present_aversion: 3,
+            past_attachment: 2,
+            past_neutral: 2,
+            past_aversion: 1,
+            future_attachment: 1,
+            future_neutral: 1,
+            future_aversion: 0
+          }
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('✅ T5 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T5 session needed to unlock Stage 2.');
+      }
+    },
+    {
+      name: '🌟 Complete T5 Session 3 (Unlock Stage 2)',
+      action: () => {
+        localStorage.setItem('t5CompletionCount', '3');
+        localStorage.setItem('t5Complete', 'true');
+        sessionStorage.setItem('stageProgress', '2');
+        localStorage.setItem('devCurrentStage', '2');
+        sessionStorage.setItem('currentTLevel', 't6');
+        
+        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        sessions.push({
+          timestamp: new Date().toISOString(),
+          tLevel: 'T5',
+          duration: 30,
+          sessionNumber: 3,
+          totalSessions: 3,
+          requiredSessions: 3,
+          rating: 8.5,
+          notes: 'T5 Session 3 - COMPLETE! PAHM foundation established. Ready for Stage 2.',
+          source: 'admin_test',
+          progress: 'T5: 3/3 sessions complete',
+          unlocked: 'Stage 2',
+          pahmCounts: {
+            present_attachment: 10,
+            present_neutral: 15,
+            present_aversion: 3,
+            past_attachment: 1,
+            past_neutral: 1,
+            past_aversion: 0,
+            future_attachment: 0,
+            future_neutral: 0,
+            future_aversion: 0
+          }
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
+        alert('🎉 T5 COMPLETE! (3/3 sessions)\n\n✅ Stage 2 Unlocked!\n\nPAHM foundation established. User can now access advanced PAHM training.');
       }
     },
     {
@@ -479,7 +844,19 @@ node admin-setup.js
       name: '🔄 Reset All Progress (Start Fresh)',
       action: () => {
         if (window.confirm('⚠️ This will reset ALL practice progress. Are you sure?')) {
+          // Reset T-level completions
+          localStorage.removeItem('t1Complete');
+          localStorage.removeItem('t2Complete');
+          localStorage.removeItem('t3Complete');
+          localStorage.removeItem('t4Complete');
           localStorage.removeItem('t5Complete');
+          localStorage.removeItem('t1CompletionCount');
+          localStorage.removeItem('t2CompletionCount');
+          localStorage.removeItem('t3CompletionCount');
+          localStorage.removeItem('t4CompletionCount');
+          localStorage.removeItem('t5CompletionCount');
+          
+          // Reset stage completions
           localStorage.removeItem('stage2Complete');
           localStorage.removeItem('stage3Complete');
           localStorage.removeItem('stage4Complete');
@@ -1018,10 +1395,60 @@ node admin-setup.js
       
       <div style={{ marginBottom: '40px' }}>
         <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
-          🏁 Stage Progression Testing
+          🌱 T-Level Session Progression (Stage 1 Practice)
+        </h4>
+        <div style={{ 
+          background: 'rgba(255,255,255,0.1)', 
+          borderRadius: '12px', 
+          padding: '20px', 
+          marginBottom: '20px',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '0' }}>
+            💡 <strong>Progressive T-Level System:</strong> Users must complete 3 sessions of each T-level (T1→T2→T3→T4→T5) before unlocking the next level. T5 completion unlocks Stage 2.
+          </p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+          {testingTools.slice(4, 19).map((tool, index) => (
+            <button
+              key={index}
+              onClick={tool.action}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                textAlign: 'left',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {tool.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '40px' }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🏁 PAHM Stage Progression (Stages 2-6)
         </h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {testingTools.slice(4).filter(tool => tool.name.includes('Complete')).map((tool, index) => (
+          {testingTools.slice(20, -1).map((tool, index) => (
             <button
               key={index}
               onClick={tool.action}
@@ -1093,6 +1520,40 @@ node admin-setup.js
           ))}
         </div>
       </div>
+
+      <div style={{ marginBottom: '40px' }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🔄 Reset Options
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+          <button
+            onClick={testingTools[testingTools.length - 1].action}
+            style={{
+              background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: '12px',
+              padding: '20px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '15px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              textAlign: 'left',
+              boxShadow: '0 8px 20px rgba(220, 53, 69, 0.3)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 30px rgba(220, 53, 69, 0.4)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0px)';
+              e.currentTarget.style.boxShadow = '0 8px 20px rgba(220, 53, 69, 0.3)';
+            }}
+          >
+            {testingTools[testingTools.length - 1].name}
+          </button>
+        </div>
+      </div>
       
       <div style={{ 
         background: 'rgba(255,255,255,0.15)', 
@@ -1109,20 +1570,43 @@ node admin-setup.js
           fontSize: '15px', 
           lineHeight: '1.8',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '16px'
         }}>
           <div>
+            <strong style={{ color: '#4ade80', fontSize: '16px' }}>General Progress:</strong><br/>
             • Total Users: <strong>{userStats.totalUsers}</strong><br/>
             • Current Stage: <strong>{sessionStorage.getItem('stageProgress') || '1'}</strong><br/>
-            • T5 Status: <strong style={{color: localStorage.getItem('t5Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('t5Complete') ? '✅ Complete' : '❌ Incomplete'}
+            • Questionnaire: <strong style={{color: localStorage.getItem('questionnaireComplete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('questionnaireComplete') ? '✅ Complete' : '❌ Incomplete'}
             </strong><br/>
-            • Stage 2: <strong style={{color: localStorage.getItem('stage2Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('stage2Complete') ? '✅ Complete' : '❌ Incomplete'}
+            • Self Assessment: <strong style={{color: localStorage.getItem('selfAssessmentComplete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('selfAssessmentComplete') ? '✅ Complete' : '❌ Incomplete'}
             </strong>
           </div>
           <div>
+            <strong style={{ color: '#60a5fa', fontSize: '16px' }}>T-Level Progress (Stage 1):</strong><br/>
+            • T1 Sessions: <strong style={{color: localStorage.getItem('t1Complete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('t1CompletionCount') || '0'}/3 {localStorage.getItem('t1Complete') ? '✅' : '❌'}
+            </strong><br/>
+            • T2 Sessions: <strong style={{color: localStorage.getItem('t2Complete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('t2CompletionCount') || '0'}/3 {localStorage.getItem('t2Complete') ? '✅' : '❌'}
+            </strong><br/>
+            • T3 Sessions: <strong style={{color: localStorage.getItem('t3Complete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('t3CompletionCount') || '0'}/3 {localStorage.getItem('t3Complete') ? '✅' : '❌'}
+            </strong><br/>
+            • T4 Sessions: <strong style={{color: localStorage.getItem('t4Complete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('t4CompletionCount') || '0'}/3 {localStorage.getItem('t4Complete') ? '✅' : '❌'}
+            </strong><br/>
+            • T5 Sessions: <strong style={{color: localStorage.getItem('t5Complete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('t5CompletionCount') || '0'}/3 {localStorage.getItem('t5Complete') ? '✅' : '❌'}
+            </strong>
+          </div>
+          <div>
+            <strong style={{ color: '#a78bfa', fontSize: '16px' }}>PAHM Stages (2-6):</strong><br/>
+            • Stage 2: <strong style={{color: localStorage.getItem('stage2Complete') ? '#4ade80' : '#f87171'}}>
+              {localStorage.getItem('stage2Complete') ? '✅ Complete' : '❌ Incomplete'}
+            </strong><br/>
             • Stage 3: <strong style={{color: localStorage.getItem('stage3Complete') ? '#4ade80' : '#f87171'}}>
               {localStorage.getItem('stage3Complete') ? '✅ Complete' : '❌ Incomplete'}
             </strong><br/>

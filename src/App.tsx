@@ -1,4 +1,4 @@
-// ✅ CORRECTED App.tsx - Fixed Home Button Issue
+// ✅ CORRECTED App.tsx - Fixed Progressive Stage 1 + Preserved Admin Panel
 // File: src/App.tsx
 // 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
 
@@ -121,209 +121,6 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
   );
 });
 
-// ✅ NEW: T-Level Selection Page Component
-const TLevelSelectionPage: React.FC = () => {
-  const navigate = useNavigate();
-
-  const tLevels = [
-    { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes', desc: 'Perfect for beginners' },
-    { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes', desc: 'Building endurance' },
-    { level: 'T3', duration: 20, title: 'T3: Physical Stillness for 20 minutes', desc: 'Intermediate practice' },
-    { level: 'T4', duration: 25, title: 'T4: Physical Stillness for 25 minutes', desc: 'Advanced focus' },
-    { level: 'T5', duration: 30, title: 'T5: Physical Stillness for 30 minutes', desc: 'Master level practice' }
-  ];
-
-  const handleTLevelClick = useCallback((level: string, duration: number) => {
-    sessionStorage.setItem('currentTLevel', level.toLowerCase());
-
-    navigate(`/stage1/${level}`, { 
-      state: { 
-        showT1Introduction: false,
-        level: level,
-        duration: duration,
-        stageLevel: `${level}: Physical Stillness for ${duration} minutes`,
-        returnToStage: 1
-      } 
-    });
-  }, [navigate]);
-
-  const handleBack = useCallback(() => {
-    navigate('/home');
-  }, [navigate]);
-
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      padding: '20px'
-    }}>
-      {/* Header */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: '20px',
-        padding: '20px',
-        marginBottom: '30px',
-        textAlign: 'center'
-      }}>
-        <button 
-          onClick={handleBack}
-          style={{
-            position: 'absolute',
-            left: '30px',
-            top: '30px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            border: 'none',
-            borderRadius: '10px',
-            padding: '10px 20px',
-            color: 'white',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          ← Back
-        </button>
-        
-        <h1 style={{
-          color: 'white',
-          fontSize: '32px',
-          fontWeight: '700',
-          margin: '0 0 10px 0',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-        }}>
-          🧘‍♂️ Choose Your Practice Level
-        </h1>
-        <p style={{
-          color: 'rgba(255, 255, 255, 0.9)',
-          fontSize: '18px',
-          margin: 0
-        }}>
-          Select a T-level to begin your Stage 1 physical stillness practice
-        </p>
-      </div>
-
-      {/* T-Levels Grid */}
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '20px'
-      }}>
-        {tLevels.map((tLevel, index) => (
-          <button
-            key={tLevel.level}
-            onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              border: 'none',
-              borderRadius: '20px',
-              padding: '30px',
-              textAlign: 'left',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-5px)';
-              e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0px)';
-              e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.1)';
-            }}
-          >
-            {/* Level badge */}
-            <div style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '50px',
-              fontSize: '14px',
-              fontWeight: '600'
-            }}>
-              {tLevel.level}
-            </div>
-
-            {/* Duration */}
-            <div style={{
-              fontSize: '48px',
-              fontWeight: '700',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              marginBottom: '10px'
-            }}>
-              {tLevel.duration}
-              <span style={{ fontSize: '24px', color: '#666' }}>min</span>
-            </div>
-
-            {/* Title */}
-            <h3 style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#333',
-              marginBottom: '8px',
-              margin: '0 0 8px 0'
-            }}>
-              Physical Stillness Practice
-            </h3>
-
-            {/* Description */}
-            <p style={{
-              fontSize: '16px',
-              color: '#666',
-              margin: '0 0 20px 0',
-              lineHeight: '1.5'
-            }}>
-              {tLevel.desc}
-            </p>
-
-            {/* Start button */}
-            <div style={{
-              marginTop: '20px',
-              padding: '12px 24px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontWeight: '600',
-              textAlign: 'center'
-            }}>
-              Start {tLevel.level} Practice →
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Footer guidance */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: '20px',
-        padding: '20px',
-        marginTop: '30px',
-        textAlign: 'center',
-        maxWidth: '600px',
-        margin: '30px auto 0 auto'
-      }}>
-        <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '10px' }}>
-          💡 Practice Guidance
-        </h3>
-        <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.6' }}>
-          Start with T1 if you're new to meditation. Progress to higher levels as you become comfortable maintaining physical stillness. Each level builds the foundation for deeper practice.
-        </p>
-      </div>
-    </div>
-  );
-};
-
 // ✅ NEW: Practice Reflection Wrapper for T1-T5
 const PracticeReflectionWrapper: React.FC = () => {
   const navigate = useNavigate();
@@ -418,13 +215,6 @@ const SeekerPracticeCompleteRedirect: React.FC = () => {
 };
 
 // ✅ SIMPLIFIED: Completion status checker interface
-interface CompletionStatusState {
-  questionnaire: boolean;
-  selfAssessment: boolean;
-  isLoaded: boolean;
-  hasChecked: boolean;
-}
-
 const useCompletionStatus = () => {
   const { isQuestionnaireCompleted, isSelfAssessmentCompleted } = useLocalData();
   const { currentUser } = useAuth();
@@ -569,10 +359,17 @@ const AppContent: React.FC = React.memo(() => {
     setKnowledgeBaseReady(true);
   }, []);
 
-  // ✅ PERFORMANCE: Stable event handlers with proper TypeScript
+  // ✅ FIXED: startPractice now checks intro and routes to progressive selection
   const handlers = useMemo(() => ({
-    // ✅ NAVIGATION HANDLERS (NO MORE BLOCKING!)
-    startPractice: () => navigate('/stage1'), // Direct navigation - modal will handle requirements
+    // ✅ FIXED: Progressive Stage 1 flow
+    startPractice: () => {
+      const hasSeenStage1Intro = JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1);
+      if (hasSeenStage1Intro) {
+        navigate('/stage1'); // Go to progressive T-level selection
+      } else {
+        navigate('/stage1-introduction'); // Show intro first
+      }
+    },
     viewProgress: () => navigate('/analytics'),
     viewLearning: () => navigate('/learning/pahm'),
     showPostureGuide: () => navigate("/posture-guide"),
@@ -719,7 +516,7 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES - FIXED: Single MainNavigation wrapper with all routes inside
+  // ✅ AUTHENTICATED ROUTES - PRESERVING ADMIN FUNCTIONALITY
   return (
     <div className="app-container">
       <PageViewTracker />
@@ -729,20 +526,16 @@ const AppContent: React.FC = React.memo(() => {
         {/* ✅ STANDALONE ROUTES (no navigation) */}
         <Route path="/" element={<Navigate to="/home" replace />} />
         
+        {/* ✅ FIXED: Stage1Introduction now navigates to progressive /stage1 */}
         <Route 
           path="/stage1-introduction" 
           element={
             <Stage1Introduction 
-              onComplete={() => navigate('/stage1-tlevel-selection')}
+              onComplete={() => navigate('/stage1')}
               onBack={() => navigate('/home')}
               hasSeenBefore={JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1)}
             />
           } 
-        />
-        
-        <Route 
-          path="/stage1-tlevel-selection" 
-          element={<TLevelSelectionPage />} 
         />
         
         <Route path="/questionnaire" element={<QuestionnaireComponent />} />
@@ -763,7 +556,7 @@ const AppContent: React.FC = React.memo(() => {
           />
         } />
 
-        {/* ✅ MAIN APP ROUTES - Single MainNavigation wrapper */}
+        {/* ✅ MAIN APP ROUTES - PRESERVING Admin Panel Access */}
         <Route path="/*" element={
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
@@ -788,14 +581,14 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ ADMIN PANEL - Only accessible via admin button */}
+                {/* ✅ ADMIN PANEL - PRESERVED - Only accessible via admin button */}
                 <Route path="/admin" element={
                   <Suspense fallback={<FastLoader message="Loading admin panel..." />}>
                     <AdminPanel />
                   </Suspense>
                 } />
                 
-                {/* ✅ ALL OTHER PRACTICE ROUTES */}
+                {/* ✅ PROGRESSIVE STAGE 1 - Uses Stage1Wrapper with sequential logic */}
                 <Route path="/stage1/*" element={
                   <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
                     <Stage1Wrapper />
@@ -923,7 +716,7 @@ const AppContent: React.FC = React.memo(() => {
   );
 });
 
-// ✅ MAIN App component with complete provider chain
+// ✅ MAIN App component with complete provider chain - PRESERVING ADMIN
 const App: React.FC = React.memo(() => {
   return (
     <BrowserRouter>

@@ -1,3 +1,6 @@
+// ✅ FIXED Stage1Introduction.tsx - Navigate to Progressive T-Level Selection
+// File: src/Stage1Introduction.tsx
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -62,17 +65,17 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   }, [stageNumber, updateUserProfileInContext]);
   
-  // ✅ UPDATED: Skip handler now goes to T-level selection
+  // ✅ FIXED: Skip handler now goes to PROGRESSIVE T-level selection
   const handleSkip = useCallback(() => {
     markIntroCompleted();
     
     setTimeout(() => {
-      console.log('🔍 Navigating to T-level selection after skip');
-      navigate('/stage1-tlevel-selection');
+      console.log('🔍 Navigating to PROGRESSIVE T-level selection after skip');
+      navigate('/stage1'); // ✅ FIXED: Go to progressive Stage1Wrapper, not TLevelSelectionPage
     }, 100);
   }, [markIntroCompleted, navigate]);
   
-  // ✅ UPDATED: Next slide handler goes to T-level selection after completion
+  // ✅ FIXED: Next slide handler goes to PROGRESSIVE T-level selection after completion
   const nextSlide = useCallback(() => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
@@ -80,8 +83,8 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
       markIntroCompleted();
       
       setTimeout(() => {
-        console.log('🔍 Navigating to T-level selection after completion');
-        navigate('/stage1-tlevel-selection');
+        console.log('🔍 Navigating to PROGRESSIVE T-level selection after completion');
+        navigate('/stage1'); // ✅ FIXED: Go to progressive Stage1Wrapper, not TLevelSelectionPage
       }, 100);
     }
   }, [currentSlide, slides.length, markIntroCompleted, navigate]);
@@ -155,12 +158,12 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [nextSlide, prevSlide, handleSkip]);
   
-  // ✅ UPDATED: Button text now says "Choose Practice Level"
+  // ✅ FIXED: Button text now says "Start Progressive Practice"
   const getButtonText = () => {
     if (currentSlide < slides.length - 1) {
       return "Next";
     }
-    return "Choose Practice Level"; // Changed from "Begin Practice"
+    return "Start Progressive Practice"; // ✅ CHANGED: Indicates progressive flow
   };
 
   return (
@@ -175,7 +178,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
         <div className="welcome-back-message">
           <div className="welcome-back-content">
             <h3>Welcome Back! 👋</h3>
-            <p>Continue your Stage 1 journey or skip to practice selection.</p>
+            <p>Continue your Stage 1 journey or skip to progressive practice selection.</p>
           </div>
         </div>
       )}
@@ -192,7 +195,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
         <button 
           className="skip-button" 
           onClick={handleSkip}
-          aria-label={hasSeenBefore ? "Skip to practice selection" : "Skip introduction"}
+          aria-label={hasSeenBefore ? "Skip to progressive practice" : "Skip introduction"}
         >
           {hasSeenBefore ? "Skip to Practice" : "Skip"}
         </button>
@@ -265,7 +268,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
             
             <button 
               onClick={nextSlide}
-              aria-label={currentSlide === slides.length - 1 ? 'Choose practice level' : 'Go to next slide'}
+              aria-label={currentSlide === slides.length - 1 ? 'Start progressive practice' : 'Go to next slide'}
               style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
