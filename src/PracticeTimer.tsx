@@ -35,6 +35,13 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // Voice settings
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
   const [lastVoiceAnnouncement, setLastVoiceAnnouncement] = useState<number>(0);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  
+  // 🔒 Wake Lock for preventing screen lock during meditation
+  const [wakeLock, setWakeLock] = useState<any>(null);
+  const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
+  const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
   // Enhanced analytics integration
   const { addPracticeSession, addEmotionalNote } = useLocalData();
@@ -54,10 +61,194 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // Ref for interval
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Bell Audio Functions - memoized to prevent useCallback deps changing
-  const playBell = useCallback((type: 'start' | 'end' | 'minute') => {
+  // 🔒 Wake Lock Functions to prevent screen from sleeping
+  const requestWakeLock = useCallback(async () => {
+    if (!wakeLockEnabled) return;
+    
+    try {
+      if ('wakeLock' in navigator) {
+        const lock = await (navigator as any).wakeLock.request('screen');
+        setWakeLock(lock);
+        setWakeLockStatus('active');
+        console.log('✅ Screen wake lock activated - screen will stay on during meditation');
+        
+        // Handle wake lock release
+        lock.addEventListener('release', () => {
+          setWakeLockStatus('released');
+          console.log('⚠️ Screen wake lock released');
+        });
+      } else {
+        console.warn('⚠️ Wake Lock API not supported - screen may turn off during practice');
+        setWakeLockStatus('unsupported');
+      }
+    } catch (error) {
+      console.error('❌ Wake lock request failed:', error);
+      setWakeLockStatus('failed');
+    }
+  }, [wakeLockEnabled]);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLock) {
+      try {
+        await wakeLock.release();
+        setWakeLock(null);
+        setWakeLockStatus('inactive');
+        console.log('✅ Screen wake lock released');
+      } catch (error) {
+        console.error('❌ Wake lock release failed:', error);
+      }
+    }
+  }, [wakeLock]);
+
+  // 🎙️ Voice Selection Functions - Find Rough Male Voices for Physical Training
+  const loadVoices = useCallback(() => {
+    const voices = speechSynthesis.getVoices();
+    setAvailableVoices(voices);
+    
+    // Priority order for rough, deep male voices suitable for physical training
+    const voicePreferences = [
+      // Look for deep/rough male voices
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('deep') && voice.name.toLowerCase().includes('male'),
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('bass') && voice.name.toLowerCase().includes('male'),
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('alex'), // macOS Alex is deep male
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('daniel'), // Often a good rough male voice
+      
+      // Look for Indian male voices (secondary priority)
+      (voice: SpeechSynthesisVoice) => voice.lang.includes('hi') && voice.name.toLowerCase().includes('male'),
+      (voice: SpeechSynthesisVoice) => voice.lang.includes('en-IN') && voice.name.toLowerCase().includes('male'),
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('ravi'), // Common Indian name
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('raj'), // Common Indian name
+      
+      // Any male voice
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('male'),
+      (voice: SpeechSynthesisVoice) => !voice.name.toLowerCase().includes('female') && !voice.name.toLowerCase().includes('woman'),
+      
+      // Voices that typically sound rougher
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('tom'),
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('bruce'),
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('fred'),
+    ];
+    
+    // Try each preference in order
+    for (const preference of voicePreferences) {
+      const preferredVoice = voices.find(preference);
+      if (preferredVoice) {
+        setSelectedVoice(preferredVoice);
+        console.log(`🎙️ Selected rough male voice: ${preferredVoice.name} (${preferredVoice.lang})`);
+        return;
+      }
+    }
+    
+    // If no preferred voice found, use default
+    if (voices.length > 0) {
+      setSelectedVoice(voices[0]);
+      console.log(`🎙️ Using default voice: ${voices[0].name}`);
+    }
+  }, []);
+
+  // Load voices when component mounts and when voices change
+  useEffect(() => {
+    loadVoices();
+    speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+  }, [loadVoices]);
+
+  // Enhanced Bell Audio Functions with Web Audio API for authentic bell sounds
+  const createBellSound = useCallback((frequency: number, duration: number) => {
     if (!bellEnabled) return;
     
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Create oscillators for bell harmonics
+      const fundamental = audioContext.createOscillator();
+      const harmonic2 = audioContext.createOscillator();
+      const harmonic3 = audioContext.createOscillator();
+      
+      // Create gain nodes for volume control
+      const fundamentalGain = audioContext.createGain();
+      const harmonic2Gain = audioContext.createGain();
+      const harmonic3Gain = audioContext.createGain();
+      const masterGain = audioContext.createGain();
+      
+      // Set frequencies for bell-like harmonics
+      fundamental.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      harmonic2.frequency.setValueAtTime(frequency * 2.76, audioContext.currentTime); // Bell harmonic
+      harmonic3.frequency.setValueAtTime(frequency * 5.42, audioContext.currentTime); // Bell harmonic
+      
+      // Use sine waves for clean bell tones
+      fundamental.type = 'sine';
+      harmonic2.type = 'sine';
+      harmonic3.type = 'sine';
+      
+      // Connect oscillators to gain nodes
+      fundamental.connect(fundamentalGain);
+      harmonic2.connect(harmonic2Gain);
+      harmonic3.connect(harmonic3Gain);
+      
+      // Connect gain nodes to master gain
+      fundamentalGain.connect(masterGain);
+      harmonic2Gain.connect(masterGain);
+      harmonic3Gain.connect(masterGain);
+      
+      // Connect to output
+      masterGain.connect(audioContext.destination);
+      
+      // Set initial volumes
+      fundamentalGain.gain.setValueAtTime(0.6, audioContext.currentTime);
+      harmonic2Gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+      harmonic3Gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+      masterGain.gain.setValueAtTime(0.7, audioContext.currentTime);
+      
+      // Create bell envelope (quick attack, slow decay)
+      const now = audioContext.currentTime;
+      masterGain.gain.setValueAtTime(0, now);
+      masterGain.gain.linearRampToValueAtTime(0.7, now + 0.01); // Quick attack
+      masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration); // Slow decay
+      
+      // Start oscillators
+      fundamental.start(now);
+      harmonic2.start(now);
+      harmonic3.start(now);
+      
+      // Stop oscillators
+      fundamental.stop(now + duration);
+      harmonic2.stop(now + duration);
+      harmonic3.stop(now + duration);
+      
+      console.log(`🔔 Generated bell sound: ${frequency}Hz for ${duration}s`);
+      
+    } catch (error) {
+      console.warn('Web Audio bell generation failed, using fallback:', error);
+      // Fallback to original audio elements - call the playBell function directly with fallback logic
+      try {
+        let audioRef;
+        switch (frequency) {
+          case 523: // Start bell
+            audioRef = startBellRef;
+            break;
+          case 659: // Minute bell  
+            audioRef = minuteBellRef;
+            break;
+          case 440: // End bell
+            audioRef = endBellRef;
+            break;
+          default:
+            audioRef = minuteBellRef;
+        }
+        
+        if (audioRef?.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => console.warn('Fallback audio play failed:', e));
+        }
+      } catch (fallbackError) {
+        console.warn('Fallback bell audio error:', fallbackError);
+      }
+    }
+  }, [bellEnabled]);
+
+  // Fallback bell function for when Web Audio fails
+  const playBellFallback = useCallback((type: 'start' | 'end' | 'minute') => {
     try {
       let audioRef;
       switch (type) {
@@ -74,16 +265,33 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       
       if (audioRef?.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
+        audioRef.current.play().catch(e => console.warn('Fallback audio play failed:', e));
       }
     } catch (error) {
-      console.warn('Bell audio error:', error);
+      console.warn('Fallback bell audio error:', error);
     }
-  }, [bellEnabled]);
+  }, []);
 
-  // Voice Synthesis Function - memoized to prevent useCallback deps changing
+  const playBell = useCallback((type: 'start' | 'end' | 'minute') => {
+    if (!bellEnabled) return;
+    
+    // Use Web Audio API for authentic bell sounds
+    switch (type) {
+      case 'start':
+        createBellSound(523, 3.0); // C5 note, 3 second decay
+        break;
+      case 'minute':
+        createBellSound(659, 1.5); // E5 note, 1.5 second decay
+        break;
+      case 'end':
+        createBellSound(440, 4.0); // A4 note, 4 second decay
+        break;
+    }
+  }, [bellEnabled, createBellSound]);
+
+  // 🎙️ Voice Synthesis with Rough Male Voice for Physical Stillness Training
   const announceTime = useCallback((remainingMinutes: number) => {
-    if (!voiceEnabled) return;
+    if (!voiceEnabled || !selectedVoice) return;
     
     try {
       if ('speechSynthesis' in window) {
@@ -92,6 +300,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         
         const utterance = new SpeechSynthesisUtterance();
         
+        // Simple, direct messages focused on physical stillness training
         if (remainingMinutes === 0) {
           utterance.text = "Practice session complete";
         } else if (remainingMinutes === 1) {
@@ -100,27 +309,19 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           utterance.text = `${remainingMinutes} minutes remaining`;
         }
         
-        utterance.volume = 0.7;
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        
-        // Use a calm voice if available
-        const voices = speechSynthesis.getVoices();
-        const preferredVoice = voices.find(voice => 
-          voice.name.includes('Google') || 
-          voice.name.includes('Female') ||
-          voice.name.includes('Samantha')
-        );
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
+        // Rougher, more masculine voice settings
+        utterance.voice = selectedVoice;
+        utterance.volume = 0.9;
+        utterance.rate = 0.8; // Slightly faster, more direct
+        utterance.pitch = 0.6; // Much lower pitch for rougher, deeper voice
         
         speechSynthesis.speak(utterance);
+        console.log(`🎙️ Announced: "${utterance.text}" using ${selectedVoice.name}`);
       }
     } catch (error) {
       console.warn('Voice synthesis error:', error);
     }
-  }, [voiceEnabled]);
+  }, [voiceEnabled, selectedVoice]);
 
   // Check for minute bells and voice announcements
   const checkMinuteBell = useCallback((remainingSeconds: number) => {
@@ -326,14 +527,29 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
 
-  // Start timer
-  const startTimer = () => {
+  // Start timer with wake lock
+  const startTimer = async () => {
     setIsActive(true);
     setIsPaused(false);
     setIsRunning(true);
     
+    // 🔒 Request wake lock to prevent screen from sleeping
+    await requestWakeLock();
+    
     // Play start bell
     playBell('start');
+    
+    // Simple start announcement focused on physical stillness
+    if (voiceEnabled && selectedVoice) {
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance("Begin stillness training");
+        utterance.voice = selectedVoice;
+        utterance.volume = 0.9;
+        utterance.rate = 0.8;
+        utterance.pitch = 0.6; // Rough, deep voice
+        speechSynthesis.speak(utterance);
+      }, 2000); // Delay to avoid overlap with bell
+    }
     
     // Store start time
     const now = new Date().toISOString();
@@ -345,11 +561,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setLastVoiceAnnouncement(0);
   };
   
-  // Handle back button
-  const handleBack = () => {
+  // Handle back button with wake lock cleanup
+  const handleBack = async () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+    
+    // 🔒 Release wake lock
+    await releaseWakeLock();
+    
     // Cancel any ongoing speech
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
@@ -357,11 +577,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     onBack();
   };
 
-  // Record session data with unified storage
-  const recordSession = (isFullyCompleted: boolean) => {
+  // Record session data with unified storage and wake lock cleanup
+  const recordSession = async (isFullyCompleted: boolean) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+    
+    // 🔒 Release wake lock
+    await releaseWakeLock();
     
     // Cancel any ongoing speech
     if ('speechSynthesis' in window) {
@@ -394,7 +617,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         endTime: endTime,
         wasFullyCompleted: isFullyCompleted,
         initialMinutes: initialMinutes,
-        actualMinutes: timeSpentMinutes
+        actualMinutes: timeSpentMinutes,
+        wakeLockUsed: wakeLockStatus === 'active'
       }
     };
     
@@ -427,11 +651,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     onComplete();
   };
 
-  const handleTimerComplete = useCallback(() => {
+  const handleTimerComplete = useCallback(async () => {
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
     const sessionQuality = calculateSessionQuality(actualDuration, isFullyCompleted);
+
+    // 🔒 Release wake lock
+    await releaseWakeLock();
 
     // Play completion bell and announce completion
     playBell('end');
@@ -445,7 +672,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         endTime: endTime,
         actualDuration: actualDuration,
         wasFullyCompleted: isFullyCompleted,
-        sessionQuality: sessionQuality
+        sessionQuality: sessionQuality,
+        wakeLockUsed: wakeLockStatus === 'active'
       }
     };
 
@@ -474,7 +702,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
 
     console.log('✅ Timer completion processed, calling onComplete...');
     onComplete();
-  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToAllStorageLocations, calculateSessionQuality, getTLevel, playBell, announceTime]);
+  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToAllStorageLocations, calculateSessionQuality, getTLevel, playBell, announceTime, releaseWakeLock, wakeLockStatus]);
 
   // Handle timer completion
   useEffect(() => {
@@ -512,7 +740,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         timerRef.current = null;
       }
     };
-  }, [isRunning, isPaused, checkMinuteBell]);
+  }, [isRunning, isPaused, timeRemaining, checkMinuteBell]);
 
   const handleStart = () => {
     if (initialMinutes < 5) {
@@ -532,8 +760,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   };
   
   // Fast forward for development with unified storage
-  const handleFastForward = () => {
+  const handleFastForward = async () => {
     const now = new Date().toISOString();
+    
+    // 🔒 Release wake lock
+    await releaseWakeLock();
     
     sessionStorage.setItem('practiceStartTime', now);
     sessionStorage.setItem('practiceEndTime', now);
@@ -588,7 +819,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     console.log('Session recorded:', sessionData);
   };
   
-  // Clean up interval on unmount
+  // Clean up interval and wake lock on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) {
@@ -598,8 +829,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
       }
+      // Release wake lock
+      releaseWakeLock();
     };
-  }, []);
+  }, [releaseWakeLock]);
 
   // Skip setup if initialMinutes prop is provided
   useEffect(() => {
@@ -612,11 +845,39 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [propInitialMinutes]);
 
+  // 🔒 Handle visibility change to maintain wake lock
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && wakeLock) {
+        // Document became hidden, wake lock might be released
+        setWakeLockStatus('background');
+      } else if (!document.hidden && isActive && wakeLockEnabled) {
+        // Document became visible again, re-request wake lock if needed
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock]);
+
   // Format time as MM:SS
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Get wake lock status indicator
+  const getWakeLockIndicator = () => {
+    switch (wakeLockStatus) {
+      case 'active': return '🔒 Screen lock disabled';
+      case 'released': return '⚠️ Screen lock re-enabled';
+      case 'background': return '📱 App in background';
+      case 'unsupported': return '❌ Wake lock not supported';
+      case 'failed': return '❌ Wake lock failed';
+      default: return '🔓 Screen may turn off';
+    }
   };
 
   if (currentStage === 'setup') {
@@ -639,7 +900,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           background: 'rgba(255, 255, 255, 0.1)',
           padding: '30px',
           borderRadius: '15px',
-          maxWidth: '400px',
+          maxWidth: '450px',
           width: '100%',
           textAlign: 'center'
         }}>
@@ -661,7 +922,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             }}
           />
           
-          {/* Bell and Voice Settings */}
+          {/* Enhanced Audio Settings */}
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             padding: '20px',
@@ -678,17 +939,86 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
                 onChange={(e) => setBellEnabled(e.target.checked)}
                 style={{ marginRight: '10px' }}
               />
-              🔔 Bell sounds (start/minute/end)
+              🔔 Authentic meditation bells (generated tones)
             </label>
             
-            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={voiceEnabled}
                 onChange={(e) => setVoiceEnabled(e.target.checked)}
                 style={{ marginRight: '10px' }}
               />
-              🔊 Voice announcements (remaining time)
+              🎙️ Voice commands (rough male voice)
+            </label>
+            
+            {/* Voice Selection */}
+            {voiceEnabled && availableVoices.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+                  Voice Selection:
+                </label>
+                <select
+                  value={selectedVoice?.name || ''}
+                  onChange={(e) => {
+                    const voice = availableVoices.find(v => v.name === e.target.value);
+                    if (voice) setSelectedVoice(voice);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '5px',
+                    borderRadius: '5px',
+                    border: 'none',
+                    fontSize: '11px',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    color: '#333'
+                  }}
+                >
+                  {availableVoices.map((voice) => (
+                    <option key={voice.name} value={voice.name}>
+                      {voice.name} ({voice.lang}) {voice.name.toLowerCase().includes('male') ? '👨' : voice.name.toLowerCase().includes('female') ? '👩' : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedVoice && (
+                  <div style={{ fontSize: '10px', marginTop: '5px', opacity: 0.8 }}>
+                    Selected: {selectedVoice.name} ({selectedVoice.lang})
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div style={{ 
+              fontSize: '12px', 
+              marginTop: '10px', 
+              opacity: 0.8,
+              background: 'rgba(255, 255, 255, 0.1)',
+              padding: '8px',
+              borderRadius: '5px'
+            }}>
+              🔔 Authentic meditation bells with harmonic tones<br/>
+              🎙️ Direct voice commands for physical stillness training
+            </div>
+          </div>
+
+          {/* 🔒 Wake Lock Settings */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            padding: '20px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            textAlign: 'left'
+          }}>
+            <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>Screen Settings</h4>
+            
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={wakeLockEnabled}
+                onChange={(e) => setWakeLockEnabled(e.target.checked)}
+                style={{ marginRight: '10px' }}
+              />
+              🔒 Keep screen awake during practice
             </label>
             
             <div style={{ 
@@ -699,8 +1029,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               padding: '8px',
               borderRadius: '5px'
             }}>
-              📢 Bell rings every minute<br/>
-              🔊 Voice announces remaining time every 5 minutes
+              🔒 Prevents screen from sleeping during stillness training<br/>
+              📱 Automatically releases when practice completes
             </div>
           </div>
           
@@ -770,15 +1100,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       padding: '10px',
       boxSizing: 'border-box'
     }}>
-      {/* Hidden audio elements for bells */}
+      {/* Fallback audio elements with improved bell sounds */}
       <audio ref={startBellRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmJADT+Pz+7XfSsELYnU8NVMA0w5jdLCq2MgAjiQ0vLGdyMKJ4fO7tR+NA4xe8vr2YNACkg+gtfpwWUhHTFsyO7Zhy4GQIzS7tN9HgY+j9Tv2ICyYgE2E7jVIIHMQoJQtjOAAi7YOoJSzDaSCQ7VW2CZkjU+Q4HOw2MjByq8b8rX0E6E3YLXPHI=" type="audio/wav" />
+        <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
       </audio>
       <audio ref={minuteBellRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmJADT+Pz+7XfSsELYnU8NVMA0w5jdLCq2MgAjiQ0vLGdyMKJ4fO7tR+NA4xe8vr2YNACkg+gtfpwWUhHTFsyO7Zhy4GQIzS7tN9HgY+j9Tv2ICyYgE2E7jVIIHMQoJQtjOAAi7YOoJSzDaSCQ7VW2CZkjU+Q4HOw2MjByq8b8rX0E6E3YLXPHI=" type="audio/wav" />
+        <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
       </audio>
       <audio ref={endBellRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmJADT+Pz+7XfSsELYnU8NVMA0w5jdLCq2MgAjiQ0vLGdyMKJ4fO7tR+NA4xe8vr2YNACkg+gtfpwWUhHTFsyO7Zhy4GQIzS7tN9HgY+j9Tv2ICyYgE2E7jVIIHMQoJQtjOAAi7YOoJSzDaSCQ7VW2CZkjU+Q4NOw2MjByq8b8rX0E6E3YLXPHI=" type="audio/wav" />
+        <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
       </audio>
       
       {/* Include all recorder components but hide them */}
@@ -815,6 +1145,21 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         <div style={{ width: '65px' }}></div>
       </div>
       
+      {/* 🔒 Wake Lock Status Indicator */}
+      {isActive && (
+        <div style={{
+          background: wakeLockStatus === 'active' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 165, 0, 0.1)',
+          padding: '8px',
+          borderRadius: '8px',
+          textAlign: 'center',
+          fontSize: '12px',
+          marginBottom: '10px',
+          border: `1px solid ${wakeLockStatus === 'active' ? '#00ff00' : '#ffa500'}`
+        }}>
+          {getWakeLockIndicator()}
+        </div>
+      )}
+      
       <div className="timer-content" style={{ 
         flex: 1, 
         display: 'flex', 
@@ -848,9 +1193,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               color: '#888',
               marginTop: '5px'
             }}>
-              {bellEnabled && <span>🔔 Bell rings every minute</span>}
+              {bellEnabled && <span>🔔 Harmonic meditation bells</span>}
               {bellEnabled && voiceEnabled && <br/>}
-              {voiceEnabled && <span>🔊 Voice every 5 minutes</span>}
+              {voiceEnabled && selectedVoice && (
+                <span>🎙️ Voice commands: {selectedVoice.name.split(' ')[0]}</span>
+              )}
             </div>
           )}
         </div>
