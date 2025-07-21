@@ -327,87 +327,91 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   const { currentUser } = useAuth();
   const { addMindRecoverySession } = useLocalData();
 
-  // 📱 MOBILE RESPONSIVE STYLES
+  // ✅ FIXED: Ultra-compact responsive styles for perfect one-screen fit
   const styles = {
     container: {
       display: 'flex',
       flexDirection: 'column' as const,
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '100vh',
-      padding: 'clamp(16px, 4vw, 20px)',
+      height: '100vh',
+      width: '100vw',
+      padding: '8px',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       color: 'white',
-      position: 'relative' as const
+      position: 'relative' as const,
+      overflow: 'hidden'
     },
     backButton: {
       position: 'absolute' as const,
-      top: 'clamp(15px, 4vw, 20px)',
-      left: 'clamp(15px, 4vw, 20px)',
+      top: '10px',
+      left: '10px',
       background: 'rgba(255, 255, 255, 0.2)',
       color: 'white',
       border: '2px solid white',
-      borderRadius: '25px',
-      padding: 'clamp(8px, 2vw, 12px) clamp(16px, 4vw, 20px)',
-      fontSize: 'clamp(14px, 3.5vw, 16px)',
+      borderRadius: '20px',
+      padding: '6px 12px',
+      fontSize: '14px',
       fontWeight: 'bold' as const,
-      cursor: 'pointer'
-    },
-    title: {
-      fontSize: 'clamp(24px, 6vw, 32px)',
-      marginBottom: 'clamp(16px, 4vw, 20px)',
-      textAlign: 'center' as const,
-      fontWeight: 'bold' as const
+      cursor: 'pointer',
+      zIndex: 10
     },
     setupCard: {
       background: 'rgba(255, 255, 255, 0.1)',
-      padding: 'clamp(20px, 5vw, 30px)',
+      padding: '20px',
       borderRadius: '15px',
-      maxWidth: '400px',
-      width: '100%',
+      maxWidth: '350px',
+      width: '90%',
       textAlign: 'center' as const,
       backdropFilter: 'blur(10px)'
     },
+    practiceContainer: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      width: '100%',
+      maxWidth: '500px',
+      margin: '0 auto',
+      padding: '0 10px',
+      gap: '8px'
+    },
     timerDisplay: {
-      fontSize: 'clamp(36px, 9vw, 48px)',
+      fontSize: 'clamp(32px, 8vw, 40px)',
       fontWeight: 'bold' as const,
-      marginBottom: 'clamp(16px, 4vw, 20px)',
       background: 'rgba(255, 255, 255, 0.1)',
-      padding: 'clamp(16px, 4vw, 20px) clamp(24px, 6vw, 40px)',
-      borderRadius: '15px',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-      textAlign: 'center' as const
+      padding: '8px 16px',
+      borderRadius: '12px',
+      textAlign: 'center' as const,
+      minWidth: '120px'
     },
     instruction: {
       background: 'rgba(255, 255, 255, 0.15)',
-      padding: 'clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 20px)',
+      padding: '6px 12px',
       borderRadius: '8px',
-      marginBottom: 'clamp(16px, 4vw, 20px)',
-      maxWidth: '500px',
-      width: '100%',
+      fontSize: 'clamp(11px, 2.8vw, 13px)',
+      lineHeight: '1.3',
       textAlign: 'center' as const,
-      fontSize: 'clamp(12px, 3vw, 14px)',
-      lineHeight: '1.4'
+      maxWidth: '90%'
     },
     matrix: {
       display: 'grid',
       gridTemplateColumns: 'repeat(3, 1fr)',
-      gap: 'clamp(8px, 2vw, 12px)',
-      marginBottom: 'clamp(20px, 5vw, 30px)',
-      maxWidth: 'min(500px, 95vw)',
+      gap: 'clamp(6px, 1.5vw, 8px)',
       width: '100%',
-      aspectRatio: '1'
+      maxWidth: 'min(380px, 90vw)',
+      aspectRatio: '1',
+      margin: '0 auto'
     },
     matrixButton: {
       border: 'none',
-      borderRadius: 'clamp(8px, 2vw, 12px)',
-      padding: 'clamp(8px, 2vw, 12px)',
-      fontSize: 'clamp(9px, 2.5vw, 12px)',
+      borderRadius: '8px',
+      padding: '4px',
+      fontSize: 'clamp(8px, 2.2vw, 10px)',
       fontWeight: 'bold' as const,
       cursor: 'pointer',
       textAlign: 'center' as const,
-      minHeight: 'clamp(60px, 15vw, 80px)',
-      maxHeight: 'clamp(80px, 20vw, 100px)',
       display: 'flex',
       flexDirection: 'column' as const,
       justifyContent: 'center',
@@ -415,57 +419,54 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
       transition: 'all 0.3s ease',
       color: '#2C3E50',
       aspectRatio: '1',
-      lineHeight: '1.2'
+      lineHeight: '1.1',
+      minHeight: '50px'
     },
     controlButtons: {
       display: 'flex',
-      gap: 'clamp(10px, 2.5vw, 15px)',
-      marginBottom: 'clamp(16px, 4vw, 20px)',
-      flexWrap: 'wrap' as const,
-      justifyContent: 'center'
+      gap: '8px',
+      justifyContent: 'center',
+      width: '100%',
+      maxWidth: '300px'
     },
     controlButton: {
-      padding: 'clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 24px)',
+      padding: '8px 12px',
       border: 'none',
-      borderRadius: '25px',
-      fontSize: 'clamp(14px, 3.5vw, 16px)',
+      borderRadius: '20px',
+      fontSize: 'clamp(12px, 3vw, 14px)',
       fontWeight: 'bold' as const,
       cursor: 'pointer',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
       color: 'white',
-      minWidth: 'clamp(100px, 25vw, 120px)'
-    },
-    startButton: {
-      background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-      color: 'white',
-      padding: 'clamp(12px, 3vw, 15px) clamp(24px, 6vw, 30px)',
-      border: 'none',
-      borderRadius: '25px',
-      fontSize: 'clamp(16px, 4vw, 18px)',
-      fontWeight: 'bold' as const,
-      cursor: 'pointer',
-      boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
-      width: '100%',
-      marginTop: 'clamp(16px, 4vw, 20px)'
+      flex: 1,
+      minHeight: '36px'
     },
     statusBar: {
-      position: 'fixed' as const,
+      position: 'absolute' as const,
       top: '10px',
       right: '10px',
       display: 'flex',
-      gap: '8px',
-      fontSize: 'clamp(10px, 2.5vw, 12px)',
-      zIndex: 1000,
+      gap: '4px',
+      fontSize: '10px',
+      zIndex: 10,
       flexWrap: 'wrap' as const,
-      maxWidth: '200px'
+      maxWidth: '150px'
     },
     statusBadge: {
-      padding: '4px 8px',
-      borderRadius: '12px',
-      fontSize: 'clamp(10px, 2.5vw, 12px)',
+      padding: '2px 6px',
+      borderRadius: '10px',
+      fontSize: '10px',
       fontWeight: 'bold' as const,
       color: 'white',
       whiteSpace: 'nowrap' as const
+    },
+    sessionStats: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      padding: '6px 12px',
+      borderRadius: '8px',
+      fontSize: 'clamp(10px, 2.5vw, 12px)',
+      textAlign: 'center' as const,
+      maxWidth: '250px',
+      width: '100%'
     }
   };
 
@@ -477,7 +478,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
       
       if (isHidden && isRunning && robustTimer) {
         console.log('📱 App went to background - session continues');
-        // Just save basic session state (no recovery prompt)
         const sessionRecoveryData: SessionRecoveryData = {
           timeRemaining: robustTimer.getElapsedSeconds(),
           pahmCounts: { ...pahmCounts },
@@ -518,14 +518,13 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
   // 🔄 SESSION RECOVERY - SIMPLIFIED (just cleanup, no prompts)
   const handleSessionRecovery = useCallback(() => {
-    // Just cleanup any old recovery data
     localStorage.removeItem('mindRecoverySessionRecovery');
   }, []);
 
   // Enhanced timer completion handler
   const handleTimerComplete = useCallback(async () => {
     const endTime = new Date().toISOString();
-    const actualDuration = duration; // Always 5 minutes for mind recovery
+    const actualDuration = duration;
     
     // 🔊 Play completion sound
     if (hasAudioPermission) {
@@ -547,7 +546,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     // Calculate present percentage
     const calculatePresentPercentage = (counts: typeof pahmCounts) => {
       const totalCounts = Object.values(counts).reduce((sum, count) => sum + count, 0);
-      if (totalCounts === 0) return 95; // Default for short practices
+      if (totalCounts === 0) return 95;
       
       const presentMomentCounts = counts.present + counts.likes + counts.dislikes;
       return Math.round((presentMomentCounts / totalCounts) * 100);
@@ -583,8 +582,8 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           return 'Emotional Reset';
         case 'work-home-transition':
           return 'Work-Home Transition';
-        case 'evening-wind-down':
-          return 'Evening Wind-Down';
+        case 'bedtime-winddown':
+          return 'Bedtime Wind Down';
         case 'mid-day-reset':
           return 'Mid-Day Reset';
         default:
@@ -740,8 +739,8 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
         return 'Emotional Reset';
       case 'work-home-transition':
         return 'Work-Home Transition';
-      case 'evening-wind-down':
-        return 'Evening Wind-Down';
+      case 'bedtime-winddown':
+        return 'Bedtime Wind Down';
       case 'mid-day-reset':
         return 'Mid-Day Reset';
       default:
@@ -762,13 +761,9 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     }
   };
 
-  // 🔄 RECOVERY PROMPT MODAL - REMOVED FOR NOW
-  const RecoveryPrompt = () => null;
-
   if (currentStage === 'setup') {
     return (
       <div style={styles.container}>
-        
         {/* Status Bar */}
         <div style={styles.statusBar}>
           {wakeLockManager.isSupported() && (
@@ -776,7 +771,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
               ...styles.statusBadge,
               background: 'rgba(76, 175, 80, 0.8)'
             }}>
-              🔋 Wake Lock Ready
+              🔋 Ready
             </div>
           )}
         </div>
@@ -785,46 +780,67 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           ← Back
         </button>
 
-        <h1 style={styles.title}>
-          {getPracticeTitle()}
-        </h1>
-        
         <div style={styles.setupCard}>
-          <h3 style={{ marginBottom: '15px', fontSize: 'clamp(16px, 4vw, 18px)' }}>
-            5-Minute Mind Recovery
+          <h1 style={{ 
+            fontSize: 'clamp(20px, 5vw, 24px)', 
+            margin: '0 0 15px 0',
+            fontWeight: 'bold'
+          }}>
+            {getPracticeTitle()}
+          </h1>
+          
+          <h3 style={{ 
+            marginBottom: '15px', 
+            fontSize: 'clamp(16px, 4vw, 18px)',
+            opacity: 0.9
+          }}>
+            {duration}-Minute Mind Recovery
           </h3>
+          
           <div style={{ 
             marginBottom: '20px', 
-            fontSize: 'clamp(16px, 4vw, 18px)', 
-            opacity: 0.9 
+            fontSize: 'clamp(14px, 3.5vw, 16px)', 
+            opacity: 0.8 
           }}>
             Posture: {getPostureDisplayName()}
           </div>
           
-          <button onClick={handleStart} style={styles.startButton}>
+          <button 
+            onClick={handleStart} 
+            style={{
+              background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+              color: 'white',
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '25px',
+              fontSize: 'clamp(16px, 4vw, 18px)',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
             Begin Practice
           </button>
         </div>
         
         {/* Info Card */}
         <div style={{
-          marginTop: '20px',
+          marginTop: '15px',
           background: 'rgba(255, 255, 255, 0.1)',
-          padding: 'clamp(16px, 4vw, 20px)',
+          padding: '12px 16px',
           borderRadius: '10px',
-          maxWidth: '500px',
-          fontSize: 'clamp(12px, 3vw, 14px)',
-          lineHeight: '1.6',
+          maxWidth: '350px',
+          fontSize: 'clamp(11px, 2.8vw, 13px)',
+          lineHeight: '1.4',
           textAlign: 'center'
         }}>
-          <h4 style={{ marginBottom: '10px', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>📱 Session Features</h4>
-          <p style={{ marginBottom: '8px' }}>
+          <p style={{ margin: '0 0 6px 0' }}>
             {wakeLockManager.isSupported() ? 
               '✅ Screen stays on during practice' : 
               '⚠️ Screen may lock (timer continues)'}
           </p>
-          <p style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', opacity: 0.8 }}>
-            A quick 5-minute practice to reset your mind and return to presence. Use the PAHM matrix to track where your attention goes during the practice.
+          <p style={{ margin: '0', opacity: 0.8 }}>
+            Use the PAHM matrix to track where your attention goes during practice.
           </p>
         </div>
       </div>
@@ -833,7 +849,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
   return (
     <div style={styles.container}>
-      
       {/* Status Bar */}
       <div style={styles.statusBar}>
         {isWakeLockActive && (
@@ -841,7 +856,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             ...styles.statusBadge,
             background: 'rgba(76, 175, 80, 0.8)'
           }}>
-            🔋 Screen Lock Off
+            🔋 On
           </div>
         )}
         
@@ -850,19 +865,10 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             ...styles.statusBadge,
             background: 'rgba(33, 150, 243, 0.8)'
           }}>
-            🔊 Audio On
+            🔊 On
           </div>
         )}
         
-        {isInBackground && (
-          <div style={{
-            ...styles.statusBadge,
-            background: 'rgba(255, 152, 0, 0.8)'
-          }}>
-            📱 Background
-          </div>
-        )}
-
         {robustTimer && robustTimer.isRunning() && (
           <div style={{
             ...styles.statusBadge,
@@ -873,177 +879,170 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
         )}
       </div>
 
-      {/* Timer Display */}
-      <div style={styles.timerDisplay}>
-        {formatTime(timeRemaining)}
-      </div>
+      <div style={styles.practiceContainer}>
+        {/* Timer Display */}
+        <div style={styles.timerDisplay}>
+          {formatTime(timeRemaining)}
+        </div>
 
-      {/* Instruction */}
-      <div style={styles.instruction}>
-        <div>
+        {/* Instruction */}
+        <div style={styles.instruction}>
           📝 <strong>Mind Recovery:</strong> Notice where your attention goes, tap when you recognize thoughts
         </div>
-      </div>
 
-      {/* 📱 MOBILE RESPONSIVE 3×3 PAHM MATRIX */}
-      <div style={styles.matrix}>
-        {/* Row 1: ATTACHMENT */}
-        <button
-          onClick={() => handleQuadrantClick('nostalgia')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #E8B4A0 0%, #D7A86E 100%)',
-            filter: flashingButton === 'nostalgia' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'nostalgia' ? '0 0 20px rgba(232, 180, 160, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>NOSTALGIA</div>
-        </button>
+        {/* ✅ FIXED: Perfectly centered 3×3 PAHM MATRIX */}
+        <div style={styles.matrix}>
+          {/* Row 1: ATTACHMENT */}
+          <button
+            onClick={() => handleQuadrantClick('nostalgia')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #E8B4A0 0%, #D7A86E 100%)',
+              filter: flashingButton === 'nostalgia' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'nostalgia' ? '0 0 15px rgba(232, 180, 160, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>NOSTALGIA</div>
+          </button>
 
-        <button
-          onClick={() => handleQuadrantClick('likes')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)',
-            border: '2px solid #4A90A4',
-            filter: flashingButton === 'likes' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'likes' ? '0 0 20px rgba(168, 230, 207, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>LIKES</div>
-        </button>
+          <button
+            onClick={() => handleQuadrantClick('likes')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)',
+              border: '2px solid #4A90A4',
+              filter: flashingButton === 'likes' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'likes' ? '0 0 15px rgba(168, 230, 207, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>LIKES</div>
+          </button>
 
-        <button
-          onClick={() => handleQuadrantClick('anticipation')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #B4A7D6 0%, #9A8AC1 100%)',
-            filter: flashingButton === 'anticipation' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'anticipation' ? '0 0 20px rgba(180, 167, 214, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>ANTICIPATION</div>
-        </button>
+          <button
+            onClick={() => handleQuadrantClick('anticipation')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #B4A7D6 0%, #9A8AC1 100%)',
+              filter: flashingButton === 'anticipation' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'anticipation' ? '0 0 15px rgba(180, 167, 214, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>ANTICIPATION</div>
+          </button>
 
-        {/* Row 2: NEUTRAL */}
-        <button
-          onClick={() => handleQuadrantClick('past')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #F4D03F 0%, #F1C40F 100%)',
-            filter: flashingButton === 'past' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'past' ? '0 0 20px rgba(244, 208, 63, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>PAST</div>
-        </button>
+          {/* Row 2: NEUTRAL */}
+          <button
+            onClick={() => handleQuadrantClick('past')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #F4D03F 0%, #F1C40F 100%)',
+              filter: flashingButton === 'past' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'past' ? '0 0 15px rgba(244, 208, 63, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>PAST</div>
+          </button>
 
-        <button
-          onClick={() => handleQuadrantClick('present')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%)',
-            border: '3px solid #4A90A4',
-            filter: flashingButton === 'present' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'present' ? '0 0 25px rgba(74, 144, 164, 0.9)' : '0 6px 12px rgba(74, 144, 164, 0.3)'
-          }}
-        >
-          <div>PRESENT</div>
-        </button>
+          <button
+            onClick={() => handleQuadrantClick('present')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%)',
+              border: '3px solid #4A90A4',
+              filter: flashingButton === 'present' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'present' ? '0 0 20px rgba(74, 144, 164, 0.9)' : '0 4px 8px rgba(74, 144, 164, 0.3)'
+            }}
+          >
+            <div>PRESENT</div>
+          </button>
 
-        <button
-          onClick={() => handleQuadrantClick('future')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #85C1E9 0%, #5DADE2 100%)',
-            filter: flashingButton === 'future' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'future' ? '0 0 20px rgba(133, 193, 233, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>FUTURE</div>
-        </button>
+          <button
+            onClick={() => handleQuadrantClick('future')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #85C1E9 0%, #5DADE2 100%)',
+              filter: flashingButton === 'future' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'future' ? '0 0 15px rgba(133, 193, 233, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>FUTURE</div>
+          </button>
 
-        {/* Row 3: AVERSION */}
-        <button
-          onClick={() => handleQuadrantClick('regret')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #E6B8A2 0%, #D7A86E 100%)',
-            filter: flashingButton === 'regret' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'regret' ? '0 0 20px rgba(230, 184, 162, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>REGRET</div>
-        </button>
+          {/* Row 3: AVERSION */}
+          <button
+            onClick={() => handleQuadrantClick('regret')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #E6B8A2 0%, #D7A86E 100%)',
+              filter: flashingButton === 'regret' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'regret' ? '0 0 15px rgba(230, 184, 162, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>REGRET</div>
+          </button>
 
-        <button
-          onClick={() => handleQuadrantClick('dislikes')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #F5B7B1 0%, #E8B4A0 100%)',
-            border: '2px solid #4A90A4',
-            filter: flashingButton === 'dislikes' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'dislikes' ? '0 0 20px rgba(245, 183, 177, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>DISLIKES</div>
-        </button>
+          <button
+            onClick={() => handleQuadrantClick('dislikes')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #F5B7B1 0%, #E8B4A0 100%)',
+              border: '2px solid #4A90A4',
+              filter: flashingButton === 'dislikes' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'dislikes' ? '0 0 15px rgba(245, 183, 177, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>DISLIKES</div>
+          </button>
 
-        <button
-          onClick={() => handleQuadrantClick('worry')}
-          style={{
-            ...styles.matrixButton,
-            background: 'linear-gradient(135deg, #D5BDDD 0%, #C8A8D8 100%)',
-            filter: flashingButton === 'worry' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'worry' ? '0 0 20px rgba(213, 189, 221, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>WORRY</div>
-        </button>
-      </div>
-
-      {/* Control Buttons */}
-      <div style={styles.controlButtons}>
-        <button
-          onClick={handlePause}
-          style={{
-            ...styles.controlButton,
-            background: isPaused 
-              ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
-              : 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-          }}
-        >
-          {isPaused ? '▶️ Resume' : '⏸️ Pause'}
-        </button>
-
-        <button
-          onClick={handleCompleteEarly}
-          style={{
-            ...styles.controlButton,
-            background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
-          }}
-        >
-          Complete Practice
-        </button>
-      </div>
-
-      {/* Session Stats */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        padding: 'clamp(12px, 3vw, 15px)',
-        borderRadius: '10px',
-        fontSize: 'clamp(12px, 3vw, 14px)',
-        textAlign: 'center',
-        maxWidth: '300px'
-      }}>
-        <div style={{ marginBottom: '8px' }}>
-          Total Observations: {Object.values(pahmCounts).reduce((a, b) => a + b, 0)}
+          <button
+            onClick={() => handleQuadrantClick('worry')}
+            style={{
+              ...styles.matrixButton,
+              background: 'linear-gradient(135deg, #D5BDDD 0%, #C8A8D8 100%)',
+              filter: flashingButton === 'worry' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'worry' ? '0 0 15px rgba(213, 189, 221, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>WORRY</div>
+          </button>
         </div>
-        {robustTimer && (
-          <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', opacity: 0.8 }}>
-            Elapsed: {Math.floor(robustTimer.getElapsedSeconds() / 60)}:{(robustTimer.getElapsedSeconds() % 60).toString().padStart(2, '0')}
+
+        {/* Control Buttons */}
+        <div style={styles.controlButtons}>
+          <button
+            onClick={handlePause}
+            style={{
+              ...styles.controlButton,
+              background: isPaused 
+                ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
+                : 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+            }}
+          >
+            {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+          </button>
+
+          <button
+            onClick={handleCompleteEarly}
+            style={{
+              ...styles.controlButton,
+              background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
+            }}
+          >
+            Complete
+          </button>
+        </div>
+
+        {/* Session Stats */}
+        <div style={styles.sessionStats}>
+          <div style={{ marginBottom: '4px' }}>
+            Observations: {Object.values(pahmCounts).reduce((a, b) => a + b, 0)}
           </div>
-        )}
+          {robustTimer && (
+            <div style={{ fontSize: '10px', opacity: 0.8 }}>
+              Elapsed: {Math.floor(robustTimer.getElapsedSeconds() / 60)}:{(robustTimer.getElapsedSeconds() % 60).toString().padStart(2, '0')}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -56,6 +56,22 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
     }
   ];
 
+  // ✅ FIXED: Enhanced exercise selection with debugging
+  const handleExerciseSelect = (exerciseId: string) => {
+    console.log('🎯 MindRecoveryHub: Exercise selected:', exerciseId);
+    
+    // Find the exercise for additional context
+    const selectedExercise = exercises.find(ex => ex.id === exerciseId);
+    console.log('🎯 Selected exercise details:', selectedExercise);
+    
+    // Call the parent's onExerciseSelect
+    try {
+      onExerciseSelect(exerciseId);
+    } catch (error) {
+      console.error('❌ Error in onExerciseSelect:', error);
+    }
+  };
+
   // ✅ NEW: Get time-based recommendations
   const getTimeBasedRecommendation = () => {
     const hour = new Date().getHours();
@@ -199,11 +215,12 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
         }}>
           {exercises.map(exercise => {
             const isRecommended = exercise.id === recommendedExercise;
+            const isBedtime = exercise.id === 'bedtime-winddown';
             
             return (
               <div
                 key={exercise.id}
-                onClick={() => onExerciseSelect(exercise.id)}
+                onClick={() => handleExerciseSelect(exercise.id)}
                 style={{
                   background: isRecommended 
                     ? 'rgba(255, 255, 255, 1)' 
@@ -215,9 +232,13 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
                   backdropFilter: 'blur(20px)',
                   border: isRecommended 
                     ? '2px solid rgba(255, 215, 0, 0.8)' 
+                    : isBedtime
+                    ? '2px solid rgba(138, 43, 226, 0.5)'
                     : '1px solid rgba(255, 255, 255, 0.3)',
                   boxShadow: isRecommended 
                     ? '0 15px 35px rgba(255, 215, 0, 0.2)' 
+                    : isBedtime
+                    ? '0 15px 35px rgba(138, 43, 226, 0.2)'
                     : '0 10px 25px rgba(0, 0, 0, 0.1)',
                   textAlign: 'center',
                   position: 'relative',
@@ -227,12 +248,16 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
                   e.currentTarget.style.transform = 'translateY(-8px)';
                   e.currentTarget.style.boxShadow = isRecommended 
                     ? '0 20px 45px rgba(255, 215, 0, 0.25)' 
+                    : isBedtime
+                    ? '0 20px 45px rgba(138, 43, 226, 0.25)'
                     : '0 20px 40px rgba(0, 0, 0, 0.15)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = isRecommended 
                     ? '0 15px 35px rgba(255, 215, 0, 0.2)' 
+                    : isBedtime
+                    ? '0 15px 35px rgba(138, 43, 226, 0.2)'
                     : '0 10px 25px rgba(0, 0, 0, 0.1)';
                 }}
               >
@@ -256,12 +281,32 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
                   </div>
                 )}
                 
+                {/* ✅ NEW: Bedtime special badge */}
+                {isBedtime && !isRecommended && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    background: 'linear-gradient(135deg, #8A2BE2 0%, #4B0082 100%)',
+                    color: 'white',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 4px 12px rgba(138, 43, 226, 0.4)'
+                  }}>
+                    🌙 Sleep
+                  </div>
+                )}
+                
                 {/* Icon */}
                 <div style={{
-                  fontSize: exercise.id === 'bedtime-winddown' ? '52px' : '48px',
+                  fontSize: isBedtime ? '52px' : '48px',
                   marginBottom: '20px',
                   padding: '16px',
-                  background: exercise.id === 'bedtime-winddown' 
+                  background: isBedtime 
                     ? 'linear-gradient(135deg, rgba(75, 0, 130, 0.15) 0%, rgba(25, 25, 112, 0.15) 100%)'
                     : 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
                   borderRadius: '20px',
@@ -292,15 +337,15 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
                 
                 {/* Duration */}
                 <div style={{
-                  background: exercise.id === 'bedtime-winddown'
+                  background: isBedtime
                     ? 'linear-gradient(135deg, rgba(75, 0, 130, 0.15) 0%, rgba(25, 25, 112, 0.15) 100%)'
                     : 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
-                  color: exercise.id === 'bedtime-winddown' ? '#4B0082' : '#667eea',
+                  color: isBedtime ? '#4B0082' : '#667eea',
                   padding: '8px 16px',
                   borderRadius: '12px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  border: exercise.id === 'bedtime-winddown'
+                  border: isBedtime
                     ? '1px solid rgba(75, 0, 130, 0.3)'
                     : '1px solid rgba(102, 126, 234, 0.2)',
                   display: 'inline-block',
@@ -309,46 +354,53 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
                   {exercise.duration}
                 </div>
                 
-                {/* Start Button */}
+                {/* ✅ FIXED: Enhanced Start Button with better click handling */}
                 <div style={{ marginTop: '24px' }}>
-                  <button style={{
-                    width: '100%',
-                    background: exercise.id === 'bedtime-winddown'
-                      ? 'linear-gradient(135deg, #4B0082 0%, #191970 100%)'
-                      : isRecommended
-                        ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)'
-                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: exercise.id === 'bedtime-winddown' || !isRecommended ? 'white' : '#1f2937',
-                    border: 'none',
-                    borderRadius: '16px',
-                    padding: '16px 24px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: exercise.id === 'bedtime-winddown'
-                      ? '0 8px 25px rgba(75, 0, 130, 0.3)'
-                      : isRecommended
-                        ? '0 8px 25px rgba(255, 215, 0, 0.3)'
-                        : '0 8px 25px rgba(102, 126, 234, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = exercise.id === 'bedtime-winddown'
-                      ? '0 12px 30px rgba(75, 0, 130, 0.4)'
-                      : isRecommended
-                        ? '0 12px 30px rgba(255, 215, 0, 0.4)'
-                        : '0 12px 30px rgba(102, 126, 234, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = exercise.id === 'bedtime-winddown'
-                      ? '0 8px 25px rgba(75, 0, 130, 0.3)'
-                      : isRecommended
-                        ? '0 8px 25px rgba(255, 215, 0, 0.3)'
-                        : '0 8px 25px rgba(102, 126, 234, 0.3)';
-                  }}>
-                    {exercise.id === 'bedtime-winddown' ? 'Prepare for Sleep' : 'Start Exercise'} →
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent double-click issues
+                      console.log('🎯 Button clicked for exercise:', exercise.id);
+                      handleExerciseSelect(exercise.id);
+                    }}
+                    style={{
+                      width: '100%',
+                      background: isBedtime
+                        ? 'linear-gradient(135deg, #4B0082 0%, #191970 100%)'
+                        : isRecommended
+                          ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: isBedtime || !isRecommended ? 'white' : '#1f2937',
+                      border: 'none',
+                      borderRadius: '16px',
+                      padding: '16px 24px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: isBedtime
+                        ? '0 8px 25px rgba(75, 0, 130, 0.3)'
+                        : isRecommended
+                          ? '0 8px 25px rgba(255, 215, 0, 0.3)'
+                          : '0 8px 25px rgba(102, 126, 234, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = isBedtime
+                        ? '0 12px 30px rgba(75, 0, 130, 0.4)'
+                        : isRecommended
+                          ? '0 12px 30px rgba(255, 215, 0, 0.4)'
+                          : '0 12px 30px rgba(102, 126, 234, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow = isBedtime
+                        ? '0 8px 25px rgba(75, 0, 130, 0.3)'
+                        : isRecommended
+                          ? '0 8px 25px rgba(255, 215, 0, 0.3)'
+                          : '0 8px 25px rgba(102, 126, 234, 0.3)';
+                    }}
+                  >
+                    {isBedtime ? '🌙 Prepare for Sleep' : 'Start Exercise'} →
                   </button>
                 </div>
               </div>
@@ -395,6 +447,25 @@ const MindRecoveryHub: React.FC<MindRecoveryHubProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ✅ NEW: Debug Information (remove in production) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{
+            marginTop: '32px',
+            background: 'rgba(0, 0, 0, 0.3)',
+            borderRadius: '12px',
+            padding: '16px',
+            color: 'white',
+            fontSize: '14px',
+            fontFamily: 'monospace'
+          }}>
+            <h4>🐛 Debug Info (Development Only)</h4>
+            <p>Current time: {new Date().getHours()}:00</p>
+            <p>Recommended exercise: {recommendedExercise}</p>
+            <p>Available exercises: {exercises.map(ex => ex.id).join(', ')}</p>
+            <p>Bedtime exercise ID: bedtime-winddown</p>
+          </div>
+        )}
       </main>
 
       {/* CSS for Mobile */}

@@ -1,96 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import MindRecoveryTimer from './MindRecoveryTimer';
-import MindRecoveryReflection from './MindRecoveryReflection';
-import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection'; // ← FIXED: Use Universal Component
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import MindRecoveryHub from './MindRecoveryHub';
 
-const MindRecoveryTimerWrapper: React.FC = () => {
-  const { practiceType } = useParams<{ practiceType: string }>();
+const MindRecoverySelectionWrapper: React.FC = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<'timer' | 'reflection' | 'posture'>('posture');
-  const [selectedPosture, setSelectedPosture] = useState<string>('');
-  const [sessionPahmCounts, setSessionPahmCounts] = useState<any>(null); // State to store pahmCounts
-
-  const practiceOptions = [
-    { id: 'morning-recharge', duration: 5 },
-    { id: 'emotional-reset', duration: 5 },
-    { id: 'work-home-transition', duration: 5 },
-    { id: 'evening-wind-down', duration: 5 },
-    { id: 'mid-day-reset', duration: 3 },
-  ];
-
-  const practiceOption = practiceOptions.find(opt => opt.id === practiceType);
-
-  useEffect(() => {
-    if (!practiceType || !practiceOption) {
-      navigate('/mind-recovery');
-    }
-  }, [practiceType, practiceOption, navigate]);
-
-  const handleTimerComplete = (pahmCounts: any) => {
-    setSessionPahmCounts(pahmCounts); // Store pahmCounts from the timer
-    setCurrentStep('reflection');
-  };
-
-  const handleReflectionComplete = () => {
-    navigate('/mind-recovery');
-  };
 
   const handleBack = () => {
-    if (currentStep === 'reflection') {
-      setCurrentStep('timer');
-    } else if (currentStep === 'timer') {
-      setCurrentStep('posture');
-    } else if (currentStep === 'posture') {
-      navigate('/mind-recovery');
+    console.log('🏠 MindRecoverySelectionWrapper: Navigating back to home');
+    navigate('/home');
+  };
+
+  // ✅ ENHANCED: Better exercise selection with validation
+  const handleExerciseSelect = (exerciseId: string) => {
+    console.log('🎯 MindRecoverySelectionWrapper: Exercise selected:', exerciseId);
+    
+    // ✅ VALIDATION: Check if exerciseId is valid
+    const validExercises = [
+      'morning-recharge',
+      'mid-day-reset', 
+      'emotional-reset',
+      'work-home-transition',
+      'bedtime-winddown' // ✅ FIXED: Make sure this matches MindRecoveryHub
+    ];
+    
+    if (!validExercises.includes(exerciseId)) {
+      console.error('❌ Invalid exercise ID:', exerciseId);
+      console.log('✅ Valid exercises:', validExercises);
+      return;
+    }
+    
+    // ✅ NAVIGATION: Navigate to the timer wrapper
+    const targetUrl = `/mind-recovery/${exerciseId}`;
+    console.log('🚀 Navigating to:', targetUrl);
+    
+    try {
+      navigate(targetUrl);
+    } catch (error) {
+      console.error('❌ Navigation error:', error);
+      // Fallback navigation
+      console.log('🔄 Attempting fallback navigation...');
+      setTimeout(() => {
+        navigate('/mind-recovery/emotional-reset'); // Safe fallback
+      }, 100);
     }
   };
 
-  // ← FIXED: Renamed to match UniversalPostureSelection interface
-  const handleStartPractice = (posture: string) => {
-    setSelectedPosture(posture);
-    setCurrentStep('timer');
-  };
-
-  if (!practiceOption) {
-    return null;
-  }
-
-  if (currentStep === 'posture') {
-    return (
-      <UniversalPostureSelection
-        sessionType="mind_recovery"  // ← ADDED: Configure for mind recovery
-        onStartPractice={handleStartPractice}  // ← FIXED: Use correct prop name
-        onBack={handleBack}
-      />
-    );
-  }
-
-  if (currentStep === 'timer') {
-    return (
-      <MindRecoveryTimer
-        practiceType={practiceOption.id}
-        posture={selectedPosture}
-        onComplete={handleTimerComplete}
-        onBack={handleBack}
-        duration={practiceOption.duration}
-      />
-    );
-  }
-
-  if (currentStep === 'reflection') {
-    return (
-      <MindRecoveryReflection
-        practiceType={practiceOption.id}
-        posture={selectedPosture}
-        pahmCounts={sessionPahmCounts} // Pass pahmCounts to reflection
-        onComplete={handleReflectionComplete}
-        onBack={handleBack}
-      />
-    );
-  }
-
-  return null;
+  return (
+    <MindRecoveryHub 
+      onBack={handleBack}
+      onExerciseSelect={handleExerciseSelect}
+      userData={undefined}
+    />
+  );
 };
 
-export default MindRecoveryTimerWrapper;
+export default MindRecoverySelectionWrapper;

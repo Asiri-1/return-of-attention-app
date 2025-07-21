@@ -1,4 +1,4 @@
-// ✅ CORRECTED App.tsx - Fixed Progressive Stage 1 + Preserved Admin Panel
+// ✅ COMPLETE FIXED App.tsx - UserProfile Navigation Working
 // File: src/App.tsx
 // 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
 
@@ -383,6 +383,17 @@ const AppContent: React.FC = React.memo(() => {
     navigateToSignUp: () => navigate('/signup'),
     navigateToSignIn: () => navigate('/signin'),
     
+    // ✅ NEW: UserProfile Navigation Handlers
+    navigateToQuestionnaire: (returnTo?: string) => {
+      console.log('🚀 Navigating to questionnaire...');
+      navigate('/questionnaire', { state: { returnTo: returnTo || '/home' } });
+    },
+    
+    navigateToSelfAssessment: (returnTo?: string) => {
+      console.log('🚀 Navigating to self-assessment...');
+      navigate('/self-assessment', { state: { returnTo: returnTo || '/home' } });
+    },
+    
     // ✅ AUTH HANDLERS with proper types
     logout: async () => {
       try {
@@ -672,9 +683,15 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
+                {/* ✅ FIXED: UserProfile with working navigation buttons */}
                 <Route path="/profile" element={
                   <Suspense fallback={<FastLoader message="Loading your practice profile..." />}>
-                    <UserProfile onBack={() => navigate('/home')} onLogout={handlers.logout} />
+                    <UserProfile 
+                      onBack={() => navigate('/home')} 
+                      onLogout={handlers.logout}
+                      onNavigateToQuestionnaire={() => handlers.navigateToQuestionnaire('/profile')}
+                      onNavigateToSelfAssessment={() => handlers.navigateToSelfAssessment('/profile')}
+                    />
                   </Suspense>
                 } />
                 

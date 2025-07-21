@@ -1,4 +1,4 @@
-// src/components/UserProfile.tsx - COMPLETE FIXED VERSION
+// src/components/UserProfile.tsx - COMPLETE FIXED VERSION WITH WORKING NAVIGATION
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext'; // ✅ FIXED: Correct import path
 import { useLocalData } from './contexts/LocalDataContext'; // ✅ FIXED: Correct import path
@@ -6,80 +6,24 @@ import { useLocalData } from './contexts/LocalDataContext'; // ✅ FIXED: Correc
 interface UserProfileProps {
   onBack: () => void;
   onLogout: () => void;
+  // ✅ NEW: Add navigation callbacks for questionnaire and self-assessment
+  onNavigateToQuestionnaire?: () => void;
+  onNavigateToSelfAssessment?: () => void;
 }
 
-// ✅ FIXED: Proper TypeScript interfaces matching your LocalDataContext
-interface PracticeSession {
-  sessionId: string;
-  timestamp: string;
-  duration: number;
-  sessionType?: 'meditation' | 'mind_recovery';
-  pahmCounts?: {
-    total: number;
-    [key: string]: number;
-  };
-  qualityRating?: number;
-  rating?: number;
-  environmentRating?: number;
-  recoveryMetrics?: {
-    stressReduction: number;
-    clarityImprovement: number;
-    emotionalBalance: number;
-  };
-}
-
-interface EmotionalNote {
-  id: string;
-  timestamp: string;
-  emotion: string;
-  intensity: number;
-  trigger?: string;
-  notes: string;
-}
-
+// ✅ CLEANED: Using types from LocalDataContext - no local interface definitions needed
 interface CategoryData {
   level: 'none' | 'some' | 'strong';
   details?: string;
   category: string;
 }
 
-interface SelfAssessmentData {
-  completed: boolean;
-  completedAt?: string;
-  categories: {
-    [key: string]: CategoryData;
-  };
-  metrics: {
-    nonAttachmentCount: number;
-    attachmentScore: number;
-    attachmentLevel: string;
-  };
-}
-
-interface QuestionnaireData {
-  completed: boolean;
-  completedAt?: string;
-  responses: {
-    experience_level: number;
-    age_range?: string;
-    location?: string;
-    occupation?: string;
-    education_level?: string;
-    sleep_pattern: number;
-    physical_activity?: string;
-    daily_routine?: string;
-    work_life_balance?: string;
-    stress_triggers?: string[];
-    mindfulness_experience: number;
-    meditation_background?: string;
-    practice_goals?: string;
-    preferred_duration?: number;
-    motivation?: string;
-    [key: string]: any;
-  };
-}
-
-const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
+const UserProfile: React.FC<UserProfileProps> = ({ 
+  onBack, 
+  onLogout, 
+  onNavigateToQuestionnaire, 
+  onNavigateToSelfAssessment 
+}) => {
   const { currentUser } = useAuth();
   const { 
     practiceSessions, 
@@ -151,6 +95,29 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
     }
   };
 
+  // ✅ NEW: Fixed navigation handlers
+  const handleQuestionnaireNavigation = () => {
+    console.log('🔄 Navigating to questionnaire...');
+    if (onNavigateToQuestionnaire) {
+      onNavigateToQuestionnaire();
+    } else {
+      // Fallback: Try to trigger navigation via custom event
+      window.dispatchEvent(new CustomEvent('navigateToQuestionnaire'));
+      console.log('📢 Dispatched navigation event for questionnaire');
+    }
+  };
+
+  const handleSelfAssessmentNavigation = () => {
+    console.log('🔄 Navigating to self-assessment...');
+    if (onNavigateToSelfAssessment) {
+      onNavigateToSelfAssessment();
+    } else {
+      // Fallback: Try to trigger navigation via custom event
+      window.dispatchEvent(new CustomEvent('navigateToSelfAssessment'));
+      console.log('📢 Dispatched navigation event for self-assessment');
+    }
+  };
+
   // ✅ FIXED: Proper type annotations for user stats calculation
   const calculateUserStats = () => {
     if (!practiceSessions || practiceSessions.length === 0) {
@@ -218,9 +185,10 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <div className="text-4xl mb-3">📝</div>
             <h4 className="text-lg font-semibold text-yellow-800 mb-2">Questionnaire Incomplete</h4>
             <p className="text-yellow-700 mb-4">Complete your questionnaire to unlock detailed insights about your mindfulness journey.</p>
+            {/* ✅ FIXED: Use proper navigation handler */}
             <button 
-              onClick={() => window.location.href = '/questionnaire'}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+              onClick={handleQuestionnaireNavigation}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50"
             >
               Complete Questionnaire
             </button>
@@ -249,7 +217,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
         <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
           <button
             onClick={() => toggleSection('demographics')}
-            className="w-full flex justify-between items-center p-4 text-left bg-blue-100 hover:bg-blue-200 transition-colors"
+            className="w-full flex justify-between items-center p-4 text-left bg-blue-100 hover:bg-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
           >
             <h4 className="font-semibold text-blue-800 flex items-center gap-2">
               👤 Demographics & Background (Questions 1-7)
@@ -310,7 +278,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
         <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
           <button
             onClick={() => toggleSection('lifestyle')}
-            className="w-full flex justify-between items-center p-4 text-left bg-green-100 hover:bg-green-200 transition-colors"
+            className="w-full flex justify-between items-center p-4 text-left bg-green-100 hover:bg-green-200 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
           >
             <h4 className="font-semibold text-green-800 flex items-center gap-2">
               🌱 Lifestyle Patterns (Questions 8-15)
@@ -375,7 +343,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
         <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden">
           <button
             onClick={() => toggleSection('thinking')}
-            className="w-full flex justify-between items-center p-4 text-left bg-purple-100 hover:bg-purple-200 transition-colors"
+            className="w-full flex justify-between items-center p-4 text-left bg-purple-100 hover:bg-purple-200 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
           >
             <h4 className="font-semibold text-purple-800 flex items-center gap-2">
               🧠 Thinking Patterns (Questions 16-21)
@@ -428,7 +396,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg overflow-hidden">
           <button
             onClick={() => toggleSection('mindfulness')}
-            className="w-full flex justify-between items-center p-4 text-left bg-indigo-100 hover:bg-indigo-200 transition-colors"
+            className="w-full flex justify-between items-center p-4 text-left bg-indigo-100 hover:bg-indigo-200 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-50"
           >
             <h4 className="font-semibold text-indigo-800 flex items-center gap-2">
               🧘 Mindfulness Experience (Questions 22-27)
@@ -516,9 +484,10 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <div className="text-4xl mb-3">🧠</div>
             <h4 className="text-lg font-semibold text-orange-800 mb-2">Self-Assessment Incomplete</h4>
             <p className="text-orange-700 mb-4">Complete your self-assessment to see your attachment analysis and mindfulness insights.</p>
+            {/* ✅ FIXED: Use proper navigation handler */}
             <button 
-              onClick={() => window.location.href = '/self-assessment'}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+              onClick={handleSelfAssessmentNavigation}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-50"
             >
               Complete Self-Assessment
             </button>
@@ -807,14 +776,14 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack, onLogout }) => {
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
               <button
                 onClick={onBack}
-                className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:-translate-y-1"
+                className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-50"
               >
                 ← Back to Dashboard
               </button>
               
               <button
                 onClick={handleLogout}
-                className="flex-1 bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 transition-all duration-200 transform hover:-translate-y-1"
+                className="flex-1 bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 transition-all duration-200 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50"
               >
                 🚪 Logout
               </button>

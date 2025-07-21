@@ -11,32 +11,35 @@ const MindRecoveryTimerWrapper: React.FC = () => {
   const [selectedPosture, setSelectedPosture] = useState<string>('');
   const [sessionPahmCounts, setSessionPahmCounts] = useState<any>(null);
 
-  // 🎯 ENHANCED: Updated practice options
+  // ✅ FIXED: Updated practice options to match MindRecoveryHub IDs exactly
   const practiceOptions = [
     { id: 'morning-recharge', duration: 5, title: 'Morning Recharge' },
+    { id: 'mid-day-reset', duration: 3, title: 'Mid-Day Reset' },
     { id: 'emotional-reset', duration: 5, title: 'Emotional Reset' },
     { id: 'work-home-transition', duration: 5, title: 'Work-Home Transition' },
-    { id: 'evening-wind-down', duration: 5, title: 'Evening Wind-Down' },
-    { id: 'mid-day-reset', duration: 5, title: 'Mid-Day Reset' }, // 🔧 FIXED: Changed from 3 to 5 minutes
+    { id: 'bedtime-winddown', duration: 8, title: 'Bedtime Wind Down' }, // ✅ FIXED: Changed from 'evening-wind-down' to 'bedtime-winddown' to match MindRecoveryHub
   ];
-  // Note: title property kept for logging and future enhancements
 
   const practiceOption = practiceOptions.find(opt => opt.id === practiceType);
 
   useEffect(() => {
     console.log('🧘‍♀️ MindRecoveryTimerWrapper mounted. practiceType:', practiceType);
     console.log('📋 practiceOption found:', practiceOption);
+    console.log('📋 Available practice IDs:', practiceOptions.map(opt => opt.id));
     
-    // 🔄 Enhanced error handling and recovery
+    // ✅ ENHANCED: Better error handling and recovery
     if (!practiceType || !practiceOption) {
       console.log('❌ Redirecting to /mind-recovery due to missing practiceType or practiceOption');
+      console.log('❌ Received practiceType:', practiceType);
+      console.log('❌ Available options:', practiceOptions.map(opt => opt.id).join(', '));
+      
       // 🎯 Clear any stale session data
       localStorage.removeItem('mindRecoverySessionRecovery');
       navigate('/mind-recovery');
     }
   }, [practiceType, practiceOption, navigate]);
 
-  // 🎯 ENHANCED: Better session completion handling
+  // ✅ ENHANCED: Better session completion handling
   const handleTimerComplete = (pahmCounts: any) => {
     console.log('✅ Mind recovery timer completed with PAHM counts:', pahmCounts);
     setSessionPahmCounts(pahmCounts);
@@ -46,7 +49,7 @@ const MindRecoveryTimerWrapper: React.FC = () => {
     localStorage.removeItem('mindRecoverySessionRecovery');
   };
 
-  // 🎯 ENHANCED: Better navigation handling
+  // ✅ ENHANCED: Better navigation handling
   const handleReflectionComplete = () => {
     console.log('✅ Mind recovery reflection completed, navigating to home');
     // 🧹 Final cleanup
@@ -54,7 +57,7 @@ const MindRecoveryTimerWrapper: React.FC = () => {
     navigate('/home');
   };
 
-  // 🎯 ENHANCED: Better back navigation with cleanup
+  // ✅ ENHANCED: Better back navigation with cleanup
   const handleBack = () => {
     if (currentStep === 'reflection') {
       setCurrentStep('timer');
@@ -67,9 +70,11 @@ const MindRecoveryTimerWrapper: React.FC = () => {
     }
   };
 
-  // 🎯 ENHANCED: Better posture selection handling
+  // ✅ ENHANCED: Better posture selection handling
   const handleStartPractice = (posture: string) => {
     console.log('🧘‍♀️ Starting mind recovery practice with posture:', posture);
+    console.log('🧘‍♀️ Practice type:', practiceType);
+    console.log('🧘‍♀️ Practice details:', practiceOption);
     setSelectedPosture(posture);
     setCurrentStep('timer');
     
