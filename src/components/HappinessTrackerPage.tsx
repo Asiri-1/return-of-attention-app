@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '../auth/AuthContext';
 import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
 
 const HappinessTrackerPage: React.FC = React.memo(() => {

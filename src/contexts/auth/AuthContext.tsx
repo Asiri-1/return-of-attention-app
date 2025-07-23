@@ -26,7 +26,7 @@ import {
   Firestore
 } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
-import app, { auth as firebaseAuth, db as firebaseDb } from './firebase';
+import app, { auth as firebaseAuth, db as firebaseDb } from '../../firebase';
 
 // Enhanced Local Storage Manager (for auth-only data)
 class EnhancedLocalStorageManager {

@@ -1,9 +1,10 @@
-// src/MainNavigation.tsx - Clean Enhanced Navigation with Admin Context
+// src/MainNavigation.tsx - Universal Architecture Compatible
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainNavigation.css';
-import { useAuth } from './AuthContext';
-import { useAdmin } from './AdminContext';
+// ✅ ALREADY CORRECT: Using Universal Architecture compatible imports
+import { useAuth } from './contexts/auth/AuthContext';
+import { useAdmin } from './contexts/auth/AdminContext';
 
 interface MainNavigationProps {
   onPracticeClick?: () => void;

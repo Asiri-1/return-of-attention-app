@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ProgressDashboard.css';
-import { useAuth } from './AuthContext';
+import { useAuth } from './contexts/auth/AuthContext';
 
 export interface ProgressDashboardProps {
   onBack: () => void;

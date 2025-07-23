@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLocalData } from '../../contexts/LocalDataContext';
+// 🚀 UPDATED: Use Universal Architecture focused contexts
+import { usePractice } from '../../contexts/practice/PracticeContext';
+import { useUser } from '../../contexts/user/UserContext';
+import { useWellness } from '../../contexts/wellness/WellnessContext';
 
 interface UniversalPAHMTimerProps {
   stageLevel: number; // 2, 3, 4, 5, or 6
@@ -539,6 +542,14 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
   const config = getStageConfig(stageLevel);
   const navigate = useNavigate();
   
+  // 🎯 UNIVERSAL ARCHITECTURE: Use focused contexts
+  const { addPracticeSession, isLoading: practiceLoading } = usePractice();
+  const { userProfile, isLoading: userLoading } = useUser();
+  const { addEmotionalNote } = useWellness();
+  
+  // Combine loading states
+  const isLoading = practiceLoading || userLoading;
+  
   // 🔧 COMPONENT STATE
   const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
   const [initialMinutes, setInitialMinutes] = useState<number>(
@@ -575,9 +586,6 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
   const [recoveryData, setRecoveryData] = useState<SessionRecoveryData | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // 🎯 Real analytics functions from LocalDataContext
-  const { addPracticeSession, addEmotionalNote, userData, isLoading } = useLocalData();
 
   // 🎯 SETUP BACKGROUND/FOREGROUND DETECTION
   useEffect(() => {
@@ -705,7 +713,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     const sessionQuality = calculateSessionQuality(pahmCounts, actualDuration, isFullyCompleted, stageLevel);
     const pahmStats = getPAHMStats(pahmCounts);
     
-    // 🎯 SINGLE STANDARD FORMAT - LocalDataContext underscore format
+    // 🎯 SINGLE STANDARD FORMAT - Universal Architecture underscore format
     const convertedPAHMCounts = convertToStandardFormat(pahmCounts);
 
     // 💾 SESSION DATA OBJECT - VERIFIED FORMAT
@@ -731,12 +739,12 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     const savePracticeSession = () => {
       console.log('🚨 ATTEMPTING TO SAVE PRACTICE SESSION');
       
-      if (!userData) {
-        console.error('❌ CRITICAL: userData is null - retrying in 1 second...');
+      if (!userProfile) {
+        console.error('❌ CRITICAL: userProfile is null - retrying in 1 second...');
         
         setTimeout(() => {
-          if (userData) {
-            console.log('✅ UserData now available - proceeding with save');
+          if (userProfile) {
+            console.log('✅ UserProfile now available - proceeding with save');
             try {
               addPracticeSession(sessionData);
               console.log('✅✅ PRACTICE SESSION SAVED SUCCESSFULLY ON RETRY');
@@ -744,7 +752,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
               console.error('❌❌ PRACTICE SESSION SAVE FAILED ON RETRY:', error);
             }
           } else {
-            console.error('❌❌ UserData still null after retry - practice session not saved');
+            console.error('❌❌ UserProfile still null after retry - practice session not saved');
           }
         }, 1000);
         return;
@@ -789,7 +797,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
 
     console.log('🎯 TIMER COMPLETION FINISHED');
     
-  }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, navigate, userData, robustTimer, hasAudioPermission, audioManager, wakeLockManager]);
+  }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, navigate, userProfile, robustTimer, hasAudioPermission, audioManager, wakeLockManager]);
 
   // Timer countdown effect - REMOVED (using robust timer instead)
   useEffect(() => {

@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from './contexts/auth/AuthContext';
 import './StageLevelIntroduction.css';
 
 interface Stage1IntroductionProps {

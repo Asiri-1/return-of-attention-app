@@ -1,4 +1,4 @@
-// ✅ COMPLETE FIXED App.tsx - UserProfile Navigation Working
+// ✅ COMPLETE FIXED App.tsx - Universal Architecture
 // File: src/App.tsx
 // 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
 
@@ -9,14 +9,15 @@ import './App.css';
 // ✅ ESSENTIAL: All imports at the top
 import PageViewTracker from './components/PageViewTracker';
 import PAHMProgressTracker from './PAHMProgressTracker';
-import { AuthProvider, useAuth } from './AuthContext';
-import { AdminProvider } from './AdminContext';
+import { AuthProvider, useAuth } from './contexts/auth/AuthContext';
+import { AdminProvider } from './contexts/auth/AdminContext';
 import AdminPanel from './components/AdminPanel';
 import LogoutWarning from './components/LogoutWarning';
 
-// ✅ FIXED: Import LocalDataProvider and PracticeProvider
-import { LocalDataProvider, useLocalData } from './contexts/LocalDataContext';
-import { PracticeProvider } from './PracticeContext';
+// ✅ UNIVERSAL ARCHITECTURE: Import the new focused contexts
+import { AppProvider } from './contexts/AppProvider';
+import { useUser } from './contexts/user/UserContext';
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
 // ✅ CRITICAL COMPONENTS: Import normally to avoid chunk loading errors
 import SignIn from './SignIn';
@@ -214,9 +215,9 @@ const SeekerPracticeCompleteRedirect: React.FC = () => {
   );
 };
 
-// ✅ SIMPLIFIED: Completion status checker interface
+// ✅ UNIVERSAL ARCHITECTURE: Updated completion status checker
 const useCompletionStatus = () => {
-  const { isQuestionnaireCompleted, isSelfAssessmentCompleted } = useLocalData();
+  const { getCompletionStatus } = useOnboarding();
   const { currentUser } = useAuth();
 
   const checkCompletionStatus = useCallback(() => {
@@ -225,12 +226,11 @@ const useCompletionStatus = () => {
     }
 
     try {
-      isQuestionnaireCompleted();
-      isSelfAssessmentCompleted();
+      getCompletionStatus();
     } catch (error) {
       console.error('❌ Error checking completion status:', error);
     }
-  }, [currentUser, isQuestionnaireCompleted, isSelfAssessmentCompleted]);
+  }, [currentUser, getCompletionStatus]);
 
   useEffect(() => {
     checkCompletionStatus();
@@ -239,11 +239,11 @@ const useCompletionStatus = () => {
   return { recheckStatus: checkCompletionStatus };
 };
 
-// ✅ Fixed Questionnaire Component with Location Handling
+// ✅ UNIVERSAL ARCHITECTURE: Updated Questionnaire Component
 const QuestionnaireComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { markQuestionnaireComplete } = useLocalData();
+  const { markQuestionnaireComplete } = useOnboarding();
   const [isCompleting, setIsCompleting] = useState(false);
 
   const handleQuestionnaireComplete = async (answers: any) => {
@@ -270,12 +270,12 @@ const QuestionnaireComponent: React.FC = () => {
   );
 };
 
-// ✅ Fixed Self Assessment Component with Location Handling
+// ✅ UNIVERSAL ARCHITECTURE: Updated Self Assessment Component
 const SelfAssessmentComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { markSelfAssessmentComplete } = useLocalData();
-  const { updateUserProfile } = useAuth();
+  const { markSelfAssessmentComplete } = useOnboarding();
+  const { updateProfile } = useUser();
   const [isCompleting, setIsCompleting] = useState(false);
 
   const handleSelfAssessmentComplete = async (data: any) => {
@@ -284,7 +284,7 @@ const SelfAssessmentComponent: React.FC = () => {
       await markSelfAssessmentComplete(data);
       
       try {
-        await updateUserProfile({ currentStage: '1' });
+        await updateProfile({ currentStage: '1' });
       } catch (profileError) {
         console.warn('Profile update failed, continuing anyway:', profileError);
       }
@@ -315,7 +315,7 @@ const SelfAssessmentComponent: React.FC = () => {
   );
 };
 
-// ✅ FIXED: Main app content with corrected routing structure
+// ✅ UNIVERSAL ARCHITECTURE: Main app content with focused contexts
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -324,7 +324,7 @@ const AppContent: React.FC = React.memo(() => {
   // ✅ FIXED: Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
   
-  // ✅ SIMPLIFIED: Keep completion status for optional features only
+  // ✅ UNIVERSAL ARCHITECTURE: Use focused contexts instead of useLocalData
   const { recheckStatus } = useCompletionStatus();
   
   // ✅ Get current stage from progressive onboarding (only if authenticated)
@@ -733,17 +733,15 @@ const AppContent: React.FC = React.memo(() => {
   );
 });
 
-// ✅ MAIN App component with complete provider chain - PRESERVING ADMIN
+// ✅ UNIVERSAL ARCHITECTURE: Updated provider chain with clean focused contexts
 const App: React.FC = React.memo(() => {
   return (
     <BrowserRouter>
       <AuthProvider>
         <AdminProvider>
-          <LocalDataProvider>
-            <PracticeProvider>
-              <AppContent />
-            </PracticeProvider>
-          </LocalDataProvider>
+          <AppProvider>
+            <AppContent />
+          </AppProvider>
         </AdminProvider>
       </AuthProvider>
     </BrowserRouter>

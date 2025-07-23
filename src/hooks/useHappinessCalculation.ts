@@ -2,7 +2,7 @@
 // File: src/hooks/useHappinessCalculation.ts
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocalData } from '../contexts/LocalDataContext';
+import { useLocalDataCompat as useLocalData } from './useLocalDataCompat';
 import { useProgressiveOnboarding } from './useProgressiveOnboarding';
 
 // Component calculation interfaces

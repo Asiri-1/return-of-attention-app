@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from './contexts/auth/AuthContext';
 
 interface SignupFlowProps {
   onComplete: () => void;

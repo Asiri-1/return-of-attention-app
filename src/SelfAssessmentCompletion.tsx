@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // ✅ FIXED: Import both contexts for proper separation
-import { useAuth } from './AuthContext';
-import { useLocalData } from './contexts/LocalDataContext';
+import { useAuth } from './contexts/auth/AuthContext';
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
 interface SelfAssessmentCompletionProps {
   onGetStarted: (data?: any) => void;
@@ -12,9 +12,9 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
   onGetStarted,
   onBack
 }) => {
-  // ✅ FIXED: Split the hooks - Auth for user info, LocalData for data operations
+  // ✅ FIXED: Split the hooks - Auth for user info, OnboardingContext for data operations
   const { currentUser, userProfile } = useAuth();
-  const { isSelfAssessmentCompleted, getSelfAssessment } = useLocalData();
+  const { getSelfAssessment } = useOnboarding();
   
   const [showContent, setShowContent] = useState(false);
   const [showStages, setShowStages] = useState(false);
@@ -24,14 +24,14 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
     setTimeout(() => setShowContent(true), 300);
     setTimeout(() => setShowStages(true), 800);
 
-    // ✅ FIXED: Check existing data using LocalDataContext (backend logging only)
+    // ✅ FIXED: Check existing data using OnboardingContext (backend logging only)
     const checkAndPreserveData = async () => {
-      console.log('🔍 FIXED: Checking existing self-assessment data via LocalDataContext...');
+      console.log('🔍 FIXED: Checking existing self-assessment data via OnboardingContext...');
       
       try {
-        // ✅ FIXED: Use LocalDataContext to get self-assessment data
+        // ✅ FIXED: Use OnboardingContext to get self-assessment data
         const existingData = getSelfAssessment();
-        console.log('🔍 LocalDataContext self-assessment data:', existingData);
+        console.log('🔍 OnboardingContext self-assessment data:', existingData);
         
         if (existingData) {
           console.log('✅ FIXED: Found existing self-assessment data:', existingData);
@@ -50,11 +50,12 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
             console.log('⚠️ FIXED: Existing data is just completion flag - might need real assessment');
           }
         } else {
-          console.log('❌ FIXED: No existing self-assessment data found in LocalDataContext');
+          console.log('❌ FIXED: No existing self-assessment data found in OnboardingContext');
         }
 
-        // ✅ FIXED: Handle completion status check using LocalDataContext
-        const isAssessmentCompleted = isSelfAssessmentCompleted();
+        // ✅ FIXED: Handle completion status check using OnboardingContext
+        // Note: We can check if assessment exists instead of a separate completion method
+        const isAssessmentCompleted = !!existingData;
 
         if (!isAssessmentCompleted && !existingData) {
           console.log('🔧 FIXED: User reached completion screen without data - this might be an error in flow');
@@ -66,11 +67,11 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
     };
 
     checkAndPreserveData();
-  }, [getSelfAssessment, isSelfAssessmentCompleted]); // ✅ FIXED: Updated dependencies
+  }, [getSelfAssessment]); // ✅ FIXED: Updated dependencies
 
   const handleGetStarted = async () => {
     try {
-      // ✅ FIXED: Get assessment data from LocalDataContext
+      // ✅ FIXED: Get assessment data from OnboardingContext
       const existingData = getSelfAssessment();
       
       if (existingData) {
@@ -88,7 +89,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
         onGetStarted(completionData);
         
       } else {
-        console.log('⚠️ FIXED: No assessment data found in LocalDataContext');
+        console.log('⚠️ FIXED: No assessment data found in OnboardingContext');
         
         // Continue without assessment data but mark as incomplete
         const completionData = {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLocalData } from './contexts/LocalDataContext';
+// 🚀 UPDATED: Use focused onboarding context instead of LocalDataContext
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
 interface QuestionnaireProps {
   onComplete: (answers: any) => void;
@@ -10,7 +11,8 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  const { markQuestionnaireComplete } = useLocalData();
+  // 🚀 UPDATED: Use focused onboarding context
+  const { markQuestionnaireComplete } = useOnboarding();
 
   // Load saved progress
   useEffect(() => {
@@ -61,7 +63,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     console.log('🔧 QUESTIONNAIRE COMPLETION STARTING...');
     localStorage.removeItem('questionnaire_progress');
     
-    // ✅ FIXED: Send ONLY raw responses - LocalDataContext will add metadata
+    // ✅ FIXED: Send ONLY raw responses - OnboardingContext will add metadata
     const rawResponses = {
       // Demographics & Background (1-7)
       experience_level: answers.experience_level || 1,
@@ -94,13 +96,13 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       preferred_duration: answers.preferred_duration || 10,
       biggest_challenges: answers.biggest_challenges || 'Finding time and staying consistent',
       motivation: answers.motivation || 'Stress reduction and emotional balance',
-      // ✅ REMOVED: No metadata here - LocalDataContext will add it
+      // ✅ REMOVED: No metadata here - OnboardingContext will add it
       totalQuestions: 27,
       answeredQuestions: Object.keys(answers).length
     };
 
     try {
-      console.log('📝 Sending raw responses to LocalDataContext:', rawResponses);
+      console.log('📝 Sending raw responses to OnboardingContext:', rawResponses);
       if (markQuestionnaireComplete) {
         await markQuestionnaireComplete(rawResponses);
       }

@@ -5,7 +5,9 @@ import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
-import { useLocalData } from './contexts/LocalDataContext';
+// 🚀 UPDATED: Use focused contexts instead of LocalDataContext
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 
 interface PracticeTimerProps {
   onComplete: () => void;
@@ -43,8 +45,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
   const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
-  // Enhanced analytics integration
-  const { addPracticeSession, addEmotionalNote } = useLocalData();
+  // 🚀 UPDATED: Use focused contexts for analytics integration
+  const { addPracticeSession } = usePractice();
+  const { addEmotionalNote } = useWellness();
   
   // Refs for recorder components
   const t1RecorderRef = useRef<any>(null);
@@ -445,7 +448,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       existingProgress[tLevelUpper] = existingSessions.filter((s: any) => s.isCompleted).length;
       localStorage.setItem('stage1Progress', JSON.stringify(existingProgress));
       
-      // 5. Enhanced session data for LocalDataContext
+      // 5. Enhanced session data for focused contexts
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
@@ -474,7 +477,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         }
       };
       
-      // 6. Add to LocalDataContext (this will handle debounced storage to comprehensiveUserData)
+      // 6. Add to focused contexts (this will handle debounced storage to comprehensiveUserData)
       addPracticeSession(enhancedSessionData);
       
       // 7. Force a storage event to notify other components
@@ -495,7 +498,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       
     } catch (error) {
       console.error('❌ Error saving session to storage:', error);
-      // Still try to save to LocalDataContext as fallback
+      // Still try to save to focused contexts as fallback
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,

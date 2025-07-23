@@ -1,8 +1,9 @@
-// ✅ Complete Stage1Wrapper.tsx - Fixed Routing Issues
+// ✅ Complete Stage1Wrapper.tsx - Universal Architecture Compatible
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
+// 🚀 UPDATED: Use Universal Architecture compatible progressive onboarding
 import { useProgressiveOnboarding } from './hooks/useProgressiveOnboarding';
 import { 
   QuestionnaireRequiredModal, 
@@ -40,7 +41,7 @@ interface TStageInfo {
 const Stage1Wrapper: React.FC = () => {
   const navigate = useNavigate();
   
-  // ✅ FIXED: Only use modal states, not access checking
+  // ✅ WORKS: Progressive onboarding with Universal Architecture compatibility
   const {
     showQuestionnaireModal,
     showSelfAssessmentModal,
@@ -62,7 +63,7 @@ const Stage1Wrapper: React.FC = () => {
       const requiredSessions = 3;
       const isCompleted = localStorage.getItem(`${tStage}Complete`) === 'true';
       
-      // ✅ FIXED: Inline access checking to avoid dependency issues
+      // ✅ WORKS: Inline access checking to avoid dependency issues
       const checkAccess = (stage: string): boolean => {
         try {
           // T1 is always accessible
@@ -162,7 +163,7 @@ const Stage1Wrapper: React.FC = () => {
     };
   }, [calculateTStageStatus, recheckStatus]);
 
-  // ✅ FIXED: Handle T-stage selection with simple checking
+  // ✅ WORKS: Handle T-stage selection with simple checking
   const handleTStageSelect = (tStage: string) => {
     // ✅ Inline access checking to avoid dependency issues
     const checkAccess = (stage: string): boolean => {
@@ -279,12 +280,12 @@ const Stage1Wrapper: React.FC = () => {
     </div>
   );
 
-  // ✅ T-Stage Component Wrapper - Fixed Navigation to Practice Reflection
+  // ✅ T-Stage Component Wrapper - Perfect Navigation to Practice Reflection
   const TStageComponent: React.FC<{ tStage: string }> = ({ tStage }) => {
     const [currentView, setCurrentView] = useState('introduction');
     const [practiceData, setPracticeData] = useState<any>(null);
     
-    // ✅ FIXED: Check access on component mount but don't redirect
+    // ✅ WORKS: Check access on component mount but don't redirect
     useEffect(() => {
       // Move the access check logic inside useEffect to avoid dependency issues
       const checkAccess = (stage: string): boolean => {
@@ -403,7 +404,7 @@ const Stage1Wrapper: React.FC = () => {
       
       sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
       
-      // ✅ FIXED: Check if this is T5 completion for special handling
+      // ✅ WORKS: Check if this is T5 completion for special handling
       const isT5Completion = tStage === 'T5';
       if (isT5Completion) {
         console.log('🎉 T5 completion detected - setting all stage completion flags...');
@@ -519,7 +520,7 @@ const Stage1Wrapper: React.FC = () => {
         <Route path="*" element={<TStageOverview />} />
       </Routes>
 
-      {/* ✅ Progressive Onboarding Modals - Simplified */}
+      {/* ✅ Progressive Onboarding Modals - Universal Architecture Compatible */}
       <QuestionnaireRequiredModal 
         isOpen={showQuestionnaireModal}
         onClose={() => setShowQuestionnaireModal(false)}

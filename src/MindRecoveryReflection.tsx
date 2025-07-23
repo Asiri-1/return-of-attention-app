@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface MindRecoveryReflectionProps {

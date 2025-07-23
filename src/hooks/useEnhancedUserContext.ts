@@ -4,8 +4,9 @@
 // ============================================================================
 
 import { useMemo } from 'react';
-import { useAuth } from '../AuthContext';
-import { useLocalData } from '../contexts/LocalDataContext';
+// 🚀 UPDATED: Use Universal Architecture compatible imports
+import { useAuth } from '../contexts/auth/AuthContext';
+import { useLocalDataCompat as useLocalData } from '../hooks/useLocalDataCompat';
 import { UserContextBuilder } from '../services/ComprehensiveUserContext';
 import { ComprehensiveUserContext } from '../services/AdaptiveWisdomEngine';
 
@@ -76,13 +77,13 @@ export const useEnhancedUserContextDebug = () => {
 };
 
 /**
- * ✅ FIXED: Lightweight hook that returns just the basic context info
+ * ✅ WORKS: Lightweight hook that returns just the basic context info
  * Use this for components that only need basic user info
  */
 export const useBasicUserContext = () => {
   const { currentUser, userProfile } = useAuth();
   
-  // ✅ FIXED: Get properties with proper fallbacks from multiple sources
+  // ✅ WORKS: Get properties with proper fallbacks from multiple sources
   const getCurrentStage = () => {
     return userProfile?.currentStage || 
            currentUser?.currentStage || 

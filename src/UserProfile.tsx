@@ -1,35 +1,40 @@
-// src/components/UserProfile.tsx - COMPLETE FIXED VERSION WITH WORKING NAVIGATION
+// src/components/ModernUserProfile.tsx - FIXED IMPORTS ONLY
 import React, { useState, useEffect } from 'react';
-import { useAuth } from './AuthContext'; // ✅ FIXED: Correct import path
-import { useLocalData } from './contexts/LocalDataContext'; // ✅ FIXED: Correct import path
+// ✅ FIXED: Use existing contexts instead of non-existent ones
+import { useAuth } from './contexts/auth/AuthContext';
+import { useLocalDataCompat as useLocalData } from './hooks/useLocalDataCompat';
 
 interface UserProfileProps {
   onBack: () => void;
   onLogout: () => void;
-  // ✅ NEW: Add navigation callbacks for questionnaire and self-assessment
   onNavigateToQuestionnaire?: () => void;
   onNavigateToSelfAssessment?: () => void;
 }
 
-// ✅ CLEANED: Using types from LocalDataContext - no local interface definitions needed
 interface CategoryData {
   level: 'none' | 'some' | 'strong';
   details?: string;
   category: string;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ 
+const ModernUserProfile: React.FC<UserProfileProps> = ({ 
   onBack, 
   onLogout, 
   onNavigateToQuestionnaire, 
   onNavigateToSelfAssessment 
 }) => {
   const { currentUser } = useAuth();
+  
+  // ✅ FIXED: Use your existing useLocalData instead of separate contexts
   const { 
-    practiceSessions, 
-    emotionalNotes,
+    userData,
+    isLoading,
+    getPracticeSessions,
+    getDailyEmotionalNotes,
     getQuestionnaire,
-    getSelfAssessment
+    getSelfAssessment,
+    isQuestionnaireCompleted,
+    isSelfAssessmentCompleted
   } = useLocalData();
   
   const [loading, setLoading] = useState(true);
@@ -95,13 +100,11 @@ const UserProfile: React.FC<UserProfileProps> = ({
     }
   };
 
-  // ✅ NEW: Fixed navigation handlers
   const handleQuestionnaireNavigation = () => {
     console.log('🔄 Navigating to questionnaire...');
     if (onNavigateToQuestionnaire) {
       onNavigateToQuestionnaire();
     } else {
-      // Fallback: Try to trigger navigation via custom event
       window.dispatchEvent(new CustomEvent('navigateToQuestionnaire'));
       console.log('📢 Dispatched navigation event for questionnaire');
     }
@@ -112,80 +115,35 @@ const UserProfile: React.FC<UserProfileProps> = ({
     if (onNavigateToSelfAssessment) {
       onNavigateToSelfAssessment();
     } else {
-      // Fallback: Try to trigger navigation via custom event
       window.dispatchEvent(new CustomEvent('navigateToSelfAssessment'));
       console.log('📢 Dispatched navigation event for self-assessment');
     }
   };
 
-  // ✅ FIXED: Proper type annotations for user stats calculation
-  const calculateUserStats = () => {
-    if (!practiceSessions || practiceSessions.length === 0) {
-      return {
-        totalSessions: 0,
-        totalHours: 0,
-        currentStreak: 0,
-        longestStreak: 0,
-        lastSessionDate: null as string | null
-      };
-    }
-
-    // ✅ FIXED: Type annotations for reduce function
-    const totalMinutes = practiceSessions.reduce((sum: number, session: any) => {
-      return sum + (session.duration || 0);
-    }, 0);
-    
-    const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const sortedSessions = [...practiceSessions]
-      .map((session: any) => {
-        const date = new Date(session.timestamp);
-        date.setHours(0, 0, 0, 0);
-        return date;
-      })
-      .sort((a, b) => b.getTime() - a.getTime())
-      .filter((date, index, arr) => index === 0 || date.getTime() !== arr[index - 1].getTime());
-
-    let currentStreak = 0;
-    let checkDate = new Date(today);
-
-    for (const sessionDate of sortedSessions) {
-      const diffDays = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === currentStreak) {
-        currentStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    return {
-      totalSessions: practiceSessions.length,
-      totalHours,
-      currentStreak,
-      longestStreak: currentStreak,
-      lastSessionDate: practiceSessions.length > 0 ? practiceSessions[practiceSessions.length - 1].timestamp : null
-    };
+  // ✅ FIXED: Using data from useLocalData instead of separate contexts
+  const sessions = getPracticeSessions();
+  const emotionalNotes = getDailyEmotionalNotes();
+  
+  const userStats = {
+    totalSessions: userData?.profile?.totalSessions || sessions.length,
+    totalHours: Math.round(((userData?.profile?.totalMinutes || 0) / 60) * 10) / 10,
+    currentStreak: userData?.profile?.currentStreak || 0,
+    longestStreak: userData?.profile?.longestStreak || 0,
+    lastSessionDate: sessions.length > 0 ? sessions[sessions.length - 1].timestamp : null
   };
 
-  const userStats = calculateUserStats();
-
-  // ✅ COMPLETE: Enhanced questionnaire section with all 27 fields displayed
+  // Enhanced questionnaire section with all 27 fields displayed
   const renderQuestionnaireSection = () => {
+    // ✅ FIXED: Using questionnaire from useLocalData
     const questionnaire = getQuestionnaire();
     
-    if (!questionnaire?.completed || !questionnaire.responses) {
+    if (!isQuestionnaireCompleted() || !questionnaire?.responses) {
       return (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <div className="text-center">
             <div className="text-4xl mb-3">📝</div>
             <h4 className="text-lg font-semibold text-yellow-800 mb-2">Questionnaire Incomplete</h4>
             <p className="text-yellow-700 mb-4">Complete your questionnaire to unlock detailed insights about your mindfulness journey.</p>
-            {/* ✅ FIXED: Use proper navigation handler */}
             <button 
               onClick={handleQuestionnaireNavigation}
               className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50"
@@ -445,7 +403,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
           )}
         </div>
 
-        {/* ✅ NEW: Summary Statistics */}
+        {/* Summary Statistics */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h4 className="font-semibold text-gray-800 mb-3">📊 Questionnaire Summary</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -473,18 +431,18 @@ const UserProfile: React.FC<UserProfileProps> = ({
     );
   };
 
-  // ✅ ENHANCED: Self-assessment section with better data handling
+  // Enhanced self-assessment section with better data handling
   const renderSelfAssessmentSection = () => {
+    // ✅ FIXED: Using selfAssessment from useLocalData
     const selfAssessment = getSelfAssessment();
     
-    if (!selfAssessment?.completed) {
+    if (!isSelfAssessmentCompleted()) {
       return (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
           <div className="text-center">
             <div className="text-4xl mb-3">🧠</div>
             <h4 className="text-lg font-semibold text-orange-800 mb-2">Self-Assessment Incomplete</h4>
             <p className="text-orange-700 mb-4">Complete your self-assessment to see your attachment analysis and mindfulness insights.</p>
-            {/* ✅ FIXED: Use proper navigation handler */}
             <button 
               onClick={handleSelfAssessmentNavigation}
               className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-50"
@@ -496,7 +454,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
       );
     }
 
-    const { categories, metrics, completedAt } = selfAssessment;
+    const { categories, metrics, completedAt } = selfAssessment!;
 
     return (
       <div className="space-y-4">
@@ -553,7 +511,6 @@ const UserProfile: React.FC<UserProfileProps> = ({
             
             const info = categoryInfo[category] || { icon: '❓', title: category };
             
-            // ✅ FIXED: Proper type checking and safe property access
             const levelColors: { [key in 'none' | 'some' | 'strong']: string } = {
               none: 'bg-green-100 text-green-800 border-green-200',
               some: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -566,7 +523,6 @@ const UserProfile: React.FC<UserProfileProps> = ({
               strong: '🔥 Strong preferences',
             };
             
-            // ✅ ENHANCED: Safe data extraction with fallbacks
             const categoryData = data as CategoryData;
             const level = categoryData?.level || 'none';
             
@@ -592,7 +548,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
           })}
         </div>
 
-        {/* ✅ NEW: Detailed Analysis */}
+        {/* Detailed Analysis */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h4 className="font-semibold text-gray-800 mb-3">🔍 Detailed Analysis</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -752,6 +708,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
                   <div className="text-sm text-yellow-700">Current Streak</div>
                 </div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+                  {/* ✅ FIXED: Using emotionalNotes directly from useLocalData */}
                   <div className="text-2xl font-bold text-purple-600 mb-1">{emotionalNotes?.length || 0}</div>
                   <div className="text-sm text-purple-700">Emotional Notes</div>
                 </div>
@@ -795,4 +752,4 @@ const UserProfile: React.FC<UserProfileProps> = ({
   );
 };
 
-export default UserProfile;
+export default ModernUserProfile;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocalData } from './contexts/LocalDataContext';
+// 🚀 UPDATED: Use Wellness Context instead of LocalDataCompat
+import { useWellness } from './contexts/wellness/WellnessContext';
 
-// Updated interface to match LocalDataContext
+// Updated interface to match WellnessContext
 interface EmotionalNote {
   noteId: string;
   content: string;
@@ -12,8 +13,8 @@ interface EmotionalNote {
 }
 
 const DailyEmotionalNotes: React.FC = () => {
-  // Use LocalDataContext instead of local state
-  const { getDailyEmotionalNotes, addEmotionalNote } = useLocalData();
+  // Use WellnessContext instead of LocalDataContext
+  const { emotionalNotes, addEmotionalNote, deleteEmotionalNote } = useWellness();
   
   const [notes, setNotes] = useState<EmotionalNote[]>([]);
   const [newNote, setNewNote] = useState<string>('');
@@ -37,7 +38,7 @@ const DailyEmotionalNotes: React.FC = () => {
     { key: 'sad', name: 'Sad', icon: '😢', color: '#3f51b5' }
   ];
 
-  // Migration function to move old localStorage data to LocalDataContext
+  // Migration function to move old localStorage data to WellnessContext
   const migrateOldData = useCallback(() => {
     try {
       const oldNotes = localStorage.getItem('dailyEmotionalNotes');
@@ -67,10 +68,10 @@ const DailyEmotionalNotes: React.FC = () => {
     }
   }, [addEmotionalNote, migrationComplete]);
 
-  // Load notes from LocalDataContext
+  // Load notes from WellnessContext
   const loadNotesFromContext = useCallback(() => {
     try {
-      const contextNotes = getDailyEmotionalNotes();
+      const contextNotes = emotionalNotes || [];
       // Convert to local interface format
       const formattedNotes = contextNotes.map(note => ({
         noteId: note.noteId,
@@ -84,7 +85,7 @@ const DailyEmotionalNotes: React.FC = () => {
     } catch (error) {
       console.error('Error loading notes from context:', error);
     }
-  }, [getDailyEmotionalNotes]);
+  }, [emotionalNotes]);
 
   // Load data and handle migration on component mount
   useEffect(() => {
@@ -113,7 +114,7 @@ const DailyEmotionalNotes: React.FC = () => {
     }
   }, [isLoaded, loadNotesFromContext]);
   
-  // Handle note submission using LocalDataContext
+  // Handle note submission using WellnessContext
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -130,7 +131,7 @@ const DailyEmotionalNotes: React.FC = () => {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
       
-      // Add note via LocalDataContext
+      // Add note via WellnessContext
       addEmotionalNote({
         content: newNote.trim(),
         timestamp: new Date().toISOString(),
@@ -159,17 +160,23 @@ const DailyEmotionalNotes: React.FC = () => {
     }
   };
 
-  // Delete note function (no changes needed since we're working with local state)
+  // Delete note function using WellnessContext
   const deleteNote = useCallback((noteId: string) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
-      // For now, just remove from local state
-      // Note: You might want to add a deleteEmotionalNote method to LocalDataContext
-      const updatedNotes = notes.filter(note => note.noteId !== noteId);
-      setNotes(updatedNotes);
-      
-      console.log('⚠️ Note deleted from local view. Consider adding deleteEmotionalNote to LocalDataContext for persistence.');
+      try {
+        // Use deleteEmotionalNote from WellnessContext
+        deleteEmotionalNote(noteId);
+        
+        // Refresh notes from context
+        loadNotesFromContext();
+        
+        console.log('✅ Note deleted successfully');
+      } catch (error) {
+        console.error('Error deleting note:', error);
+        alert('Failed to delete note. Please try again.');
+      }
     }
-  }, [notes]);
+  }, [deleteEmotionalNote, loadNotesFromContext]);
   
   // Format date for display
   const formatDate = (dateString: string): string => {
@@ -595,7 +602,7 @@ const DailyEmotionalNotes: React.FC = () => {
                       
                       <div style={{
                         fontSize: '14px',
-                        opacity: 0.8
+                        opacity: 0.8'
                       }}>
                         {formatDate(note.timestamp)}
                       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-// ✅ FIXED: Import both AuthContext for user info and LocalDataContext for data storage
-import { useAuth } from './AuthContext';
-import { useLocalData } from './contexts/LocalDataContext';
+// ✅ FIXED: Import both AuthContext for user info and OnboardingContext for data storage
+import { useAuth } from './contexts/auth/AuthContext';
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 import './SelfAssessment.css';
 
 interface SelfAssessmentProps {
@@ -18,9 +18,9 @@ interface Category {
 }
 
 const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) => {
-  // ✅ FIXED: Split the hooks - Auth for user info, LocalData for data storage
+  // ✅ FIXED: Split the hooks - Auth for user info, OnboardingContext for data storage
   const { currentUser } = useAuth();
-  const { markSelfAssessmentComplete } = useLocalData();
+  const { markSelfAssessmentComplete } = useOnboarding();
   
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, any>>({});
@@ -209,7 +209,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       touch: responses.touch?.level || 'none',
       mind: responses.mind?.level || 'none',
       
-      // ✅ FIXED: Categories object format for LocalDataContext compatibility
+      // ✅ FIXED: Categories object format for OnboardingContext compatibility
       categories: {
         taste: { level: responses.taste?.level || 'none', details: responses.taste?.details || '', category: 'taste' },
         smell: { level: responses.smell?.level || 'none', details: responses.smell?.details || '', category: 'smell' },
@@ -243,12 +243,12 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     console.log('✅ Standardized assessment data:', standardizedData);
 
     try {
-      // ✅ FIXED: Use LocalDataContext method with standardized data
-      console.log('🔄 Calling LocalDataContext markSelfAssessmentComplete with standardized format...');
+      // ✅ FIXED: Use OnboardingContext method with standardized data
+      console.log('🔄 Calling OnboardingContext markSelfAssessmentComplete with standardized format...');
       
       await markSelfAssessmentComplete(standardizedData);
       
-      console.log('✅ Self-assessment saved successfully via LocalDataContext!');
+      console.log('✅ Self-assessment saved successfully via OnboardingContext!');
       
       // Clear temporary storage
       localStorage.removeItem('tempSelfAssessmentResponses');
@@ -257,7 +257,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       onComplete(standardizedData);
       
     } catch (error) {
-      console.error('❌ Error saving through LocalDataContext:', error);
+      console.error('❌ Error saving through OnboardingContext:', error);
       
       // Fallback: Save directly to storage in standardized format
       console.log('🔄 Attempting fallback save in standardized format...');

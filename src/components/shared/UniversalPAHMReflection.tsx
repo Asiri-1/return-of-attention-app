@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { useLocalData } from '../../contexts/LocalDataContext';
+// 🚀 UPDATED: Use focused contexts instead of LocalDataCompat
+import { usePractice } from '../../contexts/practice/PracticeContext';
+import { useWellness } from '../../contexts/wellness/WellnessContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PAHMReflectionShared from '../../PAHMReflectionShared';
 
@@ -64,7 +66,9 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
   onComplete, 
   onBack 
 }) => {
-  const { userData, addEmotionalNote } = useLocalData();
+  // 🚀 UPDATED: Use focused contexts for practice and wellness data
+  const { sessions } = usePractice();
+  const { addEmotionalNote } = useWellness();
   const navigate = useNavigate();
   const location = useLocation();
   const stageConfig = STAGE_CONFIGS[stageLevel as keyof typeof STAGE_CONFIGS];
@@ -103,8 +107,8 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     practiceDuration = navigationState.duration || 0;
     posture = navigationState.posture || 'seated';
   } else {
-    // Fallback: Get the most recent session from database
-    const allSessions = userData?.practiceSessions || [];
+    // Fallback: Get the most recent session from practice context
+    const allSessions = sessions || [];
     const mostRecentSession = allSessions.length > 0 
       ? allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
       : null;

@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import './AnalyticsBoard.css';
-import { useAuth } from './AuthContext';
-import { useLocalData } from './contexts/LocalDataContext';
+// 🚀 UPDATED: Use Universal Architecture imports
+import { useAuth } from './contexts/auth/AuthContext';
+import { useLocalDataCompat as useLocalData } from './hooks/useLocalDataCompat';
 
 const AnalyticsBoard: React.FC = () => {
   const { } = useAuth();

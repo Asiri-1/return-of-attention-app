@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from './AuthContext';
+// 🚀 UPDATED: Use Universal Architecture compatible imports
+import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useLocalData } from './contexts/LocalDataContext';
+import { useLocalDataCompat as useLocalData } from './hooks/useLocalDataCompat';
 
 interface MindRecoveryTimerProps {
   practiceType: string;
@@ -327,7 +328,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   const { currentUser } = useAuth();
   const { addMindRecoverySession } = useLocalData();
 
-  // ✅ FIXED: Ultra-compact responsive styles for perfect one-screen fit
+  // ✅ WORKS: Ultra-compact responsive styles for perfect one-screen fit
   const styles = {
     container: {
       display: 'flex',
@@ -890,7 +891,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           📝 <strong>Mind Recovery:</strong> Notice where your attention goes, tap when you recognize thoughts
         </div>
 
-        {/* ✅ FIXED: Perfectly centered 3×3 PAHM MATRIX */}
+        {/* ✅ WORKS: Perfectly centered 3×3 PAHM MATRIX */}
         <div style={styles.matrix}>
           {/* Row 1: ATTACHMENT */}
           <button

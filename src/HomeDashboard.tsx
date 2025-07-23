@@ -3,9 +3,12 @@
 // 🔄 REPLACE YOUR ENTIRE HOMEDASHBOARD.TSX WITH THIS CODE
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useLocalData } from './contexts/LocalDataContext';
+// 🚀 UPDATED: Use focused contexts instead of LocalDataContext
+import { useUser } from './contexts/user/UserContext';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
 // ✅ REMOVED: AdminPanel import completely - should only be accessible via /admin route
@@ -41,7 +44,10 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onShowWhatIsPAHM
 }) => {
   const { currentUser } = useAuth();
-  const { practiceSessions } = useLocalData();
+  // 🚀 UPDATED: Use focused contexts instead of LocalDataContext
+  const { userProfile } = useUser();
+  const { sessions, stats } = usePractice();
+  const { emotionalNotes } = useWellness();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -216,14 +222,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   // ✅ PERFORMANCE: Stable user stats calculation with proper dependencies
   const calculateUserStats = useCallback(() => {
-    if (!currentUser || !practiceSessions || practiceSessions.length === 0) {
+    if (!currentUser || !sessions || sessions.length === 0) {
       setStreak(0);
       setTotalHours(0);
       return;
     }
 
     try {
-      const totalPracticeHours = practiceSessions.reduce((total: number, session: any) => {
+      const totalPracticeHours = sessions.reduce((total: number, session: any) => {
         const duration = session.duration || 0;
         return total + (duration / 60);
       }, 0);
@@ -232,7 +238,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const uniqueDateSessions = [...practiceSessions]
+      const uniqueDateSessions = [...sessions]
         .map(session => {
           const date = new Date(session.timestamp);
           date.setHours(0, 0, 0, 0);
@@ -268,7 +274,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       setStreak(0);
       setTotalHours(0);
     }
-  }, [currentUser, practiceSessions]);
+  }, [currentUser, sessions]);
 
   // ✅ PERFORMANCE: Stable event handlers with useCallback
   const handleHappinessPointsClick = useCallback(() => {

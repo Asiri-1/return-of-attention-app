@@ -1,9 +1,11 @@
-// ✅ Corrected Progressive Onboarding Hook - Sequential Logic Only
+// ✅ Updated Progressive Onboarding Hook - Compatible with Universal Architecture
 // File: src/hooks/useProgressiveOnboarding.ts
 
 import { useState, useEffect, useCallback } from 'react';
+// 🚀 NEW: Import from Universal Architecture compatibility hook
+import { useLocalDataCompat as useLocalData } from './useLocalDataCompat';
 
-// ✅ Complete interface definitions
+// ✅ Keep all your existing interfaces unchanged
 interface CompletionStatus {
   questionnaire: boolean;
   selfAssessment: boolean;
@@ -24,7 +26,6 @@ interface TStageProgress {
   t5: { completed: boolean; sessions: any[]; completedSessions: number };
 }
 
-// ✅ PAHM Stage Progress (integrating with your existing system)
 interface PAHMStageProgress {
   stage2: { hours: number; completed: boolean; required: 15; name: 'PAHM Trainee' };
   stage3: { hours: number; completed: boolean; required: 15; name: 'PAHM Beginner' };
@@ -34,7 +35,6 @@ interface PAHMStageProgress {
 }
 
 interface ProgressSummary {
-  // Stage 1 Progress (T-stages)
   stage1: {
     completedTStages: number;
     totalTStages: number;
@@ -44,7 +44,6 @@ interface ProgressSummary {
     percentComplete: number;
     isComplete: boolean;
   };
-  // PAHM Stages Progress (2-6)
   pahmStages: {
     completedStages: number;
     totalStages: number;
@@ -53,7 +52,6 @@ interface ProgressSummary {
     currentStage: number;
     percentComplete: number;
   };
-  // Overall Progress
   overall: {
     currentLevel: string;
     totalPracticeHours: number;
@@ -63,9 +61,16 @@ interface ProgressSummary {
   };
 }
 
-// ✅ Main Progressive Onboarding Hook with CORRECTED Sequential Logic
+// ✅ UPDATED: Main Progressive Onboarding Hook with Universal Architecture
 export const useProgressiveOnboarding = () => {
-  // ✅ Modal state management
+  // 🚀 NEW: Get data from Universal Architecture
+  const { 
+    isQuestionnaireCompleted, 
+    isSelfAssessmentCompleted, 
+    getPracticeSessions 
+  } = useLocalData();
+
+  // ✅ Keep all your existing modal state management
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
   const [showSelfAssessmentModal, setShowSelfAssessmentModal] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -73,23 +78,23 @@ export const useProgressiveOnboarding = () => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showSessionCompletionModal, setShowSessionCompletionModal] = useState(false);
   
-  // ✅ Current requirement tracking
   const [progressRequirement, setProgressRequirement] = useState<string>('');
   const [lastSessionData, setLastSessionData] = useState<any>(null);
   
-  // ✅ Completion status tracking
   const [completionStatus, setCompletionStatus] = useState<CompletionStatus>({
     questionnaire: false,
     selfAssessment: false,
     introduction: false
   });
   
-  // ✅ Get completion status from localStorage
+  // ✅ UPDATED: Get completion status from Universal Architecture + localStorage
   const getCompletionStatus = useCallback((): CompletionStatus => {
     try {
       return {
-        questionnaire: localStorage.getItem('questionnaireCompleted') === 'true',
-        selfAssessment: localStorage.getItem('selfAssessmentCompleted') === 'true',
+        // 🚀 NEW: Use Universal Architecture methods
+        questionnaire: isQuestionnaireCompleted(),
+        selfAssessment: isSelfAssessmentCompleted(),
+        // Keep localStorage for introduction (not in Universal Architecture)
         introduction: localStorage.getItem('introductionCompleted') === 'true'
       };
     } catch (error) {
@@ -100,9 +105,9 @@ export const useProgressiveOnboarding = () => {
         introduction: false
       };
     }
-  }, []);
+  }, [isQuestionnaireCompleted, isSelfAssessmentCompleted]);
   
-  // ✅ Get T-stage progress from localStorage (Stage 1)
+  // ✅ UPDATED: Get T-stage progress from Universal Architecture + localStorage hybrid
   const getTStageProgress = useCallback((): TStageProgress => {
     const defaultProgress: TStageProgress = {
       t1: { completed: false, sessions: [], completedSessions: 0 },
@@ -113,16 +118,28 @@ export const useProgressiveOnboarding = () => {
     };
     
     try {
+      // 🚀 NEW: Get sessions from Universal Architecture
+      const allSessions = getPracticeSessions();
       const stages = ['t1', 't2', 't3', 't4', 't5'] as const;
       
       stages.forEach(stage => {
-        const completed = localStorage.getItem(`${stage}Complete`) === 'true';
-        const sessions = JSON.parse(localStorage.getItem(`${stage}Sessions`) || '[]');
-        const completedSessions = sessions.filter((session: any) => session.isCompleted).length;
+        // Get sessions for this T-stage from Universal Architecture
+        const stageSessions = allSessions.filter(session => 
+          session.stageLabel?.toLowerCase() === stage || 
+          session.stageLevel === parseInt(stage.substring(1))
+        );
+        
+        // Keep localStorage for completion status (or derive from sessions)
+        const completed = localStorage.getItem(`${stage}Complete`) === 'true' || 
+          stageSessions.filter(s => s.rating && s.rating > 0).length >= 3;
+        
+        const completedSessions = stageSessions.filter(session => 
+          session.rating && session.rating > 0
+        ).length;
         
         defaultProgress[stage] = {
           completed,
-          sessions,
+          sessions: stageSessions,
           completedSessions
         };
       });
@@ -132,9 +149,9 @@ export const useProgressiveOnboarding = () => {
       console.error('Error reading T-stage progress:', error);
       return defaultProgress;
     }
-  }, []);
+  }, [getPracticeSessions]);
 
-  // ✅ Get PAHM stage progress from localStorage (Stages 2-6) - YOUR EXISTING SYSTEM
+  // ✅ Keep your existing PAHM stage progress (localStorage-based for now)
   const getPAHMStageProgress = useCallback((): PAHMStageProgress => {
     try {
       return {
@@ -181,7 +198,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, []);
   
-  // ✅ Helper function to get previous stage
+  // ✅ Keep all your existing helper and logic functions unchanged
   const getPreviousStage = useCallback((stage: string): string | null => {
     switch (stage.toLowerCase()) {
       case 't2': return 'T1';
@@ -192,21 +209,18 @@ export const useProgressiveOnboarding = () => {
     }
   }, []);
   
-  // ✅ FIXED: Check T-stage access - PURE SEQUENTIAL LOGIC ONLY
   const checkTStageAccess = useCallback((tStage: string): TStageAccess => {
-    // T1 is always accessible
     if (tStage.toLowerCase() === 't1') {
       return { allowed: true };
     }
 
-    // ✅ SEQUENTIAL ONLY: Check if previous T-stage is completed
     const tStageProgress = getTStageProgress();
     const previousStage = getPreviousStage(tStage);
     
     if (previousStage) {
       const previousStageKey = previousStage.toLowerCase() as keyof TStageProgress;
       const previousProgress = tStageProgress[previousStageKey];
-      const requiredSessions = 3; // Require 3 completed sessions
+      const requiredSessions = 3;
       
       if (previousProgress.completedSessions < requiredSessions) {
         const requirement = `Complete at least ${requiredSessions} ${previousStage} sessions before accessing ${tStage.toUpperCase()}. Current: ${previousProgress.completedSessions}/${requiredSessions}`;
@@ -223,17 +237,14 @@ export const useProgressiveOnboarding = () => {
     return { allowed: true };
   }, [getTStageProgress, getPreviousStage]);
 
-  // ✅ FIXED: Check PAHM Stage access - PURE SEQUENTIAL LOGIC ONLY
   const checkPAHMStageAccess = useCallback((stage: number): TStageAccess => {
     const tStageProgress = getTStageProgress();
     const pahmProgress = getPAHMStageProgress();
     
-    // Stage 1 is always accessible
     if (stage === 1) {
       return { allowed: true };
     }
 
-    // ✅ SEQUENTIAL ONLY: Stage 2+ requires Stage 1 completion (all T-stages)
     if (stage >= 2 && !tStageProgress.t5.completed) {
       const requirement = 'Complete all T-stages (T1-T5) in Stage 1 before accessing PAHM stages';
       setProgressRequirement(requirement);
@@ -245,7 +256,6 @@ export const useProgressiveOnboarding = () => {
       };
     }
 
-    // ✅ SEQUENTIAL ONLY: Stage 3+ requires previous PAHM stage completion
     if (stage >= 3) {
       const previousStageKey = `stage${stage - 1}` as keyof PAHMStageProgress;
       const previousStage = pahmProgress[previousStageKey];
@@ -265,17 +275,15 @@ export const useProgressiveOnboarding = () => {
     return { allowed: true };
   }, [getTStageProgress, getPAHMStageProgress]);
   
-  // ✅ Get user's current accessible stage with proper TypeScript syntax
+  // ✅ Keep all your remaining methods unchanged
   const getCurrentAccessibleStage = useCallback((): number => {
     const tStageProgress = getTStageProgress();
     const pahmProgress = getPAHMStageProgress();
     
-    // If Stage 1 not complete, return 1
     if (!tStageProgress.t5.completed) {
       return 1;
     }
     
-    // Check PAHM stages in order
     for (let stage = 2; stage <= 6; stage++) {
       const access = checkPAHMStageAccess(stage);
       if (access.allowed) {
@@ -288,27 +296,24 @@ export const useProgressiveOnboarding = () => {
       }
     }
     
-    return 6; // All stages completed
+    return 6;
   }, [getTStageProgress, getPAHMStageProgress, checkPAHMStageAccess]);
 
-  // ✅ Get next accessible stage
   const getNextAccessibleStage = useCallback((): number | null => {
     const currentStage = getCurrentAccessibleStage();
     return currentStage < 6 ? currentStage + 1 : null;
   }, [getCurrentAccessibleStage]);
 
-  // ✅ FIXED: Check if user has minimum data for happiness tracking (SEPARATE FROM STAGE ACCESS)
+  // ✅ UPDATED: Use Universal Architecture data for happiness tracking validation
   const hasMinimumDataForHappiness = useCallback((): boolean => {
     const completion = getCompletionStatus();
     const tStageProgress = getTStageProgress();
     
-    // Get total completed sessions across all T-stages
     const totalCompletedSessions = Object.values(tStageProgress).reduce(
       (sum, stage) => sum + stage.completedSessions, 
       0
     );
     
-    // Minimum data requirements for happiness tracking (NOT stage access)
     const hasQuestionnaireAndAssessment = completion.questionnaire && completion.selfAssessment;
     const hasEnoughSessions = totalCompletedSessions >= 3;
     const hasQuestionnaireAndOneSession = completion.questionnaire && totalCompletedSessions >= 1;
@@ -316,26 +321,21 @@ export const useProgressiveOnboarding = () => {
     return hasQuestionnaireAndAssessment || hasEnoughSessions || hasQuestionnaireAndOneSession;
   }, [getCompletionStatus, getTStageProgress]);
 
-  // ✅ Get comprehensive progress summary - UPDATED
   const getCompleteProgressSummary = useCallback((): ProgressSummary => {
     const completion = getCompletionStatus();
     const tStageProgress = getTStageProgress();
     const pahmProgress = getPAHMStageProgress();
     
-    // Stage 1 Summary
     const stage1Completed = Object.values(tStageProgress).filter((t: any) => t.completed).length;
     const stage1TotalSessions = Object.values(tStageProgress).reduce((sum: number, t: any) => sum + t.sessions.length, 0);
     const stage1CompletedSessions = Object.values(tStageProgress).reduce((sum: number, t: any) => sum + t.completedSessions, 0);
     
-    // PAHM Stages Summary
     const pahmCompletedStages = Object.values(pahmProgress).filter((s: any) => s.completed).length;
     const pahmTotalHours = Object.values(pahmProgress).reduce((sum: number, s: any) => sum + s.hours, 0);
     
-    // Overall calculations
     const currentStage = getCurrentAccessibleStage();
-    const totalPracticeHours = (stage1CompletedSessions * 0.25) + pahmTotalHours; // Assume 15min average for T-sessions
+    const totalPracticeHours = (stage1CompletedSessions * 0.25) + pahmTotalHours;
     
-    // Determine current level
     let currentLevel = 'Beginner';
     if (currentStage === 1) currentLevel = 'Seeker';
     else if (currentStage === 2) currentLevel = 'PAHM Trainee';
@@ -344,7 +344,6 @@ export const useProgressiveOnboarding = () => {
     else if (currentStage === 5) currentLevel = 'PAHM Master';
     else if (currentStage === 6) currentLevel = 'PAHM Illuminator';
     
-    // ✅ FIXED: Next milestone based on sequential progression
     let nextMilestone = 'Continue Practice';
     if (!tStageProgress.t5.completed) {
       nextMilestone = 'Complete Stage 1 (All T-stages)';
@@ -383,23 +382,20 @@ export const useProgressiveOnboarding = () => {
     };
   }, [getCompletionStatus, getTStageProgress, getPAHMStageProgress, getCurrentAccessibleStage]);
 
-  // ✅ Recheck completion status
+  // ✅ Keep all your existing utility methods
   const recheckStatus = useCallback(async () => {
     setCompletionStatus(getCompletionStatus());
   }, [getCompletionStatus]);
 
-  // ✅ Session completion handler
   const handleSessionComplete = useCallback((sessionData: any) => {
     setLastSessionData(sessionData);
     setShowSessionCompletionModal(true);
     
-    // Trigger status update
     setTimeout(() => {
       recheckStatus();
     }, 500);
   }, [recheckStatus]);
 
-  // ✅ Welcome new users (for happiness tracking guidance, not stage access)
   const checkAndShowWelcome = useCallback(() => {
     const hasSeenWelcome = localStorage.getItem('hasSeenWelcome') === 'true';
     
@@ -409,11 +405,10 @@ export const useProgressiveOnboarding = () => {
     }
   }, [hasMinimumDataForHappiness]);
 
-  // ✅ Update completion status on mount and when localStorage changes
+  // ✅ Keep all your existing useEffect hooks
   useEffect(() => {
     recheckStatus();
     
-    // Listen for localStorage changes
     const handleStorageChange = () => {
       recheckStatus();
     };
@@ -422,14 +417,12 @@ export const useProgressiveOnboarding = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [recheckStatus]);
 
-  // ✅ Check for welcome modal on mount
   useEffect(() => {
     checkAndShowWelcome();
   }, [checkAndShowWelcome]);
 
-  // ✅ Return all required properties
+  // ✅ Return exactly the same interface
   return {
-    // ✅ Modal states
     showQuestionnaireModal,
     showSelfAssessmentModal,
     showProgressModal,
@@ -443,35 +436,29 @@ export const useProgressiveOnboarding = () => {
     setShowWelcomeModal,
     setShowSessionCompletionModal,
     
-    // ✅ Current requirement tracking
     progressRequirement,
     lastSessionData,
     
-    // ✅ Main checking functions - SEQUENTIAL LOGIC ONLY
     checkTStageAccess,
     checkPAHMStageAccess,
     
-    // ✅ Progress functions
     getTStageProgress,
     getPAHMStageProgress,
     getCompleteProgressSummary,
     getCurrentAccessibleStage,
     getNextAccessibleStage,
     
-    // ✅ NEW: Happiness tracking validation (separate from stage access)
     hasMinimumDataForHappiness,
     
-    // ✅ Session handling
     handleSessionComplete,
     
-    // ✅ Status management
     completionStatus,
     recheckStatus,
     checkAndShowWelcome
   };
 };
 
-// ✅ Helper hook for complete progress access
+// ✅ Keep your existing helper hook
 export const useCompleteProgress = () => {
   const { getCompleteProgressSummary, getCurrentAccessibleStage, hasMinimumDataForHappiness } = useProgressiveOnboarding();
   

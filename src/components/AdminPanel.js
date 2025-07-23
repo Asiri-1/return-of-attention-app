@@ -3,8 +3,9 @@
 // 🔄 COMPLETELY REPLACE YOUR ADMINPANEL.JS WITH THIS VERSION
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAdmin } from '../AdminContext';
-import { useAuth } from '../AuthContext';
+// 🚀 UPDATED: Use Universal Architecture compatible imports
+import { useAdmin } from '../contexts/auth/AdminContext';
+import { useAuth } from '../contexts/auth/AuthContext';
 
 // Firebase imports for reading data
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
