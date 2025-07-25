@@ -46,6 +46,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   };
 
   const nextQuestion = () => {
+    // ✅ MANDATORY: Check if current question is answered before proceeding
+    if (!isCurrentQuestionAnswered()) {
+      console.log('❌ Cannot proceed: Current question not answered');
+      return; // Block progression
+    }
+
     if (currentQuestion < 27) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
@@ -120,22 +126,23 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '400px',
+        minHeight: '100vh',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
-        borderRadius: '20px',
-        padding: '40px'
+        padding: '20px'
       }}>
         <div style={{
-          width: '40px',
-          height: '40px',
+          width: '50px',
+          height: '50px',
           border: '4px solid rgba(255, 255, 255, 0.3)',
           borderTop: '4px solid white',
           borderRadius: '50%',
           animation: 'spin 1s linear infinite',
-          marginBottom: '20px'
+          marginBottom: '24px'
         }}></div>
-        <h2>Loading your assessment...</h2>
+        <h2 style={{ fontSize: 'clamp(20px, 5vw, 28px)', textAlign: 'center', margin: 0 }}>
+          Loading your assessment...
+        </h2>
       </div>
     );
   }
@@ -162,20 +169,30 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   }
 
   const getPhaseInfo = (questionNum: number) => {
-    if (questionNum <= 7) return { phase: 1, name: 'Demographics & Background', icon: '🎯' };
-    if (questionNum <= 15) return { phase: 2, name: 'Lifestyle Patterns', icon: '🏠' };
-    if (questionNum <= 21) return { phase: 3, name: 'Thinking Patterns', icon: '🧠' };
-    return { phase: 4, name: 'Mindfulness Specific', icon: '🧘' };
+    if (questionNum <= 7) return { phase: 1, name: 'Demographics & Background', icon: '🎯', color: '#667eea' };
+    if (questionNum <= 15) return { phase: 2, name: 'Lifestyle Patterns', icon: '🏠', color: '#10b981' };
+    if (questionNum <= 21) return { phase: 3, name: 'Thinking Patterns', icon: '🧠', color: '#f59e0b' };
+    return { phase: 4, name: 'Mindfulness Specific', icon: '🧘', color: '#8b5cf6' };
   };
 
   const isCurrentQuestionAnswered = () => {
     const questionKey = getQuestionKey(currentQuestion);
     const answer = answers[questionKey];
     
+    // ✅ ENHANCED: More comprehensive validation
     if (Array.isArray(answer)) {
-      return answer.length > 0;
+      return answer.length > 0; // Arrays must have at least one selection
     }
     
+    if (typeof answer === 'string') {
+      return answer.trim().length > 0; // Strings must not be empty
+    }
+    
+    if (typeof answer === 'number') {
+      return !isNaN(answer) && answer > 0; // Numbers must be valid and positive
+    }
+    
+    // All other cases: must not be undefined, null, or empty
     return answer !== undefined && answer !== null && answer !== '';
   };
 
@@ -931,121 +948,217 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   return (
     <div className="questionnaire-container">
       <style>{`
-        /* Enhanced iPhone-optimized CSS */
+        /* ✅ UNIVERSAL QUESTIONNAIRE DESIGN - FULLY IPHONE OPTIMIZED */
         .questionnaire-container {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) 100px env(safe-area-inset-left, 20px);
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
           min-height: 100vh;
-          min-height: 100dvh;
+          min-height: 100dvh; /* Dynamic viewport height for iPhone */
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          display: flex;
+          flex-direction: column;
           overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
           box-sizing: border-box;
-          padding-bottom: 120px;
+          padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
         }
 
-        .questionnaire-progress {
-          background: white;
-          border-radius: 15px;
-          padding: 25px;
-          margin-bottom: 30px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        /* ✅ TOP PROGRESS BAR - IPHONE OPTIMIZED */
+        .progress-header {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+          padding: max(16px, env(safe-area-inset-top, 16px)) 20px 16px 20px;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          border-bottom: 1px solid #e2e8f0;
         }
 
-        .progress-info {
+        .progress-content {
+          max-width: 800px;
+          margin: 0 auto;
+          width: 100%;
+        }
+
+        .progress-main {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 15px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+          gap: 8px;
         }
 
         .progress-text {
-          font-size: clamp(16px, 4vw, 18px);
-          font-weight: 600;
-          color: #2d3748;
+          font-size: clamp(16px, 4vw, 20px);
+          font-weight: 700;
+          color: #1a202c;
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+          min-width: 0;
         }
 
         .progress-percentage {
           font-size: clamp(14px, 3.5vw, 16px);
           color: #667eea;
-          font-weight: 500;
+          font-weight: 600;
+          flex-shrink: 0;
         }
 
         .progress-bar {
           width: 100%;
           height: 8px;
-          background-color: #e2e8f0;
-          border-radius: 4px;
+          background: #e2e8f0;
+          border-radius: 20px;
           overflow: hidden;
+          margin-bottom: 12px;
         }
 
         .progress-fill {
           height: 100%;
           background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-          border-radius: 4px;
-          transition: width 0.3s ease;
+          border-radius: 20px;
+          transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
         }
 
-        .phase-info {
+        .phase-indicator {
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-top: 15px;
-          padding: 12px;
-          background: #f8fafc;
-          border-radius: 8px;
-          font-size: clamp(15px, 3.5vw, 16px);
+          padding: 8px 16px;
+          background: linear-gradient(135deg, ${phaseInfo.color}15 0%, ${phaseInfo.color}08 100%);
+          border: 1px solid ${phaseInfo.color}30;
+          border-radius: 12px;
+          font-size: clamp(12px, 3.5vw, 14px);
+          font-weight: 600;
+          color: ${phaseInfo.color};
+          width: fit-content;
         }
 
-        .question-content {
+        /* ✅ MAIN CONTENT - IPHONE CENTERED DESIGN */
+        .main-content {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          padding-bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
+          min-height: calc(100vh - 200px);
+          min-height: calc(100dvh - 200px);
+        }
+
+        .question-card {
           background: white;
-          border-radius: 20px;
-          padding: 30px 25px;
-          margin-bottom: 30px;
-          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+          border-radius: 24px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+          padding: clamp(24px, 6vw, 40px);
+          max-width: 700px;
+          width: 100%;
+          text-align: center;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          margin: 0 auto;
+          transition: all 0.3s ease;
+        }
+
+        .question-card.answer-required-card {
+          border: 2px solid #f59e0b;
+          box-shadow: 0 20px 60px rgba(245, 158, 11, 0.15);
+        }
+
+        .answer-required-message {
+          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+          border: 1px solid #f59e0b;
+          border-radius: 12px;
+          padding: 16px;
+          margin-top: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          animation: shake 0.5s ease-in-out;
+        }
+
+        .answer-required-icon {
+          font-size: 20px;
+          flex-shrink: 0;
+        }
+
+        .answer-required-text {
+          color: #92400e;
+          font-weight: 600;
+          font-size: clamp(13px, 3.5vw, 15px);
+        }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
         }
 
         .question-container h2 {
-          font-size: clamp(22px, 6vw, 30px);
-          color: #2d3748;
-          margin-bottom: 15px;
-          text-align: center;
-          line-height: 1.3;
+          font-size: clamp(20px, 6vw, 36px);
+          color: #1a202c;
+          margin: 0 0 16px 0;
+          font-weight: 800;
+          line-height: 1.2;
         }
 
         .question-container p {
-          font-size: clamp(16px, 4vw, 18px);
+          font-size: clamp(14px, 4vw, 20px);
           color: #4a5568;
-          text-align: center;
-          margin-bottom: 30px;
+          margin: 0 0 30px 0;
           line-height: 1.6;
+          font-weight: 500;
         }
 
+        /* ✅ OPTIONS GRID - IPHONE RESPONSIVE */
         .options-grid {
           display: grid;
-          gap: 16px;
+          gap: 12px;
           grid-template-columns: 1fr;
+          max-width: 600px;
+          margin: 0 auto;
         }
 
         .option-button {
           display: flex;
           align-items: center;
           gap: 16px;
-          padding: 20px 18px;
+          padding: 16px 20px;
           border: 2px solid #e2e8f0;
           border-radius: 16px;
           background: white;
           cursor: pointer;
-          transition: all 0.3s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           text-align: left;
-          min-height: 56px;
+          min-height: 60px; /* iPhone touch target minimum */
           -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
           touch-action: manipulation;
-          word-break: break-word;
+          position: relative;
+          overflow: hidden;
           box-sizing: border-box;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+
+        .option-button::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
           width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+          transition: left 0.6s;
+        }
+
+        .option-button:hover::before {
+          left: 100%;
         }
 
         .option-button:hover {
@@ -1054,25 +1167,35 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
         }
 
+        .option-button:active {
+          transform: translateY(0px) scale(0.98);
+        }
+
         .option-button.selected {
           border-color: #667eea;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(102, 126, 234, 0.25);
         }
 
         .option-icon {
-          font-size: clamp(24px, 5vw, 28px);
+          font-size: clamp(18px, 5vw, 24px);
           flex-shrink: 0;
         }
 
         .option-text {
-          font-size: clamp(15px, 3.5vw, 16px);
-          font-weight: 500;
+          font-size: clamp(13px, 3.5vw, 16px);
+          font-weight: 600;
           line-height: 1.4;
+          word-break: break-word;
         }
 
+        /* ✅ SLIDER DESIGN - IPHONE OPTIMIZED */
         .slider-container {
-          padding: 30px 20px;
+          padding: 20px;
+          max-width: 500px;
+          margin: 0 auto;
         }
 
         .range-slider {
@@ -1083,173 +1206,528 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           outline: none;
           -webkit-appearance: none;
           margin-bottom: 20px;
-          font-size: 16px;
+          position: relative;
+          touch-action: manipulation;
         }
 
         .range-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 28px;
-          height: 28px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          background: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           cursor: pointer;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          transition: all 0.2s ease;
+          border: none;
+        }
+
+        .range-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .range-slider::-webkit-slider-thumb:active {
+          transform: scale(1.2);
         }
 
         .range-slider::-moz-range-thumb {
-          width: 28px;
-          height: 28px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          background: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           cursor: pointer;
           border: none;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         .slider-labels {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 15px;
-          font-size: clamp(12px, 3vw, 13px);
-          color: #4a5568;
+          margin-bottom: 16px;
+          font-size: clamp(10px, 2.5vw, 13px);
+          color: #6b7280;
+          font-weight: 500;
           flex-wrap: wrap;
-          gap: 8px;
+          gap: 4px;
         }
 
         .slider-value {
           text-align: center;
-          font-size: clamp(16px, 4vw, 18px);
-          font-weight: 600;
+          font-size: clamp(16px, 4vw, 22px);
+          font-weight: 700;
           color: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
-        /* Fixed navigation for iPhone */
-        .questionnaire-navigation {
+        /* ✅ BOTTOM NAVIGATION - IPHONE OPTIMIZED */
+        .bottom-navigation {
           position: fixed;
           bottom: 0;
           left: 0;
           right: 0;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-top: 1px solid #e2e8f0;
+          padding: 16px 20px;
+          padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+          z-index: 1000;
+          box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .navigation-content {
+          max-width: 800px;
+          margin: 0 auto;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(20px);
-          padding: 20px;
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
-          z-index: 1000;
-          max-width: 800px;
-          margin: 0 auto;
-          padding-bottom: max(20px, env(safe-area-inset-bottom));
+          gap: 16px;
         }
 
-        .back-button, .next-button {
+        .nav-button {
           padding: 16px 24px;
           border: none;
-          border-radius: 12px;
-          font-size: clamp(14px, 3.5vw, 16px);
-          font-weight: 600;
+          border-radius: 16px;
+          font-size: clamp(13px, 3.5vw, 16px);
+          font-weight: 700;
           cursor: pointer;
-          transition: all 0.3s ease;
-          min-width: 120px;
-          min-height: 50px;
-          text-align: center;
-          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          min-height: 56px; /* iPhone touch target */
+          min-width: 100px;
+          -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
+          position: relative;
+          overflow: hidden;
           box-sizing: border-box;
+          user-select: none;
+          -webkit-user-select: none;
         }
 
         .back-button {
-          background: #e2e8f0;
-          color: #4a5568;
+          background: #f1f5f9;
+          color: #475569;
+          border: 2px solid #e2e8f0;
         }
 
         .back-button:hover:not(:disabled) {
-          background: #cbd5e0;
+          background: #e2e8f0;
           transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .back-button:active:not(:disabled) {
+          transform: translateY(0px) scale(0.98);
         }
 
         .back-button:disabled {
-          opacity: 0.5;
+          opacity: 0.4;
           cursor: not-allowed;
+          transform: none;
         }
 
         .next-button {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
           color: white !important;
-          border: none !important;
+          border: 2px solid transparent !important;
+          position: relative;
+          flex: 1;
+          max-width: 250px;
           opacity: 1 !important;
           visibility: visible !important;
-          pointer-events: auto !important;
+          display: flex !important;
+        }
+
+        .next-button::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+          transition: left 0.6s;
+          pointer-events: none;
+        }
+
+        .next-button:hover::before {
+          left: 100%;
         }
 
         .next-button:hover:not(:disabled) {
-          opacity: 1 !important;
-          visibility: visible !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
           background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
           color: white !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          display: flex !important;
+        }
+
+        .next-button:active:not(:disabled) {
+          transform: translateY(0px) scale(0.98) !important;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+          color: white !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+        }
+
+        .next-button:disabled {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+          color: white !important;
+          cursor: not-allowed !important;
+          opacity: 0.8 !important;
+          transform: none !important;
+          box-shadow: none !important;
+          pointer-events: none !important;
+        }
+
+        .next-button:disabled:hover {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+          transform: none !important;
+          box-shadow: none !important;
+          cursor: not-allowed !important;
         }
 
         .answer-required {
-          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
           color: white !important;
+          animation: pulse 2s infinite;
+          opacity: 1 !important;
+          visibility: visible !important;
+          display: flex !important;
+          cursor: not-allowed !important;
+          pointer-events: none !important;
         }
 
         .answer-required:hover {
           background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3) !important;
+          color: white !important;
+          transform: none !important;
+          box-shadow: none !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          cursor: not-allowed !important;
+        }
+
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.02); }
         }
 
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        /* ✅ IPHONE SE (375px and smaller) */
+        @media (max-width: 374px) {
+          .progress-header {
+            padding: max(12px, env(safe-area-inset-top, 12px)) 16px 12px 16px;
+          }
+
+          .main-content {
+            padding: 16px 12px;
+            padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom)));
+          }
+
+          .question-card {
+            padding: 20px 16px;
+            border-radius: 20px;
+          }
+
+          .options-grid {
+            gap: 10px;
+          }
+
+          .option-button {
+            padding: 14px 16px;
+            min-height: 56px;
+            gap: 12px;
+          }
+
+          .option-icon {
+            font-size: 20px;
+          }
+
+          .option-text {
+            font-size: 13px;
+          }
+
+          .navigation-content {
+            gap: 12px;
+          }
+
+          .nav-button {
+            min-width: 80px;
+            padding: 14px 16px;
+            font-size: 13px;
+          }
+
+          .phase-indicator {
+            padding: 6px 12px;
+            font-size: 11px;
+          }
+        }
+
+        /* ✅ IPHONE STANDARD (375px - 414px) */
+        @media (min-width: 375px) and (max-width: 414px) {
+          .main-content {
+            padding: 20px 16px;
+            padding-bottom: max(130px, calc(130px + env(safe-area-inset-bottom)));
+          }
+
+          .question-card {
+            padding: 24px 20px;
+          }
+
+          .options-grid {
+            gap: 12px;
+          }
+        }
+
+        /* ✅ IPHONE PLUS/PRO MAX (415px+) */
+        @media (min-width: 415px) and (max-width: 768px) {
+          .main-content {
+            padding: 24px 20px;
+            padding-bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
+          }
+
+          .question-card {
+            padding: 32px 24px;
+          }
+
+          .options-grid {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 14px;
+          }
+        }
+
+        /* ✅ LANDSCAPE MODE - IPHONE OPTIMIZATION */
+        @media (max-width: 768px) and (orientation: landscape) {
+          .main-content {
+            padding: 16px 20px;
+            padding-bottom: max(100px, calc(100px + env(safe-area-inset-bottom)));
+            align-items: flex-start;
+            padding-top: 16px;
+          }
+
+          .question-card {
+            padding: 20px 24px;
+            margin-top: 0;
+          }
+
+          .question-container h2 {
+            font-size: clamp(18px, 5vw, 24px);
+            margin-bottom: 12px;
+          }
+
+          .question-container p {
+            font-size: clamp(13px, 3.5vw, 16px);
+            margin-bottom: 20px;
+          }
+
+          .options-grid {
+            gap: 10px;
+          }
+
+          .option-button {
+            padding: 12px 16px;
+            min-height: 48px;
+          }
+
+          .slider-container {
+            padding: 16px;
+          }
+
+          .bottom-navigation {
+            padding: 12px 20px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+          }
+
+          .nav-button {
+            min-height: 48px;
+            padding: 12px 20px;
+          }
+        }
+
+        /* ✅ TABLET AND DESKTOP */
+        @media (min-width: 769px) {
+          .options-grid {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+          }
+
+          .question-card {
+            padding: 40px;
+          }
+        }
+
+        /* ✅ SAFE AREA SUPPORT (iPhone X and newer) */
+        @supports (padding: max(0px)) {
+          .progress-header {
+            padding-top: max(16px, env(safe-area-inset-top));
+          }
+
+          .bottom-navigation {
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+          }
+
+          .main-content {
+            padding-bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
+          }
+        }
+
+        /* ✅ HIGH CONTRAST MODE SUPPORT */
+        @media (prefers-contrast: high) {
+          .option-button {
+            border-width: 3px;
+          }
+
+          .progress-fill {
+            box-shadow: none;
+          }
+
+          .nav-button {
+            border-width: 3px;
+          }
+        }
+
+        /* ✅ REDUCED MOTION SUPPORT */
+        @media (prefers-reduced-motion: reduce) {
+          .option-button::before {
+            transition: none;
+          }
+
+          .next-button::before {
+            transition: none;
+          }
+
+          .progress-fill {
+            transition: none;
+          }
+
+          .pulse {
+            animation: none;
+          }
+
+          * {
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+          }
+        }
+
+        /* ✅ DARK MODE SUPPORT */
+        @media (prefers-color-scheme: dark) {
+          .questionnaire-container {
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+          }
+
+          .progress-header {
+            background: rgba(26, 32, 44, 0.95);
+            border-bottom-color: #4a5568;
+          }
+
+          .question-card {
+            background: #2d3748;
+            border-color: #4a5568;
+          }
+
+          .question-container h2 {
+            color: #f7fafc;
+          }
+
+          .question-container p {
+            color: #e2e8f0;
+          }
+
+          .option-button {
+            background: #374151;
+            border-color: #4a5568;
+            color: #f7fafc;
+          }
+
+          .option-button:hover {
+            border-color: #667eea;
+          }
+
+          .bottom-navigation {
+            background: rgba(26, 32, 44, 0.95);
+            border-top-color: #4a5568;
+          }
+
+          .back-button {
+            background: #374151;
+            color: #e2e8f0;
+            border-color: #4a5568;
+          }
+        }
       `}</style>
 
-      {/* Progress bar */}
-      <div className="questionnaire-progress">
-        <div className="progress-info">
-          <span className="progress-text">
-            Question {currentQuestion} of 27
-          </span>
-          <span className="progress-percentage">{Math.round(progress)}% Complete</span>
-        </div>
-        <div className="progress-bar">
-          <div 
-            className="progress-fill" 
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="phase-info">
-          <span>{phaseInfo.icon}</span>
-          <span>Phase {phaseInfo.phase}: {phaseInfo.name}</span>
+      {/* ✅ TOP PROGRESS BAR */}
+      <div className="progress-header">
+        <div className="progress-content">
+          <div className="progress-main">
+            <h1 className="progress-text">Question {currentQuestion} of 27</h1>
+            <span className="progress-percentage">{Math.round(progress)}% Complete</span>
+          </div>
+          
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          
+          <div className="phase-indicator">
+            <span>{phaseInfo.icon}</span>
+            <span>Phase {phaseInfo.phase}: {phaseInfo.name}</span>
+          </div>
         </div>
       </div>
 
-      {/* Question content */}
-      <div className="question-content">
-        {renderQuestion()}
+      {/* ✅ CENTERED MAIN CONTENT */}
+      <div className="main-content">
+        <div className={`question-card ${!isCurrentQuestionAnswered() ? 'answer-required-card' : ''}`}>
+          {renderQuestion()}
+          
+          {/* ✅ ANSWER REQUIRED MESSAGE */}
+          {!isCurrentQuestionAnswered() && (
+            <div className="answer-required-message">
+              <div className="answer-required-icon">⚠️</div>
+              <div className="answer-required-text">
+                Please select an answer to continue
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Fixed Navigation for iPhone */}
-      <div className="questionnaire-navigation">
-        <button 
-          className="back-button" 
-          onClick={prevQuestion}
-          disabled={currentQuestion === 1}
-        >
-          ← Back
-        </button>
+      {/* ✅ BOTTOM NAVIGATION */}
+      <div className="bottom-navigation">
+        <div className="navigation-content">
+          <button 
+            className="nav-button back-button" 
+            onClick={prevQuestion}
+            disabled={currentQuestion === 1}
+          >
+            ← Back
+          </button>
 
-        <button 
-          className={`next-button ${!isCurrentQuestionAnswered() ? 'answer-required' : ''}`}
-          onClick={nextQuestion}
-          disabled={false}
-        >
-          {currentQuestion === 27 ? 'Complete Assessment' : 
-           !isCurrentQuestionAnswered() ? 'Please Answer First' : 'Next →'}
-        </button>
+          <button 
+            className={`nav-button next-button ${!isCurrentQuestionAnswered() ? 'answer-required' : ''}`}
+            onClick={nextQuestion}
+            disabled={!isCurrentQuestionAnswered()}
+            title={!isCurrentQuestionAnswered() ? 'Please answer this question before continuing' : ''}
+          >
+            {currentQuestion === 27 ? 'Complete Assessment' : 
+             !isCurrentQuestionAnswered() ? '⚠️ Please Answer First' : 'Next →'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,11 +1,17 @@
-// ✅ COMPLETE AdminPanel.js with Full Testing Suite & Granular Reset Options
+// ✅ COMPLETE AdminPanel.js - ALL FUNCTIONS PRESERVED + Universal Architecture Integration + Individual Reset Options
 // File: src/components/AdminPanel.js
 // 🔄 COMPLETELY REPLACE YOUR ADMINPANEL.JS WITH THIS VERSION
 
 import React, { useState, useEffect, useCallback } from 'react';
-// 🚀 UPDATED: Use Universal Architecture compatible imports
+// 🚀 UNIVERSAL ARCHITECTURE: Import real contexts
 import { useAdmin } from '../contexts/auth/AdminContext';
 import { useAuth } from '../contexts/auth/AuthContext';
+import { useUser } from '../contexts/user/UserContext';
+import { useOnboarding } from '../contexts/onboarding/OnboardingContext';
+import { usePractice } from '../contexts/practice/PracticeContext';
+import { useWellness } from '../contexts/wellness/WellnessContext';
+import { useContent } from '../contexts/content/ContentContext';
+import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
 
 // Firebase imports for reading data
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
@@ -21,11 +27,25 @@ const AdminPanel = () => {
   } = useAdmin();
   
   const { currentUser } = useAuth();
+  
+  // 🚀 REAL DATA: Get actual app state
+  const { userProfile, updateProfile } = useUser();
+  const { 
+    getCompletionStatus, 
+    markQuestionnaireComplete, 
+    markSelfAssessmentComplete,
+    clearOnboardingData 
+  } = useOnboarding();
+  const { sessions, addSession, clearPracticeData } = usePractice();
+  const { emotionalNotes, addEmotionalNote, clearWellnessData } = useWellness();
+  const { clearContentData } = useContent();
+  const { userProgress, componentBreakdown } = useHappinessCalculation();
+  
   const [activeTab, setActiveTab] = useState('overview');
   
   // State for user statistics
   const [userStats, setUserStats] = useState({
-    totalUsers: 3, // Default to known Firebase Auth count
+    totalUsers: 3,
     activeUsers: 1,
     authUsers: 3,
     firestoreUsers: 0,
@@ -41,7 +61,1153 @@ const AdminPanel = () => {
   const [newAdminRole, setNewAdminRole] = useState('ADMIN');
   const [userManagementLoading, setUserManagementLoading] = useState(false);
 
-  // Load real user statistics with accurate Firebase Auth data
+  // 🚀 NEW: Real data state
+  const [realDataState, setRealDataState] = useState({
+    questionnaire: false,
+    selfAssessment: false,
+    practiceCount: 0,
+    happinessPoints: 0,
+    currentLevel: 'New User'
+  });
+
+  // 🚀 NEW: Load real app state
+  const loadRealDataState = useCallback(async () => {
+    try {
+      console.log('📊 Loading real app state...');
+      
+      // Get completion status from Universal Architecture
+      const completionStatus = getCompletionStatus();
+      
+      // Get real happiness data
+      const happiness = userProgress.happiness_points || 0;
+      const level = userProgress.user_level || 'New User';
+      
+      // Get practice sessions count
+      const practiceCount = sessions?.length || 0;
+      
+      // Update real data state
+      setRealDataState({
+        questionnaire: completionStatus.questionnaire,
+        selfAssessment: completionStatus.selfAssessment,
+        practiceCount,
+        happinessPoints: happiness,
+        currentLevel: level
+      });
+      
+      console.log('📊 Real App State:', {
+        questionnaire: completionStatus.questionnaire,
+        selfAssessment: completionStatus.selfAssessment,
+        practiceCount,
+        happinessPoints: happiness,
+        currentLevel: level,
+        userProgress,
+        componentBreakdown
+      });
+      
+    } catch (error) {
+      console.error('❌ Error loading real app state:', error);
+    }
+  }, [getCompletionStatus, userProgress, sessions, componentBreakdown]);
+
+  // 🚀 NEW: Real completion functions
+  const completeQuestionnaireReal = useCallback(async () => {
+    try {
+      const mockQuestionnaireData = {
+        experience_level: 5,
+        goals: ['stress-reduction', 'emotional-balance'],
+        age_range: '25-34',
+        location: 'Urban area',
+        occupation: 'Software Developer',
+        education_level: "Bachelor's degree",
+        meditation_background: 'Some guided meditation experience',
+        sleep_pattern: 7,
+        physical_activity: 'moderate',
+        stress_triggers: ['work-pressure', 'traffic'],
+        daily_routine: 'Somewhat organized',
+        diet_pattern: 'Balanced with occasional treats',
+        screen_time: '3-4 hours daily',
+        social_connections: 'Good friends and family relationships',
+        work_life_balance: 'Sometimes struggle but generally good',
+        emotional_awareness: 6,
+        stress_response: 'Usually manage well',
+        decision_making: 'Balanced approach',
+        self_reflection: 'Occasional deep thinking',
+        thought_patterns: 'Mixed emotions',
+        mindfulness_in_daily_life: 'Try to be mindful but forget',
+        mindfulness_experience: 4,
+        meditation_background_detail: 'Guided meditations, apps',
+        practice_goals: 'Quick stress relief',
+        preferred_duration: 15,
+        biggest_challenges: 'Finding time and staying consistent',
+        motivation: 'Stress reduction and emotional balance'
+      };
+      
+      await markQuestionnaireComplete(mockQuestionnaireData);
+      await loadRealDataState();
+      alert('✅ Questionnaire completed in Universal Architecture!');
+      
+    } catch (error) {
+      console.error('❌ Error completing questionnaire:', error);
+      alert('❌ Error completing questionnaire: ' + error.message);
+    }
+  }, [markQuestionnaireComplete, loadRealDataState]);
+
+  const completeSelfAssessmentReal = useCallback(async () => {
+    try {
+      const mockAssessmentData = {
+        responses: {
+          q1: 3,
+          q2: 2,
+          q3: 4,
+          q4: 3,
+          q5: 2,
+          q6: 3,
+          q7: 4,
+          q8: 2,
+          q9: 3,
+          q10: 3
+        },
+        attachmentScore: -5,
+        nonAttachmentCount: 4,
+        categories: ['material', 'relationships'],
+        insights: ['Moderate attachment patterns', 'Good self-awareness'],
+        recommendations: ['Practice letting go', 'Focus on present moment']
+      };
+      
+      await markSelfAssessmentComplete(mockAssessmentData);
+      await loadRealDataState();
+      alert('✅ Self-Assessment completed in Universal Architecture!');
+      
+    } catch (error) {
+      console.error('❌ Error completing self-assessment:', error);
+      alert('❌ Error completing self-assessment: ' + error.message);
+    }
+  }, [markSelfAssessmentComplete, loadRealDataState]);
+
+  const addPracticeSessionReal = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 15, // 15 minutes
+        stageLevel: 1,
+        tLevel: 'T1',
+        quality: Math.floor(Math.random() * 3) + 3, // 3-5 rating
+        notes: `Admin test session ${Date.now()}`,
+        type: 'meditation',
+        rating: Math.floor(Math.random() * 3) + 3
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ Practice session added to Universal Architecture!');
+      
+    } catch (error) {
+      console.error('❌ Error adding practice session:', error);
+      alert('❌ Error adding practice session: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const addEmotionalNoteReal = useCallback(async () => {
+    try {
+      const mockNote = {
+        timestamp: new Date().toISOString(),
+        mood: Math.floor(Math.random() * 4) + 3, // 3-6 mood
+        energy: Math.floor(Math.random() * 4) + 3,
+        notes: `Admin test emotional note ${Date.now()}`,
+        tags: ['peaceful', 'focused']
+      };
+      
+      await addEmotionalNote(mockNote);
+      await loadRealDataState();
+      alert('✅ Emotional note added to Universal Architecture!');
+      
+    } catch (error) {
+      console.error('❌ Error adding emotional note:', error);
+      alert('❌ Error adding emotional note: ' + error.message);
+    }
+  }, [addEmotionalNote, loadRealDataState]);
+
+  // 🚀 REAL DATA: T-Level session progression functions (Universal Architecture)
+  const completeT1Session1Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 15,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T1',
+        sessionNumber: 1,
+        stageLabel: 'T1 Session 1 - Basic stillness practice',
+        rating: 6.5,
+        notes: 'T1 Session 1 - Basic stillness practice. Learning to observe breath.',
+        environment: {
+          posture: 'seated',
+          location: 'home',
+          lighting: 'natural',
+          sounds: 'quiet'
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T1 Session 1 completed! (1/3 sessions)\n\nProgress: Still need 2 more T1 sessions to unlock T2.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T1 Session 1:', error);
+      alert('❌ Error completing T1 Session 1: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT1Session2Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 15,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T1',
+        sessionNumber: 2,
+        stageLabel: 'T1 Session 2 - Improving breath awareness',
+        rating: 7.0,
+        notes: 'T1 Session 2 - Improving breath awareness. Less mind wandering.',
+        environment: {
+          posture: 'seated',
+          location: 'home',
+          lighting: 'natural',
+          sounds: 'quiet'
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T1 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T1 session needed to unlock T2.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T1 Session 2:', error);
+      alert('❌ Error completing T1 Session 2: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT1Session3Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 15,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T1',
+        sessionNumber: 3,
+        stageLabel: 'T1 Session 3 - COMPLETE! Basic stillness mastered',
+        rating: 7.5,
+        notes: 'T1 Session 3 - COMPLETE! Basic stillness mastered. Ready for T2.',
+        environment: {
+          posture: 'seated',
+          location: 'home',
+          lighting: 'natural',
+          sounds: 'quiet'
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('🎉 T1 COMPLETE! (3/3 sessions)\n\n✅ T2 Level Unlocked!\n\nUser can now practice T2: Attention to Breathing.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T1 Session 3:', error);
+      alert('❌ Error completing T1 Session 3: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  // T2 Sessions
+  const completeT2Session1Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 20,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T2',
+        sessionNumber: 1,
+        stageLabel: 'T2 Session 1 - Attention to breathing',
+        rating: 6.8,
+        notes: 'T2 Session 1 - Attention to breathing. Learning sustained focus.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T2 Session 1 completed! (1/3 sessions)\n\nProgress: Learning attention to breathing. Need 2 more T2 sessions to unlock T3.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T2 Session 1:', error);
+      alert('❌ Error completing T2 Session 1: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT2Session2Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 20,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T2',
+        sessionNumber: 2,
+        stageLabel: 'T2 Session 2 - Better sustained attention',
+        rating: 7.2,
+        notes: 'T2 Session 2 - Better sustained attention. Less distraction.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T2 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T2 session needed to unlock T3.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T2 Session 2:', error);
+      alert('❌ Error completing T2 Session 2: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT2Session3Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 20,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T2',
+        sessionNumber: 3,
+        stageLabel: 'T2 Session 3 - COMPLETE! Attention to breathing mastered',
+        rating: 7.8,
+        notes: 'T2 Session 3 - COMPLETE! Attention to breathing mastered. Ready for T3.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('🎉 T2 COMPLETE! (3/3 sessions)\n\n✅ T3 Level Unlocked!\n\nUser can now practice T3: Attention with Relaxation.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T2 Session 3:', error);
+      alert('❌ Error completing T2 Session 3: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  // T3 Sessions
+  const completeT3Session1Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 25,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T3',
+        sessionNumber: 1,
+        stageLabel: 'T3 Session 1 - Attention with relaxation',
+        rating: 7.0,
+        notes: 'T3 Session 1 - Attention with relaxation. Balancing focus and ease.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T3 Session 1 completed! (1/3 sessions)\n\nProgress: Learning relaxed attention. Need 2 more T3 sessions to unlock T4.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T3 Session 1:', error);
+      alert('❌ Error completing T3 Session 1: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT3Session2Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 25,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T3',
+        sessionNumber: 2,
+        stageLabel: 'T3 Session 2 - Better balance of attention and relaxation',
+        rating: 7.5,
+        notes: 'T3 Session 2 - Better balance of attention and relaxation.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T3 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T3 session needed to unlock T4.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T3 Session 2:', error);
+      alert('❌ Error completing T3 Session 2: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT3Session3Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 25,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T3',
+        sessionNumber: 3,
+        stageLabel: 'T3 Session 3 - COMPLETE! Relaxed attention mastered',
+        rating: 8.0,
+        notes: 'T3 Session 3 - COMPLETE! Relaxed attention mastered. Ready for T4.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('🎉 T3 COMPLETE! (3/3 sessions)\n\n✅ T4 Level Unlocked!\n\nUser can now practice T4: Attention without Force.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T3 Session 3:', error);
+      alert('❌ Error completing T3 Session 3: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  // T4 Sessions
+  const completeT4Session1Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T4',
+        sessionNumber: 1,
+        stageLabel: 'T4 Session 1 - Attention without force',
+        rating: 7.3,
+        notes: 'T4 Session 1 - Attention without force. Learning effortless awareness.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T4 Session 1 completed! (1/3 sessions)\n\nProgress: Learning effortless attention. Need 2 more T4 sessions to unlock T5.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T4 Session 1:', error);
+      alert('❌ Error completing T4 Session 1: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT4Session2Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T4',
+        sessionNumber: 2,
+        stageLabel: 'T4 Session 2 - More natural effortless attention',
+        rating: 7.8,
+        notes: 'T4 Session 2 - More natural effortless attention developing.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T4 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T4 session needed to unlock T5.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T4 Session 2:', error);
+      alert('❌ Error completing T4 Session 2: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT4Session3Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T4',
+        sessionNumber: 3,
+        stageLabel: 'T4 Session 3 - COMPLETE! Effortless attention mastered',
+        rating: 8.3,
+        notes: 'T4 Session 3 - COMPLETE! Effortless attention mastered. Ready for T5.'
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('🎉 T4 COMPLETE! (3/3 sessions)\n\n✅ T5 Level Unlocked!\n\nUser can now practice T5: Present Attention Happiness Method.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T4 Session 3:', error);
+      alert('❌ Error completing T4 Session 3: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  // T5 Sessions
+  const completeT5Session1Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T5',
+        sessionNumber: 1,
+        stageLabel: 'T5 Session 1 - PAHM introduction',
+        rating: 7.5,
+        notes: 'T5 Session 1 - PAHM introduction. Learning to observe present attention states.',
+        pahmCounts: {
+          present_attachment: 5,
+          present_neutral: 8,
+          present_aversion: 2,
+          past_attachment: 3,
+          past_neutral: 2,
+          past_aversion: 1,
+          future_attachment: 2,
+          future_neutral: 1,
+          future_aversion: 1
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T5 Session 1 completed! (1/3 sessions)\n\nProgress: PAHM practice begun. Need 2 more T5 sessions to unlock Stage 2.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T5 Session 1:', error);
+      alert('❌ Error completing T5 Session 1: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT5Session2Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T5',
+        sessionNumber: 2,
+        stageLabel: 'T5 Session 2 - Better PAHM observation',
+        rating: 8.0,
+        notes: 'T5 Session 2 - Better PAHM observation. More present-moment awareness.',
+        pahmCounts: {
+          present_attachment: 8,
+          present_neutral: 12,
+          present_aversion: 3,
+          past_attachment: 2,
+          past_neutral: 2,
+          past_aversion: 1,
+          future_attachment: 1,
+          future_neutral: 1,
+          future_aversion: 0
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ T5 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T5 session needed to unlock Stage 2.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T5 Session 2:', error);
+      alert('❌ Error completing T5 Session 2: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeT5Session3Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        tLevel: 'T5',
+        sessionNumber: 3,
+        stageLabel: 'T5 Session 3 - COMPLETE! PAHM foundation established',
+        rating: 8.5,
+        notes: 'T5 Session 3 - COMPLETE! PAHM foundation established. Ready for Stage 2.',
+        pahmCounts: {
+          present_attachment: 10,
+          present_neutral: 15,
+          present_aversion: 3,
+          past_attachment: 1,
+          past_neutral: 1,
+          past_aversion: 0,
+          future_attachment: 0,
+          future_neutral: 0,
+          future_aversion: 0
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('🎉 T5 COMPLETE! (3/3 sessions)\n\n✅ Stage 2 Unlocked!\n\nPAHM foundation established. User can now access advanced PAHM training.');
+      
+    } catch (error) {
+      console.error('❌ Error completing T5 Session 3:', error);
+      alert('❌ Error completing T5 Session 3: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeStage2Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 30,
+        sessionType: 'meditation',
+        stageLevel: 2,
+        stageLabel: 'PAHM Trainee: Understanding Thought Patterns',
+        rating: 7.5,
+        notes: 'Stage 2 PAHM practice with 45 attention observations. 72% present-moment awareness.',
+        presentPercentage: 72,
+        pahmCounts: {
+          present_attachment: 8,
+          present_neutral: 12,
+          present_aversion: 5,
+          past_attachment: 6,
+          past_neutral: 4,
+          past_aversion: 3,
+          future_attachment: 4,
+          future_neutral: 2,
+          future_aversion: 1
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ Stage 2 completed! Stage 3 unlocked!\n\nPAHM Trainee level achieved with 72% present-moment awareness.');
+      
+    } catch (error) {
+      console.error('❌ Error completing Stage 2:', error);
+      alert('❌ Error completing Stage 2: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeStage3Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 35,
+        sessionType: 'meditation',
+        stageLevel: 3,
+        stageLabel: 'PAHM Apprentice: Deepening Awareness',
+        rating: 8.2,
+        notes: 'Stage 3 PAHM practice with 58 attention observations. 78% present-moment awareness.',
+        presentPercentage: 78,
+        pahmCounts: {
+          present_attachment: 12,
+          present_neutral: 18,
+          present_aversion: 6,
+          past_attachment: 7,
+          past_neutral: 5,
+          past_aversion: 3,
+          future_attachment: 4,
+          future_neutral: 2,
+          future_aversion: 1
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ Stage 3 completed! Stage 4 unlocked!\n\nPAHM Apprentice level achieved with 78% present-moment awareness.');
+      
+    } catch (error) {
+      console.error('❌ Error completing Stage 3:', error);
+      alert('❌ Error completing Stage 3: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeStage4Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 40,
+        sessionType: 'meditation',
+        stageLevel: 4,
+        stageLabel: 'PAHM Practitioner: Sustained Attention',
+        rating: 8.8,
+        notes: 'Stage 4 PAHM practice with 65 attention observations. 84% present-moment awareness.',
+        presentPercentage: 84,
+        pahmCounts: {
+          present_attachment: 15,
+          present_neutral: 25,
+          present_aversion: 8,
+          past_attachment: 6,
+          past_neutral: 4,
+          past_aversion: 2,
+          future_attachment: 3,
+          future_neutral: 1,
+          future_aversion: 1
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ Stage 4 completed! Stage 5 unlocked!\n\nPAHM Practitioner level achieved with 84% present-moment awareness.');
+      
+    } catch (error) {
+      console.error('❌ Error completing Stage 4:', error);
+      alert('❌ Error completing Stage 4: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeStage5Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 45,
+        sessionType: 'meditation',
+        stageLevel: 5,
+        stageLabel: 'PAHM Adept: Effortless Observation',
+        rating: 9.2,
+        notes: 'Stage 5 PAHM practice with 52 attention observations. 89% present-moment awareness.',
+        presentPercentage: 89,
+        pahmCounts: {
+          present_attachment: 12,
+          present_neutral: 28,
+          present_aversion: 6,
+          past_attachment: 3,
+          past_neutral: 2,
+          past_aversion: 1,
+          future_attachment: 0,
+          future_neutral: 0,
+          future_aversion: 0
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ Stage 5 completed! Stage 6 unlocked!\n\nPAHM Adept level achieved with 89% present-moment awareness.');
+      
+    } catch (error) {
+      console.error('❌ Error completing Stage 5:', error);
+      alert('❌ Error completing Stage 5: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const completeStage6Real = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 50,
+        sessionType: 'meditation',
+        stageLevel: 6,
+        stageLabel: 'PAHM Master: Integration & Wisdom',
+        rating: 9.7,
+        notes: 'Stage 6 PAHM practice with 38 attention observations. 95% present-moment awareness.',
+        presentPercentage: 95,
+        pahmCounts: {
+          present_attachment: 8,
+          present_neutral: 28,
+          present_aversion: 2,
+          past_attachment: 0,
+          past_neutral: 0,
+          past_aversion: 0,
+          future_attachment: 0,
+          future_neutral: 0,
+          future_aversion: 0
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('🎉 Stage 6 completed! PAHM Master level achieved!\n\n95% present-moment awareness - Complete mastery of attention.');
+      
+    } catch (error) {
+      console.error('❌ Error completing Stage 6:', error);
+      alert('❌ Error completing Stage 6: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  const addMindRecoverySessionReal = useCallback(async () => {
+    try {
+      const mockSession = {
+        timestamp: new Date().toISOString(),
+        duration: 10,
+        sessionType: 'mind_recovery',
+        mindRecoveryContext: 'emotional-reset',
+        mindRecoveryPurpose: 'stress-relief',
+        rating: 8.0,
+        notes: 'Quick mind recovery session - feeling refreshed and centered.',
+        recoveryMetrics: {
+          stressReduction: 7,
+          energyLevel: 8,
+          clarityImprovement: 6,
+          moodImprovement: 7
+        }
+      };
+      
+      await addSession(mockSession);
+      await loadRealDataState();
+      alert('✅ Mind Recovery session added to Universal Architecture!');
+      
+    } catch (error) {
+      console.error('❌ Error adding mind recovery session:', error);
+      alert('❌ Error adding mind recovery session: ' + error.message);
+    }
+  }, [addSession, loadRealDataState]);
+
+  // 🚀 INDIVIDUAL RESET FUNCTIONS
+  const resetQuestionnaireOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY questionnaire data? This will clear questionnaire completion.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting questionnaire data only...');
+      
+      // Clear only onboarding questionnaire data - keeping self-assessment
+      localStorage.removeItem('questionnaire_completed');
+      localStorage.removeItem('questionnaire_data');
+      
+      await loadRealDataState();
+      alert('✅ Questionnaire data reset!\n\nQuestionnaire completion cleared. Self-assessment and practice data preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting questionnaire:', error);
+      alert('❌ Error resetting questionnaire: ' + error.message);
+    }
+  }, [loadRealDataState]);
+
+  const resetSelfAssessmentOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY self-assessment data? This will clear self-assessment completion.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting self-assessment data only...');
+      
+      // Clear only self-assessment data - keeping questionnaire
+      localStorage.removeItem('self_assessment_completed');
+      localStorage.removeItem('self_assessment_data');
+      
+      await loadRealDataState();
+      alert('✅ Self-assessment data reset!\n\nSelf-assessment completion cleared. Questionnaire and practice data preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting self-assessment:', error);
+      alert('❌ Error resetting self-assessment: ' + error.message);
+    }
+  }, [loadRealDataState]);
+
+  const resetPracticeSessionsOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY practice sessions? This will clear all meditation/practice data.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting practice sessions only...');
+      
+      clearPracticeData();
+      
+      await loadRealDataState();
+      alert('✅ Practice sessions reset!\n\nAll practice sessions cleared. Questionnaire, self-assessment, and wellness notes preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting practice sessions:', error);
+      alert('❌ Error resetting practice sessions: ' + error.message);
+    }
+  }, [clearPracticeData, loadRealDataState]);
+
+  const resetEmotionalNotesOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY emotional notes? This will clear all wellness tracking data.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting emotional notes only...');
+      
+      clearWellnessData();
+      
+      await loadRealDataState();
+      alert('✅ Emotional notes reset!\n\nAll wellness notes cleared. Practice sessions and onboarding data preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting emotional notes:', error);
+      alert('❌ Error resetting emotional notes: ' + error.message);
+    }
+  }, [clearWellnessData, loadRealDataState]);
+
+  const resetT1SessionsOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY T1 sessions? This will clear T1 level progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting T1 sessions only...');
+      
+      // Filter out only T1 sessions
+      const filteredSessions = sessions?.filter(session => session.tLevel !== 'T1') || [];
+      
+      // Clear all sessions and re-add non-T1 sessions
+      clearPracticeData();
+      
+      // Re-add non-T1 sessions one by one
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ T1 sessions reset!\n\nT1 level progress cleared. Other T-levels and data preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting T1 sessions:', error);
+      alert('❌ Error resetting T1 sessions: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetT2SessionsOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY T2 sessions? This will clear T2 level progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting T2 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.tLevel !== 'T2') || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ T2 sessions reset!\n\nT2 level progress cleared. Other levels preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting T2 sessions:', error);
+      alert('❌ Error resetting T2 sessions: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetT3SessionsOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY T3 sessions? This will clear T3 level progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting T3 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.tLevel !== 'T3') || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ T3 sessions reset!\n\nT3 level progress cleared. Other levels preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting T3 sessions:', error);
+      alert('❌ Error resetting T3 sessions: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetT4SessionsOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY T4 sessions? This will clear T4 level progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting T4 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.tLevel !== 'T4') || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ T4 sessions reset!\n\nT4 level progress cleared. Other levels preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting T4 sessions:', error);
+      alert('❌ Error resetting T4 sessions: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetT5SessionsOnly = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY T5 sessions? This will clear T5 level progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting T5 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.tLevel !== 'T5') || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ T5 sessions reset!\n\nT5 level progress cleared. Other levels preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting T5 sessions:', error);
+      alert('❌ Error resetting T5 sessions: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetStage2Only = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY Stage 2 sessions? This will clear Stage 2 PAHM progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting Stage 2 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.stageLevel !== 2) || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ Stage 2 sessions reset!\n\nStage 2 PAHM progress cleared. Other stages preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting Stage 2:', error);
+      alert('❌ Error resetting Stage 2: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetStage3Only = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY Stage 3 sessions? This will clear Stage 3 PAHM progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting Stage 3 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.stageLevel !== 3) || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ Stage 3 sessions reset!\n\nStage 3 PAHM progress cleared. Other stages preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting Stage 3:', error);
+      alert('❌ Error resetting Stage 3: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetStage4Only = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY Stage 4 sessions? This will clear Stage 4 PAHM progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting Stage 4 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.stageLevel !== 4) || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ Stage 4 sessions reset!\n\nStage 4 PAHM progress cleared. Other stages preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting Stage 4:', error);
+      alert('❌ Error resetting Stage 4: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetStage5Only = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY Stage 5 sessions? This will clear Stage 5 PAHM progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting Stage 5 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.stageLevel !== 5) || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ Stage 5 sessions reset!\n\nStage 5 PAHM progress cleared. Other stages preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting Stage 5:', error);
+      alert('❌ Error resetting Stage 5: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetStage6Only = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ONLY Stage 6 sessions? This will clear Stage 6 PAHM progress only.')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting Stage 6 sessions only...');
+      
+      const filteredSessions = sessions?.filter(session => session.stageLevel !== 6) || [];
+      clearPracticeData();
+      
+      for (const session of filteredSessions) {
+        await addSession(session);
+      }
+      
+      await loadRealDataState();
+      alert('✅ Stage 6 sessions reset!\n\nStage 6 PAHM progress cleared. Other stages preserved.');
+      
+    } catch (error) {
+      console.error('❌ Error resetting Stage 6:', error);
+      alert('❌ Error resetting Stage 6: ' + error.message);
+    }
+  }, [sessions, clearPracticeData, addSession, loadRealDataState]);
+
+  const resetAllData = useCallback(async () => {
+    if (!window.confirm('⚠️ Reset ALL real Universal Architecture data? This will clear your actual progress!')) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Resetting all Universal Architecture data...');
+      
+      // Call the clear methods from each context
+      console.log('🗑️ Clearing onboarding data...');
+      clearOnboardingData();
+      
+      console.log('🗑️ Clearing practice data...');
+      clearPracticeData();
+      
+      console.log('🗑️ Clearing wellness data...');
+      clearWellnessData();
+      
+      console.log('🗑️ Clearing content data...');
+      clearContentData();
+      
+      console.log('✅ All Universal Architecture data cleared successfully!');
+      
+      // Reload real data state to reflect changes
+      await loadRealDataState();
+      
+      alert('✅ All Universal Architecture data has been reset!\n\n• Onboarding data cleared\n• Practice sessions cleared\n• Wellness notes cleared\n• Content progress cleared\n\nYou can now start fresh!');
+      
+    } catch (error) {
+      console.error('❌ Error resetting real data:', error);
+      alert('❌ Error resetting data: ' + error.message);
+    }
+  }, [clearOnboardingData, clearPracticeData, clearWellnessData, clearContentData, loadRealDataState]);
+
+  // Load real data on mount
+  useEffect(() => {
+    if (isAdmin) {
+      loadRealDataState();
+    }
+  }, [isAdmin, loadRealDataState]);
+
+  // Load user statistics
   const loadUserStats = useCallback(async () => {
     try {
       setStatsLoading(true);
@@ -75,14 +1241,13 @@ const AdminPanel = () => {
 
       const avgHappiness = happinessData.length > 0 
         ? Math.round(happinessData.reduce((sum, entry) => sum + (entry.happiness || 0), 0) / happinessData.length)
-        : 0;
+        : realDataState.happinessPoints;
 
       const completedAssessments = assessments.length;
 
-      // ✅ CORRECTED: Use accurate Firebase Auth data (3 users from your console)
       setUserStats({
-        totalUsers: 3, // Accurate count from Firebase Auth
-        activeUsers: 1, // Current admin user is active
+        totalUsers: 3,
+        activeUsers: 1,
         authUsers: 3,
         firestoreUsers: firestoreUserCount,
         avgHappiness,
@@ -127,8 +1292,8 @@ const AdminPanel = () => {
         activeUsers: 1,
         authUsers: 3,
         firestoreUsers: 0,
-        avgHappiness: 0,
-        completedAssessments: 0,
+        avgHappiness: realDataState.happinessPoints,
+        completedAssessments: realDataState.selfAssessment ? 1 : 0,
         recentUsers: [
           { 
             email: 'asiriamarasinghe35@gmail.com', 
@@ -138,31 +1303,13 @@ const AdminPanel = () => {
             adminLevel: 100,
             permissions: ['*'],
             status: 'Active'
-          },
-          { 
-            email: 'asiri.amarasinghe@yahoo.com', 
-            role: 'USER',
-            lastActive: new Date('2025-07-19'),
-            source: 'Firebase Auth',
-            adminLevel: 0,
-            permissions: [],
-            status: 'Inactive'
-          },
-          { 
-            email: 'test@gmail.com', 
-            role: 'USER',
-            lastActive: new Date('2025-07-16'),
-            source: 'Firebase Auth',
-            adminLevel: 0,
-            permissions: [],
-            status: 'Inactive'
           }
         ]
       });
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [realDataState]);
 
   // Grant admin access to user
   const grantAdminAccess = async (userEmail, role = 'ADMIN') => {
@@ -239,839 +1386,8 @@ node admin-setup.js
     }
   };
 
-  // Load stats on mount
-  useEffect(() => {
-    if (isAdmin) {
-      loadUserStats();
-    }
-  }, [isAdmin, loadUserStats]);
-
   // ✅ COMPLETE Enhanced testing tools with T1-T5 session progression, Stage 2-6 completion, and granular reset options
-  const testingTools = [
-    // System Tools
-    {
-      name: '🔍 Debug All Storage Data',
-      action: () => {
-        console.log('=== ADMIN DEBUG: All Storage Data ===');
-        console.log('localStorage:', Object.fromEntries(Object.entries(localStorage)));
-        console.log('sessionStorage:', Object.fromEntries(Object.entries(sessionStorage)));
-        console.log('Current User:', currentUser);
-        console.log('User Stats:', userStats);
-        alert('Debug data logged to console (F12)');
-      }
-    },
-    {
-      name: '📊 Refresh User Statistics',
-      action: () => {
-        loadUserStats();
-        alert('User statistics refreshed!');
-      }
-    },
-    {
-      name: '📝 Complete Questionnaire',
-      action: () => {
-        localStorage.setItem('questionnaireComplete', 'true');
-        localStorage.setItem('questionnaireData', JSON.stringify({
-          completedAt: new Date().toISOString(),
-          source: 'admin_test'
-        }));
-        alert('✅ Questionnaire marked as complete');
-      }
-    },
-    {
-      name: '🎯 Complete Self Assessment',
-      action: () => {
-        localStorage.setItem('selfAssessmentComplete', 'true');
-        localStorage.setItem('selfAssessmentData', JSON.stringify({
-          completedAt: new Date().toISOString(),
-          source: 'admin_test'
-        }));
-        alert('✅ Self Assessment marked as complete');
-      }
-    },
-    
-    // ✅ T1-T5 Progressive Session Completion Tools
-    {
-      name: '🌱 Complete T1 Session 1 (1/3 complete)',
-      action: () => {
-        localStorage.setItem('t1CompletionCount', '1');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T1',
-          duration: 15,
-          sessionNumber: 1,
-          totalSessions: 1,
-          requiredSessions: 3,
-          rating: 6.5,
-          notes: 'T1 Session 1 - Basic stillness practice. Learning to observe breath.',
-          source: 'admin_test',
-          progress: 'T1: 1/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T1 Session 1 completed! (1/3 sessions)\n\nProgress: Still need 2 more T1 sessions to unlock T2.');
-      }
-    },
-    {
-      name: '🌱 Complete T1 Session 2 (2/3 complete)',
-      action: () => {
-        localStorage.setItem('t1CompletionCount', '2');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T1',
-          duration: 15,
-          sessionNumber: 2,
-          totalSessions: 2,
-          requiredSessions: 3,
-          rating: 7.0,
-          notes: 'T1 Session 2 - Improving breath awareness. Less mind wandering.',
-          source: 'admin_test',
-          progress: 'T1: 2/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T1 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T1 session needed to unlock T2.');
-      }
-    },
-    {
-      name: '🌱 Complete T1 Session 3 (Unlock T2)',
-      action: () => {
-        localStorage.setItem('t1CompletionCount', '3');
-        localStorage.setItem('t1Complete', 'true');
-        sessionStorage.setItem('currentTLevel', 't2');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T1',
-          duration: 15,
-          sessionNumber: 3,
-          totalSessions: 3,
-          requiredSessions: 3,
-          rating: 7.5,
-          notes: 'T1 Session 3 - COMPLETE! Basic stillness mastered. Ready for T2.',
-          source: 'admin_test',
-          progress: 'T1: 3/3 sessions complete',
-          unlocked: 'T2 Level'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('🎉 T1 COMPLETE! (3/3 sessions)\n\n✅ T2 Level Unlocked!\n\nUser can now practice T2: Attention to Breathing.');
-      }
-    },
-    {
-      name: '🌿 Complete T2 Session 1 (1/3 complete)',
-      action: () => {
-        localStorage.setItem('t2CompletionCount', '1');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T2',
-          duration: 20,
-          sessionNumber: 1,
-          totalSessions: 1,
-          requiredSessions: 3,
-          rating: 6.8,
-          notes: 'T2 Session 1 - Attention to breathing. Learning sustained focus.',
-          source: 'admin_test',
-          progress: 'T2: 1/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T2 Session 1 completed! (1/3 sessions)\n\nProgress: Learning attention to breathing. Need 2 more T2 sessions to unlock T3.');
-      }
-    },
-    {
-      name: '🌿 Complete T2 Session 2 (2/3 complete)',
-      action: () => {
-        localStorage.setItem('t2CompletionCount', '2');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T2',
-          duration: 20,
-          sessionNumber: 2,
-          totalSessions: 2,
-          requiredSessions: 3,
-          rating: 7.2,
-          notes: 'T2 Session 2 - Better sustained attention. Less distraction.',
-          source: 'admin_test',
-          progress: 'T2: 2/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T2 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T2 session needed to unlock T3.');
-      }
-    },
-    {
-      name: '🌿 Complete T2 Session 3 (Unlock T3)',
-      action: () => {
-        localStorage.setItem('t2CompletionCount', '3');
-        localStorage.setItem('t2Complete', 'true');
-        sessionStorage.setItem('currentTLevel', 't3');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T2',
-          duration: 20,
-          sessionNumber: 3,
-          totalSessions: 3,
-          requiredSessions: 3,
-          rating: 7.8,
-          notes: 'T2 Session 3 - COMPLETE! Attention to breathing mastered. Ready for T3.',
-          source: 'admin_test',
-          progress: 'T2: 3/3 sessions complete',
-          unlocked: 'T3 Level'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('🎉 T2 COMPLETE! (3/3 sessions)\n\n✅ T3 Level Unlocked!\n\nUser can now practice T3: Attention with Relaxation.');
-      }
-    },
-    {
-      name: '🌳 Complete T3 Session 1 (1/3 complete)',
-      action: () => {
-        localStorage.setItem('t3CompletionCount', '1');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T3',
-          duration: 25,
-          sessionNumber: 1,
-          totalSessions: 1,
-          requiredSessions: 3,
-          rating: 7.0,
-          notes: 'T3 Session 1 - Attention with relaxation. Balancing focus and ease.',
-          source: 'admin_test',
-          progress: 'T3: 1/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T3 Session 1 completed! (1/3 sessions)\n\nProgress: Learning relaxed attention. Need 2 more T3 sessions to unlock T4.');
-      }
-    },
-    {
-      name: '🌳 Complete T3 Session 2 (2/3 complete)',
-      action: () => {
-        localStorage.setItem('t3CompletionCount', '2');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T3',
-          duration: 25,
-          sessionNumber: 2,
-          totalSessions: 2,
-          requiredSessions: 3,
-          rating: 7.5,
-          notes: 'T3 Session 2 - Better balance of attention and relaxation.',
-          source: 'admin_test',
-          progress: 'T3: 2/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T3 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T3 session needed to unlock T4.');
-      }
-    },
-    {
-      name: '🌳 Complete T3 Session 3 (Unlock T4)',
-      action: () => {
-        localStorage.setItem('t3CompletionCount', '3');
-        localStorage.setItem('t3Complete', 'true');
-        sessionStorage.setItem('currentTLevel', 't4');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T3',
-          duration: 25,
-          sessionNumber: 3,
-          totalSessions: 3,
-          requiredSessions: 3,
-          rating: 8.0,
-          notes: 'T3 Session 3 - COMPLETE! Relaxed attention mastered. Ready for T4.',
-          source: 'admin_test',
-          progress: 'T3: 3/3 sessions complete',
-          unlocked: 'T4 Level'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('🎉 T3 COMPLETE! (3/3 sessions)\n\n✅ T4 Level Unlocked!\n\nUser can now practice T4: Attention without Force.');
-      }
-    },
-    {
-      name: '🌸 Complete T4 Session 1 (1/3 complete)',
-      action: () => {
-        localStorage.setItem('t4CompletionCount', '1');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T4',
-          duration: 30,
-          sessionNumber: 1,
-          totalSessions: 1,
-          requiredSessions: 3,
-          rating: 7.3,
-          notes: 'T4 Session 1 - Attention without force. Learning effortless awareness.',
-          source: 'admin_test',
-          progress: 'T4: 1/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T4 Session 1 completed! (1/3 sessions)\n\nProgress: Learning effortless attention. Need 2 more T4 sessions to unlock T5.');
-      }
-    },
-    {
-      name: '🌸 Complete T4 Session 2 (2/3 complete)',
-      action: () => {
-        localStorage.setItem('t4CompletionCount', '2');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T4',
-          duration: 30,
-          sessionNumber: 2,
-          totalSessions: 2,
-          requiredSessions: 3,
-          rating: 7.8,
-          notes: 'T4 Session 2 - More natural effortless attention developing.',
-          source: 'admin_test',
-          progress: 'T4: 2/3 sessions complete'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T4 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T4 session needed to unlock T5.');
-      }
-    },
-    {
-      name: '🌸 Complete T4 Session 3 (Unlock T5)',
-      action: () => {
-        localStorage.setItem('t4CompletionCount', '3');
-        localStorage.setItem('t4Complete', 'true');
-        sessionStorage.setItem('currentTLevel', 't5');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T4',
-          duration: 30,
-          sessionNumber: 3,
-          totalSessions: 3,
-          requiredSessions: 3,
-          rating: 8.3,
-          notes: 'T4 Session 3 - COMPLETE! Effortless attention mastered. Ready for T5.',
-          source: 'admin_test',
-          progress: 'T4: 3/3 sessions complete',
-          unlocked: 'T5 Level'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('🎉 T4 COMPLETE! (3/3 sessions)\n\n✅ T5 Level Unlocked!\n\nUser can now practice T5: Present Attention Happiness Method.');
-      }
-    },
-    {
-      name: '🌟 Complete T5 Session 1 (1/3 complete)',
-      action: () => {
-        localStorage.setItem('t5CompletionCount', '1');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T5',
-          duration: 30,
-          sessionNumber: 1,
-          totalSessions: 1,
-          requiredSessions: 3,
-          rating: 7.5,
-          notes: 'T5 Session 1 - PAHM introduction. Learning to observe present attention states.',
-          source: 'admin_test',
-          progress: 'T5: 1/3 sessions complete',
-          pahmCounts: {
-            present_attachment: 5,
-            present_neutral: 8,
-            present_aversion: 2,
-            past_attachment: 3,
-            past_neutral: 2,
-            past_aversion: 1,
-            future_attachment: 2,
-            future_neutral: 1,
-            future_aversion: 1
-          }
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T5 Session 1 completed! (1/3 sessions)\n\nProgress: PAHM practice begun. Need 2 more T5 sessions to unlock Stage 2.');
-      }
-    },
-    {
-      name: '🌟 Complete T5 Session 2 (2/3 complete)',
-      action: () => {
-        localStorage.setItem('t5CompletionCount', '2');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T5',
-          duration: 30,
-          sessionNumber: 2,
-          totalSessions: 2,
-          requiredSessions: 3,
-          rating: 8.0,
-          notes: 'T5 Session 2 - Better PAHM observation. More present-moment awareness.',
-          source: 'admin_test',
-          progress: 'T5: 2/3 sessions complete',
-          pahmCounts: {
-            present_attachment: 8,
-            present_neutral: 12,
-            present_aversion: 3,
-            past_attachment: 2,
-            past_neutral: 2,
-            past_aversion: 1,
-            future_attachment: 1,
-            future_neutral: 1,
-            future_aversion: 0
-          }
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ T5 Session 2 completed! (2/3 sessions)\n\nProgress: 1 more T5 session needed to unlock Stage 2.');
-      }
-    },
-    {
-      name: '🌟 Complete T5 Session 3 (Unlock Stage 2)',
-      action: () => {
-        localStorage.setItem('t5CompletionCount', '3');
-        localStorage.setItem('t5Complete', 'true');
-        sessionStorage.setItem('stageProgress', '2');
-        localStorage.setItem('devCurrentStage', '2');
-        sessionStorage.setItem('currentTLevel', 't6');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          tLevel: 'T5',
-          duration: 30,
-          sessionNumber: 3,
-          totalSessions: 3,
-          requiredSessions: 3,
-          rating: 8.5,
-          notes: 'T5 Session 3 - COMPLETE! PAHM foundation established. Ready for Stage 2.',
-          source: 'admin_test',
-          progress: 'T5: 3/3 sessions complete',
-          unlocked: 'Stage 2',
-          pahmCounts: {
-            present_attachment: 10,
-            present_neutral: 15,
-            present_aversion: 3,
-            past_attachment: 1,
-            past_neutral: 1,
-            past_aversion: 0,
-            future_attachment: 0,
-            future_neutral: 0,
-            future_aversion: 0
-          }
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('🎉 T5 COMPLETE! (3/3 sessions)\n\n✅ Stage 2 Unlocked!\n\nPAHM foundation established. User can now access advanced PAHM training.');
-      }
-    },
-    
-    // ✅ Stage 2-6 Completion Tools
-    {
-      name: '🧘‍♀️ Complete Stage 2 (Unlock Stage 3)',
-      action: () => {
-        localStorage.setItem('stage2Complete', 'true');
-        sessionStorage.setItem('stageProgress', '3');
-        localStorage.setItem('devCurrentStage', '3');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          duration: 30,
-          sessionType: 'meditation',
-          stageLevel: 2,
-          stageLabel: 'PAHM Trainee: Understanding Thought Patterns',
-          rating: 7.5,
-          notes: 'Stage 2 PAHM practice with 45 attention observations. 72% present-moment awareness.',
-          presentPercentage: 72,
-          pahmCounts: {
-            present_attachment: 8,
-            present_neutral: 12,
-            present_aversion: 5,
-            past_attachment: 6,
-            past_neutral: 4,
-            past_aversion: 3,
-            future_attachment: 4,
-            future_neutral: 2,
-            future_aversion: 1
-          },
-          source: 'admin_test',
-          unlocked: 'Stage 3'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ Stage 2 completed! Stage 3 unlocked!\n\nPAHM Trainee level achieved with 72% present-moment awareness.');
-      }
-    },
-    {
-      name: '🌟 Complete Stage 3 (Unlock Stage 4)',
-      action: () => {
-        localStorage.setItem('stage3Complete', 'true');
-        sessionStorage.setItem('stageProgress', '4');
-        localStorage.setItem('devCurrentStage', '4');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          duration: 35,
-          sessionType: 'meditation',
-          stageLevel: 3,
-          stageLabel: 'PAHM Apprentice: Deepening Awareness',
-          rating: 8.2,
-          notes: 'Stage 3 PAHM practice with 58 attention observations. 78% present-moment awareness.',
-          presentPercentage: 78,
-          pahmCounts: {
-            present_attachment: 12,
-            present_neutral: 18,
-            present_aversion: 6,
-            past_attachment: 7,
-            past_neutral: 5,
-            past_aversion: 3,
-            future_attachment: 4,
-            future_neutral: 2,
-            future_aversion: 1
-          },
-          source: 'admin_test',
-          unlocked: 'Stage 4'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ Stage 3 completed! Stage 4 unlocked!\n\nPAHM Apprentice level achieved with 78% present-moment awareness.');
-      }
-    },
-    {
-      name: '💎 Complete Stage 4 (Unlock Stage 5)',
-      action: () => {
-        localStorage.setItem('stage4Complete', 'true');
-        sessionStorage.setItem('stageProgress', '5');
-        localStorage.setItem('devCurrentStage', '5');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          duration: 40,
-          sessionType: 'meditation',
-          stageLevel: 4,
-          stageLabel: 'PAHM Practitioner: Sustained Attention',
-          rating: 8.8,
-          notes: 'Stage 4 PAHM practice with 65 attention observations. 84% present-moment awareness.',
-          presentPercentage: 84,
-          pahmCounts: {
-            present_attachment: 15,
-            present_neutral: 25,
-            present_aversion: 8,
-            past_attachment: 6,
-            past_neutral: 4,
-            past_aversion: 2,
-            future_attachment: 3,
-            future_neutral: 1,
-            future_aversion: 1
-          },
-          source: 'admin_test',
-          unlocked: 'Stage 5'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ Stage 4 completed! Stage 5 unlocked!\n\nPAHM Practitioner level achieved with 84% present-moment awareness.');
-      }
-    },
-    {
-      name: '🔮 Complete Stage 5 (Unlock Stage 6)',
-      action: () => {
-        localStorage.setItem('stage5Complete', 'true');
-        sessionStorage.setItem('stageProgress', '6');
-        localStorage.setItem('devCurrentStage', '6');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          duration: 45,
-          sessionType: 'meditation',
-          stageLevel: 5,
-          stageLabel: 'PAHM Adept: Effortless Observation',
-          rating: 9.2,
-          notes: 'Stage 5 PAHM practice with 52 attention observations. 89% present-moment awareness.',
-          presentPercentage: 89,
-          pahmCounts: {
-            present_attachment: 12,
-            present_neutral: 28,
-            present_aversion: 6,
-            past_attachment: 3,
-            past_neutral: 2,
-            past_aversion: 1,
-            future_attachment: 0,
-            future_neutral: 0,
-            future_aversion: 0
-          },
-          source: 'admin_test',
-          unlocked: 'Stage 6'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('✅ Stage 5 completed! Stage 6 unlocked!\n\nPAHM Adept level achieved with 89% present-moment awareness.');
-      }
-    },
-    {
-      name: '🏔️ Complete Stage 6 (Master Level)',
-      action: () => {
-        localStorage.setItem('stage6Complete', 'true');
-        localStorage.setItem('pahmMasterLevel', 'true');
-        sessionStorage.setItem('stageProgress', '6');
-        localStorage.setItem('devCurrentStage', '6');
-        
-        const sessions = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-        sessions.push({
-          timestamp: new Date().toISOString(),
-          duration: 50,
-          sessionType: 'meditation',
-          stageLevel: 6,
-          stageLabel: 'PAHM Master: Integration & Wisdom',
-          rating: 9.7,
-          notes: 'Stage 6 PAHM practice with 38 attention observations. 95% present-moment awareness.',
-          presentPercentage: 95,
-          pahmCounts: {
-            present_attachment: 8,
-            present_neutral: 28,
-            present_aversion: 2,
-            past_attachment: 0,
-            past_neutral: 0,
-            past_aversion: 0,
-            future_attachment: 0,
-            future_neutral: 0,
-            future_aversion: 0
-          },
-          source: 'admin_test',
-          completed: 'Full PAHM Journey'
-        });
-        localStorage.setItem('practiceReflections', JSON.stringify(sessions));
-        alert('🎉 Stage 6 completed! PAHM Master level achieved!\n\n95% present-moment awareness - Complete mastery of attention.');
-      }
-    },
-    
-    // ✅ GRANULAR RESET OPTIONS
-    {
-      name: '📝 Reset Questionnaire Only',
-      action: () => {
-        if (window.confirm('Reset questionnaire completion? This will allow re-testing questionnaire flow.')) {
-          localStorage.removeItem('questionnaireComplete');
-          localStorage.removeItem('questionnaireData');
-          alert('✅ Questionnaire reset! User can complete it again.');
-        }
-      }
-    },
-    {
-      name: '🎯 Reset Self Assessment Only',
-      action: () => {
-        if (window.confirm('Reset self assessment completion? This will allow re-testing assessment flow.')) {
-          localStorage.removeItem('selfAssessmentComplete');
-          localStorage.removeItem('selfAssessmentData');
-          alert('✅ Self Assessment reset! User can complete it again.');
-        }
-      }
-    },
-    {
-      name: '🌱 Reset T1 Level Only',
-      action: () => {
-        if (window.confirm('Reset T1 level? This will reset T1 sessions to 0/3.')) {
-          localStorage.removeItem('t1Complete');
-          localStorage.removeItem('t1CompletionCount');
-          alert('✅ T1 Level reset! User needs to complete 3 T1 sessions again.');
-        }
-      }
-    },
-    {
-      name: '🌿 Reset T2 Level Only',
-      action: () => {
-        if (window.confirm('Reset T2 level? This will reset T2 sessions to 0/3.')) {
-          localStorage.removeItem('t2Complete');
-          localStorage.removeItem('t2CompletionCount');
-          alert('✅ T2 Level reset! User needs to complete 3 T2 sessions again.');
-        }
-      }
-    },
-    {
-      name: '🌳 Reset T3 Level Only',
-      action: () => {
-        if (window.confirm('Reset T3 level? This will reset T3 sessions to 0/3.')) {
-          localStorage.removeItem('t3Complete');
-          localStorage.removeItem('t3CompletionCount');
-          alert('✅ T3 Level reset! User needs to complete 3 T3 sessions again.');
-        }
-      }
-    },
-    {
-      name: '🌸 Reset T4 Level Only',
-      action: () => {
-        if (window.confirm('Reset T4 level? This will reset T4 sessions to 0/3.')) {
-          localStorage.removeItem('t4Complete');
-          localStorage.removeItem('t4CompletionCount');
-          alert('✅ T4 Level reset! User needs to complete 3 T4 sessions again.');
-        }
-      }
-    },
-    {
-      name: '🌟 Reset T5 Level Only',
-      action: () => {
-        if (window.confirm('Reset T5 level? This will reset T5 sessions to 0/3.')) {
-          localStorage.removeItem('t5Complete');
-          localStorage.removeItem('t5CompletionCount');
-          alert('✅ T5 Level reset! User needs to complete 3 T5 sessions again.');
-        }
-      }
-    },
-    {
-      name: '🧘‍♀️ Reset Stage 2 Only',
-      action: () => {
-        if (window.confirm('Reset Stage 2 completion? This will lock Stage 3 again.')) {
-          localStorage.removeItem('stage2Complete');
-          sessionStorage.setItem('stageProgress', '1');
-          localStorage.setItem('devCurrentStage', '1');
-          alert('✅ Stage 2 reset! User needs to complete Stage 2 again to unlock Stage 3.');
-        }
-      }
-    },
-    {
-      name: '🌟 Reset Stage 3 Only',
-      action: () => {
-        if (window.confirm('Reset Stage 3 completion? This will lock Stage 4 again.')) {
-          localStorage.removeItem('stage3Complete');
-          if (!localStorage.getItem('stage2Complete')) {
-            sessionStorage.setItem('stageProgress', '1');
-            localStorage.setItem('devCurrentStage', '1');
-          } else {
-            sessionStorage.setItem('stageProgress', '2');
-            localStorage.setItem('devCurrentStage', '2');
-          }
-          alert('✅ Stage 3 reset! User needs to complete Stage 3 again to unlock Stage 4.');
-        }
-      }
-    },
-    {
-      name: '💎 Reset Stage 4 Only',
-      action: () => {
-        if (window.confirm('Reset Stage 4 completion? This will lock Stage 5 again.')) {
-          localStorage.removeItem('stage4Complete');
-          if (localStorage.getItem('stage3Complete')) {
-            sessionStorage.setItem('stageProgress', '3');
-            localStorage.setItem('devCurrentStage', '3');
-          } else if (localStorage.getItem('stage2Complete')) {
-            sessionStorage.setItem('stageProgress', '2');
-            localStorage.setItem('devCurrentStage', '2');
-          } else {
-            sessionStorage.setItem('stageProgress', '1');
-            localStorage.setItem('devCurrentStage', '1');
-          }
-          alert('✅ Stage 4 reset! User needs to complete Stage 4 again to unlock Stage 5.');
-        }
-      }
-    },
-    {
-      name: '🔮 Reset Stage 5 Only',
-      action: () => {
-        if (window.confirm('Reset Stage 5 completion? This will lock Stage 6 again.')) {
-          localStorage.removeItem('stage5Complete');
-          if (localStorage.getItem('stage4Complete')) {
-            sessionStorage.setItem('stageProgress', '4');
-            localStorage.setItem('devCurrentStage', '4');
-          } else if (localStorage.getItem('stage3Complete')) {
-            sessionStorage.setItem('stageProgress', '3');
-            localStorage.setItem('devCurrentStage', '3');
-          } else if (localStorage.getItem('stage2Complete')) {
-            sessionStorage.setItem('stageProgress', '2');
-            localStorage.setItem('devCurrentStage', '2');
-          } else {
-            sessionStorage.setItem('stageProgress', '1');
-            localStorage.setItem('devCurrentStage', '1');
-          }
-          alert('✅ Stage 5 reset! User needs to complete Stage 5 again to unlock Stage 6.');
-        }
-      }
-    },
-    {
-      name: '🏔️ Reset Stage 6 Only',
-      action: () => {
-        if (window.confirm('Reset Stage 6 completion? This will remove master level status.')) {
-          localStorage.removeItem('stage6Complete');
-          localStorage.removeItem('pahmMasterLevel');
-          if (localStorage.getItem('stage5Complete')) {
-            sessionStorage.setItem('stageProgress', '5');
-            localStorage.setItem('devCurrentStage', '5');
-          } else if (localStorage.getItem('stage4Complete')) {
-            sessionStorage.setItem('stageProgress', '4');
-            localStorage.setItem('devCurrentStage', '4');
-          } else if (localStorage.getItem('stage3Complete')) {
-            sessionStorage.setItem('stageProgress', '3');
-            localStorage.setItem('devCurrentStage', '3');
-          } else if (localStorage.getItem('stage2Complete')) {
-            sessionStorage.setItem('stageProgress', '2');
-            localStorage.setItem('devCurrentStage', '2');
-          } else {
-            sessionStorage.setItem('stageProgress', '1');
-            localStorage.setItem('devCurrentStage', '1');
-          }
-          alert('✅ Stage 6 reset! User needs to complete Stage 6 again for master status.');
-        }
-      }
-    },
-    {
-      name: '📊 Reset All Happiness Data',
-      action: () => {
-        if (window.confirm('Reset all happiness tracking data? This will clear happiness entries and reflections.')) {
-          localStorage.removeItem('practiceReflections');
-          localStorage.removeItem('happinessEntries');
-          localStorage.removeItem('dailyEmotionalNotes');
-          localStorage.removeItem('emotionalWellbeingData');
-          alert('✅ All happiness and emotional data reset! Fresh start for tracking.');
-        }
-      }
-    },
-    {
-      name: '🔄 Reset All Progress (Complete Fresh Start)',
-      action: () => {
-        if (window.confirm('⚠️ This will reset ALL practice progress, questionnaire, assessment, and happiness data. Are you sure?')) {
-          // Reset questionnaire and assessment
-          localStorage.removeItem('questionnaireComplete');
-          localStorage.removeItem('questionnaireData');
-          localStorage.removeItem('selfAssessmentComplete');
-          localStorage.removeItem('selfAssessmentData');
-          
-          // Reset T-level completions
-          localStorage.removeItem('t1Complete');
-          localStorage.removeItem('t2Complete');
-          localStorage.removeItem('t3Complete');
-          localStorage.removeItem('t4Complete');
-          localStorage.removeItem('t5Complete');
-          localStorage.removeItem('t1CompletionCount');
-          localStorage.removeItem('t2CompletionCount');
-          localStorage.removeItem('t3CompletionCount');
-          localStorage.removeItem('t4CompletionCount');
-          localStorage.removeItem('t5CompletionCount');
-          
-          // Reset stage completions
-          localStorage.removeItem('stage2Complete');
-          localStorage.removeItem('stage3Complete');
-          localStorage.removeItem('stage4Complete');
-          localStorage.removeItem('stage5Complete');
-          localStorage.removeItem('stage6Complete');
-          localStorage.removeItem('pahmMasterLevel');
-          
-          // Reset happiness and emotional data
-          localStorage.removeItem('practiceReflections');
-          localStorage.removeItem('happinessEntries');
-          localStorage.removeItem('dailyEmotionalNotes');
-          localStorage.removeItem('emotionalWellbeingData');
-          
-          sessionStorage.setItem('stageProgress', '1');
-          localStorage.setItem('devCurrentStage', '1');
-          sessionStorage.removeItem('currentTLevel');
-          
-          alert('✅ Everything reset! User is back to complete beginning - can test full flow from scratch.');
-        }
-      }
-    }
-  ];
+  // All testing functionality now consolidated into Real Data Control tab
 
   if (adminLoading || statsLoading) {
     return (
@@ -1129,9 +1445,6 @@ node admin-setup.js
           <p style={{ color: '#6c757d', marginBottom: '1rem', fontSize: '16px' }}>
             You need administrator privileges to access this panel.
           </p>
-          <p style={{ color: '#6c757d', marginBottom: '2rem', fontSize: '14px' }}>
-            Contact your system administrator if you believe you should have access.
-          </p>
           <button 
             onClick={() => window.history.back()}
             style={{
@@ -1145,8 +1458,6 @@ node admin-setup.js
               fontSize: '16px',
               transition: 'all 0.3s ease'
             }}
-            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
           >
             ← Go Back
           </button>
@@ -1154,6 +1465,810 @@ node admin-setup.js
       </div>
     );
   }
+
+  // 🚀 NEW: Real Data tab
+  const renderRealData = () => (
+    <div style={{ padding: '30px' }}>
+      <h3 style={{ 
+        color: 'white', 
+        marginBottom: '30px', 
+        fontSize: '24px',
+        fontWeight: '600'
+      }}>
+        📊 Real Universal Architecture Data & Complete Testing Suite
+      </h3>
+      
+      {/* Current Real State */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.15)', 
+        borderRadius: '16px', 
+        padding: '24px', 
+        marginBottom: '30px',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🎯 Current Real State
+        </h4>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+          gap: '20px' 
+        }}>
+          <div style={{
+            background: realDataState.questionnaire ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center',
+            color: 'white'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+              {realDataState.questionnaire ? '✅' : '❌'}
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Questionnaire</div>
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>
+              {realDataState.questionnaire ? 'Completed' : 'Not Completed'}
+            </div>
+          </div>
+          
+          <div style={{
+            background: realDataState.selfAssessment ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center',
+            color: 'white'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+              {realDataState.selfAssessment ? '✅' : '❌'}
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Self-Assessment</div>
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>
+              {realDataState.selfAssessment ? 'Completed' : 'Not Completed'}
+            </div>
+          </div>
+          
+          <div style={{
+            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center',
+            color: 'white'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px', fontWeight: 'bold' }}>
+              {realDataState.practiceCount}
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Practice Sessions</div>
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>Total Sessions</div>
+          </div>
+          
+          <div style={{
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center',
+            color: 'white'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px', fontWeight: 'bold' }}>
+              {realDataState.happinessPoints}
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Happiness Points</div>
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>{realDataState.currentLevel}</div>
+          </div>
+        </div>
+        
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            onClick={loadRealDataState}
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '14px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            🔄 Refresh Real Data
+          </button>
+        </div>
+      </div>
+
+      {/* Real Data Actions */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.15)', 
+        borderRadius: '16px', 
+        padding: '24px', 
+        marginBottom: '30px',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🛠️ Basic Data Actions (Universal Architecture)
+        </h4>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+          gap: '16px' 
+        }}>
+          <button
+            onClick={completeQuestionnaireReal}
+            disabled={realDataState.questionnaire}
+            style={{
+              background: realDataState.questionnaire ? 
+                'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)' : 
+                'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              cursor: realDataState.questionnaire ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              opacity: realDataState.questionnaire ? 0.6 : 1
+            }}
+            onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            {realDataState.questionnaire ? '✅ Questionnaire Already Complete' : '📝 Complete Questionnaire (Real)'}
+          </button>
+          
+          <button
+            onClick={completeSelfAssessmentReal}
+            disabled={realDataState.selfAssessment}
+            style={{
+              background: realDataState.selfAssessment ? 
+                'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)' : 
+                'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              cursor: realDataState.selfAssessment ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease',
+              opacity: realDataState.selfAssessment ? 0.6 : 1
+            }}
+            onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            {realDataState.selfAssessment ? '✅ Self-Assessment Already Complete' : '🎯 Complete Self-Assessment (Real)'}
+          </button>
+          
+          <button
+            onClick={addPracticeSessionReal}
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            🧘 Add Practice Session (Real)
+          </button>
+          
+          <button
+            onClick={addEmotionalNoteReal}
+            style={{
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            💭 Add Emotional Note (Real)
+          </button>
+        </div>
+      </div>
+
+      {/* T-Level Session Progression */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.15)', 
+        borderRadius: '16px', 
+        padding: '24px', 
+        marginBottom: '30px',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🌱 T-Level Session Progression (Stage 1 Practice)
+        </h4>
+        <div style={{ 
+          background: 'rgba(255,255,255,0.1)', 
+          borderRadius: '12px', 
+          padding: '20px', 
+          marginBottom: '20px',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '0' }}>
+            💡 <strong>Progressive T-Level System:</strong> Users must complete 3 sessions of each T-level (T1→T2→T3→T4→T5) before unlocking the next level. T5 completion unlocks Stage 2.
+          </p>
+        </div>
+        
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌱 T1 Level - Basic Stillness Practice
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            <button onClick={completeT1Session1Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌱 Complete T1 Session 1 (1/3 complete)
+            </button>
+            <button onClick={completeT1Session2Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌱 Complete T1 Session 2 (2/3 complete)
+            </button>
+            <button onClick={completeT1Session3Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌱 Complete T1 Session 3 (Unlock T2)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌿 T2 Level - Attention to Breathing
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            <button onClick={completeT2Session1Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌿 Complete T2 Session 1 (1/3 complete)
+            </button>
+            <button onClick={completeT2Session2Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌿 Complete T2 Session 2 (2/3 complete)
+            </button>
+            <button onClick={completeT2Session3Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌿 Complete T2 Session 3 (Unlock T3)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌳 T3 Level - Attention with Relaxation
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            <button onClick={completeT3Session1Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌳 Complete T3 Session 1 (1/3 complete)
+            </button>
+            <button onClick={completeT3Session2Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌳 Complete T3 Session 2 (2/3 complete)
+            </button>
+            <button onClick={completeT3Session3Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌳 Complete T3 Session 3 (Unlock T4)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌸 T4 Level - Attention without Force
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            <button onClick={completeT4Session1Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌸 Complete T4 Session 1 (1/3 complete)
+            </button>
+            <button onClick={completeT4Session2Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌸 Complete T4 Session 2 (2/3 complete)
+            </button>
+            <button onClick={completeT4Session3Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌸 Complete T4 Session 3 (Unlock T5)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌟 T5 Level - Present Attention Happiness Method (PAHM)
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            <button onClick={completeT5Session1Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌟 Complete T5 Session 1 (1/3 complete)
+            </button>
+            <button onClick={completeT5Session2Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌟 Complete T5 Session 2 (2/3 complete)
+            </button>
+            <button onClick={completeT5Session3Real} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌟 Complete T5 Session 3 (Unlock Stage 2)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* PAHM Stage Progression */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.15)', 
+        borderRadius: '16px', 
+        padding: '24px', 
+        marginBottom: '30px',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🏁 PAHM Stage Progression (Stages 2-6)
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+          <button onClick={completeStage2Real} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '15px', fontWeight: '600',
+            transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+            🧘‍♀️ Complete Stage 2 (Unlock Stage 3)
+          </button>
+          <button onClick={completeStage3Real} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '15px', fontWeight: '600',
+            transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+            🌟 Complete Stage 3 (Unlock Stage 4)
+          </button>
+          <button onClick={completeStage4Real} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '15px', fontWeight: '600',
+            transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+            💎 Complete Stage 4 (Unlock Stage 5)
+          </button>
+          <button onClick={completeStage5Real} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '15px', fontWeight: '600',
+            transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+            🔮 Complete Stage 5 (Unlock Stage 6)
+          </button>
+          <button onClick={completeStage6Real} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '15px', fontWeight: '600',
+            transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+            🏔️ Complete Stage 6 (Master Level)
+          </button>
+          <button onClick={addMindRecoverySessionReal} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '15px', fontWeight: '600',
+            transition: 'all 0.3s ease', textAlign: 'left', backdropFilter: 'blur(10px)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0px)'; }}>
+            ⚡ Add Mind Recovery Session
+          </button>
+        </div>
+      </div>
+
+      {/* Individual Reset Options */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.15)', 
+        borderRadius: '16px', 
+        padding: '24px', 
+        marginBottom: '30px',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
+          🗑️ Individual Reset Options
+        </h4>
+        <div style={{ 
+          background: 'rgba(255,255,255,0.1)', 
+          borderRadius: '12px', 
+          padding: '20px', 
+          marginBottom: '20px',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '0' }}>
+            💡 <strong>Granular Reset Controls:</strong> Reset specific components without affecting others. Perfect for testing individual features or correcting specific data issues.
+          </p>
+        </div>
+        
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            📋 Onboarding Data Reset
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <button onClick={resetQuestionnaireOnly} style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              📝 Reset Questionnaire Only
+            </button>
+            <button onClick={resetSelfAssessmentOnly} style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🎯 Reset Self-Assessment Only
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🧘 Practice Data Reset
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <button onClick={resetPracticeSessionsOnly} style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🧘 Reset All Practice Sessions
+            </button>
+            <button onClick={resetEmotionalNotesOnly} style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', borderRadius: '12px',
+              padding: '16px', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'left'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              💭 Reset Emotional Notes Only
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🌱 T-Level Reset (Individual Levels)
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+            <button onClick={resetT1SessionsOnly} style={{
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌱 Reset T1 Sessions Only
+            </button>
+            <button onClick={resetT2SessionsOnly} style={{
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌿 Reset T2 Sessions Only
+            </button>
+            <button onClick={resetT3SessionsOnly} style={{
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌳 Reset T3 Sessions Only
+            </button>
+            <button onClick={resetT4SessionsOnly} style={{
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌸 Reset T4 Sessions Only
+            </button>
+            <button onClick={resetT5SessionsOnly} style={{
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌟 Reset T5 Sessions Only
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '30px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            🏁 PAHM Stage Reset (Individual Stages)
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+            <button onClick={resetStage2Only} style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🧘‍♀️ Reset Stage 2 Only
+            </button>
+            <button onClick={resetStage3Only} style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🌟 Reset Stage 3 Only
+            </button>
+            <button onClick={resetStage4Only} style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              💎 Reset Stage 4 Only
+            </button>
+            <button onClick={resetStage5Only} style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🔮 Reset Stage 5 Only
+            </button>
+            <button onClick={resetStage6Only} style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none', borderRadius: '10px',
+              padding: '12px', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              transition: 'all 0.3s ease', textAlign: 'center'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; }}>
+              🏔️ Reset Stage 6 Only
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+            💥 Complete Reset
+          </h5>
+          <button onClick={resetAllData} style={{
+            background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', border: 'none', borderRadius: '12px',
+            padding: '20px', color: 'white', cursor: 'pointer', fontSize: '16px', fontWeight: '700',
+            transition: 'all 0.3s ease', textAlign: 'center', width: '100%',
+            boxShadow: '0 8px 20px rgba(220, 38, 38, 0.3)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 25px rgba(220, 38, 38, 0.4)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(220, 38, 38, 0.3)'; }}>
+            🗑️ RESET ALL DATA (Complete Wipe)
+          </button>
+        </div>
+      </div>
+
+      {/* Current Progress State - Real Universal Architecture Data */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.15)', 
+        borderRadius: '16px', 
+        padding: '24px',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h4 style={{ color: 'white', marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>
+          📊 Current Universal Architecture Progress State
+        </h4>
+        <div style={{ 
+          color: 'rgba(255,255,255,0.9)', 
+          fontSize: '15px', 
+          lineHeight: '1.8',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '16px'
+        }}>
+          <div>
+            <strong style={{ color: '#4ade80', fontSize: '16px' }}>General Progress:</strong><br/>
+            • Total Users: <strong>{userStats.totalUsers}</strong><br/>
+            • Practice Sessions: <strong>{realDataState.practiceCount}</strong><br/>
+            • Questionnaire: <strong style={{color: realDataState.questionnaire ? '#4ade80' : '#f87171'}}>
+              {realDataState.questionnaire ? '✅ Complete' : '❌ Incomplete'}
+            </strong><br/>
+            • Self Assessment: <strong style={{color: realDataState.selfAssessment ? '#4ade80' : '#f87171'}}>
+              {realDataState.selfAssessment ? '✅ Complete' : '❌ Incomplete'}
+            </strong>
+          </div>
+          <div>
+            <strong style={{ color: '#60a5fa', fontSize: '16px' }}>Happiness Tracking:</strong><br/>
+            • Happiness Points: <strong style={{color: '#4ade80'}}>{realDataState.happinessPoints}</strong><br/>
+            • Current Level: <strong style={{color: '#60a5fa'}}>{realDataState.currentLevel}</strong><br/>
+            • Emotional Notes: <strong style={{color: '#a78bfa'}}>{emotionalNotes?.length || 0}</strong><br/>
+            • User Progress: <strong style={{color: userProgress.hasMinimumData ? '#4ade80' : '#f87171'}}>
+              {userProgress.hasMinimumData ? '✅ Active' : '❌ Insufficient Data'}
+            </strong>
+          </div>
+          <div>
+            <strong style={{ color: '#a78bfa', fontSize: '16px' }}>Universal Architecture:</strong><br/>
+            • Sessions Array: <strong style={{color: sessions?.length > 0 ? '#4ade80' : '#f87171'}}>
+              {sessions?.length || 0} sessions
+            </strong><br/>
+            • Notes Array: <strong style={{color: emotionalNotes?.length > 0 ? '#4ade80' : '#f87171'}}>
+              {emotionalNotes?.length || 0} notes
+            </strong><br/>
+            • Data Completeness: <strong style={{color: userProgress.dataCompleteness > 0.5 ? '#4ade80' : '#f87171'}}>
+              {Math.round((userProgress.dataCompleteness || 0) * 100)}%
+            </strong><br/>
+            • Component Status: <strong style={{color: componentBreakdown ? '#4ade80' : '#f87171'}}>
+              {componentBreakdown ? '✅ Active' : '❌ No Data'}
+            </strong>
+          </div>
+        </div>
+        
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            onClick={() => {
+              console.log('🔍 Full Universal Architecture Debug:', {
+                realDataState,
+                userProgress,
+                componentBreakdown,
+                sessions: sessions?.length || 0,
+                emotionalNotes: emotionalNotes?.length || 0,
+                userProfile,
+                onboardingData: {
+                  questionnaire: getCompletionStatus().questionnaire,
+                  selfAssessment: getCompletionStatus().selfAssessment
+                }
+              });
+              alert('Universal Architecture debug data logged to console (F12)');
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '14px',
+              transition: 'all 0.3s ease',
+              marginRight: '12px'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            🔍 Debug Universal Architecture
+          </button>
+          
+          <button
+            onClick={() => {
+              loadRealDataState();
+              loadUserStats();
+              alert('✅ All data refreshed from Universal Architecture!');
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '14px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+          >
+            🔄 Refresh All Data
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderOverview = () => (
     <div style={{ padding: '30px' }}>
@@ -1576,376 +2691,6 @@ node admin-setup.js
     </div>
   );
 
-  const renderTestingTools = () => (
-    <div style={{ padding: '30px' }}>
-      <h3 style={{ color: 'white', marginBottom: '30px', fontSize: '24px', fontWeight: '600' }}>
-        🧪 Complete Testing Suite
-      </h3>
-      
-      <div style={{ marginBottom: '40px' }}>
-        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
-          🌱 T-Level Session Progression (Stage 1 Practice)
-        </h4>
-        <div style={{ 
-          background: 'rgba(255,255,255,0.1)', 
-          borderRadius: '12px', 
-          padding: '20px', 
-          marginBottom: '20px',
-          border: '1px solid rgba(255,255,255,0.2)'
-        }}>
-          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '0' }}>
-            💡 <strong>Progressive T-Level System:</strong> Users must complete 3 sessions of each T-level (T1→T2→T3→T4→T5) before unlocking the next level. T5 completion unlocks Stage 2.
-          </p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-          {testingTools.slice(4, 19).map((tool, index) => (
-            <button
-              key={index}
-              onClick={tool.action}
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '12px',
-                padding: '16px',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                transition: 'all 0.3s ease',
-                textAlign: 'left',
-                backdropFilter: 'blur(10px)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-                e.currentTarget.style.transform = 'translateY(0px)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {tool.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: '40px' }}>
-        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
-          🏁 PAHM Stage Progression (Stages 2-6)
-        </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {testingTools.slice(19, 24).map((tool, index) => (
-            <button
-              key={index}
-              onClick={tool.action}
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '12px',
-                padding: '20px',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '15px',
-                fontWeight: '600',
-                transition: 'all 0.3s ease',
-                textAlign: 'left',
-                backdropFilter: 'blur(10px)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-                e.currentTarget.style.transform = 'translateY(0px)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {tool.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: '40px' }}>
-        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
-          🔧 System & Data Tools
-        </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {testingTools.slice(0, 4).map((tool, index) => (
-            <button
-              key={index}
-              onClick={tool.action}
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '12px',
-                padding: '20px',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '15px',
-                fontWeight: '600',
-                transition: 'all 0.3s ease',
-                textAlign: 'left',
-                backdropFilter: 'blur(10px)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-                e.currentTarget.style.transform = 'translateY(0px)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {tool.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: '40px' }}>
-        <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '20px', fontWeight: '600' }}>
-          🔄 Reset Options - Granular Testing Controls
-        </h4>
-        
-        {/* Basic Reset Options */}
-        <div style={{ marginBottom: '30px' }}>
-          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
-            📝 Basic Components Reset
-          </h5>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-            {testingTools.slice(24, 26).map((tool, index) => (
-              <button
-                key={index}
-                onClick={tool.action}
-                style={{
-                  background: 'linear-gradient(135deg, #fd7e14 0%, #e8590c 100%)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease',
-                  textAlign: 'left',
-                  boxShadow: '0 6px 16px rgba(253, 126, 20, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(253, 126, 20, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(253, 126, 20, 0.3)';
-                }}
-              >
-                {tool.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* T-Level Reset Options */}
-        <div style={{ marginBottom: '30px' }}>
-          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
-            🌱 Individual T-Level Reset (Stage 1)
-          </h5>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
-            {testingTools.slice(26, 31).map((tool, index) => (
-              <button
-                key={index}
-                onClick={tool.action}
-                style={{
-                  background: 'linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease',
-                  textAlign: 'left',
-                  boxShadow: '0 6px 16px rgba(111, 66, 193, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(111, 66, 193, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(111, 66, 193, 0.3)';
-                }}
-              >
-                {tool.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Stage Reset Options */}
-        <div style={{ marginBottom: '30px' }}>
-          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
-            🏁 Individual PAHM Stage Reset (Stages 2-6)
-          </h5>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-            {testingTools.slice(31, 36).map((tool, index) => (
-              <button
-                key={index}
-                onClick={tool.action}
-                style={{
-                  background: 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease',
-                  textAlign: 'left',
-                  boxShadow: '0 6px 16px rgba(23, 162, 184, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(23, 162, 184, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(23, 162, 184, 0.3)';
-                }}
-              >
-                {tool.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Complete Reset Options */}
-        <div style={{ marginBottom: '20px' }}>
-          <h5 style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
-            ⚠️ Complete Reset Options
-          </h5>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
-            {testingTools.slice(36).map((tool, index) => (
-              <button
-                key={index}
-                onClick={tool.action}
-                style={{
-                  background: index === 0 ? 
-                    'linear-gradient(135deg, #6c757d 0%, #495057 100%)' : 
-                    'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease',
-                  textAlign: 'left',
-                  boxShadow: index === 0 ? 
-                    '0 8px 20px rgba(108, 117, 125, 0.3)' : 
-                    '0 8px 20px rgba(220, 53, 69, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = index === 0 ? 
-                    '0 12px 30px rgba(108, 117, 125, 0.4)' : 
-                    '0 12px 30px rgba(220, 53, 69, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = index === 0 ? 
-                    '0 8px 20px rgba(108, 117, 125, 0.3)' : 
-                    '0 8px 20px rgba(220, 53, 69, 0.3)';
-                }}
-              >
-                {tool.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      <div style={{ 
-        background: 'rgba(255,255,255,0.15)', 
-        borderRadius: '16px', 
-        padding: '24px',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.2)'
-      }}>
-        <h4 style={{ color: 'white', marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>
-          📊 Current Progress State
-        </h4>
-        <div style={{ 
-          color: 'rgba(255,255,255,0.9)', 
-          fontSize: '15px', 
-          lineHeight: '1.8',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '16px'
-        }}>
-          <div>
-            <strong style={{ color: '#4ade80', fontSize: '16px' }}>General Progress:</strong><br/>
-            • Total Users: <strong>{userStats.totalUsers}</strong><br/>
-            • Current Stage: <strong>{sessionStorage.getItem('stageProgress') || '1'}</strong><br/>
-            • Questionnaire: <strong style={{color: localStorage.getItem('questionnaireComplete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('questionnaireComplete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong><br/>
-            • Self Assessment: <strong style={{color: localStorage.getItem('selfAssessmentComplete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('selfAssessmentComplete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong>
-          </div>
-          <div>
-            <strong style={{ color: '#60a5fa', fontSize: '16px' }}>T-Level Progress (Stage 1):</strong><br/>
-            • T1 Sessions: <strong style={{color: localStorage.getItem('t1Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('t1CompletionCount') || '0'}/3 {localStorage.getItem('t1Complete') ? '✅' : '❌'}
-            </strong><br/>
-            • T2 Sessions: <strong style={{color: localStorage.getItem('t2Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('t2CompletionCount') || '0'}/3 {localStorage.getItem('t2Complete') ? '✅' : '❌'}
-            </strong><br/>
-            • T3 Sessions: <strong style={{color: localStorage.getItem('t3Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('t3CompletionCount') || '0'}/3 {localStorage.getItem('t3Complete') ? '✅' : '❌'}
-            </strong><br/>
-            • T4 Sessions: <strong style={{color: localStorage.getItem('t4Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('t4CompletionCount') || '0'}/3 {localStorage.getItem('t4Complete') ? '✅' : '❌'}
-            </strong><br/>
-            • T5 Sessions: <strong style={{color: localStorage.getItem('t5Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('t5CompletionCount') || '0'}/3 {localStorage.getItem('t5Complete') ? '✅' : '❌'}
-            </strong>
-          </div>
-          <div>
-            <strong style={{ color: '#a78bfa', fontSize: '16px' }}>PAHM Stages (2-6):</strong><br/>
-            • Stage 2: <strong style={{color: localStorage.getItem('stage2Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('stage2Complete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong><br/>
-            • Stage 3: <strong style={{color: localStorage.getItem('stage3Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('stage3Complete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong><br/>
-            • Stage 4: <strong style={{color: localStorage.getItem('stage4Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('stage4Complete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong><br/>
-            • Stage 5: <strong style={{color: localStorage.getItem('stage5Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('stage5Complete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong><br/>
-            • Stage 6: <strong style={{color: localStorage.getItem('stage6Complete') ? '#4ade80' : '#f87171'}}>
-              {localStorage.getItem('stage6Complete') ? '✅ Complete' : '❌ Incomplete'}
-            </strong>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderPermissions = () => (
     <div style={{ padding: '30px' }}>
       <h3 style={{ color: 'white', marginBottom: '30px', fontSize: '24px', fontWeight: '600' }}>
@@ -2045,7 +2790,7 @@ node admin-setup.js
       background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
-      {/* ✅ Modern Header with Glass Effect */}
+      {/* Header */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.15)',
         backdropFilter: 'blur(20px)',
@@ -2062,7 +2807,7 @@ node admin-setup.js
               fontWeight: '700',
               marginBottom: '8px'
             }}>
-              🛡️ Admin Panel - Return of Attention
+              🛡️ Admin Panel - Real Data Control & Testing
             </h1>
             <p style={{ 
               color: 'rgba(255, 255, 255, 0.8)', 
@@ -2070,66 +2815,36 @@ node admin-setup.js
               fontSize: '16px',
               fontWeight: '500'
             }}>
-              Complete testing suite & user management
+              Complete Universal Architecture testing & management suite
             </p>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{
+          <button
+            onClick={() => window.history.back()}
+            style={{
               background: 'rgba(255, 255, 255, 0.2)',
-              padding: '12px 20px',
-              borderRadius: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
               color: 'white',
+              padding: '12px 20px',
+              borderRadius: '10px',
+              cursor: 'pointer',
               fontSize: '16px',
               fontWeight: '600',
-              border: '1px solid rgba(255,255,255,0.3)'
-            }}>
-              {adminRole} (Level {adminLevel})
-            </div>
-            
-            <div style={{ 
-              color: 'rgba(255, 255, 255, 0.9)', 
-              fontSize: '16px',
-              fontWeight: '500'
-            }}>
-              {currentUser?.email}
-            </div>
-            
-            <button
-              onClick={() => window.history.back()}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                color: 'white',
-                padding: '12px 20px',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: '600',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'translateY(0px)';
-              }}
-            >
-              ← Back
-            </button>
-          </div>
+              transition: 'all 0.3s ease'
+            }}
+          >
+            ← Back
+          </button>
         </div>
       </div>
 
-      {/* ✅ Modern Navigation Tabs */}
+      {/* Navigation Tabs */}
       <div style={{ padding: '20px 30px 0 30px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
           {[
             { id: 'overview', label: '📊 Overview', icon: '📊' },
+            { id: 'realdata', label: '🎯 Real Data Control & Testing', icon: '🎯' },
             { id: 'users', label: '👥 User Management', icon: '👥' },
-            { id: 'testing', label: '🧪 Complete Testing Suite', icon: '🧪' },
             { id: 'permissions', label: '🔐 Permissions', icon: '🔐' }
           ].map(tab => (
             <button
@@ -2154,18 +2869,6 @@ node admin-setup.js
                 alignItems: 'center',
                 gap: '8px'
               }}
-              onMouseOver={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                }
-              }}
             >
               <span style={{ fontSize: '18px' }}>{tab.icon}</span>
               {tab.label}
@@ -2177,12 +2880,11 @@ node admin-setup.js
       {/* Content Area */}
       <div style={{ paddingBottom: '40px' }}>
         {activeTab === 'overview' && renderOverview()}
+        {activeTab === 'realdata' && renderRealData()}
         {activeTab === 'users' && renderUsers()}
-        {activeTab === 'testing' && renderTestingTools()}
         {activeTab === 'permissions' && renderPermissions()}
       </div>
 
-      {/* ✅ Add CSS animations */}
       <style>
         {`
           @keyframes spin {

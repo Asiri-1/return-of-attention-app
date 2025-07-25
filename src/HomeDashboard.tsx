@@ -1,4 +1,4 @@
-// ✅ COMPLETE HomeDashboard.tsx - Interactive Onboarding with Hide Logic
+// ✅ FIXED HomeDashboard.tsx - Data Synchronization Issues Resolved
 // File: src/HomeDashboard.tsx
 // 🔄 REPLACE YOUR ENTIRE HOMEDASHBOARD.TSX WITH THIS CODE
 
@@ -6,9 +6,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 // 🚀 UPDATED: Use focused contexts instead of LocalDataContext
-import { useUser } from './contexts/user/UserContext';
 import { usePractice } from './contexts/practice/PracticeContext';
-import { useWellness } from './contexts/wellness/WellnessContext';
 import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
 // ✅ REMOVED: AdminPanel import completely - should only be accessible via /admin route
@@ -45,14 +43,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 }) => {
   const { currentUser } = useAuth();
   // 🚀 UPDATED: Use focused contexts instead of LocalDataContext
-  const { userProfile } = useUser();
-  const { sessions, stats } = usePractice();
-  const { emotionalNotes } = useWellness();
+  const { sessions } = usePractice();
   const navigate = useNavigate();
   const location = useLocation();
 
   // ✅ FIXED: Use the same happiness calculation logic as HappinessTrackerPage
-  const { userProgress, isCalculating } = useHappinessCalculation();
+  const { userProgress, isCalculating, forceRecalculation } = useHappinessCalculation();
 
   // ✅ PERFORMANCE: Stable refs for cleanup
   const t5ListenerRef = useRef<(() => void) | null>(null);
@@ -69,8 +65,17 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   // ✅ FIXED: Get happiness data from the same source as HappinessTrackerPage
   const happinessData = useMemo(() => ({
     happiness_points: userProgress.happiness_points || 0,
-    current_level: userProgress.user_level || 'Beginning Seeker'
-  }), [userProgress.happiness_points, userProgress.user_level]);
+    current_level: userProgress.user_level || 'Beginning Seeker',
+    isCalculating: isCalculating
+  }), [userProgress.happiness_points, userProgress.user_level, isCalculating]);
+
+  // ✅ NEW: Force data refresh function
+  const forceDataRefresh = useCallback(() => {
+    console.log('🔄 Forcing data refresh in HomeDashboard...');
+    if (forceRecalculation) {
+      forceRecalculation();
+    }
+  }, [forceRecalculation]);
 
   // ✅ PERFORMANCE: Memoized static data to prevent recreation
   const tLevels = useMemo(() => [
@@ -384,6 +389,81 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     calculateUserStats();
   }, [calculateUserStats]);
 
+  // ✅ NEW: Critical Fix - Listen for navigation returns and force refresh
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Window focused - checking for data refresh...');
+      // Small delay to allow localStorage updates to settle
+      setTimeout(() => {
+        forceDataRefresh();
+      }, 100);
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Page visible - checking for data refresh...');
+        setTimeout(() => {
+          forceDataRefresh();
+        }, 100);
+      }
+    };
+
+    // Listen for window focus (user returns from another tab/window)
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [forceDataRefresh]);
+
+  // ✅ NEW: Listen for location changes and refresh data
+  useEffect(() => {
+    console.log('🔄 Location changed, refreshing data...', location.pathname);
+    
+    // Check if returning from assessment routes
+    const isReturningFromAssessment = location.state && (
+      (location.state as any).fromSelfAssessment || 
+      (location.state as any).fromQuestionnaire ||
+      (location.state as any).completedAssessment
+    );
+
+    if (isReturningFromAssessment) {
+      console.log('🎯 Returning from assessment - forcing data refresh...');
+      setTimeout(() => {
+        forceDataRefresh();
+      }, 500); // Longer delay for assessment completion
+    }
+
+    // Always refresh on location change with shorter delay
+    setTimeout(() => {
+      forceDataRefresh();
+    }, 100);
+  }, [location.pathname, location.state, forceDataRefresh]);
+
+  // ✅ NEW: Listen for localStorage changes (self-assessment completion)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      console.log('🔄 Storage changed:', e.key, e.newValue);
+      
+      // Check for self-assessment or questionnaire completion
+      if (e.key === 'selfAssessment' || 
+          e.key === 'questionnaire' || 
+          e.key === 'onboardingData' ||
+          e.key?.includes('assessment') ||
+          e.key?.includes('happiness')) {
+        console.log('🎯 Assessment data changed - forcing refresh...');
+        setTimeout(() => {
+          forceDataRefresh();
+        }, 200);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [forceDataRefresh]);
+
   // ✅ PERFORMANCE: Optimized T5 completion listener with proper cleanup
   useEffect(() => {
     const t5Completed = sessionStorage.getItem('t5Completed') === 'true' ||
@@ -574,8 +654,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             Your Mindfulness Journey
           </h2>
           <p style={{ fontSize: '16px', color: '#666', marginBottom: '30px', textAlign: 'center' }}>
-            {/* ✅ FIXED: Clarify difference between stage progression and happiness tracking */}
-            {happinessData.happiness_points === 0 ? (
+            {/* ✅ FIXED: Better logic to check completion status including calculation state */}
+            {happinessData.happiness_points === 0 && !happinessData.isCalculating ? (
               <>
                 Welcome! You can practice Stage 1 anytime. Complete your <strong>questionnaire, self-assessment, or practice sessions</strong> to enable happiness tracking.
               </>
@@ -643,8 +723,87 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </section>
         )}
 
-        {/* ✅ IMPROVED: Interactive onboarding section with buttons */}
-        {happinessData.happiness_points === 0 && (
+        {/* ✅ NEW: Enhanced tracking suggestion for users with basic tracking */}
+        {happinessData.happiness_points > 0 && !userProgress.dataCompleteness.selfAssessment && (
+          <section style={{
+            ...styles.section,
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+            border: '2px solid #f59e0b',
+            marginBottom: '24px'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <h3 style={{ 
+                fontSize: '18px', 
+                color: '#92400e', 
+                margin: '0 0 8px 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                🎯 Enhance Your Happiness Tracking
+              </h3>
+              <p style={{ 
+                fontSize: '14px', 
+                color: '#92400e', 
+                margin: '0 0 16px 0' 
+              }}>
+                Complete your self-assessment for more detailed insights and personalized recommendations!
+              </p>
+              
+              <button
+                onClick={() => {
+                  console.log('🎯 Navigating to self-assessment for enhanced tracking...');
+                  navigate('/self-assessment', { 
+                    state: { 
+                      returnTo: '/home', 
+                      enhancedMode: true,
+                      fromHomeDashboard: true 
+                    } 
+                  });
+                }}
+                style={{
+                  background: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#d97706';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#f59e0b';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                }}
+              >
+                🎯 Complete Self-Assessment
+              </button>
+              
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                borderRadius: '8px',
+                padding: '12px',
+                marginTop: '12px',
+                fontSize: '12px',
+                color: '#92400e'
+              }}>
+                <strong>Benefits:</strong> Attachment flexibility scoring, deeper insights, and personalized meditation recommendations
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ✅ FIXED: Improved onboarding section logic - only show when truly no happiness data */}
+        {happinessData.happiness_points === 0 && !happinessData.isCalculating && (
           <section style={styles.section}>
             <h2 style={{ ...styles.sectionTitle, color: '#f59e0b' }}>
               🌟 Complete Your Onboarding to Enable Happiness Tracking
@@ -666,7 +825,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <button
                   onClick={() => {
                     console.log('🚀 Navigating to questionnaire from onboarding...');
-                    navigate('/questionnaire', { state: { returnTo: '/home' } });
+                    navigate('/questionnaire', { 
+                      state: { 
+                        returnTo: '/home',
+                        fromHomeDashboard: true 
+                      } 
+                    });
                   }}
                   style={{
                     background: 'white',
@@ -749,6 +913,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       state: { 
                         returnTo: '/home',
                         quickPath: true,
+                        fromHomeDashboard: true,
                         message: 'Quick Path: Complete questionnaire, then do 1 practice session!' 
                       } 
                     });
@@ -825,7 +990,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <button
                   onClick={() => {
                     console.log('🚀 Navigating to self-assessment directly...');
-                    navigate('/self-assessment', { state: { returnTo: '/home' } });
+                    navigate('/self-assessment', { 
+                      state: { 
+                        returnTo: '/home',
+                        fromHomeDashboard: true 
+                      } 
+                    });
                   }}
                   style={{
                     background: '#f59e0b',
@@ -984,19 +1154,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               
               // ✅ FIXED: Strict sequential logic - must complete previous stage
               let isAccessible = false;
-              let isNextStage = false;
               let isCurrentOrCompleted = false;
               
               if (stage.num === 2) {
                 // Stage 2 requires Stage 1 (T5) completion
                 isAccessible = isStage1Completed;
-                isNextStage = !isStage1Completed; // Only "next" if Stage 1 not completed
                 isCurrentOrCompleted = isStage1Completed && completedStage >= 2;
               } else if (stage.num > 2) {
                 // Stages 3+ require previous PAHM stage completion
                 const isPreviousStageCompleted = localStorage.getItem(`stage${stage.num - 1}Complete`) === 'true';
                 isAccessible = isPreviousStageCompleted;
-                isNextStage = !isPreviousStageCompleted && completedStage >= stage.num - 1;
                 isCurrentOrCompleted = isPreviousStageCompleted && completedStage >= stage.num;
               }
               

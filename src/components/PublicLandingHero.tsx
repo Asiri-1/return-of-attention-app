@@ -1,6 +1,6 @@
 // ============================================================================
 // src/components/PublicLandingHero.tsx
-// IMPROVED VERSION - Added top sign-in button and removed logo white box
+// UPDATED VERSION - Removed "Your Mind's Natural Movement" section
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -51,7 +51,7 @@ const PublicLandingHero: React.FC = () => {
       overflow: 'hidden',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
-      {/* ✅ NEW: Top Navigation Bar for Returning Visitors */}
+      {/* Top Navigation Bar for Returning Visitors */}
       <div style={{
         position: 'absolute',
         top: 0,
@@ -155,11 +155,11 @@ const PublicLandingHero: React.FC = () => {
         zIndex: 10,
         maxWidth: '1280px',
         margin: '0 auto',
-        padding: '80px 24px 48px', // ✅ INCREASED top padding to account for sign-in button
+        padding: '80px 24px 48px',
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          {/* ✅ IMPROVED: Logo without white box background */}
+          {/* Logo without white box background */}
           <div style={{ 
             marginBottom: '32px',
             display: 'flex',
@@ -167,7 +167,6 @@ const PublicLandingHero: React.FC = () => {
             alignItems: 'center'
           }}>
             <div style={{
-              // ✅ REMOVED any background/backdrop styling that might create white box
               display: 'inline-block'
             }}>
               <Logo />
@@ -210,161 +209,6 @@ const PublicLandingHero: React.FC = () => {
           }}>
             A simple, practical guide to happiness that actually stays
           </p>
-        </div>
-
-        {/* Mind Visualization Demo - Simple Version */}
-        <div style={{
-          display: 'flex',
-          flexDirection: window.innerWidth < 1024 ? 'column' : 'row',
-          alignItems: 'center',
-          gap: '48px',
-          marginBottom: '64px'
-        }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            {/* Simple Mind Visualization */}
-            <div style={{
-              width: '300px',
-              height: '300px',
-              margin: '0 auto',
-              position: 'relative',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '50%',
-              border: '2px solid rgba(255, 255, 255, 0.3)'
-            }}>
-              {/* Center dot - Present awareness */}
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '20px',
-                height: '20px',
-                backgroundColor: '#a855f7',
-                borderRadius: '50%',
-                animation: 'pulse 2s infinite'
-              }}></div>
-              
-              {/* Outer thoughts */}
-              <div style={{
-                position: 'absolute',
-                top: '20px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '12px',
-                height: '12px',
-                backgroundColor: '#667eea',
-                borderRadius: '50%',
-                opacity: 0.7
-              }}></div>
-              <div style={{
-                position: 'absolute',
-                right: '20px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '10px',
-                height: '10px',
-                backgroundColor: '#667eea',
-                borderRadius: '50%',
-                opacity: 0.6
-              }}></div>
-              <div style={{
-                position: 'absolute',
-                bottom: '30px',
-                left: '30px',
-                width: '8px',
-                height: '8px',
-                backgroundColor: '#667eea',
-                borderRadius: '50%',
-                opacity: 0.5
-              }}></div>
-            </div>
-            <div style={{
-              marginTop: '24px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '16px',
-              backdropFilter: 'blur(10px)'
-            }}>
-              <p style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                marginBottom: '8px',
-                margin: '0 0 8px 0'
-              }}>
-                See Your Mind in Action
-              </p>
-              <p style={{
-                fontSize: '14px',
-                opacity: 0.9,
-                margin: 0
-              }}>
-                Purple center = present awareness. Blue dots = thoughts, worries, distractions. 
-                The practice = learning to return naturally.
-              </p>
-            </div>
-          </div>
-          
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <h3 style={{
-              fontSize: 'clamp(24px, 4vw, 32px)',
-              fontWeight: 'bold',
-              textAlign: window.innerWidth < 1024 ? 'center' : 'left',
-              margin: '0 0 24px 0'
-            }}>
-              Your Mind's Natural Movement
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '16px'
-              }}>
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: '#a855f7',
-                  borderRadius: '50%',
-                  animation: 'pulse 2s infinite'
-                }}></div>
-                <span style={{ fontSize: '18px' }}>Center = Present moment awareness</span>
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '16px'
-              }}>
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: '#667eea',
-                  borderRadius: '50%'
-                }}></div>
-                <span style={{ fontSize: '18px' }}>Outer cells = Thoughts, worries, distractions</span>
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '16px'
-              }}>
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: '#8b5cf6',
-                  borderRadius: '50%'
-                }}></div>
-                <span style={{ fontSize: '18px' }}>The practice = Learning to return naturally</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Problem Section */}
@@ -721,7 +565,7 @@ const PublicLandingHero: React.FC = () => {
           50% { transform: translateY(-10px); }
         }
 
-        /* ✅ RESPONSIVE: Hide sign-in button on very small screens */
+        /* Responsive: Hide sign-in button on very small screens */
         @media (max-width: 480px) {
           .top-signin-btn {
             padding: 10px 16px !important;

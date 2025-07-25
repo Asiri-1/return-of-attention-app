@@ -1,4 +1,6 @@
+// ✅ FIXED OnboardingContext.tsx - Data Synchronization Issues Resolved
 // src/contexts/onboarding/OnboardingContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
 
@@ -174,23 +176,64 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return currentUser?.uid ? `selfAssessment_${currentUser.uid}` : 'selfAssessment';
   }, [currentUser?.uid]);
 
+  // ✅ NEW: Emit completion events for other components to listen to
+  const emitOnboardingEvent = useCallback((eventType: 'questionnaire' | 'selfAssessment', data: any) => {
+    const event = new CustomEvent('onboardingUpdated', {
+      detail: {
+        type: eventType,
+        data: data,
+        timestamp: new Date().toISOString(),
+        userId: currentUser?.uid
+      }
+    });
+    window.dispatchEvent(event);
+    
+    // Also emit specific events
+    const specificEvent = new CustomEvent(`${eventType}Completed`, {
+      detail: {
+        data: data,
+        timestamp: new Date().toISOString(),
+        userId: currentUser?.uid
+      }
+    });
+    window.dispatchEvent(specificEvent);
+    
+    console.log(`🎯 Emitted ${eventType} completion event:`, data);
+  }, [currentUser?.uid]);
+
   // ================================
-  // ✅ FIXED: PREVENT CASCADING SAVES
+  // ✅ FIXED: PREVENT CASCADING SAVES + ADD EVENT EMISSION
   // ================================
   const saveToStorage = useCallback((questionnaireData: QuestionnaireData | null, assessmentData: SelfAssessmentData | null) => {
     try {
       if (questionnaireData) {
-        localStorage.setItem(getQuestionnaireStorageKey(), JSON.stringify(questionnaireData));
+        const questionnaireKey = getQuestionnaireStorageKey();
+        localStorage.setItem(questionnaireKey, JSON.stringify(questionnaireData));
         // Legacy compatibility
         localStorage.setItem('questionnaire_responses', JSON.stringify(questionnaireData.responses));
         localStorage.setItem('questionnaire_completed', questionnaireData.completed ? 'true' : 'false');
+        
+        console.log('💾 Saved questionnaire to storage:', questionnaireKey);
       }
       
       if (assessmentData) {
-        localStorage.setItem(getSelfAssessmentStorageKey(), JSON.stringify(assessmentData));
-        // Legacy compatibility
+        const assessmentKey = getSelfAssessmentStorageKey();
+        localStorage.setItem(assessmentKey, JSON.stringify(assessmentData));
+        // Legacy compatibility - CRITICAL for happiness calculation
         localStorage.setItem('self_assessment_responses', JSON.stringify(assessmentData));
         localStorage.setItem('self_assessment_completed', assessmentData.completed ? 'true' : 'false');
+        
+        // ✅ CRITICAL: Also save in the exact format the happiness calculator expects
+        localStorage.setItem('selfAssessment', JSON.stringify(assessmentData));
+        
+        console.log('💾 Saved self-assessment to storage:', assessmentKey);
+        console.log('🎯 Self-assessment data saved:', {
+          completed: assessmentData.completed,
+          attachmentScore: assessmentData.attachmentScore,
+          nonAttachmentCount: assessmentData.nonAttachmentCount,
+          hasResponses: !!assessmentData.responses,
+          hasCategories: !!assessmentData.categories
+        });
       }
       
       // ✅ CRITICAL FIX: Don't automatically sync - prevent infinite loops
@@ -207,42 +250,77 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     try {
       // Load questionnaire
-      const questionnaireData = localStorage.getItem(getQuestionnaireStorageKey());
+      const questionnaireKey = getQuestionnaireStorageKey();
+      const questionnaireData = localStorage.getItem(questionnaireKey);
       if (questionnaireData) {
-        const parsedQuestionnaire = JSON.parse(questionnaireData);
-        setQuestionnaire(parsedQuestionnaire);
+        try {
+          const parsedQuestionnaire = JSON.parse(questionnaireData);
+          setQuestionnaire(parsedQuestionnaire);
+        } catch (parseError) {
+          console.warn('Error parsing questionnaire data:', parseError);
+          setQuestionnaire(null);
+        }
       } else {
         // Try legacy storage
         const legacyResponses = localStorage.getItem('questionnaire_responses');
         const legacyCompleted = localStorage.getItem('questionnaire_completed') === 'true';
         
         if (legacyResponses) {
-          const responses = JSON.parse(legacyResponses);
-          const legacyQuestionnaire: QuestionnaireData = {
-            completed: legacyCompleted,
-            completedAt: legacyCompleted ? new Date().toISOString() : undefined,
-            responses
-          };
-          setQuestionnaire(legacyQuestionnaire);
-          saveToStorage(legacyQuestionnaire, null);
+          try {
+            const responses = JSON.parse(legacyResponses);
+            const legacyQuestionnaire: QuestionnaireData = {
+              completed: legacyCompleted,
+              completedAt: legacyCompleted ? new Date().toISOString() : undefined,
+              responses
+            };
+            setQuestionnaire(legacyQuestionnaire);
+            // Save to new format but don't call saveToStorage to avoid dependency loop
+            localStorage.setItem(questionnaireKey, JSON.stringify(legacyQuestionnaire));
+          } catch (parseError) {
+            console.warn('Error parsing legacy questionnaire data:', parseError);
+            setQuestionnaire(null);
+          }
         } else {
           setQuestionnaire(null);
         }
       }
       
       // Load self-assessment
-      const assessmentData = localStorage.getItem(getSelfAssessmentStorageKey());
+      const assessmentKey = getSelfAssessmentStorageKey();
+      const assessmentData = localStorage.getItem(assessmentKey);
       if (assessmentData) {
-        const parsedAssessment = JSON.parse(assessmentData);
-        setSelfAssessment(parsedAssessment);
+        try {
+          const parsedAssessment = JSON.parse(assessmentData);
+          setSelfAssessment(parsedAssessment);
+        } catch (parseError) {
+          console.warn('Error parsing self-assessment data:', parseError);
+          setSelfAssessment(null);
+        }
       } else {
         // Try legacy storage
         const legacyAssessment = localStorage.getItem('self_assessment_responses');
+        const legacySelfAssessment = localStorage.getItem('selfAssessment');
         
         if (legacyAssessment) {
-          const assessment = JSON.parse(legacyAssessment);
-          setSelfAssessment(assessment);
-          saveToStorage(null, assessment);
+          try {
+            const assessment = JSON.parse(legacyAssessment);
+            setSelfAssessment(assessment);
+            // Save to new format but don't call saveToStorage to avoid dependency loop
+            localStorage.setItem(assessmentKey, JSON.stringify(assessment));
+          } catch (parseError) {
+            console.warn('Error parsing legacy assessment data:', parseError);
+            setSelfAssessment(null);
+          }
+        } else if (legacySelfAssessment) {
+          try {
+            const assessment = JSON.parse(legacySelfAssessment);
+            setSelfAssessment(assessment);
+            // Save to new format but don't call saveToStorage to avoid dependency loop
+            localStorage.setItem(assessmentKey, JSON.stringify(assessment));
+          } catch (parseError) {
+            console.warn('Error parsing legacy self-assessment data:', parseError);
+            setSelfAssessment(null);
+          }
         } else {
           setSelfAssessment(null);
         }
@@ -254,7 +332,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } finally {
       setIsLoading(false);
     }
-  }, [getQuestionnaireStorageKey, getSelfAssessmentStorageKey, saveToStorage]);
+  }, [getQuestionnaireStorageKey, getSelfAssessmentStorageKey]);
 
   // ================================
   // QUESTIONNAIRE MANAGEMENT
@@ -269,11 +347,14 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setQuestionnaire(updatedQuestionnaire);
     saveToStorage(updatedQuestionnaire, selfAssessment);
     
+    // ✅ NEW: Emit completion event
+    emitOnboardingEvent('questionnaire', updatedQuestionnaire);
+    
     // ✅ CONTROLLED SYNC: Only sync when explicitly updating
     if (currentUser && syncWithLocalData) {
       setTimeout(() => syncWithLocalData(), 100);
     }
-  }, [selfAssessment, saveToStorage, currentUser, syncWithLocalData]);
+  }, [selfAssessment, saveToStorage, currentUser, syncWithLocalData, emitOnboardingEvent]);
 
   const markQuestionnaireComplete = useCallback((responses: any) => {
     // Handle both raw responses and already-structured data
@@ -324,7 +405,10 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     setQuestionnaire(questionnaireData);
     saveToStorage(questionnaireData, selfAssessment);
-  }, [selfAssessment, saveToStorage]);
+    
+    // ✅ NEW: Emit completion event
+    emitOnboardingEvent('questionnaire', questionnaireData);
+  }, [selfAssessment, saveToStorage, emitOnboardingEvent]);
 
   const getQuestionnaire = useCallback((): QuestionnaireData | null => {
     return questionnaire;
@@ -335,7 +419,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [questionnaire?.completed]);
 
   // ================================
-  // SELF-ASSESSMENT MANAGEMENT
+  // ✅ FIXED: SELF-ASSESSMENT MANAGEMENT WITH IMMEDIATE NOTIFICATION
   // ================================
   const updateSelfAssessment = useCallback((selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
     const updatedAssessment: SelfAssessmentData = {
@@ -347,13 +431,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setSelfAssessment(updatedAssessment);
     saveToStorage(questionnaire, updatedAssessment);
     
+    // ✅ NEW: Emit completion event IMMEDIATELY
+    emitOnboardingEvent('selfAssessment', updatedAssessment);
+    
     // ✅ CONTROLLED SYNC: Only sync when explicitly updating
     if (currentUser && syncWithLocalData) {
       setTimeout(() => syncWithLocalData(), 100);
     }
-  }, [questionnaire, saveToStorage, currentUser, syncWithLocalData]);
+  }, [questionnaire, saveToStorage, currentUser, syncWithLocalData, emitOnboardingEvent]);
 
   const markSelfAssessmentComplete = useCallback((responses: any) => {
+    console.log('🎯 Marking self-assessment complete with responses:', responses);
+    
     let selfAssessmentData: SelfAssessmentData;
     
     // Handle multiple input formats
@@ -457,9 +546,33 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     }
     
+    console.log('🎯 Created self-assessment data:', selfAssessmentData);
+    
     setSelfAssessment(selfAssessmentData);
     saveToStorage(questionnaire, selfAssessmentData);
-  }, [questionnaire, saveToStorage]);
+    
+    // ✅ CRITICAL: Emit completion event IMMEDIATELY after save
+    emitOnboardingEvent('selfAssessment', selfAssessmentData);
+    
+    // ✅ NEW: Also emit a direct happiness calculation trigger
+    setTimeout(() => {
+      const happinessEvent = new CustomEvent('triggerHappinessRecalculation', {
+        detail: {
+          source: 'selfAssessmentComplete',
+          data: selfAssessmentData,
+          timestamp: new Date().toISOString()
+        }
+      });
+      window.dispatchEvent(happinessEvent);
+      console.log('🚀 Triggered happiness recalculation from self-assessment completion');
+    }, 100);
+    
+    // ✅ NEW: Force a storage event for cross-tab communication
+    setTimeout(() => {
+      localStorage.setItem('lastAssessmentUpdate', new Date().toISOString());
+    }, 150);
+    
+  }, [questionnaire, saveToStorage, emitOnboardingEvent]);
 
   const getSelfAssessment = useCallback((): SelfAssessmentData | null => {
     return selfAssessment;
@@ -609,6 +722,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       localStorage.removeItem('questionnaire_completed');
       localStorage.removeItem('self_assessment_responses');
       localStorage.removeItem('self_assessment_completed');
+      localStorage.removeItem('selfAssessment');
+      localStorage.removeItem('lastAssessmentUpdate');
     } catch (error) {
       console.warn('Failed to clear onboarding data:', error);
     }
@@ -645,7 +760,17 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // ================================
   useEffect(() => {
     loadFromStorage();
-  }, [currentUser?.uid]); // ✅ CRITICAL FIX: Only depend on uid, not loadFromStorage function
+  }, [loadFromStorage]); // ✅ FIXED: Now properly memoized and stable
+
+  // ✅ NEW: Listen for happiness calculation events to debug sync issues
+  useEffect(() => {
+    const handleHappinessEvent = (event: any) => {
+      console.log('🎯 OnboardingContext received happiness event:', event.detail);
+    };
+
+    window.addEventListener('happinessUpdated', handleHappinessEvent);
+    return () => window.removeEventListener('happinessUpdated', handleHappinessEvent);
+  }, []);
 
   // ================================
   // CONTEXT VALUE

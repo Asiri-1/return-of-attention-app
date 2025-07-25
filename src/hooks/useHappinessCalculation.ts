@@ -1,9 +1,8 @@
-// ✅ Fixed useHappinessCalculation.ts - Progressive Onboarding Integration
+// ✅ FIXED useHappinessCalculation.ts - Data Synchronization Issues Resolved
 // File: src/hooks/useHappinessCalculation.ts
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocalDataCompat as useLocalData } from './useLocalDataCompat';
-import { useProgressiveOnboarding } from './useProgressiveOnboarding';
 
 // Component calculation interfaces
 interface ComponentResult {
@@ -75,26 +74,52 @@ export interface UseHappinessCalculationReturn {
   emotionalNotes: any[];
   questionnaire: any;
   selfAssessment: any;
+  forceRecalculation: () => void; // ✅ NEW: Added missing function
   debugCalculation: () => void;
   logProgress: () => void;
   testComponents: () => void;
 }
 
-// ✅ FIXED: Check if user has sufficient data for happiness calculation
+// ✅ FIXED: Better self-assessment detection logic
 const hasMinimumDataForCalculation = (
   questionnaire: any,
   selfAssessment: any,
   sessions: any[]
 ): boolean => {
+  // ✅ IMPROVED: More comprehensive checks for self-assessment completion
+  const hasQuestionnaire = questionnaire?.completed || questionnaire?.responses;
+  
+  // ✅ FIXED: Check multiple ways self-assessment can be completed
+  const hasSelfAssessment = selfAssessment?.completed || 
+                           selfAssessment?.responses || 
+                           selfAssessment?.attachmentScore !== undefined ||
+                           selfAssessment?.nonAttachmentCount !== undefined ||
+                           selfAssessment?.nonAttachmentCategories !== undefined;
+  
+  const hasMinimumSessions = sessions && sessions.length >= 3;
+  const hasAnySessions = sessions && sessions.length >= 1;
+  
   // Require at least one of these conditions:
   // 1. Completed questionnaire AND self-assessment
   // 2. At least 3 practice sessions
   // 3. Questionnaire AND at least 1 practice session
   
-  const hasQuestionnaire = questionnaire?.completed || questionnaire?.responses;
-  const hasSelfAssessment = selfAssessment?.completed;
-  const hasMinimumSessions = sessions && sessions.length >= 3;
-  const hasAnySessions = sessions && sessions.length >= 1;
+  console.log('🔍 Data Check:', {
+    hasQuestionnaire,
+    hasSelfAssessment,
+    hasMinimumSessions,
+    hasAnySessions,
+    questionnaire: !!questionnaire,
+    selfAssessment: !!selfAssessment,
+    selfAssessmentDetails: {
+      completed: selfAssessment?.completed,
+      responses: !!selfAssessment?.responses,
+      attachmentScore: selfAssessment?.attachmentScore,
+      nonAttachmentCount: selfAssessment?.nonAttachmentCount,
+      nonAttachmentCategories: selfAssessment?.nonAttachmentCategories
+    },
+    sessionCount: sessions?.length || 0
+  });
   
   return (
     (hasQuestionnaire && hasSelfAssessment) ||
@@ -158,9 +183,20 @@ const calculateCurrentMoodState = (questionnaire: any, notes: any[], hasMinimumD
   return { currentMoodScore: Math.max(0, Math.min(100, Math.round(moodScore))) };
 };
 
-// ✅ FIXED: Require self-assessment for attachment flexibility
+// ✅ FIXED: Improved self-assessment detection for attachment flexibility
 const calculateAttachmentFlexibility = (selfAssessment: any, hasMinimumData: boolean): ComponentResult => {
-  if (!hasMinimumData || !selfAssessment?.completed) {
+  if (!hasMinimumData) {
+    return { flexibilityScore: 0 }; // No score without data
+  }
+  
+  // ✅ IMPROVED: Check multiple completion indicators
+  const hasSelfAssessmentData = selfAssessment?.completed || 
+                               selfAssessment?.responses || 
+                               selfAssessment?.attachmentScore !== undefined ||
+                               selfAssessment?.nonAttachmentCount !== undefined ||
+                               selfAssessment?.nonAttachmentCategories !== undefined;
+  
+  if (!hasSelfAssessmentData) {
     return { flexibilityScore: 0 }; // No score without self-assessment
   }
   
@@ -550,7 +586,7 @@ const calculateSessionStreak = (sessions: any[]): number => {
   return streak;
 };
 
-// ✅ FIXED: Main hook with progressive onboarding integration
+// ✅ FIXED: Main hook with progressive onboarding integration + force recalculation
 export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   const { 
     practiceSessions,
@@ -579,10 +615,20 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   const [componentBreakdown, setComponentBreakdown] = useState<ComponentBreakdown | null>(null);
   const [calculationDebugInfo, setCalculationDebugInfo] = useState<any>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  
+  // ✅ NEW: Add force recalculation trigger
+  const [recalculationTrigger, setRecalculationTrigger] = useState(0);
 
-  // Get questionnaire and self-assessment data
-  const questionnaire = useMemo(() => getQuestionnaire(), [getQuestionnaire]);
-  const selfAssessment = useMemo(() => getSelfAssessment(), [getSelfAssessment]);
+  // Get questionnaire and self-assessment data with refresh trigger
+  const questionnaire = useMemo(() => {
+    // Force dependency on trigger without unused expression
+    return recalculationTrigger >= 0 ? getQuestionnaire() : null;
+  }, [getQuestionnaire, recalculationTrigger]);
+  
+  const selfAssessment = useMemo(() => {
+    // Force dependency on trigger without unused expression
+    return recalculationTrigger >= 0 ? getSelfAssessment() : null;
+  }, [getSelfAssessment, recalculationTrigger]);
 
   // Extract numeric scores from calculation results
   const extractNumericScore = useCallback((result: ComponentResult): number => {
@@ -607,7 +653,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     return 0;
   }, []);
 
-  // ✅ FIXED: Main calculation with data validation
+  // ✅ FIXED: Main calculation with improved data validation and refresh triggers
   const calculateHappinessScore = useCallback(() => {
     setIsCalculating(true);
     
@@ -615,16 +661,30 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       const sessions = practiceSessions || [];
       const notes = emotionalNotes || [];
       
+      console.log('🔄 Calculating happiness score with data:', {
+        questionnaire: !!questionnaire,
+        selfAssessment: !!selfAssessment,
+        sessionCount: sessions.length,
+        notesCount: notes.length,
+        recalculationTrigger
+      });
+      
       // ✅ Check if we have minimum data for calculation
       const hasMinimumData = hasMinimumDataForCalculation(questionnaire, selfAssessment, sessions);
       
-      // ✅ Calculate data completeness
+      // ✅ Calculate data completeness with improved detection
       const dataCompleteness = {
         questionnaire: !!(questionnaire?.completed || questionnaire?.responses),
-        selfAssessment: !!(selfAssessment?.completed),
+        selfAssessment: !!(selfAssessment?.completed || 
+                          selfAssessment?.responses || 
+                          selfAssessment?.attachmentScore !== undefined ||
+                          selfAssessment?.nonAttachmentCount !== undefined ||
+                          selfAssessment?.nonAttachmentCategories !== undefined),
         practiceSessions: sessions.length > 0,
         sufficientForCalculation: hasMinimumData
       };
+      
+      console.log('📊 Data completeness:', dataCompleteness);
       
       // ✅ If insufficient data, return early with guidance
       if (!hasMinimumData) {
@@ -643,8 +703,11 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         setUserProgress(result);
         setComponentBreakdown(null);
         setIsCalculating(false);
+        console.log('❌ Insufficient data for calculation');
         return;
       }
+      
+      console.log('✅ Sufficient data found, proceeding with calculation...');
       
       // ✅ Calculate components with data validation
       const currentMoodResult = calculateCurrentMoodState(questionnaire, notes, hasMinimumData);
@@ -671,6 +734,17 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       const pahmResult = calculatePAHMCentralDevelopment(sessions, questionnaire, hasMinimumData);
       const pahmScore = extractNumericScore(pahmResult);
 
+      console.log('🧮 Component scores:', {
+        currentMoodScore,
+        attachmentScore,
+        socialScore,
+        emotionalStabilityScore,
+        mindRecoveryScore,
+        emotionalRegulationScore,
+        practiceConsistencyScore,
+        pahmScore
+      });
+
       // Set component breakdown
       const breakdown: ComponentBreakdown = {
         currentMoodState: currentMoodScore,
@@ -696,6 +770,8 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         (socialScore * 0.03) +
         (practiceConsistencyScore * 0.02)
       );
+
+      console.log('🎯 Final weighted score:', weightedScore);
 
       // Determine user level
       let userLevel = 'New User';
@@ -754,20 +830,24 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       localStorage.setItem('habit_change_score', habitChangeScore.toString());
       localStorage.setItem('practice_streak', practiceStreak.toString());
 
-      // Emit event
+      // ✅ NEW: Emit detailed event with calculation timestamp
       const event = new CustomEvent('happinessUpdated', {
         detail: {
           happiness_points: weightedScore,
           user_level: userLevel,
           breakdown: breakdown,
           pahmAnalysis: pahmAnalysis,
-          hasMinimumData: true
+          hasMinimumData: true,
+          calculatedAt: new Date().toISOString(),
+          trigger: 'calculation'
         }
       });
       window.dispatchEvent(event);
 
+      console.log('✅ Happiness calculation completed:', result);
+
     } catch (error) {
-      console.error('Error calculating happiness score:', error);
+      console.error('❌ Error calculating happiness score:', error);
       setUserProgress({
         happiness_points: 0,
         user_level: 'New User',
@@ -787,7 +867,24 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     } finally {
       setIsCalculating(false);
     }
-  }, [questionnaire, selfAssessment, practiceSessions, emotionalNotes, extractNumericScore]);
+  }, [
+    questionnaire,
+    selfAssessment,
+    practiceSessions,
+    emotionalNotes,
+    extractNumericScore,
+    recalculationTrigger
+  ]);
+
+  // ✅ NEW: Force recalculation function - this was missing!
+  const forceRecalculation = useCallback(() => {
+    console.log('🔄 Force recalculation triggered');
+    setRecalculationTrigger(prev => prev + 1);
+    // Trigger immediate recalculation
+    setTimeout(() => {
+      calculateHappinessScore();
+    }, 50);
+  }, [calculateHappinessScore]);
 
   // Debug functions
   const debugCalculation = useCallback(() => {
@@ -797,12 +894,13 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       practiceSessions: practiceSessions?.length || 0,
       emotionalNotes: emotionalNotes?.length || 0,
       hasMinimumData: hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions || []),
-      currentResults: userProgress
+      currentResults: userProgress,
+      recalculationTrigger
     };
     
     setCalculationDebugInfo(debugInfo);
     console.log('🔍 Happiness Calculation Debug:', debugInfo);
-  }, [questionnaire, selfAssessment, practiceSessions, emotionalNotes, userProgress]);
+  }, [questionnaire, selfAssessment, practiceSessions, emotionalNotes, userProgress, recalculationTrigger]);
 
   const logProgress = useCallback(() => {
     console.log('📊 Current Progress:', userProgress);
@@ -815,14 +913,55 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     console.log('Has minimum data:', hasMinimumData);
   }, [questionnaire, selfAssessment, practiceSessions]);
 
-  // Auto-calculate when data changes
+  // ✅ FIXED: Auto-calculate when data changes with stable dependencies
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       calculateHappinessScore();
     }, 100);
     
     return () => clearTimeout(timeoutId);
-  }, [calculateHappinessScore]);
+  }, [calculateHappinessScore]); // ✅ Only depend on the function since it has proper dependencies
+
+  // ✅ NEW: Listen for storage changes AND onboarding events to trigger recalculation
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'selfAssessment' || 
+          e.key === 'questionnaire' || 
+          e.key === 'onboardingData' ||
+          e.key === 'lastAssessmentUpdate' ||
+          e.key?.includes('assessment')) {
+        console.log('🔄 Storage change detected, forcing recalculation:', e.key);
+        forceRecalculation();
+      }
+    };
+
+    const handleOnboardingEvent = (event: any) => {
+      console.log('🎯 Received onboarding completion event:', event.detail);
+      if (event.detail.type === 'selfAssessment' || event.detail.type === 'questionnaire') {
+        console.log('🔄 Onboarding event triggered recalculation');
+        forceRecalculation();
+      }
+    };
+
+    const handleHappinessRecalculation = (event: any) => {
+      console.log('🚀 Direct happiness recalculation trigger:', event.detail);
+      forceRecalculation();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('onboardingUpdated', handleOnboardingEvent);
+    window.addEventListener('selfAssessmentCompleted', handleOnboardingEvent);
+    window.addEventListener('questionnaireCompleted', handleOnboardingEvent);
+    window.addEventListener('triggerHappinessRecalculation', handleHappinessRecalculation);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('onboardingUpdated', handleOnboardingEvent);
+      window.removeEventListener('selfAssessmentCompleted', handleOnboardingEvent);
+      window.removeEventListener('questionnaireCompleted', handleOnboardingEvent);
+      window.removeEventListener('triggerHappinessRecalculation', handleHappinessRecalculation);
+    };
+  }, [forceRecalculation]);
 
   return useMemo(() => ({
     userProgress,
@@ -833,6 +972,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     emotionalNotes: emotionalNotes || [],
     questionnaire,
     selfAssessment,
+    forceRecalculation, // ✅ NEW: Now included!
     debugCalculation,
     logProgress,
     testComponents
@@ -845,6 +985,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     emotionalNotes,
     questionnaire,
     selfAssessment,
+    forceRecalculation, // ✅ NEW: Added to dependencies
     debugCalculation,
     logProgress,
     testComponents
