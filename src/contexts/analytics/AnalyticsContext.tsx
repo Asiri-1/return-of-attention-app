@@ -199,8 +199,19 @@ interface AnalyticsContextType {
   getPracticeDurationData: (timeRange?: string) => Array<{ date: string; duration: number; quality?: number }>;
   getEmotionDistribution: (timeRange?: string) => Array<{ emotion: string; count: number; color: string }>;
   getPracticeDistribution: (timeRange?: string) => Array<{ stage: string; count: number; minutes: number }>;
-  getAppUsagePatterns: () => any;
-  getEngagementMetrics: () => any;
+  getAppUsagePatterns: () => {
+    timeOfDayStats: { [timeOfDay: string]: number };
+    dayOfWeekStats: { [dayOfWeek: string]: number };
+    consistency: number;
+    sessionFrequency: { daily: number; weekly: number; monthly: number };
+  };
+  getEngagementMetrics: () => {
+    weeklyFrequency: number;
+    weeklyNotes: number;
+    avgSessionLength: number;
+    totalEngagementDays: number;
+    retentionScore: number;
+  };
   getFeatureUtilization: () => Array<{ feature: string; percentage: number; trend: 'increasing' | 'stable' | 'decreasing' }>;
   
   // Advanced Analytics
@@ -235,10 +246,10 @@ const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefin
 export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
   const { sessions, stats } = usePractice();
-  const { emotionalNotes, reflections, getEmotionInsights } = useWellness();
+  const { emotionalNotes, reflections } = useWellness();
   const { userProfile } = useUser();
   
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [analyticsCache, setAnalyticsCache] = useState<{ [key: string]: any }>({});
 
@@ -330,15 +341,13 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (recent.length === 0 || earlier.length === 0) return 'stable';
       
       const recentAvg = recent.reduce((sum, s) => {
-        const counts = s.pahmCounts || {};
-        const total = Object.values(counts).reduce((sum: number, val: any) => sum + (val || 0), 0);
+        // ✅ FIXED: Removed unused sessionTotal variable
         return sum + (metric === 'present' ? timeDistribution.present / pahmSessions.length : 
                      metric === 'neutral' ? emotionalDistribution.neutral / pahmSessions.length : 0);
       }, 0) / recent.length;
       
       const earlierAvg = earlier.reduce((sum, s) => {
-        const counts = s.pahmCounts || {};
-        const total = Object.values(counts).reduce((sum: number, val: any) => sum + (val || 0), 0);
+        // ✅ FIXED: Removed unused sessionTotal variable
         return sum + (metric === 'present' ? timeDistribution.present / pahmSessions.length : 
                      metric === 'neutral' ? emotionalDistribution.neutral / pahmSessions.length : 0);
       }, 0) / earlier.length;
@@ -395,7 +404,7 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
     }
 
-    const analyzeEnvironmentFactor = (factor: keyof NonNullable<any['environment']>) => {
+    const analyzeEnvironmentFactor = (factor: 'posture' | 'location' | 'lighting' | 'sounds') => {
       const factorData: { [key: string]: { count: number; totalRating: number; totalPresent: number } } = {};
       
       environmentSessions.forEach(session => {
@@ -761,6 +770,122 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return result;
   }, [getFilteredData, getCacheKey, getCachedResult, setCachedResult]);
 
+  const getAppUsagePatterns = useCallback(() => {
+    const cacheKey = getCacheKey('appUsagePatterns');
+    const cached = getCachedResult(cacheKey, 10);
+    if (cached) return cached;
+
+    const timeOfDayStats: { [timeOfDay: string]: number } = {};
+    const dayOfWeekStats: { [dayOfWeek: string]: number } = {};
+    
+    sessions.forEach(session => {
+      const date = new Date(session.timestamp);
+      const hour = date.getHours();
+      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      let timeOfDay: string;
+      if (hour < 6) timeOfDay = 'Late Night';
+      else if (hour < 12) timeOfDay = 'Morning';
+      else if (hour < 17) timeOfDay = 'Afternoon';
+      else if (hour < 21) timeOfDay = 'Evening';
+      else timeOfDay = 'Night';
+      
+      timeOfDayStats[timeOfDay] = (timeOfDayStats[timeOfDay] || 0) + 1;
+      dayOfWeekStats[dayOfWeek] = (dayOfWeekStats[dayOfWeek] || 0) + 1;
+    });
+    
+    const consistency = Math.round((sessions.length / Math.max(30, 1)) * 100);
+    
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const daily = sessions.filter(s => new Date(s.timestamp) >= oneDayAgo).length;
+    const weekly = sessions.filter(s => new Date(s.timestamp) >= oneWeekAgo).length;
+    const monthly = sessions.filter(s => new Date(s.timestamp) >= oneMonthAgo).length;
+    
+    const result = {
+      timeOfDayStats,
+      dayOfWeekStats,
+      consistency,
+      sessionFrequency: { daily, weekly, monthly }
+    };
+
+    setCachedResult(cacheKey, result);
+    return result;
+  }, [sessions, getCacheKey, getCachedResult, setCachedResult]);
+
+  const getEngagementMetrics = useCallback(() => {
+    const cacheKey = getCacheKey('engagementMetrics');
+    const cached = getCachedResult(cacheKey, 10);
+    if (cached) return cached;
+
+    const now = new Date();
+    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    const weeklySessionCount = sessions.filter(s => new Date(s.timestamp) >= lastWeek).length;
+    const weeklyNotesCount = emotionalNotes.filter(n => new Date(n.timestamp) >= lastWeek).length;
+    
+    const avgSessionLength = sessions.length > 0 ? 
+      sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length : 0;
+    
+    const totalEngagementDays = new Set(sessions.map(s => new Date(s.timestamp).toDateString())).size;
+    const retentionScore = Math.min(Math.round((totalEngagementDays / Math.max(30, 1)) * 100), 100);
+
+    const result = {
+      weeklyFrequency: weeklySessionCount,
+      weeklyNotes: weeklyNotesCount,
+      avgSessionLength: Math.round(avgSessionLength),
+      totalEngagementDays,
+      retentionScore
+    };
+
+    setCachedResult(cacheKey, result);
+    return result;
+  }, [sessions, emotionalNotes, getCacheKey, getCachedResult, setCachedResult]);
+
+  const getFeatureUtilization = useCallback(() => {
+    const cacheKey = getCacheKey('featureUtilization');
+    const cached = getCachedResult(cacheKey, 10);
+    if (cached) return cached;
+
+    const totalSessions = sessions.length;
+    
+    if (totalSessions === 0) return [];
+    
+    const mindRecoveryUsage = sessions.filter(s => s.sessionType === 'mind_recovery').length;
+    const pahmUsage = sessions.filter(s => s.pahmCounts).length;
+    const environmentTracking = sessions.filter(s => s.environment).length;
+    const notesUsage = sessions.filter(s => s.notes && s.notes.length > 0).length;
+    
+    const result = [
+      {
+        feature: 'Mind Recovery',
+        percentage: Math.round((mindRecoveryUsage / totalSessions) * 100),
+        trend: 'stable' as const
+      },
+      {
+        feature: 'PAHM Tracking',
+        percentage: Math.round((pahmUsage / totalSessions) * 100),
+        trend: 'increasing' as const
+      },
+      {
+        feature: 'Environment Tracking',
+        percentage: Math.round((environmentTracking / totalSessions) * 100),
+        trend: 'stable' as const
+      },
+      {
+        feature: 'Session Notes',
+        percentage: Math.round((notesUsage / totalSessions) * 100),
+        trend: 'stable' as const
+      }
+    ];
+
+    setCachedResult(cacheKey, result);
+    return result;
+  }, [sessions, getCacheKey, getCachedResult, setCachedResult]);
+
   // ================================
   // COMPREHENSIVE ANALYTICS
   // ================================
@@ -845,9 +970,6 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // PLACEHOLDER METHODS (for compatibility)
   // ================================
   const placeholderMethods = useMemo(() => ({
-    getAppUsagePatterns: () => ({}),
-    getEngagementMetrics: () => ({}),
-    getFeatureUtilization: () => ([]),
     getProgressTrends: () => ({}),
     getPredictiveInsights: () => ({}),
     getPersonalizedRecommendations: () => ([]),
@@ -855,13 +977,13 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getComprehensiveStats: () => ({}),
     get9CategoryPAHMInsights: () => getPAHMData(),
     getMindRecoveryInsights: () => getMindRecoveryAnalytics(),
-    getDashboardAnalytics: (timeRange?: string) => ({
+    getDashboardAnalytics: (timeRange?: string): DashboardAnalytics => ({
       practiceDurationData: getPracticeDurationData(timeRange),
       emotionDistribution: getEmotionDistribution(timeRange),
       practiceDistribution: getPracticeDistribution(timeRange),
-      appUsagePatterns: {},
-      engagementMetrics: {},
-      featureUtilization: []
+      appUsagePatterns: getAppUsagePatterns(),
+      engagementMetrics: getEngagementMetrics(),
+      featureUtilization: getFeatureUtilization()
     }),
     exportDataForAnalysis: () => ({
       sessions,
@@ -883,7 +1005,8 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }), [
     getPAHMData, getMindRecoveryAnalytics, getPracticeDurationData, 
     getEmotionDistribution, getPracticeDistribution, getEnvironmentData,
-    getComprehensiveAnalytics, sessions, emotionalNotes, reflections, userProfile
+    getComprehensiveAnalytics, getAppUsagePatterns, getEngagementMetrics,
+    getFeatureUtilization, sessions, emotionalNotes, reflections, userProfile
   ]);
 
   // ================================
@@ -915,6 +1038,9 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getPracticeDurationData,
     getEmotionDistribution,
     getPracticeDistribution,
+    getAppUsagePatterns,
+    getEngagementMetrics,
+    getFeatureUtilization,
     
     // Utility
     refreshAnalytics,
@@ -926,6 +1052,7 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isLoading, lastUpdated,
     getPAHMData, getEnvironmentData, getMindRecoveryAnalytics, getComprehensiveAnalytics,
     getFilteredData, getPracticeDurationData, getEmotionDistribution, getPracticeDistribution,
+    getAppUsagePatterns, getEngagementMetrics, getFeatureUtilization,
     refreshAnalytics, clearAnalyticsCache,
     placeholderMethods
   ]);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../contexts/auth/AuthContext';
 
 const LogoutWarning: React.FC = () => {
   const { showLogoutWarning, sessionTimeRemaining, extendSession, logout } = useAuth();

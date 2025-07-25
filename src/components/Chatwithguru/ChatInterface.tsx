@@ -1,7 +1,7 @@
 // Smart ChatInterface.tsx - Updated with SmartAI Integration
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useAuth } from '../../AuthContext';
-import { useLocalData } from '../../contexts/LocalDataContext';
+import { useAuth } from '../../contexts/auth/AuthContext';
+import { useLocalDataCompat } from '../../hooks/useLocalDataCompat';
 import { EnhancedLocalStorageManager } from '../../services/AdaptiveWisdomEngine';
 import { useSmartAI } from '../../services/SmartAIOrchestrator'; // 🚀 NEW IMPORT
 import './ChatInterface.css';
@@ -28,7 +28,7 @@ interface Message {
 const ChatInterface: React.FC = () => {
   // ✅ FIXED: Use both contexts properly - Auth for user info, LocalData for practice data
   const { currentUser, userProfile } = useAuth();
-  const { getPAHMData, getEnvironmentData, getDailyEmotionalNotes } = useLocalData();
+  const { getPAHMData, getEnvironmentData, getDailyEmotionalNotes } = useLocalDataCompat();
   
   // 🚀 NEW: Smart AI integration
   const { sendMessage: sendSmartMessage, provideFeedback, isLoading: smartAILoading } = useSmartAI('main-chat');

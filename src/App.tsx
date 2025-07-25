@@ -1,4 +1,4 @@
-// ✅ COMPLETE FIXED App.tsx - Universal Architecture
+// ✅ COMPLETE FIXED App.tsx - Universal Architecture with Sign-In Flash Fix
 // File: src/App.tsx
 // 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
 
@@ -284,7 +284,19 @@ const SelfAssessmentComponent: React.FC = () => {
       await markSelfAssessmentComplete(data);
       
       try {
-        await updateProfile({ currentStage: '1' });
+        await updateProfile({ 
+          preferences: { 
+            defaultSessionDuration: 20,
+            reminderEnabled: true,
+            favoriteStages: [1, 2],
+            optimalPracticeTime: "morning",
+            notifications: {
+              dailyReminder: true,
+              streakReminder: true,
+              weeklyProgress: true
+            }
+          } 
+        });
       } catch (profileError) {
         console.warn('Profile update failed, continuing anyway:', profileError);
       }
@@ -320,6 +332,9 @@ const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
+  
+  // ✅ NEW: Add signing in state to prevent flash
+  const [isSigningIn, setIsSigningIn] = useState(false);
   
   // ✅ FIXED: Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
@@ -358,6 +373,18 @@ const AppContent: React.FC = React.memo(() => {
   useEffect(() => {
     setKnowledgeBaseReady(true);
   }, []);
+
+  // ✅ NEW: Clear signing in state when authentication completes
+  useEffect(() => {
+    if (currentUser && isSigningIn) {
+      console.log('✅ Authentication completed, clearing signing-in state...');
+      setIsSigningIn(false);
+      // Navigate to home after auth state is confirmed
+      if (location.pathname === '/signin' || location.pathname === '/') {
+        navigate('/home');
+      }
+    }
+  }, [currentUser, isSigningIn, location.pathname, navigate]);
 
   // ✅ FIXED: startPractice now checks intro and routes to progressive selection
   const handlers = useMemo(() => ({
@@ -406,6 +433,7 @@ const AppContent: React.FC = React.memo(() => {
     
     signUp: async (email: string, password: string, name: string) => {
       try {
+        setIsSigningIn(true); // ✅ NEW: Set signing in state
         await signUp(email, password, name);
         // ✅ NEW: Go directly to home after signup
         navigate('/home');
@@ -416,19 +444,27 @@ const AppContent: React.FC = React.memo(() => {
         } else {
           alert(`Signup failed: ${error?.message || 'Unknown error'}`);
         }
+      } finally {
+        setIsSigningIn(false); // ✅ NEW: Clear signing in state
       }
     },
     
     signIn: async (email: string, password: string) => {
       try {
+        console.log('🔐 Starting sign in process...');
+        setIsSigningIn(true); // ✅ Set signing in state to prevent flash
+        
         await signIn(email, password);
-        // ✅ NEW: Go directly to home after signin
-        navigate('/home');
-        setTimeout(() => {
-          recheckStatus();
-        }, 500);
+        
+        console.log('✅ Sign in successful, staying in loading state until auth updates...');
+        // ✅ DON'T navigate or clear isSigningIn immediately
+        // Let the auth state update naturally, which will trigger the authenticated routes
+        // The isSigningIn state will be cleared by useEffect when currentUser changes
+        
       } catch (error: any) {
+        console.error('❌ Sign in failed:', error);
         alert(`Failed to sign in: ${error?.message || 'Please check your credentials.'}`);
+        setIsSigningIn(false); // Only clear on error
       }
     },
     
@@ -439,6 +475,7 @@ const AppContent: React.FC = React.memo(() => {
     
     googleSignUp: async (googleUser: any) => {
       try {
+        setIsSigningIn(true);
         const response = await fetch('/api/auth/google-signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -458,6 +495,8 @@ const AppContent: React.FC = React.memo(() => {
         }
       } catch (error: any) {
         alert(`Google sign-up failed: ${error?.message || 'Unknown error'}`);
+      } finally {
+        setIsSigningIn(false);
       }
     },
     
@@ -479,13 +518,13 @@ const AppContent: React.FC = React.memo(() => {
     recheckStatus
   ]);
 
-  // ✅ OPTIMIZED: Only show loading when necessary
-  if (isLoading && !currentUser && !appReady) {
-    return <FastLoader message="Initializing practices for the happiness that stays..." />;
+  // ✅ FIXED: Show loading when necessary OR when signing in
+  if ((isLoading && !currentUser && !appReady) || isSigningIn) {
+    return <FastLoader message={isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays..."} />;
   }
 
-  // ✅ UNAUTHENTICATED ROUTES
-  if (!isAuthenticated) {
+  // ✅ FIXED: Don't show unauthenticated routes if we're in the middle of signing in
+  if (!isAuthenticated && !isSigningIn) {
     return (
       <div className="app-container">
         <PageViewTracker />

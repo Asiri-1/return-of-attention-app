@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// 🚀 UPDATED: Use Universal Architecture compatible imports
+// 🚀 FIXED: Use Universal Architecture contexts directly instead of compatibility hook
 import { useAuth } from './contexts/auth/AuthContext';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 import { useNavigate } from 'react-router-dom';
-import { useLocalDataCompat as useLocalData } from './hooks/useLocalDataCompat';
 
 interface MindRecoveryTimerProps {
   practiceType: string;
@@ -326,7 +327,9 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { currentUser } = useAuth();
-  const { addMindRecoverySession } = useLocalData();
+  // 🚀 FIXED: Use Universal Architecture contexts directly
+  const { addPracticeSession } = usePractice();
+  const { addEmotionalNote } = useWellness();
 
   // ✅ WORKS: Ultra-compact responsive styles for perfect one-screen fit
   const styles = {
@@ -556,7 +559,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     const presentPercentage = calculatePresentPercentage(pahmCounts);
     const totalInteractions = Object.values(pahmCounts).reduce((a, b) => a + b, 0);
 
-    // Convert PAHM counts to LocalDataContext format
+    // Convert PAHM counts to Universal Architecture format
     const formattedPahmCounts = {
       present_attachment: pahmCounts.likes,
       present_neutral: pahmCounts.present,
@@ -592,13 +595,14 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
       }
     };
 
-    // Use LocalDataContext
-    addMindRecoverySession({
+    // 🚀 FIXED: Use Universal Architecture contexts directly
+    // Add Mind Recovery session as a practice session
+    addPracticeSession({
       timestamp: endTime,
       duration: actualDuration,
-      sessionType: 'mind_recovery',
+      sessionType: 'mind_recovery' as const,
       mindRecoveryContext: practiceType as any,
-      mindRecoveryPurpose: 'stress-relief',
+      mindRecoveryPurpose: 'stress-relief' as any,
       rating: rating,
       notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments`,
       presentPercentage: presentPercentage,
@@ -611,9 +615,18 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
       pahmCounts: formattedPahmCounts
     });
 
+    // ✅ FIXED: Add emotional note with intensity property
+    addEmotionalNote({
+      content: `Completed ${actualDuration}-minute ${getPracticeTitle()} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness. Quick mindfulness reset successful!`,
+      emotion: 'accomplished',
+      energyLevel: rating >= 8 ? 9 : rating >= 6 ? 7 : 6,
+      intensity: rating >= 8 ? 9 : rating >= 6 ? 7 : 6, // ✅ FIXED: Added missing intensity property
+      tags: ['mind-recovery', practiceType, posture, 'quick-session']
+    });
+
     // Complete with PAHM counts
     onComplete(pahmCounts);
-  }, [duration, practiceType, posture, pahmCounts, currentUser, onComplete, addMindRecoverySession, hasAudioPermission, audioManager, wakeLockManager, robustTimer]);
+  }, [duration, practiceType, posture, pahmCounts, currentUser, onComplete, addPracticeSession, addEmotionalNote, hasAudioPermission, audioManager, wakeLockManager, robustTimer]);
 
   // Remove old timer logic
   useEffect(() => {

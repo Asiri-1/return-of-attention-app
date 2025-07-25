@@ -177,10 +177,10 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
       `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
     
     addEmotionalNote({
-      timestamp: new Date().toISOString(),
       content: baseContent,
       emotion: selectedEmotion,
       energyLevel: 7, // Default moderate-high energy after meditation
+      intensity: 7,
       tags: ['meditation', `stage-${stageLevel}`]
     });
 
@@ -358,10 +358,10 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
       `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
     
     addEmotionalNote({
-      timestamp: new Date().toISOString(),
       content: finalNote,
       emotion: emotion,
       energyLevel: 7, // Default moderate-high energy after meditation
+      intensity: 7, 
       tags: ['meditation', `stage-${stageLevel}`]
     });
 

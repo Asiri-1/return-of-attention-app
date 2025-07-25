@@ -134,73 +134,13 @@ export { useWellness } from './wellness/WellnessContext';
 export { useOnboarding } from './onboarding/OnboardingContext';
 export { useContent } from './content/ContentContext';
 
-// Analytics hook with error handling
-export const useAnalytics = () => {
-  try {
-    // Dynamic import of the analytics hook
-    const { useAnalytics } = require('./analytics/AnalyticsContext');
-    return useAnalytics();
-  } catch (error) {
-    console.warn('Analytics context not available:', error);
-    // Return a fallback object with placeholder methods
-    return {
-      isLoading: false,
-      lastUpdated: null,
-      getPAHMData: () => null,
-      getEnvironmentData: () => ({ posture: [], location: [], lighting: [], sounds: [], optimalConditions: {} }),
-      getMindRecoveryAnalytics: () => ({ 
-        totalMindRecoverySessions: 0, 
-        totalMindRecoveryMinutes: 0,
-        avgMindRecoveryRating: 0,
-        avgMindRecoveryDuration: 0,
-        contextStats: [],
-        purposeStats: [],
-        recommendations: [],
-        timePatterns: { morningEffectiveness: 0, afternoonEffectiveness: 0, eveningEffectiveness: 0, optimalTime: 'Unknown' }
-      }),
-      getComprehensiveAnalytics: () => ({ overview: {}, detailed: {}, insights: {}, predictions: {} }),
-      getFilteredData: () => ({ practice: [], notes: [] }),
-      getPracticeDurationData: () => [],
-      getEmotionDistribution: () => [],
-      getPracticeDistribution: () => [],
-      getAppUsagePatterns: () => ({}),
-      getEngagementMetrics: () => ({}),
-      getFeatureUtilization: () => [],
-      getProgressTrends: () => ({}),
-      getPredictiveInsights: () => ({}),
-      getPersonalizedRecommendations: () => [],
-      getOptimalPracticeConditions: () => ({}),
-      getComprehensiveStats: () => ({}),
-      get9CategoryPAHMInsights: () => null,
-      getMindRecoveryInsights: () => ({ 
-        totalMindRecoverySessions: 0, 
-        totalMindRecoveryMinutes: 0,
-        avgMindRecoveryRating: 0,
-        avgMindRecoveryDuration: 0,
-        contextStats: [],
-        purposeStats: [],
-        recommendations: [],
-        timePatterns: { morningEffectiveness: 0, afternoonEffectiveness: 0, eveningEffectiveness: 0, optimalTime: 'Unknown' }
-      }),
-      getDashboardAnalytics: () => ({ 
-        practiceDurationData: [], 
-        emotionDistribution: [], 
-        practiceDistribution: [],
-        appUsagePatterns: {},
-        engagementMetrics: {},
-        featureUtilization: []
-      }),
-      exportDataForAnalysis: () => ({}),
-      generateInsightsReport: () => ({}),
-      refreshAnalytics: () => {},
-      clearAnalyticsCache: () => {}
-    };
-  }
-};
+// ✅ FIXED: Simple direct export - no conditional hooks
+export { useAnalytics } from './analytics/AnalyticsContext';
 
 // ================================
-// PROVIDER STATUS HOOK
+// PROVIDER STATUS HOOK  
 // ================================
+// ✅ FIXED: No hooks called inside callbacks or conditionally
 export const useProviderStatus = () => {
   const [contextStatus, setContextStatus] = React.useState({
     user: false,
@@ -212,42 +152,52 @@ export const useProviderStatus = () => {
   });
 
   React.useEffect(() => {
-    // Check which contexts are available
-    try {
-      const { useUser } = require('./user/UserContext');
-      useUser();
-      setContextStatus(prev => ({ ...prev, user: true }));
-    } catch {} // silently fail
+    // ✅ FIXED: Check context availability without calling hooks inside callbacks
+    const checkContexts = () => {
+      const status = {
+        user: false,
+        practice: false,
+        wellness: false,
+        onboarding: false,
+        content: false,
+        analytics: false
+      };
 
-    try {
-      const { usePractice } = require('./practice/PracticeContext');
-      usePractice();
-      setContextStatus(prev => ({ ...prev, practice: true }));
-    } catch {} // silently fail
+      // Check if contexts are available (without calling hooks)
+      try {
+        require('./user/UserContext');
+        status.user = true;
+      } catch {}
 
-    try {
-      const { useWellness } = require('./wellness/WellnessContext');
-      useWellness();
-      setContextStatus(prev => ({ ...prev, wellness: true }));
-    } catch {} // silently fail
+      try {
+        require('./practice/PracticeContext');
+        status.practice = true;
+      } catch {}
 
-    try {
-      const { useOnboarding } = require('./onboarding/OnboardingContext');
-      useOnboarding();
-      setContextStatus(prev => ({ ...prev, onboarding: true }));
-    } catch {} // silently fail
+      try {
+        require('./wellness/WellnessContext');
+        status.wellness = true;
+      } catch {}
 
-    try {
-      const { useContent } = require('./content/ContentContext');
-      useContent();
-      setContextStatus(prev => ({ ...prev, content: true }));
-    } catch {} // silently fail
+      try {
+        require('./onboarding/OnboardingContext');
+        status.onboarding = true;
+      } catch {}
 
-    try {
-      const { useAnalytics } = require('./analytics/AnalyticsContext');
-      useAnalytics();
-      setContextStatus(prev => ({ ...prev, analytics: true }));
-    } catch {} // silently fail
+      try {
+        require('./content/ContentContext');
+        status.content = true;
+      } catch {}
+
+      try {
+        require('./analytics/AnalyticsContext');
+        status.analytics = true;
+      } catch {}
+
+      setContextStatus(status);
+    };
+
+    checkContexts();
   }, []);
 
   return contextStatus;
@@ -256,6 +206,7 @@ export const useProviderStatus = () => {
 // ================================
 // PERFORMANCE MONITORING HOOK
 // ================================
+// ✅ FIXED: No hooks called conditionally
 export const usePerformanceMonitor = () => {
   const [metrics, setMetrics] = React.useState({
     loadTime: 0,
@@ -306,11 +257,13 @@ export const usePerformanceMonitor = () => {
 // ================================
 // DEVELOPMENT UTILITIES
 // ================================
+// ✅ FIXED: Always call hooks at the top level (no conditional hooks)
 export const DevTools: React.FC = () => {
-  if (process.env.NODE_ENV !== 'development') return null;
-
   const contextStatus = useProviderStatus();
-  const performance = usePerformanceMonitor();
+  const performanceMetrics = usePerformanceMonitor();
+
+  // Only return null after hooks have been called
+  if (process.env.NODE_ENV !== 'development') return null;
 
   return (
     <div style={{
@@ -332,10 +285,10 @@ export const DevTools: React.FC = () => {
         </div>
       ))}
       <div style={{ marginTop: '8px', fontWeight: 'bold' }}>Performance</div>
-      <div>Load: {performance.loadTime.toFixed(1)}ms</div>
-      <div>Analytics: {performance.analyticsLoadTime.toFixed(1)}ms</div>
-      {performance.memoryUsage > 0 && (
-        <div>Memory: {performance.memoryUsage.toFixed(1)}MB</div>
+      <div>Load: {performanceMetrics.loadTime.toFixed(1)}ms</div>
+      <div>Analytics: {performanceMetrics.analyticsLoadTime.toFixed(1)}ms</div>
+      {performanceMetrics.memoryUsage > 0 && (
+        <div>Memory: {performanceMetrics.memoryUsage.toFixed(1)}MB</div>
       )}
     </div>
   );

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PAHMMatrix from './PAHMMatrix';
 import { PAHMCounts } from './types/PAHMTypes';
-import { useLocalData } from './contexts/LocalDataContext';
+// 🚀 FIXED: Use Universal Architecture contexts instead of LocalDataContext
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 
 interface PAHMTimerProps {
   initialMinutes: number;
@@ -294,7 +296,9 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
   onComplete,
   onBack
 }) => {
-  const { addPracticeSession, addEmotionalNote } = useLocalData();
+  // 🚀 FIXED: Use Universal Architecture contexts
+  const { addPracticeSession } = usePractice();
+  const { addEmotionalNote } = useWellness();
 
   // Timer states
   const [minutes, setMinutes] = useState<number>(initialMinutes);
@@ -631,11 +635,12 @@ const PAHMTimer: React.FC<PAHMTimerProps> = ({
         pahmCounts: convertedPAHMCounts
       });
 
+      // ✅ FIXED: Add intensity property to emotional note
       addEmotionalNote({
-        timestamp: endTime,
         content: `${completed ? 'Completed' : 'Practiced'} ${Math.round(actualDuration)}-minute ${stageLevel} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness.`,
         emotion: completed ? 'accomplished' : 'content',
         energyLevel: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6,
+        intensity: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6, // ✅ FIXED: Added missing intensity property
         tags: ['pahm-practice', `stage-${stageNumber}`, 'meditation']
       });
 

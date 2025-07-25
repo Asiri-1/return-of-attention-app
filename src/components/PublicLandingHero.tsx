@@ -1,6 +1,6 @@
 // ============================================================================
 // src/components/PublicLandingHero.tsx
-// COMPLETE VERSION - All Sections with Purple/Blue Theme
+// IMPROVED VERSION - Added top sign-in button and removed logo white box
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -28,6 +28,10 @@ const PublicLandingHero: React.FC = () => {
     window.location.href = '/signin';
   };
   
+  const handleSignIn = () => {
+    window.location.href = '/signin';
+  };
+  
   const handleLearnMore = () => {
     window.location.href = '/about';
   };
@@ -47,6 +51,57 @@ const PublicLandingHero: React.FC = () => {
       overflow: 'hidden',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
+      {/* ✅ NEW: Top Navigation Bar for Returning Visitors */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 20,
+        padding: '20px 24px',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center'
+      }}>
+        <button 
+          onClick={handleSignIn}
+          style={{
+            padding: '12px 24px',
+            background: 'rgba(255, 255, 255, 0.15)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '25px',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            minWidth: '120px',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10,17 15,12 10,7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          Sign In
+        </button>
+      </div>
+
       {/* Floating Background Elements */}
       <div style={{ position: 'absolute', inset: 0, opacity: 0.2 }}>
         <div style={{
@@ -100,13 +155,23 @@ const PublicLandingHero: React.FC = () => {
         zIndex: 10,
         maxWidth: '1280px',
         margin: '0 auto',
-        padding: '24px 24px 48px',
+        padding: '80px 24px 48px', // ✅ INCREASED top padding to account for sign-in button
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          {/* Logo */}
-          <div style={{ marginBottom: '32px' }}>
-            <Logo />
+          {/* ✅ IMPROVED: Logo without white box background */}
+          <div style={{ 
+            marginBottom: '32px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <div style={{
+              // ✅ REMOVED any background/backdrop styling that might create white box
+              display: 'inline-block'
+            }}>
+              <Logo />
+            </div>
           </div>
           
           {/* Rotating Quote */}
@@ -654,6 +719,15 @@ const PublicLandingHero: React.FC = () => {
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
+        }
+
+        /* ✅ RESPONSIVE: Hide sign-in button on very small screens */
+        @media (max-width: 480px) {
+          .top-signin-btn {
+            padding: 10px 16px !important;
+            font-size: 12px !important;
+            min-width: 90px !important;
+          }
         }
       `}</style>
     </div>

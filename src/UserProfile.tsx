@@ -1,8 +1,11 @@
-// src/components/ModernUserProfile.tsx - FIXED IMPORTS ONLY
+// src/components/ModernUserProfile.tsx - FIXED FOR UNIVERSAL ARCHITECTURE
 import React, { useState, useEffect } from 'react';
-// ✅ FIXED: Use existing contexts instead of non-existent ones
+// ✅ FIXED: Use Universal Architecture focused contexts
 import { useAuth } from './contexts/auth/AuthContext';
-import { useLocalDataCompat as useLocalData } from './hooks/useLocalDataCompat';
+import { useUser } from './contexts/user/UserContext';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -25,17 +28,15 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
 }) => {
   const { currentUser } = useAuth();
   
-  // ✅ FIXED: Use your existing useLocalData instead of separate contexts
+  // ✅ FIXED: Use Universal Architecture focused contexts
+  const { userProfile, isLoading: userLoading } = useUser();
+  const { sessions } = usePractice();
+  const { emotionalNotes } = useWellness();
   const { 
-    userData,
-    isLoading,
-    getPracticeSessions,
-    getDailyEmotionalNotes,
-    getQuestionnaire,
-    getSelfAssessment,
-    isQuestionnaireCompleted,
-    isSelfAssessmentCompleted
-  } = useLocalData();
+    questionnaire, 
+    selfAssessment, 
+    getCompletionStatus 
+  } = useOnboarding();
   
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -120,24 +121,20 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     }
   };
 
-  // ✅ FIXED: Using data from useLocalData instead of separate contexts
-  const sessions = getPracticeSessions();
-  const emotionalNotes = getDailyEmotionalNotes();
+  // ✅ FIXED: Using data from Universal Architecture focused contexts
+  const completionStatus = getCompletionStatus();
   
   const userStats = {
-    totalSessions: userData?.profile?.totalSessions || sessions.length,
-    totalHours: Math.round(((userData?.profile?.totalMinutes || 0) / 60) * 10) / 10,
-    currentStreak: userData?.profile?.currentStreak || 0,
-    longestStreak: userData?.profile?.longestStreak || 0,
-    lastSessionDate: sessions.length > 0 ? sessions[sessions.length - 1].timestamp : null
+    totalSessions: userProfile?.totalSessions || sessions?.length || 0,
+    totalHours: Math.round(((userProfile?.totalMinutes || 0) / 60) * 10) / 10,
+    currentStreak: userProfile?.currentStreak || 0,
+    longestStreak: userProfile?.longestStreak || 0,
+    lastSessionDate: sessions && sessions.length > 0 ? sessions[sessions.length - 1].timestamp : null
   };
 
   // Enhanced questionnaire section with all 27 fields displayed
   const renderQuestionnaireSection = () => {
-    // ✅ FIXED: Using questionnaire from useLocalData
-    const questionnaire = getQuestionnaire();
-    
-    if (!isQuestionnaireCompleted() || !questionnaire?.responses) {
+    if (!completionStatus.questionnaire || !questionnaire?.responses) {
       return (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <div className="text-center">
@@ -433,10 +430,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
 
   // Enhanced self-assessment section with better data handling
   const renderSelfAssessmentSection = () => {
-    // ✅ FIXED: Using selfAssessment from useLocalData
-    const selfAssessment = getSelfAssessment();
-    
-    if (!isSelfAssessmentCompleted()) {
+    if (!completionStatus.assessment || !selfAssessment) {
       return (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
           <div className="text-center">
@@ -454,7 +448,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
       );
     }
 
-    const { categories, metrics, completedAt } = selfAssessment!;
+    const { categories, metrics, completedAt } = selfAssessment;
 
     return (
       <div className="space-y-4">
@@ -584,7 +578,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     );
   };
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
         <div className="bg-white rounded-lg p-8 shadow-lg text-center">
@@ -708,7 +702,6 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
                   <div className="text-sm text-yellow-700">Current Streak</div>
                 </div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
-                  {/* ✅ FIXED: Using emotionalNotes directly from useLocalData */}
                   <div className="text-2xl font-bold text-purple-600 mb-1">{emotionalNotes?.length || 0}</div>
                   <div className="text-sm text-purple-700">Emotional Notes</div>
                 </div>

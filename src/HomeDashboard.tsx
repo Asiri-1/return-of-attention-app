@@ -1,4 +1,4 @@
-// ✅ FIXED HomeDashboard.tsx - AdminPanel completely removed
+// ✅ COMPLETE HomeDashboard.tsx - Interactive Onboarding with Hide Logic
 // File: src/HomeDashboard.tsx
 // 🔄 REPLACE YOUR ENTIRE HOMEDASHBOARD.TSX WITH THIS CODE
 
@@ -611,7 +611,39 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* ✅ FIXED: Show onboarding guidance for users with 0 happiness points */}
+        {/* ✅ NEW: Success message when happiness tracking is enabled */}
+        {happinessData.happiness_points > 0 && (
+          <section style={{
+            ...styles.section,
+            background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+            border: '2px solid #10b981',
+            marginBottom: '24px'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ 
+                fontSize: '20px', 
+                color: '#065f46', 
+                margin: '0 0 8px 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                ✅ Happiness Tracking Enabled!
+              </h3>
+              <p style={{ 
+                fontSize: '14px', 
+                color: '#065f46', 
+                margin: 0 
+              }}>
+                Your current happiness score: <strong>{happinessData.happiness_points} points</strong> 
+                ({happinessData.current_level})
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* ✅ IMPROVED: Interactive onboarding section with buttons */}
         {happinessData.happiness_points === 0 && (
           <section style={styles.section}>
             <h2 style={{ ...styles.sectionTitle, color: '#f59e0b' }}>
@@ -627,38 +659,202 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               <p style={{ fontSize: '16px', color: '#92400e', marginBottom: '16px', textAlign: 'center' }}>
                 Your <strong>happiness tracking</strong> will begin once you complete any of these:
               </p>
+              
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                
+                {/* ✅ NEW: Interactive Questionnaire + Self-Assessment Button */}
+                <button
+                  onClick={() => {
+                    console.log('🚀 Navigating to questionnaire from onboarding...');
+                    navigate('/questionnaire', { state: { returnTo: '/home' } });
+                  }}
+                  style={{
+                    background: 'white',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    border: '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#f59e0b';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245, 158, 11, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📝</div>
+                  <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '4px', fontSize: '16px' }}>
+                    Complete Questionnaire
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>
+                    + Self-Assessment
+                  </div>
+                  <div style={{
+                    background: '#f59e0b',
+                    color: 'white',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    margin: '0 auto',
+                    maxWidth: '120px'
+                  }}>
+                    Start Now →
+                  </div>
+                </button>
+
+                {/* ✅ IMPROVED: Sessions Info Card (not clickable, informational) */}
                 <div style={{
                   background: 'white',
                   borderRadius: '12px',
                   padding: '16px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  border: '2px solid #e5e7eb',
+                  position: 'relative'
                 }}>
-                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>📝</div>
-                  <div style={{ fontWeight: '600', color: '#92400e' }}>Complete Questionnaire</div>
-                  <div style={{ fontSize: '12px', color: '#92400e', marginTop: '4px' }}>+ Self-Assessment</div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>🧘</div>
+                  <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '4px', fontSize: '16px' }}>
+                    Complete 3+ Sessions
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>
+                    Any T-level practice
+                  </div>
+                  <div style={{
+                    background: '#e5e7eb',
+                    color: '#6b7280',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    margin: '0 auto',
+                    maxWidth: '140px'
+                  }}>
+                    Practice Below ↓
+                  </div>
                 </div>
-                <div style={{
-                  background: 'white',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>🧘</div>
-                  <div style={{ fontWeight: '600', color: '#92400e' }}>Complete 3+ Sessions</div>
-                  <div style={{ fontSize: '12px', color: '#92400e', marginTop: '4px' }}>Any T-level practice</div>
-                </div>
-                <div style={{
-                  background: 'white',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚡</div>
-                  <div style={{ fontWeight: '600', color: '#92400e' }}>Quick Path</div>
-                  <div style={{ fontSize: '12px', color: '#92400e', marginTop: '4px' }}>Questionnaire + 1 Session</div>
-                </div>
+
+                {/* ✅ NEW: Quick Path Interactive Button */}
+                <button
+                  onClick={() => {
+                    console.log('🚀 Navigating to questionnaire (Quick Path)...');
+                    navigate('/questionnaire', { 
+                      state: { 
+                        returnTo: '/home',
+                        quickPath: true,
+                        message: 'Quick Path: Complete questionnaire, then do 1 practice session!' 
+                      } 
+                    });
+                  }}
+                  style={{
+                    background: 'white',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    border: '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#10b981';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚡</div>
+                  <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '4px', fontSize: '16px' }}>
+                    Quick Path
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>
+                    Questionnaire + 1 Session
+                  </div>
+                  <div style={{
+                    background: '#10b981',
+                    color: 'white',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    margin: '0 auto',
+                    maxWidth: '100px'
+                  }}>
+                    Fastest →
+                  </div>
+                </button>
               </div>
+              
+              {/* ✅ NEW: Alternative Direct Access Section */}
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.15)',
+                borderRadius: '12px',
+                padding: '20px',
+                marginTop: '20px',
+                textAlign: 'center',
+                border: '1px solid rgba(245, 158, 11, 0.3)'
+              }}>
+                <div style={{ 
+                  fontSize: '16px', 
+                  color: '#92400e', 
+                  fontWeight: '600', 
+                  marginBottom: '12px' 
+                }}>
+                  📊 Or Take Just the Self-Assessment
+                </div>
+                <p style={{ 
+                  fontSize: '14px', 
+                  color: '#92400e', 
+                  marginBottom: '16px',
+                  margin: '0 0 16px 0' 
+                }}>
+                  Quicker option: Skip questionnaire and go directly to the attachment assessment
+                </p>
+                <button
+                  onClick={() => {
+                    console.log('🚀 Navigating to self-assessment directly...');
+                    navigate('/self-assessment', { state: { returnTo: '/home' } });
+                  }}
+                  style={{
+                    background: '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '12px 20px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#d97706';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#f59e0b';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                  }}
+                >
+                  🎯 Take Self-Assessment Only
+                </button>
+              </div>
+              
+              {/* ✅ IMPROVED: Info Note */}
               <div style={{
                 background: 'rgba(245, 158, 11, 0.1)',
                 borderRadius: '12px',
@@ -667,7 +863,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 textAlign: 'center'
               }}>
                 <div style={{ fontSize: '14px', color: '#92400e', fontWeight: '600' }}>
-                  📊 Note: Stage progression is sequential (complete Stage 1 to unlock Stage 2), but happiness tracking requires onboarding completion.
+                  📊 <strong>Important:</strong> Stage progression is sequential (complete Stage 1 → unlock Stage 2), 
+                  but happiness tracking requires onboarding completion.
                 </div>
               </div>
             </div>

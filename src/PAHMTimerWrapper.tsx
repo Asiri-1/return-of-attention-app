@@ -2,7 +2,9 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PAHMTimer from './PAHMTimer';
 import { PAHMCounts } from './types/PAHMTypes';
-import { useLocalData } from './contexts/LocalDataContext'; // ✨ NEW: LocalDataContext integration
+// 🚀 FIXED: Use Universal Architecture contexts instead of LocalDataContext
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 
 // Define the interface for the component props
 interface PAHMTimerWrapperProps {}
@@ -10,7 +12,9 @@ interface PAHMTimerWrapperProps {}
 const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addPracticeSession, addEmotionalNote } = useLocalData(); // ✨ NEW: LocalDataContext hooks
+  // 🚀 FIXED: Use Universal Architecture contexts instead of LocalDataContext
+  const { addPracticeSession } = usePractice();
+  const { addEmotionalNote } = useWellness();
   
   // Get data from location state
   const state = location.state as { 
@@ -26,11 +30,11 @@ const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
   const stage = state.stage || 2;
   const posture = state.posture || sessionStorage.getItem('currentPosture') || 'seated';
   
-  // ✨ ENHANCED: Handle completion with LocalDataContext + original navigation
+  // ✨ ENHANCED: Handle completion with Universal Architecture + original navigation
   const handleComplete = (pahmCounts: PAHMCounts) => {
     const endTime = new Date().toISOString();
     
-    // Convert PAHM counts to storage format (underscore format for LocalDataContext)
+    // Convert PAHM counts to storage format (underscore format for Universal Architecture)
     const convertedPAHMCounts = {
       present_attachment: pahmCounts.likes,
       present_neutral: pahmCounts.present,
@@ -60,7 +64,7 @@ const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
     
     sessionQuality = Math.min(10, Math.max(1, Math.round(sessionQuality * 10) / 10));
 
-    // ✨ NEW: Save to LocalDataContext for analytics
+    // ✨ NEW: Save to Universal Architecture for analytics
     const sessionData = {
       timestamp: endTime,
       duration: initialMinutes,
@@ -79,7 +83,7 @@ const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
       pahmCounts: convertedPAHMCounts
     };
 
-    // Save session to LocalDataContext
+    // Save session to Universal Architecture
     addPracticeSession(sessionData);
 
     // Calculate time and emotional distribution for detailed note
@@ -95,9 +99,8 @@ const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
       aversion: pahmCounts.dislikes + pahmCounts.regret + pahmCounts.worry
     };
 
-    // Add comprehensive emotional note
+    // ✅ FIXED: Add comprehensive emotional note with intensity property
     addEmotionalNote({
-      timestamp: endTime,
       content: `✅ Completed ${initialMinutes}-minute ${stageLevel} session!
 
 📈 Session Analytics:
@@ -119,6 +122,7 @@ const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
 🎯 This data helps track your meditation progress and attention patterns over time.`,
       emotion: 'accomplished',
       energyLevel: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6,
+      intensity: sessionQuality >= 8 ? 9 : sessionQuality >= 6 ? 7 : 6, // ✅ FIXED: Added missing intensity property
       tags: ['pahm-practice', `stage-${stage}`, posture.toLowerCase(), '9-category-matrix'],
       gratitude: [
         'mindfulness practice',
@@ -128,7 +132,7 @@ const PAHMTimerWrapper: React.FC<PAHMTimerWrapperProps> = () => {
       ]
     });
 
-    console.log('✅ PAHMTimerWrapper - Session saved to LocalDataContext:', {
+    console.log('✅ PAHMTimerWrapper - Session saved to Universal Architecture:', {
       stageLevel: stage,
       duration: initialMinutes,
       presentPercentage,

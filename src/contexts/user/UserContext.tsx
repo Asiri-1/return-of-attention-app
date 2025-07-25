@@ -80,7 +80,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
 
   // ================================
-  // STORAGE UTILITIES
+  // STABLE STORAGE UTILITIES
   // ================================
   const getStorageKey = useCallback((): string => {
     return currentUser?.uid ? `userProfile_${currentUser.uid}` : 'userProfile';
@@ -91,7 +91,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentUser?.uid]);
 
   // ================================
-  // CREATE DEFAULT PROFILE
+  // CREATE DEFAULT PROFILE - STABLE
   // ================================
   const createDefaultProfile = useCallback((): UserProfile => {
     return {
@@ -131,15 +131,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     };
-  }, [currentUser]);
+  }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
 
   // ================================
-  // SAVE TO STORAGE
+  // ✅ FIXED: PREVENT CASCADING SAVES
   // ================================
   const saveToStorage = useCallback((profile: UserProfile, userAchievements: string[]) => {
     try {
-      localStorage.setItem(getStorageKey(), JSON.stringify(profile));
-      localStorage.setItem(getAchievementsKey(), JSON.stringify(userAchievements));
+      const storageKey = getStorageKey();
+      const achievementsKey = getAchievementsKey();
+      
+      localStorage.setItem(storageKey, JSON.stringify(profile));
+      localStorage.setItem(achievementsKey, JSON.stringify(userAchievements));
       
       // Legacy compatibility
       if (currentUser) {
@@ -147,24 +150,25 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('achievements', JSON.stringify(userAchievements));
       }
       
-      // Sync with auth if available
-      if (currentUser && syncWithLocalData) {
-        setTimeout(() => syncWithLocalData(), 100);
-      }
+      // ✅ CRITICAL FIX: Prevent infinite loops by NOT calling syncWithLocalData here
+      // Let the caller decide when to sync
     } catch (error) {
       console.warn('Failed to save user data:', error);
     }
-  }, [getStorageKey, getAchievementsKey, currentUser, syncWithLocalData]);
+  }, [getStorageKey, getAchievementsKey, currentUser]);
 
   // ================================
-  // LOAD FROM STORAGE
+  // ✅ FIXED: STABLE LOAD FUNCTION
   // ================================
   const loadFromStorage = useCallback(() => {
     setIsLoading(true);
     
     try {
-      const profileData = localStorage.getItem(getStorageKey());
-      const achievementsData = localStorage.getItem(getAchievementsKey());
+      const storageKey = getStorageKey();
+      const achievementsKey = getAchievementsKey();
+      
+      const profileData = localStorage.getItem(storageKey);
+      const achievementsData = localStorage.getItem(achievementsKey);
       
       if (profileData) {
         const profile = JSON.parse(profileData);
@@ -172,6 +176,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         const defaultProfile = createDefaultProfile();
         setUserProfile(defaultProfile);
+        // ✅ Save without triggering sync
         saveToStorage(defaultProfile, ['journey_started']);
       }
       
@@ -206,7 +211,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setUserProfile(updatedProfile);
     saveToStorage(updatedProfile, achievements);
-  }, [userProfile, achievements, saveToStorage]);
+    
+    // ✅ CONTROLLED SYNC: Only sync when explicitly updating
+    if (currentUser && syncWithLocalData) {
+      setTimeout(() => syncWithLocalData(), 100);
+    }
+  }, [userProfile, achievements, saveToStorage, currentUser, syncWithLocalData]);
 
   const updatePreferences = useCallback((preferences: Partial<UserProfile['preferences']>) => {
     if (!userProfile?.preferences) return;
@@ -261,7 +271,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [achievements]);
 
   // ================================
-  // SYNC PROFILE WITH SESSION DATA
+  // ✅ FIXED: SYNC PROFILE WITHOUT CASCADING
   // ================================
   const syncProfile = useCallback((sessionData?: any) => {
     if (!userProfile || !sessionData) return;
@@ -290,6 +300,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     
     setUserProfile(updatedProfile);
+    // ✅ CRITICAL: Don't trigger cascading saves - just save silently
     saveToStorage(updatedProfile, achievements);
   }, [userProfile, achievements, saveToStorage]);
 
@@ -304,8 +315,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAchievements(defaultAchievements);
     
     try {
-      localStorage.removeItem(getStorageKey());
-      localStorage.removeItem(getAchievementsKey());
+      const storageKey = getStorageKey();
+      const achievementsKey = getAchievementsKey();
+      
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(achievementsKey);
       localStorage.removeItem('userProfile');
       localStorage.removeItem('achievements');
     } catch (error) {
@@ -324,11 +338,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [userProfile, achievements]);
 
   // ================================
-  // EFFECTS
+  // ✅ FIXED: EFFECTS WITH STABLE DEPENDENCIES
   // ================================
   useEffect(() => {
     loadFromStorage();
-  }, [loadFromStorage]);
+  }, [currentUser?.uid]); // ✅ CRITICAL FIX: Only depend on uid, not the entire loadFromStorage function
 
   // ================================
   // CONTEXT VALUE

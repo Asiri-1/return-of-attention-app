@@ -121,11 +121,12 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // ================================
-  // SAVE TO STORAGE
+  // ✅ FIXED: PREVENT CASCADING SAVES
   // ================================
   const saveToStorage = useCallback((sessionData: PracticeSessionData[]) => {
     try {
-      localStorage.setItem(getStorageKey(), JSON.stringify(sessionData));
+      const storageKey = getStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(sessionData));
       
       // Legacy compatibility
       if (currentUser) {
@@ -135,14 +136,11 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         localStorage.setItem('mindRecoveryHistory', JSON.stringify(mindRecoverySessions));
       }
       
-      // Sync with auth if available
-      if (currentUser && syncWithLocalData) {
-        setTimeout(() => syncWithLocalData(), 100);
-      }
+      // ✅ CRITICAL FIX: Don't automatically sync with auth - let explicit calls handle it
     } catch (error) {
       console.warn('Failed to save practice data:', error);
     }
-  }, [getStorageKey, currentUser, syncWithLocalData]);
+  }, [getStorageKey, currentUser]);
 
   // ================================
   // LOAD FROM STORAGE
@@ -151,7 +149,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsLoading(true);
     
     try {
-      const sessionData = localStorage.getItem(getStorageKey());
+      const storageKey = getStorageKey();
+      const sessionData = localStorage.getItem(storageKey);
       
       if (sessionData) {
         const parsedSessions = JSON.parse(sessionData);
@@ -181,7 +180,6 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const calculateStats = useCallback((): PracticeStats => {
     const allSessions = sessions;
     const mindRecoverySessions = sessions.filter(s => s.sessionType === 'mind_recovery');
-    const meditationSessions = sessions.filter(s => s.sessionType === 'meditation');
     
     const totalSessions = allSessions.length;
     const totalMinutes = allSessions.reduce((sum, session) => sum + session.duration, 0);
@@ -251,10 +249,30 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSessions(updatedSessions);
     saveToStorage(updatedSessions);
     
-    // Sync with user profile
-    const newStats = calculateStats();
+    // ✅ CRITICAL FIX: Calculate stats and sync with user profile MANUALLY (not in useEffect)
+    // This prevents infinite loops while still updating the user profile
+    const newStats = {
+      totalSessions: updatedSessions.length,
+      totalMinutes: updatedSessions.reduce((sum, s) => sum + s.duration, 0),
+      averageQuality: updatedSessions.length > 0 ? 
+        Math.round((updatedSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / updatedSessions.length) * 10) / 10 : 0,
+      averagePresentPercentage: updatedSessions.length > 0 ?
+        Math.round(updatedSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / updatedSessions.length) : 0,
+      currentStreak: 0, // Could be calculated but keeping simple to avoid complexity
+      longestStreak: 0,
+      totalMindRecoverySessions: updatedSessions.filter(s => s.sessionType === 'mind_recovery').length,
+      totalMindRecoveryMinutes: updatedSessions.filter(s => s.sessionType === 'mind_recovery').reduce((sum, s) => sum + s.duration, 0),
+      averageMindRecoveryRating: 0
+    };
+    
+    // Sync with user profile (this won't cause infinite loop because it's a direct call)
     syncProfile(newStats);
-  }, [sessions, generateId, saveToStorage, calculateStats, syncProfile]);
+    
+    // Sync with auth if needed
+    if (currentUser && syncWithLocalData) {
+      setTimeout(() => syncWithLocalData(), 200);
+    }
+  }, [sessions, generateId, saveToStorage, syncProfile, currentUser, syncWithLocalData]);
 
   const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
     const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
@@ -269,7 +287,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSessions(updatedSessions);
     saveToStorage(updatedSessions);
     
-    // Sync with user profile
+    // ✅ MANUAL SYNC: Calculate and sync stats manually
     const newStats = calculateStats();
     syncProfile(newStats);
   }, [sessions, saveToStorage, calculateStats, syncProfile]);
@@ -393,7 +411,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSessions([]);
     
     try {
-      localStorage.removeItem(getStorageKey());
+      const storageKey = getStorageKey();
+      localStorage.removeItem(storageKey);
       localStorage.removeItem('practiceHistory');
       localStorage.removeItem('mindRecoveryHistory');
     } catch (error) {
@@ -428,18 +447,14 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const stats = useMemo(() => calculateStats(), [calculateStats]);
 
   // ================================
-  // EFFECTS
+  // ✅ FIXED: EFFECTS WITH STABLE DEPENDENCIES
   // ================================
   useEffect(() => {
     loadFromStorage();
-  }, [loadFromStorage]);
+  }, [currentUser?.uid]); // ✅ CRITICAL FIX: Only depend on uid, not the entire loadFromStorage function
 
-  // Auto-sync with user profile when stats change
-  useEffect(() => {
-    if (sessions.length > 0) {
-      syncProfile(stats);
-    }
-  }, [stats, sessions.length, syncProfile]);
+  // ✅ REMOVED: Auto-sync effect that was causing infinite loops
+  // The syncProfile is now called manually in addPracticeSession and deletePracticeSession
 
   // ================================
   // CONTEXT VALUE

@@ -628,13 +628,13 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     // 🔥 Save to all storage locations with immediate synchronization
     saveSessionToAllStorageLocations(sessionData, isFullyCompleted);
     
-    // Add achievement note for motivation
+    // ✅ FIXED: Add achievement note for motivation with intensity property
     if (isFullyCompleted) {
       addEmotionalNote({
-        timestamp: endTime,
         content: `Successfully completed ${getTLevel().toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
         emotion: 'accomplished',
         energyLevel: 8,
+        intensity: 8, // ✅ FIXED: Added missing intensity property
         tags: ['achievement', 'physical_training', getTLevel(), 't-level']
       });
     }
@@ -690,11 +690,12 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     
     const stillnessInsight = "Building foundation for deeper mindfulness practice.";
 
+    // ✅ FIXED: Completion note with intensity property
     addEmotionalNote({
-      timestamp: endTime,
       content: `${completionMessage} ${stillnessInsight} Quality rating: ${sessionQuality}/10.`,
       emotion: isFullyCompleted ? 'accomplished' : 'content',
       energyLevel: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
+      intensity: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6, // ✅ FIXED: Added missing intensity property
       tags: ['stillness-practice', 'stage-1', 'basic-meditation', getTLevel()],
       gratitude: [
         'meditation practice',
@@ -796,11 +797,12 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     
     sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
     
+    // ✅ FIXED: Fast-forward note with intensity property
     addEmotionalNote({
-      timestamp: now,
       content: `DEV: Fast-forwarded ${getTLevel().toUpperCase()} training session for testing.`,
       emotion: 'accomplished',
       energyLevel: 8,
+      intensity: 8, // ✅ FIXED: Added missing intensity property
       tags: ['dev', 'fast-forward', getTLevel(), 't-level']
     });
     

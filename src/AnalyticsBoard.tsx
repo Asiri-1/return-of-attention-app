@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import './AnalyticsBoard.css';
-// 🚀 UPDATED: Use Universal Architecture imports
+// ✅ FIXED: Correct import paths (from src/ directory)
 import { useAuth } from './contexts/auth/AuthContext';
-import { useLocalDataCompat as useLocalData } from './hooks/useLocalDataCompat';
+import { useAnalytics } from './contexts/analytics/AnalyticsContext';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 
 const AnalyticsBoard: React.FC = () => {
-  const { } = useAuth();
+  const { currentUser } = useAuth();
   const {
     isLoading,
-    getAnalyticsData,
     getPAHMData,
     getEnvironmentData,
     getFilteredData,
@@ -18,19 +19,33 @@ const AnalyticsBoard: React.FC = () => {
     getAppUsagePatterns,
     getEngagementMetrics,
     getFeatureUtilization,
-    getMindRecoveryInsights,
-    getPracticeSessions, // Added for debug
-    refreshTrigger // ✅ Use refresh trigger for auto-updates
-  } = useLocalData();
+    getMindRecoveryAnalytics,
+    lastUpdated
+  } = useAnalytics();
+
+  const { sessions, stats } = usePractice();
+  const { emotionalNotes } = useWellness();
 
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [timeRange, setTimeRange] = useState<string>('month');
   const [activePAHMTab, setActivePAHMTab] = useState<string>('overall');
 
-  // ✅ FIXED: All data getters now depend on refreshTrigger for auto-updates
-  const analyticsData = getAnalyticsData();
+  // ✅ FIXED: Get data from Universal Architecture
   const pahmData = getPAHMData();
   const environmentData = getEnvironmentData();
+
+  // Get analytics data (equivalent to what AnalyticsBoard expected as getAnalyticsData)
+  const analyticsData = {
+    totalSessions: stats.totalSessions,
+    totalMeditationSessions: sessions.filter((s: any) => s.sessionType === 'meditation').length,
+    totalMindRecoverySessions: stats.totalMindRecoverySessions,
+    totalPracticeTime: stats.totalMinutes,
+    averageSessionLength: Math.round(stats.totalMinutes / Math.max(stats.totalSessions, 1)),
+    averageQuality: stats.averageQuality,
+    currentStreak: stats.currentStreak,
+    longestStreak: stats.longestStreak,
+    emotionalNotesCount: emotionalNotes.length
+  };
 
   // Get filtered data based on time range
   const getFilteredAnalytics = () => {
@@ -52,12 +67,12 @@ const AnalyticsBoard: React.FC = () => {
     console.log('🔍 Debug Session Data:', {
       totalSessions: filteredData.practice.length,
       firstSession: filteredData.practice[0],
-      sessionTypes: filteredData.practice.map(s => s.sessionType).slice(0, 5),
-      stageLevels: filteredData.practice.map(s => s.stageLevel).slice(0, 5),
-      hasPahmCounts: filteredData.practice.map(s => !!s.pahmCounts).slice(0, 5)
+      sessionTypes: filteredData.practice.map((s: any) => s.sessionType).slice(0, 5),
+      stageLevels: filteredData.practice.map((s: any) => s.stageLevel).slice(0, 5),
+      hasPahmCounts: filteredData.practice.map((s: any) => !!s.pahmCounts).slice(0, 5)
     });
     
-    const sessions = filteredData.practice.filter(session => 
+    const sessions = filteredData.practice.filter((session: any) => 
       session.sessionType === 'meditation' && 
       session.stageLevel && 
       session.stageLevel >= 2 && 
@@ -70,7 +85,7 @@ const AnalyticsBoard: React.FC = () => {
     if (sessions.length === 0) return null;
 
     // Group by stage level
-    const stageGroups: { [key: string]: any[] } = sessions.reduce((groups, session) => {
+    const stageGroups: { [key: string]: any[] } = sessions.reduce((groups: any, session: any) => {
       const stage = session.stageLevel!.toString();
       if (!groups[stage]) {
         groups[stage] = [];
@@ -102,7 +117,7 @@ const AnalyticsBoard: React.FC = () => {
         future_aversion: 0
       };
 
-      stageSessions.forEach(session => {
+      stageSessions.forEach((session: any) => {
         if (session.pahmCounts) {
           Object.keys(totalPAHM).forEach(key => {
             totalPAHM[key as keyof typeof totalPAHM] += session.pahmCounts[key] || 0;
@@ -119,8 +134,8 @@ const AnalyticsBoard: React.FC = () => {
       };
 
       const presentPercentage = totalCounts > 0 ? Math.round((timeDistribution.present / totalCounts) * 100) : 0;
-      const avgRating = stageSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / stageSessions.length;
-      const totalDuration = stageSessions.reduce((sum, s) => sum + s.duration, 0);
+      const avgRating = stageSessions.reduce((sum: number, s: any) => sum + (s.rating || 0), 0) / stageSessions.length;
+      const totalDuration = stageSessions.reduce((sum: number, s: any) => sum + s.duration, 0);
 
       const stageName = stageNameMap[stageLevel] || `Stage ${stageLevel}`;
 
@@ -159,20 +174,20 @@ const AnalyticsBoard: React.FC = () => {
 
   // PROGRESS ANALYSIS - Compares recent vs past performance
   const getProgressAnalysis = () => {
-    const sessions = filteredData.practice;
-    if (sessions.length < 2) return null;
+    const sessionsList = filteredData.practice;
+    if (sessionsList.length < 2) return null;
 
     // Split sessions into recent and earlier periods
-    const recent = sessions.slice(0, Math.floor(sessions.length / 2));
-    const earlier = sessions.slice(Math.floor(sessions.length / 2));
+    const recent = sessionsList.slice(0, Math.floor(sessionsList.length / 2));
+    const earlier = sessionsList.slice(Math.floor(sessionsList.length / 2));
     
     // Calculate average duration for each period
-    const recentAvgDuration = recent.reduce((sum, s) => sum + s.duration, 0) / recent.length;
-    const earlierAvgDuration = earlier.reduce((sum, s) => sum + s.duration, 0) / earlier.length;
+    const recentAvgDuration = recent.reduce((sum: number, s: any) => sum + s.duration, 0) / recent.length;
+    const earlierAvgDuration = earlier.reduce((sum: number, s: any) => sum + s.duration, 0) / earlier.length;
     
     // Calculate average rating for each period
-    const recentAvgRating = recent.reduce((sum, s) => sum + (s.rating || 0), 0) / recent.length;
-    const earlierAvgRating = earlier.reduce((sum, s) => sum + (s.rating || 0), 0) / earlier.length;
+    const recentAvgRating = recent.reduce((sum: number, s: any) => sum + (s.rating || 0), 0) / recent.length;
+    const earlierAvgRating = earlier.reduce((sum: number, s: any) => sum + (s.rating || 0), 0) / earlier.length;
 
     // Calculate percentage changes
     const durationChange = ((recentAvgDuration - earlierAvgDuration) / earlierAvgDuration) * 100;
@@ -566,7 +581,7 @@ const AnalyticsBoard: React.FC = () => {
     const patterns = getPatternInsights();
 
     return (
-      <div className="insights-tab" key={refreshTrigger}>
+      <div className="insights-tab" key={lastUpdated}>
         {/* Progress Overview */}
         <div className="insights-hero">
           <h3>💡 Your Practice Insights</h3>
@@ -715,7 +730,7 @@ const AnalyticsBoard: React.FC = () => {
 
   // Overview Tab Content (simplified - insights moved to separate tab)
   const renderOverviewTab = () => (
-    <div className="overview-tab" key={refreshTrigger}>
+    <div className="overview-tab" key={lastUpdated}>
       {/* Key Metrics */}
       <div className="metrics-grid">
         <div className="metric-card total-sessions">
@@ -789,7 +804,7 @@ const AnalyticsBoard: React.FC = () => {
       <div className="recent-sessions">
         <h3>📊 Recent Sessions</h3>
         <div className="sessions-list">
-          {filteredData.practice.slice(0, 5).map(session => (
+          {filteredData.practice.slice(0, 5).map((session: any) => (
             <div key={session.sessionId} className="session-card">
               <div className="session-header">
                 <div className="session-info">
@@ -1062,7 +1077,7 @@ const AnalyticsBoard: React.FC = () => {
     };
     
     return (
-      <div className="pahm-tab enhanced-pahm-tab" key={refreshTrigger}>
+      <div className="pahm-tab enhanced-pahm-tab" key={lastUpdated}>
         {/* PAHM Sub-Tabs */}
         <div className="pahm-sub-tabs">
           <div className="sub-tab-buttons">
@@ -1249,7 +1264,7 @@ const AnalyticsBoard: React.FC = () => {
 
   // Environment Tab Content
   const renderEnvironmentTab = () => (
-    <div className="environment-tab" key={refreshTrigger}>
+    <div className="environment-tab" key={lastUpdated}>
       {environmentData && environmentData.posture.length > 0 ? (
         <>
           <h3>🌿 Environmental Factors Analysis</h3>
@@ -1257,7 +1272,7 @@ const AnalyticsBoard: React.FC = () => {
             <div className="environment-section">
               <h5>🧘 Posture Performance</h5>
               <div className="environment-list">
-                {environmentData.posture.map((item, index) => (
+                {environmentData.posture.map((item: any, index: number) => (
                   <div key={index} className="environment-item">
                     <span className="env-name">{item.name}</span>
                     <div className="env-stats">
@@ -1274,7 +1289,7 @@ const AnalyticsBoard: React.FC = () => {
             <div className="environment-section">
               <h5>📍 Location Impact</h5>
               <div className="environment-list">
-                {environmentData.location.map((item, index) => (
+                {environmentData.location.map((item: any, index: number) => (
                   <div key={index} className="environment-item">
                     <span className="env-name">{item.name}</span>
                     <div className="env-stats">
@@ -1291,7 +1306,7 @@ const AnalyticsBoard: React.FC = () => {
             <div className="environment-section">
               <h5>💡 Lighting Effects</h5>
               <div className="environment-list">
-                {environmentData.lighting.map((item, index) => (
+                {environmentData.lighting.map((item: any, index: number) => (
                   <div key={index} className="environment-item">
                     <span className="env-name">{item.name}</span>
                     <div className="env-stats">
@@ -1308,7 +1323,7 @@ const AnalyticsBoard: React.FC = () => {
             <div className="environment-section">
               <h5>🔊 Sound Environment</h5>
               <div className="environment-list">
-                {environmentData.sounds.map((item, index) => (
+                {environmentData.sounds.map((item: any, index: number) => (
                   <div key={index} className="environment-item">
                     <span className="env-name">{item.name}</span>
                     <div className="env-stats">
@@ -1335,33 +1350,33 @@ const AnalyticsBoard: React.FC = () => {
 
   // Mind Recovery Tab Content
   const renderMindRecoveryTab = () => {
-    const mindRecoveryInsights = getMindRecoveryInsights();
+    const mindRecoveryInsights = getMindRecoveryAnalytics();
     
     return (
-      <div className="mind-recovery-tab" key={refreshTrigger}>
-        {mindRecoveryInsights.totalSessions > 0 ? (
+      <div className="mind-recovery-tab" key={lastUpdated}>
+        {mindRecoveryInsights.totalMindRecoverySessions > 0 ? (
           <>
             <h3>🕐 Mind Recovery Analytics</h3>
             
             <div className="metrics-grid">
               <div className="metric-card">
                 <div className="metric-icon">🕐</div>
-                <div className="metric-value">{mindRecoveryInsights.totalSessions}</div>
+                <div className="metric-value">{mindRecoveryInsights.totalMindRecoverySessions}</div>
                 <div className="metric-label">Total Sessions</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon">⏱️</div>
-                <div className="metric-value">{mindRecoveryInsights.totalMinutes}min</div>
+                <div className="metric-value">{mindRecoveryInsights.totalMindRecoveryMinutes}min</div>
                 <div className="metric-label">Total Time</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon">⭐</div>
-                <div className="metric-value">{mindRecoveryInsights.averageRating}</div>
+                <div className="metric-value">{mindRecoveryInsights.avgMindRecoveryRating}</div>
                 <div className="metric-label">Avg Rating</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon">📊</div>
-                <div className="metric-value">{mindRecoveryInsights.averageDuration}min</div>
+                <div className="metric-value">{mindRecoveryInsights.avgMindRecoveryDuration}min</div>
                 <div className="metric-label">Avg Duration</div>
               </div>
             </div>
@@ -1369,20 +1384,20 @@ const AnalyticsBoard: React.FC = () => {
             <div className="techniques-analysis">
               <h4>🎯 Mind Recovery Techniques</h4>
               <div className="techniques-list">
-                {mindRecoveryInsights.techniques.map((technique: any, index: number) => (
+                {mindRecoveryInsights.contextStats.map((context: any, index: number) => (
                   <div key={index} className="technique-card">
                     <div className="technique-header">
-                      <h5>{technique.name}</h5>
+                      <h5>{context.context}</h5>
                       <div className="technique-badges">
-                        <span className="badge count-badge">{technique.count} sessions</span>
-                        <span className={`badge rating-badge ${technique.avgRating >= 8 ? 'high' : technique.avgRating >= 6 ? 'medium' : 'low'}`}>
-                          ⭐ {technique.avgRating}/10
+                        <span className="badge count-badge">{context.count} sessions</span>
+                        <span className={`badge rating-badge ${context.avgRating >= 8 ? 'high' : context.avgRating >= 6 ? 'medium' : 'low'}`}>
+                          ⭐ {context.avgRating}/10
                         </span>
-                        <span className="badge duration-badge">{technique.avgDuration}min avg</span>
+                        <span className="badge duration-badge">{context.avgDuration}min avg</span>
                       </div>
                     </div>
                     <div className="technique-details">
-                      Total time: {technique.totalDuration} minutes
+                      Total time: {context.avgDuration * context.count} minutes
                     </div>
                   </div>
                 ))}
@@ -1402,7 +1417,7 @@ const AnalyticsBoard: React.FC = () => {
 
   // Emotional Tab Content
   const renderEmotionalTab = () => (
-    <div className="emotional-tab" key={refreshTrigger}>
+    <div className="emotional-tab" key={lastUpdated}>
       <h3>😊 Emotional Distribution</h3>
       
       <div className="emotion-chart-container">
@@ -1423,7 +1438,7 @@ const AnalyticsBoard: React.FC = () => {
             <p>No emotional notes in the selected time range.</p>
           </div>
         ) : (
-          filteredData.notes.slice(0, 8).map(note => (
+          filteredData.notes.slice(0, 8).map((note: any) => (
             <div key={note.noteId} className="note-card">
               <div className="note-header">
                 <div className="note-date">{formatDate(note.timestamp)}</div>
@@ -1461,7 +1476,7 @@ const AnalyticsBoard: React.FC = () => {
     const featureUtilization = getFeatureUtilization();
 
     return (
-      <div className="usage-tab" key={refreshTrigger}>
+      <div className="usage-tab" key={lastUpdated}>
         <h3>📱 App Usage Analytics</h3>
         
         <div className="metrics-grid">
@@ -1579,7 +1594,7 @@ const AnalyticsBoard: React.FC = () => {
           </div>
         </div>
         
-        {/* Tab Navigation - NOW WITH INSIGHTS TAB */}
+        {/* Tab Navigation */}
         <div className="analytics-tabs">
           {[
             { key: 'overview', label: 'Overview', icon: '📊' },
