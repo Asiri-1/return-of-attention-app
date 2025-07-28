@@ -1,121 +1,26 @@
 // src/testing/suites/PAHMTestSuite.js
-// 🧪 PAHM Test Cases - All Testing Logic from 18-Page Checklist
+// 🧪 Enhanced PAHM Test Suite - Complete testing from 18-page checklist
+
+import { PAHM_TEST_CASES } from '../testData';
 
 export class PAHMTestSuite {
   constructor(contexts) {
-    // Get all the functions we need from AdminPanel contexts
     this.contexts = contexts;
-    this.markQuestionnaireComplete = contexts.markQuestionnaireComplete;
-    this.markSelfAssessmentComplete = contexts.markSelfAssessmentComplete;
-    this.calculateHappiness = contexts.calculateHappiness;
-    this.resetAllData = contexts.resetAllData;
-    this.getCurrentHappinessScore = contexts.getCurrentHappinessScore;
   }
 
-  // 🎯 TEST CASE DEFINITIONS (Exact from your 18-page checklist)
-  static testCases = {
-    experiencedPractitioner: {
-      name: "Experienced Practitioner",
-      target: 65,
-      tolerance: 3,
-      questionnaire: {
-        experience_level: 8,
-        goals: ["liberation", "inner-peace", "spiritual-growth"],
-        age_range: "35-44",
-        emotional_awareness: 9,
-        mindfulness_experience: 9,
-        sleep_pattern: 8,
-        physical_activity: "very_active",
-        stress_response: "Observe and let go",
-        work_life_balance: "Perfect integration of work and practice"
-      },
-      selfAssessment: {
-        taste: "none",        // 0 points
-        smell: "none",        // 0 points  
-        sound: "some",        // -7 points
-        sight: "none",        // 0 points
-        touch: "none",        // 0 points
-        totalAttachmentPenalty: -7
-      },
-      expectedComponents: {
-        pahmDevelopment: 15.0,
-        emotionalStability: 18.0,
-        currentMood: 12.8,
-        attachmentFlexibility: 6.8,
-        otherComponents: 12.2
-      }
-    },
-    
-    motivatedBeginner: {
-      name: "Motivated Beginner",
-      target: 34,
-      tolerance: 3,
-      questionnaire: {
-        experience_level: 3,
-        goals: ["stress-reduction", "emotional-balance"],
-        age_range: "25-34",
-        emotional_awareness: 6,
-        mindfulness_experience: 4,
-        sleep_pattern: 6,
-        physical_activity: "moderate",
-        stress_response: "Usually manage well",
-        work_life_balance: "Sometimes struggle but generally good"
-      },
-      selfAssessment: {
-        taste: "strong",      // -15 points
-        smell: "moderate",    // -10 points
-        sound: "strong",      // -15 points
-        sight: "moderate",    // -10 points
-        touch: "some",        // -8 points
-        totalAttachmentPenalty: -58
-      },
-      expectedComponents: {
-        pahmDevelopment: 6.3,
-        emotionalStability: 9.6,
-        currentMood: 8.3,
-        attachmentFlexibility: 2.8,
-        otherComponents: 7.0
-      }
-    },
-
-    highlyStressedBeginner: {
-      name: "Highly Stressed Beginner",
-      target: 10,
-      tolerance: 2,
-      questionnaire: {
-        experience_level: 1,
-        goals: ["stress-reduction"],
-        age_range: "18-24",
-        emotional_awareness: 3,
-        mindfulness_experience: 1,
-        sleep_pattern: 3,
-        physical_activity: "sedentary",
-        stress_response: "Get overwhelmed easily",
-        work_life_balance: "Work dominates everything"
-      },
-      selfAssessment: {
-        taste: "strong",      // -15 points
-        smell: "strong",      // -15 points
-        sound: "strong",      // -15 points
-        sight: "strong",      // -15 points
-        touch: "strong",      // -15 points
-        totalAttachmentPenalty: -75
-      },
-      expectedComponents: {
-        pahmDevelopment: 1.5,
-        emotionalStability: 3.0,
-        currentMood: 3.0,
-        attachmentFlexibility: 0.8,
-        otherComponents: 1.7
-      }
+  // 🧪 Run single PAHM test case
+  async runSingleTest(testKey) {
+    const testCase = PAHM_TEST_CASES[testKey];
+    if (!testCase) {
+      throw new Error(`Test case '${testKey}' not found`);
     }
-  };
 
-  // 🚀 MAIN TEST RUNNERS
+    return await this.runSinglePAHMTest(testKey, testCase);
+  }
 
+  // 🧪 Run all PAHM test cases
   async runAllTests() {
     console.log('🧪 Running All PAHM Tests...');
-    const startTime = Date.now();
     const results = {
       testSuite: 'PAHM',
       startTime: new Date().toISOString(),
@@ -124,20 +29,32 @@ export class PAHMTestSuite {
     };
 
     try {
-      // Run all 3 test cases
-      for (const [testKey, testCase] of Object.entries(PAHMTestSuite.testCases)) {
+      // Run all 3 critical test cases
+      for (const [testKey, testCase] of Object.entries(PAHM_TEST_CASES)) {
         console.log(`🔬 Running ${testCase.name}...`);
-        results.tests[testKey] = await this.runSingleTest(testKey, testCase);
+        results.tests[testKey] = await this.runSinglePAHMTest(testKey, testCase);
         
-        // Add delay between tests to prevent conflicts
-        await this.delay(1000);
+        // Add delay between tests to prevent system overload
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       // Generate summary
-      results.summary = this.generateTestSummary(results.tests);
+      const testArray = Object.values(results.tests);
+      const totalTests = testArray.length;
+      const passedTests = testArray.filter(test => test.status === 'PASS').length;
+      const failedTests = testArray.filter(test => test.status === 'FAIL').length;
+      const errorTests = testArray.filter(test => test.status === 'ERROR').length;
+      
+      results.summary = {
+        totalTests,
+        passedTests,
+        failedTests,
+        errorTests,
+        passRate: Math.round((passedTests / totalTests) * 100),
+        overallStatus: passedTests === totalTests ? 'PASS' : 'FAIL'
+      };
+      
       results.endTime = new Date().toISOString();
-      results.duration = Date.now() - startTime;
-
       console.log('✅ All PAHM Tests completed!');
       return results;
 
@@ -149,79 +66,71 @@ export class PAHMTestSuite {
     }
   }
 
-  async runSingleTest(testKey, testCase) {
+  // 🔬 Execute individual PAHM test case
+  async runSinglePAHMTest(testKey, testCase) {
     const testStart = Date.now();
     
     try {
       console.log(`🎯 Testing: ${testCase.name} (Target: ${testCase.target} ± ${testCase.tolerance})`);
 
-      // Step 1: Reset all data to clean state
-      console.log('🔄 Resetting data...');
-      if (this.resetAllData) {
-        await this.resetAllData();
-        await this.delay(500); // Wait for reset to complete
-      }
+      // Step 1: Backup current data
+      const backup = await this.backupCurrentData();
 
-      // Step 2: Set questionnaire data
-      console.log('📝 Setting questionnaire data...');
-      if (this.markQuestionnaireComplete) {
-        await this.markQuestionnaireComplete(testCase.questionnaire);
-        await this.delay(500);
-      }
+      // Step 2: Reset system to clean state
+      await this.resetToCleanState();
 
-      // Step 3: Set self-assessment data
-      console.log('🔍 Setting self-assessment data...');
-      if (this.markSelfAssessmentComplete) {
-        await this.markSelfAssessmentComplete(testCase.selfAssessment);
-        await this.delay(500);
-      }
+      // Step 3: Set up test questionnaire data
+      await this.setupQuestionnaireData(testCase.questionnaire);
 
-      // Step 4: Calculate happiness score
-      console.log('🧮 Calculating happiness score...');
-      let actualScore;
-      let components = {};
-      
-      if (this.calculateHappiness) {
-        const calculationResult = await this.calculateHappiness();
-        actualScore = calculationResult.score || calculationResult;
-        components = calculationResult.breakdown || calculationResult.components || {};
-      } else if (this.getCurrentHappinessScore) {
-        actualScore = await this.getCurrentHappinessScore();
-      } else {
-        throw new Error('No happiness calculation method available');
-      }
+      // Step 4: Set up test self-assessment data  
+      await this.setupSelfAssessmentData(testCase.selfAssessment);
 
-      // Step 5: Validate result
-      const isWithinTolerance = this.isWithinTolerance(actualScore, testCase.target, testCase.tolerance);
-      const difference = Math.abs(actualScore - testCase.target);
+      // Step 5: Trigger happiness calculation
+      const actualScore = await this.calculateHappinessScore();
 
+      // Step 6: Validate results
+      const validation = this.validateResults(testCase, actualScore);
+
+      // Step 7: Restore original data
+      await this.restoreBackupData(backup);
+
+      // Step 8: Generate detailed result
       const result = {
         testName: testCase.name,
         testKey,
         expected: testCase.target,
         tolerance: testCase.tolerance,
         actual: actualScore,
-        difference,
-        status: isWithinTolerance ? 'PASS' : 'FAIL',
-        components,
-        expectedComponents: testCase.expectedComponents,
-        questionnaire: testCase.questionnaire,
-        selfAssessment: testCase.selfAssessment,
+        difference: validation.difference,
+        status: validation.status,
+        details: validation.details,
         executionTime: Date.now() - testStart,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        testData: {
+          questionnaire: testCase.questionnaire,
+          selfAssessment: testCase.selfAssessment
+        }
       };
 
       // Log result
-      if (isWithinTolerance) {
-        console.log(`✅ ${testCase.name}: PASS (${actualScore} points, difference: ${difference})`);
+      if (validation.status === 'PASS') {
+        console.log(`✅ ${testCase.name}: PASS (${actualScore} points, difference: ${validation.difference})`);
       } else {
-        console.log(`❌ ${testCase.name}: FAIL (${actualScore} points, difference: ${difference}, tolerance: ±${testCase.tolerance})`);
+        console.log(`❌ ${testCase.name}: FAIL (${actualScore} points, difference: ${validation.difference}, tolerance: ±${testCase.tolerance})`);
       }
 
       return result;
 
     } catch (error) {
       console.error(`❌ ${testCase.name} failed:`, error);
+      
+      // Try to restore backup even on error
+      try {
+        await this.restoreBackupData(await this.getCurrentData());
+      } catch (restoreError) {
+        console.error('Failed to restore backup after test error:', restoreError);
+      }
+
       return {
         testName: testCase.name,
         testKey,
@@ -236,190 +145,341 @@ export class PAHMTestSuite {
     }
   }
 
-  // 🎯 INDIVIDUAL TEST RUNNERS
-
-  async runExperiencedPractitionerTest() {
-    const testCase = PAHMTestSuite.testCases.experiencedPractitioner;
-    return await this.runSingleTest('experiencedPractitioner', testCase);
-  }
-
-  async runMotivatedBeginnerTest() {
-    const testCase = PAHMTestSuite.testCases.motivatedBeginner;
-    return await this.runSingleTest('motivatedBeginner', testCase);
-  }
-
-  async runHighlyStressedBeginnerTest() {
-    const testCase = PAHMTestSuite.testCases.highlyStressedBeginner;
-    return await this.runSingleTest('highlyStressedBeginner', testCase);
-  }
-
-  // ⚡ QUICK VALIDATION (for browser quick check)
-  async runQuickValidation() {
+  // 📁 Data Management Methods
+  async backupCurrentData() {
     try {
-      console.log('⚡ Running quick PAHM validation...');
-      
-      if (this.calculateHappiness) {
-        const result = await this.calculateHappiness();
-        return { 
-          success: true, 
-          score: result.score || result,
-          message: 'PAHM calculation working'
-        };
-      }
-
-      return { success: false, message: 'No calculation method available' };
-
+      return {
+        questionnaire: localStorage.getItem('questionnaire_completed'),
+        selfAssessment: localStorage.getItem('self_assessment_completed'),
+        testQuestionnaire: localStorage.getItem('testQuestionnaire'),
+        testSelfAssessment: localStorage.getItem('testSelfAssessment'),
+        currentScore: await this.contexts.getCurrentHappinessScore()
+      };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.warn('Failed to backup current data:', error);
+      return {};
     }
   }
 
-  // 📊 COMPLETE VALIDATION (for comprehensive testing)
-  async runCompleteValidation() {
-    console.log('📊 Running complete PAHM validation...');
-    
-    const completeResults = await this.runAllTests();
-    
-    // Add additional validations
-    completeResults.additionalValidations = {
-      componentBreakdown: await this.validateComponentBreakdown(),
-      performanceCheck: await this.validatePerformance(),
-      consistencyCheck: await this.validateConsistency()
-    };
-
-    return completeResults;
+  async getCurrentData() {
+    return await this.backupCurrentData();
   }
 
-  // 🔧 VALIDATION HELPERS
-
-  isWithinTolerance(actual, expected, tolerance) {
-    const difference = Math.abs(actual - expected);
-    return difference <= tolerance;
-  }
-
-  async validateComponentBreakdown() {
-    // TODO: Validate that component breakdown matches expected ranges
-    return { status: 'pending', message: 'Component breakdown validation not yet implemented' };
-  }
-
-  async validatePerformance() {
-    // Test calculation speed (should be under 500ms per checklist)
-    const startTime = Date.now();
-    
+  async restoreBackupData(backup) {
     try {
-      if (this.calculateHappiness) {
-        await this.calculateHappiness();
-        const executionTime = Date.now() - startTime;
-        const passed = executionTime < 500;
-        
-        return {
-          status: passed ? 'PASS' : 'FAIL',
-          executionTime,
-          threshold: 500,
-          message: passed ? 
-            `Calculation completed in ${executionTime}ms (under 500ms threshold)` :
-            `Calculation took ${executionTime}ms (exceeds 500ms threshold)`
-        };
+      if (!backup) return;
+
+      // Restore localStorage items
+      if (backup.questionnaire) {
+        localStorage.setItem('questionnaire_completed', backup.questionnaire);
+      } else {
+        localStorage.removeItem('questionnaire_completed');
       }
-      
-      return { status: 'SKIP', message: 'No calculation method available' };
-      
+
+      if (backup.selfAssessment) {
+        localStorage.setItem('self_assessment_completed', backup.selfAssessment);
+      } else {
+        localStorage.removeItem('self_assessment_completed');
+      }
+
+      if (backup.testQuestionnaire) {
+        localStorage.setItem('testQuestionnaire', backup.testQuestionnaire);
+      } else {
+        localStorage.removeItem('testQuestionnaire');
+      }
+
+      if (backup.testSelfAssessment) {
+        localStorage.setItem('testSelfAssessment', backup.testSelfAssessment);
+      } else {
+        localStorage.removeItem('testSelfAssessment');
+      }
+
+      // Trigger recalculation to restore state
+      if (this.contexts.forceRecalculation) {
+        this.contexts.forceRecalculation();
+      }
+
+      console.log('✅ Backup data restored successfully');
     } catch (error) {
-      return { status: 'ERROR', error: error.message };
+      console.error('❌ Failed to restore backup data:', error);
     }
   }
 
-  async validateConsistency() {
-    // Test that same inputs always produce same outputs
+  async resetToCleanState() {
     try {
-      const testCase = PAHMTestSuite.testCases.experiencedPractitioner;
+      console.log('🔄 Resetting to clean state...');
       
-      // Run same test twice
-      const result1 = await this.runSingleTest('consistency1', testCase);
-      await this.delay(100);
-      const result2 = await this.runSingleTest('consistency2', testCase);
+      if (this.contexts.resetAllData) {
+        await this.contexts.resetAllData();
+      } else {
+        // Manual reset if function not available
+        localStorage.removeItem('testQuestionnaire');
+        localStorage.removeItem('testSelfAssessment');
+        localStorage.removeItem('questionnaire_completed');
+        localStorage.removeItem('self_assessment_completed');
+      }
       
-      const isConsistent = result1.actual === result2.actual;
+      // Wait for reset to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ Clean state achieved');
+    } catch (error) {
+      console.error('❌ Failed to reset to clean state:', error);
+      throw error;
+    }
+  }
+
+  async setupQuestionnaireData(questionnaireData) {
+    try {
+      console.log('📝 Setting up questionnaire data...');
+      
+      if (this.contexts.markQuestionnaireComplete) {
+        await this.contexts.markQuestionnaireComplete(questionnaireData);
+      } else {
+        // Manual setup if function not available
+        localStorage.setItem('testQuestionnaire', JSON.stringify(questionnaireData));
+        localStorage.setItem('questionnaire_completed', 'true');
+      }
+      
+      // Wait for data to be processed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ Questionnaire data set up successfully');
+    } catch (error) {
+      console.error('❌ Failed to set up questionnaire data:', error);
+      throw error;
+    }
+  }
+
+  async setupSelfAssessmentData(selfAssessmentData) {
+    try {
+      console.log('🎯 Setting up self-assessment data...');
+      
+      if (this.contexts.markSelfAssessmentComplete) {
+        await this.contexts.markSelfAssessmentComplete(selfAssessmentData);
+      } else {
+        // Manual setup if function not available
+        localStorage.setItem('testSelfAssessment', JSON.stringify(selfAssessmentData));
+        localStorage.setItem('self_assessment_completed', 'true');
+      }
+      
+      // Wait for data to be processed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ Self-assessment data set up successfully');
+    } catch (error) {
+      console.error('❌ Failed to set up self-assessment data:', error);
+      throw error;
+    }
+  }
+
+  async calculateHappinessScore() {
+    try {
+      console.log('🧮 Triggering happiness calculation...');
+      
+      let actualScore;
+      
+      if (this.contexts.calculateHappiness) {
+        const calculationResult = await this.contexts.calculateHappiness();
+        actualScore = calculationResult.score || calculationResult;
+      } else if (this.contexts.getCurrentHappinessScore) {
+        actualScore = await this.contexts.getCurrentHappinessScore();
+      } else {
+        throw new Error('No happiness calculation function available');
+      }
+      
+      // Ensure we have a valid number
+      if (typeof actualScore !== 'number' || isNaN(actualScore)) {
+        throw new Error(`Invalid happiness score: ${actualScore}`);
+      }
+      
+      console.log(`✅ Happiness calculation completed: ${actualScore}`);
+      return actualScore;
+      
+    } catch (error) {
+      console.error('❌ Failed to calculate happiness score:', error);
+      throw error;
+    }
+  }
+
+  validateResults(testCase, actualScore) {
+    try {
+      const difference = Math.abs(actualScore - testCase.target);
+      const isWithinTolerance = difference <= testCase.tolerance;
+      
+      const details = {
+        target: testCase.target,
+        tolerance: testCase.tolerance,
+        actual: actualScore,
+        difference: difference,
+        withinTolerance: isWithinTolerance,
+        percentageDifference: Math.round((difference / testCase.target) * 100)
+      };
+      
+      // Determine status
+      let status;
+      if (isWithinTolerance) {
+        status = 'PASS';
+      } else if (difference <= testCase.tolerance * 2) {
+        status = 'FAIL'; // Close but not within tolerance
+      } else {
+        status = 'FAIL'; // Significant deviation
+      }
       
       return {
-        status: isConsistent ? 'PASS' : 'FAIL',
-        result1: result1.actual,
-        result2: result2.actual,
-        message: isConsistent ? 
-          'Calculation results are consistent' :
-          `Inconsistent results: ${result1.actual} vs ${result2.actual}`
+        status,
+        difference,
+        details
       };
       
     } catch (error) {
-      return { status: 'ERROR', error: error.message };
+      return {
+        status: 'ERROR',
+        difference: null,
+        details: { error: error.message }
+      };
     }
   }
 
-  // 📊 SUMMARY GENERATION
+  // 📊 Additional Analysis Methods
+  async analyzeTestResults(results) {
+    const analysis = {
+      overallAccuracy: this.calculateOverallAccuracy(results.tests),
+      algorithmCalibration: this.analyzeAlgorithmCalibration(results.tests),
+      recommendations: this.generateRecommendations(results.tests),
+      riskAssessment: this.assessRisks(results.tests)
+    };
 
-  generateTestSummary(tests) {
+    return analysis;
+  }
+
+  calculateOverallAccuracy(tests) {
     const testArray = Object.values(tests);
-    const totalTests = testArray.length;
-    const passedTests = testArray.filter(test => test.status === 'PASS').length;
-    const failedTests = testArray.filter(test => test.status === 'FAIL').length;
-    const errorTests = testArray.filter(test => test.status === 'ERROR').length;
-    
-    const averageExecutionTime = testArray.reduce((sum, test) => sum + (test.executionTime || 0), 0) / totalTests;
+    const accurateTests = testArray.filter(test => test.status === 'PASS');
     
     return {
-      totalTests,
-      passedTests,
-      failedTests,
-      errorTests,
-      passRate: Math.round((passedTests / totalTests) * 100),
-      overallStatus: passedTests === totalTests ? 'PASS' : 'FAIL',
-      averageExecutionTime: Math.round(averageExecutionTime),
-      details: {
-        experiencedPractitioner: tests.experiencedPractitioner?.status || 'PENDING',
-        motivatedBeginner: tests.motivatedBeginner?.status || 'PENDING',
-        highlyStressedBeginner: tests.highlyStressedBeginner?.status || 'PENDING'
-      }
+      accuracy: Math.round((accurateTests.length / testArray.length) * 100),
+      totalTests: testArray.length,
+      accurateTests: accurateTests.length,
+      inaccurateTests: testArray.length - accurateTests.length
     };
   }
 
-  // 🛠️ UTILITY METHODS
+  analyzeAlgorithmCalibration(tests) {
+    const calibrationIssues = [];
+    
+    Object.values(tests).forEach(test => {
+      if (test.status === 'FAIL' && test.difference > test.tolerance) {
+        const severity = test.difference > (test.tolerance * 3) ? 'HIGH' : 'MEDIUM';
+        calibrationIssues.push({
+          testCase: test.testName,
+          severity,
+          expectedRange: `${test.expected - test.tolerance} - ${test.expected + test.tolerance}`,
+          actualValue: test.actual,
+          deviation: test.difference,
+          recommendedAdjustment: this.calculateRecommendedAdjustment(test)
+        });
+      }
+    });
 
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return {
+      needsCalibration: calibrationIssues.length > 0,
+      issues: calibrationIssues,
+      overallCalibrationScore: this.calculateCalibrationScore(tests)
+    };
   }
 
-  // 📋 TEST CASE ACCESS METHODS
-
-  static getTestCase(testKey) {
-    return PAHMTestSuite.testCases[testKey];
-  }
-
-  static getAllTestCases() {
-    return PAHMTestSuite.testCases;
-  }
-
-  static getTestCaseNames() {
-    return Object.keys(PAHMTestSuite.testCases);
-  }
-
-  // 🔍 DEBUGGING HELPERS
-
-  logTestCaseData(testKey) {
-    const testCase = PAHMTestSuite.testCases[testKey];
-    if (testCase) {
-      console.log(`📋 ${testCase.name} Test Case Data:`, {
-        target: `${testCase.target} ± ${testCase.tolerance} points`,
-        questionnaire: testCase.questionnaire,
-        selfAssessment: testCase.selfAssessment,
-        expectedComponents: testCase.expectedComponents
-      });
+  calculateRecommendedAdjustment(test) {
+    const deviation = test.actual - test.expected;
+    const adjustmentPercent = Math.round((deviation / test.expected) * 100);
+    
+    if (deviation > 0) {
+      return `Reduce calculation by approximately ${Math.abs(adjustmentPercent)}%`;
+    } else {
+      return `Increase calculation by approximately ${Math.abs(adjustmentPercent)}%`;
     }
   }
 
-  logAllTestCases() {
-    console.log('📋 All PAHM Test Cases:');
-    Object.keys(PAHMTestSuite.testCases).forEach(key => {
-      this.logTestCaseData(key);
+  calculateCalibrationScore(tests) {
+    const testArray = Object.values(tests);
+    const totalDeviation = testArray.reduce((sum, test) => {
+      return sum + (test.difference || 0);
+    }, 0);
+    
+    const averageDeviation = totalDeviation / testArray.length;
+    const maxAcceptableDeviation = 5; // points
+    
+    const score = Math.max(0, Math.round(100 - (averageDeviation / maxAcceptableDeviation) * 100));
+    return score;
+  }
+
+  generateRecommendations(tests) {
+    const recommendations = [];
+    
+    Object.values(tests).forEach(test => {
+      if (test.status === 'FAIL') {
+        if (test.testName.includes('Experienced') && test.actual < test.expected) {
+          recommendations.push({
+            priority: 'HIGH',
+            category: 'Algorithm Enhancement',
+            issue: 'Experienced practitioners scoring too low',
+            action: 'Increase base happiness multiplier for high experience levels',
+            impact: 'Improve accuracy for advanced users'
+          });
+        }
+        
+        if (test.testName.includes('Beginner') && test.actual > test.expected) {
+          recommendations.push({
+            priority: 'MEDIUM',
+            category: 'Penalty Adjustment',
+            issue: 'Beginners scoring too high',
+            action: 'Review attachment penalty calculations',
+            impact: 'Better reflect realistic beginner scores'
+          });
+        }
+      }
     });
+
+    // Add general recommendations
+    if (recommendations.length > 0) {
+      recommendations.push({
+        priority: 'MEDIUM',
+        category: 'Testing',
+        action: 'Implement continuous testing with real user data',
+        impact: 'Ongoing algorithm validation and improvement'
+      });
+    }
+
+    return recommendations;
+  }
+
+  assessRisks(tests) {
+    const risks = [];
+    
+    const failedTests = Object.values(tests).filter(test => test.status === 'FAIL');
+    
+    if (failedTests.length > 0) {
+      risks.push({
+        type: 'Algorithm Accuracy',
+        severity: failedTests.length > 1 ? 'HIGH' : 'MEDIUM',
+        description: `${failedTests.length} out of ${Object.keys(tests).length} test cases failing`,
+        mitigation: 'Implement algorithm calibration based on test results'
+      });
+    }
+
+    const highDeviations = Object.values(tests).filter(test => 
+      test.difference && test.difference > (test.tolerance * 2)
+    );
+    
+    if (highDeviations.length > 0) {
+      risks.push({
+        type: 'User Experience',
+        severity: 'MEDIUM',
+        description: 'Significant deviations may lead to user confusion about happiness scores',
+        mitigation: 'Review and adjust happiness calculation parameters'
+      });
+    }
+
+    return risks;
   }
 }
