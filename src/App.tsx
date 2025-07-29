@@ -1,4 +1,4 @@
-// ✅ COMPLETE FIXED App.tsx - Universal Architecture with Sign-In Flash Fix
+// ✅ COMPLETE FIXED App.tsx - Universal Architecture with Clean Admin Panel
 // File: src/App.tsx
 // 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
 
@@ -11,7 +11,7 @@ import PageViewTracker from './components/PageViewTracker';
 import PAHMProgressTracker from './PAHMProgressTracker';
 import { AuthProvider, useAuth } from './contexts/auth/AuthContext';
 import { AdminProvider } from './contexts/auth/AdminContext';
-import AdminPanel from './components/AdminPanel';
+import CleanAdminPanel from './components/CleanAdminPanel'; // ✅ UPDATED: Import Clean Admin Panel
 import LogoutWarning from './components/LogoutWarning';
 
 // ✅ UNIVERSAL ARCHITECTURE: Import the new focused contexts
@@ -566,7 +566,7 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES - PRESERVING ADMIN FUNCTIONALITY
+  // ✅ AUTHENTICATED ROUTES - NOW USING CLEAN ADMIN PANEL
   return (
     <div className="app-container">
       <PageViewTracker />
@@ -606,7 +606,7 @@ const AppContent: React.FC = React.memo(() => {
           />
         } />
 
-        {/* ✅ MAIN APP ROUTES - PRESERVING Admin Panel Access */}
+        {/* ✅ MAIN APP ROUTES - NOW USING CLEAN ADMIN PANEL */}
         <Route path="/*" element={
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
@@ -631,10 +631,10 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ ADMIN PANEL - PRESERVED - Only accessible via admin button */}
+                {/* ✅ CLEAN ADMIN PANEL - UPDATED TO USE NEW MODULAR VERSION */}
                 <Route path="/admin" element={
-                  <Suspense fallback={<FastLoader message="Loading admin panel..." />}>
-                    <AdminPanel />
+                  <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
+                    <CleanAdminPanel />
                   </Suspense>
                 } />
                 
