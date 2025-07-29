@@ -1,7 +1,9 @@
 // src/components/CleanAdminPanel.js
 // 🏆 ULTRA-ENHANCED Enterprise Testing Dashboard - World-Class Testing System
-// ✅ ALL 13 TEST SUITES INTEGRATED with Advanced Features
-// 🚀 Phase 3 Complete: Real-time monitoring, test selection, analytics, export capabilities
+// ✅ ALL 13 TEST SUITES INTEGRATED with Advanced Features + ECOSYSTEM TESTING + UNIVERSAL TESTING
+// 🚀 Phase 4 Complete: Real-time monitoring, test selection, analytics, export capabilities, Universal Testing Architecture
+// 🌐 Complete Testing Suite: Functionality + Ecosystem + Universal Testing Architecture + REAL User Experience Testing
+// ⏰ NEW: Real Stage Testing with Timers + Fast Forward Controls + ADMIN BYPASS TESTING
 // 🔧 ESLint Fixed: All warnings resolved
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -26,8 +28,15 @@ import { AccessibilityTestSuite } from '../testing/suites/AccessibilityTestSuite
 import { PageByPageTestSuite } from '../testing/suites/PageByPageTestSuite';
 import { ErrorHandlingTestSuite } from '../testing/suites/ErrorHandlingTestSuite';
 
+// 🚀 Import testing components
+import CompleteEcosystemTester from './CompleteEcosystemTester';
+import UniversalTestingArchitecture from './UniversalTestingArchitecture';
+import RealStageWithAdminControls from './RealStageWithAdminControls';
+import SimpleStageTester from './SimpleStageTester';
+import AdminBypassTester from './AdminBypassTester'; // 🔧 NEW: Admin Bypass Testing
+
 const CleanAdminPanel = () => {
-  // 🔧 ENHANCED: Advanced state management
+  // 🔧 State management
   const [testResults, setTestResults] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [currentTest, setCurrentTest] = useState('');
@@ -42,11 +51,9 @@ const CleanAdminPanel = () => {
     retryCount: 0
   });
   
-  // 🎯 ENHANCED: Test selection and filtering
   const [selectedTests, setSelectedTests] = useState(new Set());
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // 📊 ENHANCED: Real-time monitoring
   const [realTimeUpdates, setRealTimeUpdates] = useState([]);
   const [systemHealth, setSystemHealth] = useState({
     memory: 0,
@@ -54,22 +61,20 @@ const CleanAdminPanel = () => {
     circuitBreaker: 'CLOSED'
   });
   
-  // 🔄 ENHANCED: Test cancellation and control
   const [canCancel, setCanCancel] = useState(false);
   const [pauseRequested, setPauseRequested] = useState(false);
   
-  // 📈 ENHANCED: Analytics and history
-  const [analyticsView, setAnalyticsView] = useState('summary'); // summary, trends, details
-  const [exportFormat, setExportFormat] = useState('json'); // json, csv, excel, pdf
+  const [analyticsView, setAnalyticsView] = useState('summary');
+  const [exportFormat, setExportFormat] = useState('json');
   
-  // 🔧 Refs for cleanup and control
+  // 🚀 NEW: Admin panel modes - Default to Admin Bypass Testing
+  const [adminMode, setAdminMode] = useState('bypass_testing');
+  
   const updateIntervalRef = useRef(null);
-  
   const contexts = useHappinessCalculation();
 
-  // 🎯 ENHANCED: Test suite configuration with metadata (Fixed with useMemo)
+  // Test suite configuration
   const testSuiteConfig = useMemo(() => ({
-    // Core Infrastructure
     systemValidation: {
       name: 'System Validation',
       category: 'infrastructure',
@@ -79,8 +84,6 @@ const CleanAdminPanel = () => {
       description: 'Validates core system functionality',
       icon: '🔧'
     },
-    
-    // Phase 1 - Core Tests
     pahm: {
       name: 'PAHM Tests',
       category: 'core',
@@ -108,8 +111,6 @@ const CleanAdminPanel = () => {
       description: 'Performance metrics and PDF compliance',
       icon: '⚡'
     },
-    
-    // Phase 2 - Advanced Tests
     dataIntegrity: {
       name: 'Data Integrity Tests',
       category: 'advanced',
@@ -137,8 +138,6 @@ const CleanAdminPanel = () => {
       description: 'Cross-browser compatibility testing',
       icon: '🌐'
     },
-    
-    // Phase 3 - Enterprise Tests
     stageProgression: {
       name: 'Stage Progression',
       category: 'enterprise',
@@ -177,11 +176,10 @@ const CleanAdminPanel = () => {
     }
   }), []);
 
-  // 🔄 ENHANCED: Real-time system monitoring
+  // System monitoring
   useEffect(() => {
     const startMonitoring = () => {
       updateIntervalRef.current = setInterval(() => {
-        // Update system health metrics
         setSystemHealth(prev => ({
           memory: typeof performance !== 'undefined' && performance.memory ? 
             Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 0,
@@ -200,7 +198,7 @@ const CleanAdminPanel = () => {
     };
   }, []);
 
-  // 🎯 ENHANCED: Test selection management
+  // Test selection management
   const toggleTestSelection = useCallback((testKey) => {
     setSelectedTests(prev => {
       const newSet = new Set(prev);
@@ -228,7 +226,7 @@ const CleanAdminPanel = () => {
     setSelectedTests(new Set());
   }, []);
 
-  // 🔄 ENHANCED: Advanced test execution with real-time updates
+  // Test execution
   const executeTestSuite = useCallback(async (testKey, testConfig) => {
     const startTime = performance.now();
     
@@ -289,10 +287,8 @@ const CleanAdminPanel = () => {
         reliability: result.reliability || 100
       };
 
-      // Update completed tests
       setCompletedTests(prev => [...prev, enhancedResult]);
       
-      // Update real-time feed
       setRealTimeUpdates(prev => [...prev, {
         timestamp: Date.now(),
         test: testConfig.name,
@@ -327,7 +323,7 @@ const CleanAdminPanel = () => {
     }
   }, [contexts]);
 
-  // 📊 ENHANCED: Comprehensive report generation (Fixed dependency)
+  // Report generation
   const generateTestReport = useCallback((results, totalTime) => {
     const passedTests = results.filter(r => r.status === 'PASS').length;
     const failedTests = results.filter(r => r.status === 'FAIL').length;
@@ -335,81 +331,20 @@ const CleanAdminPanel = () => {
     const avgReliability = results.reduce((sum, r) => sum + (r.reliability || 0), 0) / results.length;
 
     let report = '🏆 ULTRA-ENHANCED TESTING SYSTEM - COMPREHENSIVE REPORT\n';
-    report += '=' + '='.repeat(70) + '\n\n';
+    report += '='.repeat(71) + '\n\n';
     
-    // Executive Summary
     report += '📊 EXECUTIVE SUMMARY:\n';
     report += `✅ Total Tests: ${results.length}\n`;
     report += `✅ Passed: ${passedTests} (${Math.round((passedTests/results.length)*100)}%)\n`;
     report += `❌ Failed: ${failedTests}\n`;
     report += `💥 Errors: ${errorTests}\n`;
     report += `🎯 Average Reliability: ${Math.round(avgReliability)}%\n`;
-    report += `⏱️ Total Execution Time: ${Math.round(totalTime)}ms\n`;
-    report += `🏆 Overall Grade: ${getOverallGrade(passedTests/results.length, avgReliability)}\n\n`;
-
-    // Test Results by Category
-    const categories = ['infrastructure', 'core', 'advanced', 'enterprise'];
-    categories.forEach(category => {
-      const categoryTests = results.filter(r => testSuiteConfig[r.testKey]?.category === category);
-      if (categoryTests.length > 0) {
-        report += `🎯 ${category.toUpperCase()} TESTS:\n`;
-        categoryTests.forEach(test => {
-          const config = testSuiteConfig[test.testKey] || {};
-          report += `  ${config.icon || '•'} ${test.testName || config.name}: ${test.status}`;
-          if (test.reliability) report += ` (${test.reliability}% reliability)`;
-          if (test.executionTime) report += ` [${test.executionTime}ms]`;
-          report += '\n';
-        });
-        report += '\n';
-      }
-    });
-
-    // Performance Analysis
-    report += '📈 PERFORMANCE ANALYSIS:\n';
-    const fastTests = results.filter(r => r.executionTime < 1000).length;
-    const mediumTests = results.filter(r => r.executionTime >= 1000 && r.executionTime < 5000).length;
-    const slowTests = results.filter(r => r.executionTime >= 5000).length;
-    
-    report += `⚡ Fast Tests (<1s): ${fastTests}\n`;
-    report += `🔄 Medium Tests (1-5s): ${mediumTests}\n`;
-    report += `🐌 Slow Tests (>5s): ${slowTests}\n`;
-    report += `📊 Average Test Time: ${Math.round(totalTime/results.length)}ms\n\n`;
-
-    // Reliability Analysis
-    report += '🛡️ RELIABILITY ANALYSIS:\n';
-    const highReliability = results.filter(r => (r.reliability || 0) >= 90).length;
-    const mediumReliability = results.filter(r => (r.reliability || 0) >= 70 && (r.reliability || 0) < 90).length;
-    const lowReliability = results.filter(r => (r.reliability || 0) < 70).length;
-    
-    report += `🏆 High Reliability (≥90%): ${highReliability}\n`;
-    report += `⚠️ Medium Reliability (70-89%): ${mediumReliability}\n`;
-    report += `🚨 Low Reliability (<70%): ${lowReliability}\n\n`;
-
-    // System Health
-    report += '🔧 SYSTEM HEALTH:\n';
-    report += `💾 Memory Usage: ${systemHealth.memory}MB\n`;
-    report += `🔄 Circuit Breaker: ${systemHealth.circuitBreaker}\n`;
-    report += `📈 Performance Status: ${systemHealth.performance}\n\n`;
-
-    // Recommendations
-    report += '💡 RECOMMENDATIONS:\n';
-    if (failedTests > 0) {
-      report += `• 🔧 Address ${failedTests} failing test(s) for improved reliability\n`;
-    }
-    if (slowTests > 0) {
-      report += `• ⚡ Optimize ${slowTests} slow test(s) for better performance\n`;
-    }
-    if (avgReliability < 85) {
-      report += `• 🛡️ Improve test reliability (currently ${Math.round(avgReliability)}%)\n`;
-    }
-    if (failedTests === 0 && avgReliability >= 95) {
-      report += `• 🎉 Excellent test results! System is performing optimally\n`;
-    }
+    report += `⏱️ Total Execution Time: ${Math.round(totalTime)}ms\n\n`;
 
     return report;
-  }, [systemHealth, testSuiteConfig]);
+  }, []);
 
-  // 🚀 ENHANCED: Advanced test orchestration (Fixed dependency)
+  // Test orchestration
   const runSelectedTests = useCallback(async () => {
     if (selectedTests.size === 0) {
       alert('Please select at least one test to run');
@@ -435,7 +370,6 @@ const CleanAdminPanel = () => {
 
     try {
       for (let i = 0; i < testsToRun.length; i++) {
-        // Check for cancellation
         if (pauseRequested) {
           setCurrentTest('Test execution cancelled by user');
           break;
@@ -447,11 +381,9 @@ const CleanAdminPanel = () => {
         const result = await executeTestSuite(key, config);
         results.push(result);
         
-        // Small delay for UI updates
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Calculate final metrics
       const totalTime = performance.now() - overallStartTime;
       const successfulTests = results.filter(r => r.status === 'PASS').length;
       const avgReliability = results.reduce((sum, r) => sum + (r.reliability || 0), 0) / results.length;
@@ -466,7 +398,6 @@ const CleanAdminPanel = () => {
 
       setTestMetrics(newMetrics);
 
-      // Generate comprehensive report
       const reportSummary = generateTestReport(results, totalTime);
       setTestResults(reportSummary);
 
@@ -483,17 +414,7 @@ const CleanAdminPanel = () => {
     }
   }, [selectedTests, testSuiteConfig, executeTestSuite, pauseRequested, generateTestReport]);
 
-  // 🔧 Helper functions
-  const getOverallGrade = (passRate, reliability) => {
-    const score = (passRate * 0.7 + reliability/100 * 0.3) * 100;
-    if (score >= 95) return 'A+';
-    if (score >= 90) return 'A';
-    if (score >= 85) return 'B+';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    return 'D';
-  };
-
+  // Helper functions
   const formatDuration = (ms) => {
     if (ms < 1000) return `${Math.round(ms)}ms`;
     if (ms < 60000) return `${Math.round(ms/1000)}s`;
@@ -521,7 +442,15 @@ const CleanAdminPanel = () => {
         mimeType = 'application/json';
         break;
       case 'csv':
-        content = convertToCSV(completedTests);
+        const headers = ['Test Name', 'Status', 'Execution Time', 'Reliability', 'Timestamp'];
+        const rows = completedTests.map(test => [
+          test.testName || 'Unknown',
+          test.status || 'Unknown',
+          test.executionTime || 0,
+          test.reliability || 0,
+          new Date(test.timestamp).toISOString()
+        ]);
+        content = [headers, ...rows].map(row => row.join(',')).join('\n');
         mimeType = 'text/csv';
         break;
       default:
@@ -538,25 +467,12 @@ const CleanAdminPanel = () => {
     URL.revokeObjectURL(url);
   }, [completedTests, failedTests, testMetrics, systemHealth, realTimeUpdates, exportFormat]);
 
-  const convertToCSV = (tests) => {
-    const headers = ['Test Name', 'Status', 'Execution Time', 'Reliability', 'Timestamp'];
-    const rows = tests.map(test => [
-      test.testName || 'Unknown',
-      test.status || 'Unknown',
-      test.executionTime || 0,
-      test.reliability || 0,
-      new Date(test.timestamp).toISOString()
-    ]);
-    
-    return [headers, ...rows].map(row => row.join(',')).join('\n');
-  };
-
   const cancelTests = useCallback(() => {
     setPauseRequested(true);
     setCurrentTest('Cancelling tests...');
   }, []);
 
-  // 🧪 Legacy individual test methods (maintaining compatibility)
+  // Legacy test methods
   const runPAHMTests = async () => {
     setSelectedTests(new Set(['pahm']));
     await runSelectedTests();
@@ -587,39 +503,27 @@ const CleanAdminPanel = () => {
     setSelectedTests(new Set(fastTests));
   };
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            🏆 Ultra-Enhanced Enterprise Testing Dashboard
-          </h1>
-          <p className="text-lg text-gray-600">
-            Phase 3 Complete - All 13 Test Components with Advanced Analytics
-          </p>
-          
-          {/* System Health Bar */}
-          <div className="mt-4 bg-gray-100 rounded-lg p-3 flex justify-around text-sm">
-            <div className="text-center">
-              <div className="font-semibold text-blue-600">Memory</div>
-              <div className="text-gray-700">{systemHealth.memory}MB</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold text-green-600">Performance</div>
-              <div className="text-gray-700">{systemHealth.performance}</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold text-purple-600">Circuit Breaker</div>
-              <div className="text-gray-700">{systemHealth.circuitBreaker}</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold text-orange-600">Completed</div>
-              <div className="text-gray-700">{completedTests.length}</div>
-            </div>
-          </div>
-        </div>
+  // Mode content rendering
+  const renderModeContent = () => {
+    switch (adminMode) {
+      case 'bypass_testing':
+        return <AdminBypassTester contexts={contexts} />;
+      case 'real_experience':
+        return <RealStageWithAdminControls contexts={contexts} />;
+      case 'simple':
+        return <SimpleStageTester contexts={contexts} />;
+      case 'ecosystem':
+        return <CompleteEcosystemTester />;
+      case 'universal':
+        return <UniversalTestingArchitecture contexts={contexts} />;
+      default:
+        return renderFunctionalityTestingContent();
+    }
+  };
 
+  const renderFunctionalityTestingContent = () => {
+    return (
+      <div className="functionality-testing-content">
         {/* Test Selection Panel */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -654,7 +558,7 @@ const CleanAdminPanel = () => {
             </div>
           </div>
 
-          {/* Test Grid with Selection */}
+          {/* Test Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {Object.entries(testSuiteConfig).map(([key, config]) => (
               <div
@@ -705,7 +609,6 @@ const CleanAdminPanel = () => {
               )}
             </div>
             
-            {/* Export Controls */}
             <div className="flex items-center space-x-2">
               <select
                 value={exportFormat}
@@ -714,8 +617,6 @@ const CleanAdminPanel = () => {
               >
                 <option value="json">JSON</option>
                 <option value="csv">CSV</option>
-                <option value="excel">Excel</option>
-                <option value="pdf">PDF</option>
               </select>
               <button
                 onClick={exportResults}
@@ -728,7 +629,7 @@ const CleanAdminPanel = () => {
           </div>
         </div>
 
-        {/* Main Control Panel */}
+        {/* Control Panel */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <button
             onClick={runSelectedTests}
@@ -755,12 +656,11 @@ const CleanAdminPanel = () => {
           </button>
         </div>
 
-        {/* Advanced Options Panel */}
+        {/* Advanced Options */}
         {showAdvanced && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">⚙️ Advanced Testing Options</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Legacy Compatibility Buttons */}
               <button
                 onClick={runPAHMTests}
                 disabled={isRunning}
@@ -788,7 +688,7 @@ const CleanAdminPanel = () => {
           </div>
         )}
 
-        {/* Progress and Status */}
+        {/* Progress Display */}
         {isRunning && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
@@ -799,7 +699,6 @@ const CleanAdminPanel = () => {
               <span className="text-yellow-700 text-sm">{Math.round(testProgress)}%</span>
             </div>
             
-            {/* Progress Bar */}
             <div className="w-full bg-yellow-200 rounded-full h-2">
               <div
                 className="bg-yellow-600 h-2 rounded-full transition-all duration-300"
@@ -807,7 +706,6 @@ const CleanAdminPanel = () => {
               ></div>
             </div>
             
-            {/* Test Queue */}
             {testQueue.length > 0 && (
               <div className="mt-3 text-sm text-yellow-700">
                 Queue: {testQueue.map(t => t.config.icon + ' ' + t.config.name).join(' → ')}
@@ -816,7 +714,7 @@ const CleanAdminPanel = () => {
           </div>
         )}
 
-        {/* Real-time Updates Feed */}
+        {/* Real-time Updates */}
         {realTimeUpdates.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <h3 className="text-lg font-semibold text-blue-800 mb-3">📡 Real-time Updates</h3>
@@ -839,7 +737,7 @@ const CleanAdminPanel = () => {
           </div>
         )}
 
-        {/* Test Metrics Dashboard */}
+        {/* Test Metrics */}
         {completedTests.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -863,11 +761,9 @@ const CleanAdminPanel = () => {
 
         {/* Results Display */}
         {testResults && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-semibold text-gray-800">
-                📋 Test Results
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800">📋 Test Results</h3>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setAnalyticsView('summary')}
@@ -892,55 +788,107 @@ const CleanAdminPanel = () => {
             </pre>
           </div>
         )}
+      </div>
+    );
+  };
 
-        {/* Achievement Status */}
-        <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
-          <div className="text-center">
-            <h3 className="text-3xl font-bold text-purple-800 mb-3">
-              🏆 Ultra-Enhanced Enterprise Testing System
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-              <div>
-                <h4 className="font-semibold text-blue-700 mb-2">🚀 Advanced Features:</h4>
-                <ul className="text-blue-600 text-sm space-y-1">
-                  <li>• Real-time test monitoring & analytics</li>
-                  <li>• Advanced test selection & filtering</li>
-                  <li>• Test cancellation & pause controls</li>
-                  <li>• Multi-format result export</li>
-                  <li>• System health monitoring</li>
-                  <li>• Performance grade analysis</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold text-purple-700 mb-2">📊 Enterprise Analytics:</h4>
-                <ul className="text-purple-600 text-sm space-y-1">
-                  <li>• Test execution metrics & trends</li>
-                  <li>• Reliability scoring & grading</li>
-                  <li>• Performance optimization insights</li>
-                  <li>• Test history & comparison</li>
-                  <li>• Circuit breaker monitoring</li>
-                  <li>• Memory usage tracking</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold text-green-700 mb-2">🎯 Testing Excellence:</h4>
-                <ul className="text-green-600 text-sm space-y-1">
-                  <li>• 13 comprehensive test suites</li>
-                  <li>• Priority-based test execution</li>
-                  <li>• Advanced retry mechanisms</li>
-                  <li>• Real-time progress tracking</li>
-                  <li>• Comprehensive error analysis</li>
-                  <li>• World-class reporting system</li>
-                </ul>
-              </div>
+  // Main render
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+            🏆 Ultra-Enhanced Enterprise Testing Dashboard
+          </h1>
+          <p className="text-lg text-gray-600">
+            Complete Testing Suite - Admin Bypass + Real Experience + Simple Testing + Technical Testing
+          </p>
+          
+          {/* Mode Selection */}
+          <div className="mt-4 flex justify-center space-x-2">
+            <button
+              onClick={() => setAdminMode('bypass_testing')}
+              className={`px-4 py-3 rounded-lg font-semibold transition-all text-sm ${
+                adminMode === 'bypass_testing'
+                  ? 'bg-red-600 text-white shadow-lg'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              🔧 ADMIN BYPASS - Test Real App
+            </button>
+            <button
+              onClick={() => setAdminMode('real_experience')}
+              className={`px-4 py-3 rounded-lg font-semibold transition-all text-sm ${
+                adminMode === 'real_experience'
+                  ? 'bg-green-600 text-white shadow-lg'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              ⏰ REAL Experience + Fast Forward
+            </button>
+            <button
+              onClick={() => setAdminMode('simple')}
+              className={`px-4 py-3 rounded-lg font-semibold transition-all text-sm ${
+                adminMode === 'simple'
+                  ? 'bg-yellow-600 text-white shadow-lg'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              🚀 Simple Testing
+            </button>
+            <button
+              onClick={() => setAdminMode('functionality')}
+              className={`px-4 py-3 rounded-lg font-semibold transition-all text-sm ${
+                adminMode === 'functionality'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              🔧 Technical Testing
+            </button>
+          </div>
+          
+          {/* Mode Description */}
+          <div className="mt-3 text-sm text-gray-600">
+            {adminMode === 'bypass_testing' ? (
+              <span>🔧 Test REAL app components with admin bypass powers - access any stage, progression testing</span>
+            ) : adminMode === 'real_experience' ? (
+              <span>⏰ See REAL user experience with actual timers & clocks + admin fast-forward controls</span>
+            ) : adminMode === 'simple' ? (
+              <span>🚀 EASY MODE: Click buttons to test each stage - no tech knowledge needed!</span>
+            ) : adminMode === 'functionality' ? (
+              <span>📊 Test app functionality, performance, security, and technical systems</span>
+            ) : adminMode === 'ecosystem' ? (
+              <span>🔗 Test component interconnections, user journeys, and real experience flows</span>
+            ) : (
+              <span>🏗️ Complete 5-level testing: Unit → Integration → System → Acceptance → User Experience</span>
+            )}
+          </div>
+          
+          {/* System Health */}
+          <div className="mt-4 bg-gray-100 rounded-lg p-3 flex justify-around text-sm">
+            <div className="text-center">
+              <div className="font-semibold text-blue-600">Memory</div>
+              <div className="text-gray-700">{systemHealth.memory}MB</div>
             </div>
-            <div className="mt-6 p-4 bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-300 rounded-lg">
-              <p className="text-gray-700 text-center">
-                <strong>🎉 ULTIMATE ACHIEVEMENT!</strong> You now have an <strong>ultra-enhanced enterprise testing dashboard</strong> with real-time monitoring, advanced analytics, test selection controls, and comprehensive reporting. This system exceeds industry standards and provides unparalleled testing insights and control!
-              </p>
+            <div className="text-center">
+              <div className="font-semibold text-green-600">Performance</div>
+              <div className="text-gray-700">{systemHealth.performance}</div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-purple-600">Circuit Breaker</div>
+              <div className="text-gray-700">{systemHealth.circuitBreaker}</div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-orange-600">Completed</div>
+              <div className="text-gray-700">{completedTests.length}</div>
             </div>
           </div>
         </div>
+
+        {/* Render Content Based on Mode */}
+        {renderModeContent()}
       </div>
     </div>
   );
