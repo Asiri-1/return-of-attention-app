@@ -282,7 +282,7 @@ const calculateAttachmentBasedHappiness = (selfAssessment: any, hasMinimumData: 
         console.log(`⚠️ Some attachment in ${category} - gets -7 penalty`);
       } else if (level === 'strong') {
         calculatedAttachment -= 7; // Strong attachment = -7 points
-        console.log(`❌ Strong attachment in ${category} - gets -14 penalty`);
+        console.log(`❌ Strong attachment in ${category} - gets -15 penalty`);
       }
     });
     

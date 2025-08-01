@@ -312,6 +312,14 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     return attachmentPenalty;
   };
 
+  const calculateTotalScore = (responses: Record<string, any>): number => {
+    const attachmentPenalty = calculateAttachmentScore(responses);
+    const nonAttachmentCount = Object.values(responses).filter((r: any) => r.level === 'none').length;
+    const nonAttachmentBonus = nonAttachmentCount * 12; // +12 per "none" response
+    
+    return attachmentPenalty + nonAttachmentBonus;
+  };
+
   const getAttachmentLevel = (score: number): string => {
     if (score >= -10) return 'Very Low';
     if (score >= -30) return 'Low';
@@ -332,6 +340,9 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
   const completedCategories = Object.keys(responses).filter(key => responses[key]?.level).length;
   const progressPercentage = (completedCategories / categories.length) * 100;
   const attachmentScore = calculateAttachmentScore(responses);
+  const nonAttachmentCount = Object.values(responses).filter((r: any) => r.level === 'none').length;
+  const nonAttachmentBonus = nonAttachmentCount * 12;
+  const totalScore = calculateTotalScore(responses);
   const attachmentLevel = getAttachmentLevel(attachmentScore);
   const attachmentColor = getAttachmentColor(attachmentScore);
 
