@@ -1,6 +1,6 @@
 // ✅ COMPLETE FIXED HomeDashboard.tsx - Using useHappinessCalculation Hook (Full Version)
 // File: src/HomeDashboard.tsx
-// 🔧 FIXED: Removed local happiness state, now uses centralized useHappinessCalculation hook
+// 🔧 FIXED: Enhanced tracking logic shows correctly regardless of completion order
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -909,8 +909,11 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </section>
         )}
 
-        {/* ✅ NEW: Enhanced tracking suggestion for users with basic tracking */}
-        {happinessData.happiness_points > 0 && !userProgress.dataCompleteness?.selfAssessment && (
+        {/* ✅ FIXED: Enhanced tracking suggestion - shows for incomplete assessments regardless of order */}
+        {happinessData.happiness_points > 0 && (
+          !userProgress.dataCompleteness?.selfAssessment || 
+          !userProgress.dataCompleteness?.questionnaire
+        ) && (
           <section style={{
             ...styles.section,
             background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
@@ -929,50 +932,119 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               }}>
                 🎯 Enhance Your Happiness Tracking
               </h3>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#92400e', 
-                margin: '0 0 16px 0' 
-              }}>
-                Complete your self-assessment for more detailed insights and personalized recommendations!
-              </p>
               
-              <button
-                onClick={() => {
-                  console.log('🎯 Navigating to self-assessment for enhanced tracking...');
-                  navigate('/self-assessment', { 
-                    state: { 
-                      returnTo: '/home', 
-                      enhancedMode: true,
-                      fromHomeDashboard: true 
-                    } 
-                  });
-                }}
-                style={{
-                  background: '#f59e0b',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '12px 24px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#d97706';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#f59e0b';
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
-                }}
-              >
-                🎯 Complete Self-Assessment
-              </button>
+              {/* ✅ DYNAMIC: Show different messages based on what's missing */}
+              {!userProgress.dataCompleteness?.selfAssessment && !userProgress.dataCompleteness?.questionnaire ? (
+                <p style={{ 
+                  fontSize: '14px', 
+                  color: '#92400e', 
+                  margin: '0 0 16px 0' 
+                }}>
+                  Complete both your questionnaire and self-assessment for the most detailed insights and personalized recommendations!
+                </p>
+              ) : !userProgress.dataCompleteness?.selfAssessment ? (
+                <p style={{ 
+                  fontSize: '14px', 
+                  color: '#92400e', 
+                  margin: '0 0 16px 0' 
+                }}>
+                  Complete your self-assessment for attachment flexibility scoring and more detailed insights!
+                </p>
+              ) : (
+                <p style={{ 
+                  fontSize: '14px', 
+                  color: '#92400e', 
+                  margin: '0 0 16px 0' 
+                }}>
+                  Complete your questionnaire for more comprehensive happiness tracking and insights!
+                </p>
+              )}
+              
+              {/* ✅ DYNAMIC: Show appropriate buttons based on what's missing */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                justifyContent: 'center', 
+                flexWrap: 'wrap' 
+              }}>
+                {!userProgress.dataCompleteness?.questionnaire && (
+                  <button
+                    onClick={() => {
+                      console.log('🎯 Navigating to questionnaire for enhanced tracking...');
+                      navigate('/questionnaire', { 
+                        state: { 
+                          returnTo: '/home', 
+                          enhancedMode: true,
+                          fromHomeDashboard: true 
+                        } 
+                      });
+                    }}
+                    style={{
+                      background: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px 20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#2563eb';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#3b82f6';
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                    }}
+                  >
+                    📝 Complete Questionnaire
+                  </button>
+                )}
+                
+                {!userProgress.dataCompleteness?.selfAssessment && (
+                  <button
+                    onClick={() => {
+                      console.log('🎯 Navigating to self-assessment for enhanced tracking...');
+                      navigate('/self-assessment', { 
+                        state: { 
+                          returnTo: '/home', 
+                          enhancedMode: true,
+                          fromHomeDashboard: true 
+                        } 
+                      });
+                    }}
+                    style={{
+                      background: '#f59e0b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px 20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#d97706';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#f59e0b';
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                    }}
+                  >
+                    🎯 Complete Self-Assessment
+                  </button>
+                )}
+              </div>
               
               <div style={{
                 background: 'rgba(245, 158, 11, 0.1)',
@@ -982,7 +1054,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 fontSize: '12px',
                 color: '#92400e'
               }}>
-                <strong>Benefits:</strong> Attachment flexibility scoring, deeper insights, and personalized meditation recommendations
+                <strong>Benefits:</strong> 
+                {!userProgress.dataCompleteness?.selfAssessment && !userProgress.dataCompleteness?.questionnaire
+                  ? ' Complete assessment suite, attachment flexibility scoring, deeper insights, and personalized meditation recommendations'
+                  : !userProgress.dataCompleteness?.selfAssessment
+                  ? ' Attachment flexibility scoring, deeper insights, and personalized meditation recommendations'
+                  : ' More comprehensive happiness tracking and detailed emotional insights'
+                }
               </div>
             </div>
           </section>

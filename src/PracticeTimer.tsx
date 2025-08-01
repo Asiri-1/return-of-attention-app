@@ -850,6 +850,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [propInitialMinutes]);
 
+  // ✅ OPTION 1 FIX: Request wake lock immediately when entering practice stage
+  useEffect(() => {
+    if (currentStage === 'practice' && wakeLockEnabled) {
+      console.log('🔒 Practice stage detected, requesting wake lock...');
+      requestWakeLock();
+    }
+  }, [currentStage, wakeLockEnabled, requestWakeLock]);
+
   // 🔒 Handle visibility change to maintain wake lock
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -1151,7 +1159,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       </div>
       
       {/* 🔒 Wake Lock Status Indicator */}
-      {isActive && (
+      {(isActive || currentStage === 'practice') && (
         <div style={{
           background: wakeLockStatus === 'active' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 165, 0, 0.1)',
           padding: '8px',
