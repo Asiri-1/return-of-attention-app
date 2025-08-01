@@ -233,6 +233,15 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       attachmentScore: calculateAttachmentScore(responses),
       nonAttachmentCount: Object.values(responses).filter((r: any) => r.level === 'none').length,
       
+      // ✅ FIXED: Add complete metrics object with total net score
+      metrics: {
+        attachmentScore: calculateAttachmentScore(responses),
+        nonAttachmentCount: Object.values(responses).filter((r: any) => r.level === 'none').length,
+        attachmentLevel: getAttachmentLevel(calculateAttachmentScore(responses)),
+        totalNetScore: calculateTotalScore(responses), // ← ADD THIS LINE
+        nonAttachmentBonus: Object.values(responses).filter((r: any) => r.level === 'none').length * 12
+      },
+      
       // Metadata
       completed: true,
       completedAt: new Date().toISOString(),
@@ -489,9 +498,9 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             {Object.entries(responses).map(([categoryId, response]: [string, any]) => {
               if (!response?.level) return null;
               
-              const points = response.level === 'none' ? 0 : 
+              const points = response.level === 'none' ? 12 : 
                            response.level === 'some' ? -7 : -15;
-              const color = points === 0 ? '#10b981' : points === -7 ? '#f59e0b' : '#ef4444';
+              const color = response.level === 'none' ? '#10b981' : points === -7 ? '#f59e0b' : '#ef4444';
               
               return (
                 <div key={categoryId} className="score-item">
@@ -506,9 +515,13 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
             
             {Object.keys(responses).length > 0 && (
               <div className="total-score">
-                <strong>
-                  Total Attachment Penalty: {attachmentScore} points
-                </strong>
+                <div className="score-summary">
+                  <div>Attachment Penalty: {attachmentScore} points</div>
+                  <div style={{ color: '#10b981' }}>Non-Attachment Bonus: +{nonAttachmentBonus} points</div>
+                  <strong style={{ color: totalScore >= 0 ? '#10b981' : '#ef4444' }}>
+                    Total Net Score: {totalScore >= 0 ? `+${totalScore}` : totalScore} points
+                  </strong>
+                </div>
                 <div className="attachment-level" style={{ color: attachmentColor }}>
                   Attachment Level: {attachmentLevel}
                 </div>
@@ -567,7 +580,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
                   </span>
                   {isCompleted && (
                     <span className="response-level">
-                      {response.level === 'none' ? '✨ (0)' : 
+                      {response.level === 'none' ? '✨ (+12)' : 
                        response.level === 'some' ? '⚖️ (-7)' : '🔥 (-15)'}
                     </span>
                   )}
@@ -592,14 +605,15 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
                 
                 <h4>Scoring Explained</h4>
                 <ul>
-                  <li><strong>No particular preferences (0 points):</strong> Non-attachment, associated with flexibility and contentment</li>
+                  <li><strong>No particular preferences (+12 wisdom bonus):</strong> Non-attachment, rewarded for flexibility and contentment</li>
                   <li><strong>Some preferences (-7 points):</strong> Moderate attachment, some specific likes and dislikes</li>
                   <li><strong>Strong preferences (-15 points):</strong> Strong attachment, very specific requirements for happiness</li>
                 </ul>
                 
                 <p>
-                  Your total score reflects your overall attachment level. Higher scores (closer to 0)
-                  indicate greater non-attachment and potentially more stable happiness.
+                  Your total score reflects your overall attachment level. Higher scores indicate greater non-attachment 
+                  and potentially more stable happiness. Non-attachment responses receive wisdom bonuses because they 
+                  represent freedom from conditional happiness.
                 </p>
                 
                 <p>

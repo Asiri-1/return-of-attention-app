@@ -539,11 +539,11 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               <div className="space-y-2">
                 {Object.entries(categories || {}).map(([category, data]) => {
                   const level = (data as CategoryData)?.level || 'none';
-                  const pointValue = level === 'none' ? 0 : level === 'some' ? -7 : -14;
+                  const pointValue = level === 'none' ? 12 : level === 'some' ? -7 : -15;
                   return (
                     <div key={category} className="flex justify-between text-sm">
                       <span className="capitalize">{category}:</span>
-                      <span className={`font-medium ${pointValue === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`font-medium ${pointValue === 12 ? 'text-green-600' : 'text-red-600'}`}>
                         {pointValue} points
                       </span>
                     </div>
