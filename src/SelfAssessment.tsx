@@ -406,7 +406,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
                 <strong>I don't have particular preferences for this </strong>
               </div>
               <div className="option-description">
-                I'm generally content with whatever comes my way in this area (Non-attachment)
+                I'm generally content with whatever comes my way in this area (No)
               </div>
             </div>
           </label>
@@ -425,7 +425,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
                 <strong>I have some preferences, but I'm flexible </strong>
               </div>
               <div className="option-description">
-                I enjoy certain things more than others, but I adapt easily (Some attachment)
+                I enjoy certain things more than others, but I adapt easily (Some)
               </div>
             </div>
           </label>
@@ -444,7 +444,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
                 <strong>I have strong preferences and specific likes/dislikes </strong>
               </div>
               <div className="option-description">
-                There are clear things I love or avoid in this area (Strong attachment)
+                There are clear things I love or avoid in this area (More)
               </div>
             </div>
           </label>

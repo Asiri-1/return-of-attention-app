@@ -1,6 +1,6 @@
-// ✅ COMPLETE FIXED App.tsx - Universal Architecture with Clean Admin Panel
+// ✅ FIXED App.tsx - Admin Panel Context Error Resolved
 // File: src/App.tsx
-// 🔄 REPLACE YOUR ENTIRE APP.TSX WITH THIS CORRECTED CODE
+// 🔧 FIXED: Added missing contexts property for CleanAdminPanel
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -11,7 +11,7 @@ import PageViewTracker from './components/PageViewTracker';
 import PAHMProgressTracker from './PAHMProgressTracker';
 import { AuthProvider, useAuth } from './contexts/auth/AuthContext';
 import { AdminProvider } from './contexts/auth/AdminContext';
-import CleanAdminPanel from './components/CleanAdminPanel'; // ✅ UPDATED: Import Clean Admin Panel
+import CleanAdminPanel from './components/CleanAdminPanel';
 import LogoutWarning from './components/LogoutWarning';
 
 // ✅ UNIVERSAL ARCHITECTURE: Import the new focused contexts
@@ -631,7 +631,7 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ CLEAN ADMIN PANEL - UPDATED TO USE NEW MODULAR VERSION */}
+                {/* ✅ CLEAN ADMIN PANEL - SIMPLIFIED: No props needed */}
                 <Route path="/admin" element={
                   <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
                     <CleanAdminPanel />

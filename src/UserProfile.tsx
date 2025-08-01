@@ -1,11 +1,15 @@
-// src/components/ModernUserProfile.tsx - FIXED FOR UNIVERSAL ARCHITECTURE
-import React, { useState, useEffect } from 'react';
-// ✅ FIXED: Use Universal Architecture focused contexts
+// ✅ FIXED HomeDashboard.tsx - Now Uses useHappinessCalculation Hook Consistently
+// File: src/components/ModernUserProfile.tsx
+// 🔧 FIXED: Removed local state, now uses centralized useHappinessCalculation hook
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
 import { useUser } from './contexts/user/UserContext';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
+// 🎯 CRITICAL FIX: Import and use the happiness calculation hook
+import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -38,50 +42,34 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     getCompletionStatus 
   } = useOnboarding();
   
+  // 🎯 CRITICAL FIX: Use the centralized happiness calculation hook instead of local state
+  const {
+    userProgress,
+    componentBreakdown,
+    isCalculating,
+    practiceSessions,
+    // Remove the old local state management completely
+  } = useHappinessCalculation();
+  
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [happinessPoints, setHappinessPoints] = useState<number>(50);
-  const [userLevel, setUserLevel] = useState<string>('Newcomer');
+  
+  // 🎯 FIXED: Get happiness data from the hook instead of local state
+  const happinessData = useMemo(() => ({
+    happiness_points: userProgress.happiness_points || 0,
+    user_level: userProgress.user_level || 'Beginning Seeker'
+  }), [userProgress.happiness_points, userProgress.user_level]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoading(false);
-      
-      const savedPoints = localStorage.getItem('happiness_points');
-      const savedLevel = localStorage.getItem('user_level');
-      
-      if (savedPoints) {
-        const points = parseInt(savedPoints, 10);
-        if (!isNaN(points)) {
-          setHappinessPoints(points);
-        }
-      }
-      
-      if (savedLevel) {
-        setUserLevel(savedLevel);
-      }
     }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const handleHappinessUpdate = (event: CustomEvent) => {
-      console.log('🎯 UserProfile: Received happiness update:', event.detail);
-      if (event.detail?.happiness_points) {
-        setHappinessPoints(event.detail.happiness_points);
-      }
-      if (event.detail?.user_level) {
-        setUserLevel(event.detail.user_level);
-      }
-    };
-
-    window.addEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
-    
-    return () => {
-      window.removeEventListener('happinessUpdated', handleHappinessUpdate as EventListener);
-    };
-  }, []);
+  // ✅ REMOVED: All the old event listener code and local state management
+  // The hook handles all the state management and updates automatically
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
@@ -578,12 +566,15 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     );
   };
 
-  if (loading || userLoading) {
+  // 🎯 FIXED: Show loading state when happiness is being calculated OR component is loading
+  if (loading || userLoading || isCalculating) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
         <div className="bg-white rounded-lg p-8 shadow-lg text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold text-gray-700">Loading your profile...</h3>
+          <h3 className="text-lg font-semibold text-gray-700">
+            {isCalculating ? 'Calculating your happiness...' : 'Loading your profile...'}
+          </h3>
         </div>
       </div>
     );
@@ -611,7 +602,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
             <h1 className="text-3xl font-bold mb-2">
               {currentUser.displayName || currentUser.email?.split('@')[0] || 'Mindful Practitioner'}
             </h1>
-            <p className="text-xl opacity-90 mb-1">{userLevel}</p>
+            <p className="text-xl opacity-90 mb-1">{happinessData.user_level}</p>
             <p className="text-sm opacity-80">
               Member since {new Date().toLocaleDateString()}
             </p>
@@ -619,7 +610,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-1 bg-gray-100">
             <div className="bg-white p-6 text-center">
-              <div className="text-2xl font-bold text-indigo-600">{happinessPoints}</div>
+              <div className="text-2xl font-bold text-indigo-600">{happinessData.happiness_points}</div>
               <div className="text-xs text-gray-600 uppercase tracking-wide">Happiness Points</div>
             </div>
             <div className="bg-white p-6 text-center">
@@ -661,7 +652,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="font-semibold text-gray-700">Current Level:</span>
-                  <span className="text-gray-600">{userLevel}</span>
+                  <span className="text-gray-600">{happinessData.user_level}</span>
                 </div>
               </div>
             </div>
@@ -716,8 +707,8 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
 
             <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-lg p-6 text-center">
               <h3 className="text-xl font-bold text-gray-800 mb-2">Current Happiness Points</h3>
-              <div className="text-4xl font-bold text-purple-600 mb-2">{happinessPoints}</div>
-              <div className="text-gray-600 mb-4">Level: {userLevel}</div>
+              <div className="text-4xl font-bold text-purple-600 mb-2">{happinessData.happiness_points}</div>
+              <div className="text-gray-600 mb-4">Level: {happinessData.user_level}</div>
               <div className="text-sm text-gray-600">
                 Earn points by completing practices, reducing attachments, and maintaining consistency
               </div>

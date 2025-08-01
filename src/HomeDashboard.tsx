@@ -1,17 +1,14 @@
-// ✅ FIXED HomeDashboard.tsx - Data Synchronization Issues Resolved
+// ✅ COMPLETE FIXED HomeDashboard.tsx - Using useHappinessCalculation Hook (Full Version)
 // File: src/HomeDashboard.tsx
-// 🔄 REPLACE YOUR ENTIRE HOMEDASHBOARD.TSX WITH THIS CODE
+// 🔧 FIXED: Removed local happiness state, now uses centralized useHappinessCalculation hook
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-// 🚀 UPDATED: Use focused contexts instead of LocalDataContext
 import { usePractice } from './contexts/practice/PracticeContext';
+// 🎯 CRITICAL FIX: Import and use the happiness calculation hook
 import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
-// ✅ REMOVED: AdminPanel import completely - should only be accessible via /admin route
-
-// ✅ FIXED: Correct interface for HomeDashboard component
 interface HomeDashboardProps {
   onStartPractice: () => void;
   onViewProgress: () => void;
@@ -42,13 +39,19 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onShowWhatIsPAHM
 }) => {
   const { currentUser } = useAuth();
-  // 🚀 UPDATED: Use focused contexts instead of LocalDataContext
   const { sessions } = usePractice();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ FIXED: Use the same happiness calculation logic as HappinessTrackerPage
-  const { userProgress, isCalculating, forceRecalculation } = useHappinessCalculation();
+  // 🎯 CRITICAL FIX: Use the centralized happiness calculation hook instead of local state
+  const { 
+    userProgress, 
+    isCalculating, 
+    forceRecalculation,
+    componentBreakdown,
+    practiceSessions,
+    emotionalNotes
+  } = useHappinessCalculation();
 
   // ✅ PERFORMANCE: Stable refs for cleanup
   const t5ListenerRef = useRef<(() => void) | null>(null);
@@ -62,20 +65,145 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     stage: 0
   });
 
-  // ✅ FIXED: Get happiness data from the same source as HappinessTrackerPage
+  // 🎯 FIXED: Get happiness data from the hook instead of local state
   const happinessData = useMemo(() => ({
     happiness_points: userProgress.happiness_points || 0,
     current_level: userProgress.user_level || 'Beginning Seeker',
     isCalculating: isCalculating
   }), [userProgress.happiness_points, userProgress.user_level, isCalculating]);
 
-  // ✅ NEW: Force data refresh function
+  // ✅ NEW: Force data refresh function using the hook
   const forceDataRefresh = useCallback(() => {
     console.log('🔄 Forcing data refresh in HomeDashboard...');
     if (forceRecalculation) {
       forceRecalculation();
     }
   }, [forceRecalculation]);
+
+  // ✅ CRITICAL FIX: Universal stage unlock checker
+  const checkStageUnlocked = useCallback((targetStage: number): boolean => {
+    try {
+      // Get current stage progress from multiple sources
+      const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
+      const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
+      const currentStageValue = parseInt(localStorage.getItem('currentStage') || '1');
+      
+      // Use the highest stage value from all sources
+      const maxStageReached = Math.max(stageProgress, devCurrentStage, currentStageValue);
+      
+      // Check specific stage completion flags
+      const t5Complete = localStorage.getItem('t5Complete') === 'true';
+      const stage2Complete = localStorage.getItem('stage2Complete') === 'true';
+      const stage3Complete = localStorage.getItem('stage3Complete') === 'true';
+      const stage4Complete = localStorage.getItem('stage4Complete') === 'true';
+      const stage5Complete = localStorage.getItem('stage5Complete') === 'true';
+      
+      console.log('🔍 Stage unlock check:', {
+        targetStage,
+        maxStageReached,
+        t5Complete,
+        stage2Complete,
+        stage3Complete,
+        stage4Complete,
+        stage5Complete
+      });
+      
+      // Progressive unlock logic
+      switch (targetStage) {
+        case 1:
+          return true; // Stage 1 is always unlocked
+          
+        case 2:
+          // Stage 2 unlocks when T5 is complete OR stageProgress >= 2
+          return t5Complete || maxStageReached >= 2;
+          
+        case 3:
+          // Stage 3 unlocks when Stage 2 is complete OR stageProgress >= 3
+          return stage2Complete || maxStageReached >= 3;
+          
+        case 4:
+          // Stage 4 unlocks when Stage 3 is complete OR stageProgress >= 4
+          return stage3Complete || maxStageReached >= 4;
+          
+        case 5:
+          // Stage 5 unlocks when Stage 4 is complete OR stageProgress >= 5
+          return stage4Complete || maxStageReached >= 5;
+          
+        case 6:
+          // Stage 6 unlocks when Stage 5 is complete OR stageProgress >= 6
+          return stage5Complete || maxStageReached >= 6;
+          
+        default:
+          return false;
+      }
+    } catch (error) {
+      console.error('Error checking stage unlock:', error);
+      return targetStage === 1; // Default to only Stage 1 unlocked
+    }
+  }, []);
+
+  // ✅ ENHANCED STAGE DISPLAY LOGIC
+  const getStageDisplayInfo = useCallback((stageNumber: number) => {
+    const isUnlocked = checkStageUnlocked(stageNumber);
+    const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
+    const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
+    const maxStageReached = Math.max(stageProgress, devCurrentStage);
+    
+    const isCurrentOrCompleted = isUnlocked && maxStageReached >= stageNumber;
+    
+    let lockMessage = '';
+    if (!isUnlocked) {
+      switch (stageNumber) {
+        case 2:
+          lockMessage = '🔒 Complete Stage 1 (T5) to unlock';
+          break;
+        case 3:
+          lockMessage = '🔒 Complete Stage 2 to unlock';
+          break;
+        case 4:
+          lockMessage = '🔒 Complete Stage 3 to unlock';
+          break;
+        case 5:
+          lockMessage = '🔒 Complete Stage 4 to unlock';
+          break;
+        case 6:
+          lockMessage = '🔒 Complete Stage 5 to unlock';
+          break;
+        default:
+          lockMessage = '🔒 Locked';
+      }
+    }
+    
+    return {
+      isUnlocked,
+      isCurrentOrCompleted,
+      lockMessage,
+      icon: isCurrentOrCompleted ? '✅' : isUnlocked ? '▶️' : '🔒'
+    };
+  }, [checkStageUnlocked]);
+
+  // ✅ DATA REFRESH FUNCTION
+  const refreshDashboardData = useCallback(() => {
+    console.log('🔄 Refreshing dashboard data...');
+    
+    // Force re-read all progression data
+    const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
+    const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
+    const maxStage = Math.max(stageProgress, devCurrentStage);
+    
+    if (maxStage !== currentStage) {
+      console.log(`📈 Stage updated: ${currentStage} → ${maxStage}`);
+      setCurrentStage(maxStage);
+    }
+    
+    // Recalculate user stats
+    calculateUserStats();
+    
+    // Force happiness calculation refresh if available
+    if (forceRecalculation) {
+      forceRecalculation();
+    }
+  }, [currentStage, forceRecalculation]);
 
   // ✅ PERFORMANCE: Memoized static data to prevent recreation
   const tLevels = useMemo(() => [
@@ -122,7 +250,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    },
+    } as React.CSSProperties,
     header: {
       background: 'rgba(255, 255, 255, 0.1)',
       backdropFilter: 'blur(20px)',
@@ -136,7 +264,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       WebkitBackdropFilter: 'blur(20px)',
       position: 'relative' as const,
       zIndex: 10
-    },
+    } as React.CSSProperties,
     welcomeTitle: {
       margin: 0,
       fontSize: 'clamp(16px, 5vw, 28px)',
@@ -147,19 +275,19 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       maxWidth: '100%'
-    },
+    } as React.CSSProperties,
     main: {
       padding: 'clamp(16px, 4vw, 20px)',
       maxWidth: '1200px',
       margin: '0 auto'
-    },
+    } as React.CSSProperties,
     section: {
       background: 'rgba(255, 255, 255, 0.95)',
       borderRadius: 'clamp(16px, 4vw, 20px)',
       padding: 'clamp(20px, 5vw, 32px)',
       marginBottom: '24px',
       boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
-    },
+    } as React.CSSProperties,
     sectionTitle: {
       fontSize: '24px',
       marginBottom: '20px',
@@ -167,12 +295,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       WebkitBackgroundClip: 'text',
       WebkitTextFillColor: 'transparent',
       textAlign: 'center' as const
-    },
+    } as React.CSSProperties,
     gridLayout: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
       gap: '20px'
-    },
+    } as React.CSSProperties,
     primaryButton: {
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       color: 'white',
@@ -183,7 +311,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       fontWeight: '600',
       cursor: 'pointer',
       transition: 'transform 0.3s ease'
-    },
+    } as React.CSSProperties,
     secondaryButton: {
       background: 'rgba(102, 126, 234, 0.1)',
       color: '#667eea',
@@ -194,12 +322,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       fontWeight: '600',
       cursor: 'pointer',
       transition: 'transform 0.3s ease'
-    }
+    } as React.CSSProperties
   }), []);
 
   // ✅ PERFORMANCE: Optimized happiness points button style with stable dependencies
   const getHappinessButtonStyle = useCallback((happiness_points: number) => {
-    const baseStyle = {
+    const baseStyle: React.CSSProperties = {
       padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 24px)',
       borderRadius: '50px',
       color: 'white',
@@ -286,11 +414,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     navigate('/happiness-tracker');
   }, [navigate]);
 
-  // ✅ NEW: Updated Stage 1 Click Logic
+  // ✅ ENHANCED: Updated Stage Click Logic with proper progression checking
   const handleStageClick = useCallback((stageNumber: number) => {
-    const savedStage = localStorage.getItem('devCurrentStage');
-    const highestStage = savedStage ? parseInt(savedStage, 10) : 1;
-
     if (stageNumber === 1) {
       // ✅ NEW: Check if user has seen Stage 1 introduction before
       const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
@@ -312,26 +437,26 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       }
     }
 
-    // ✅ FIXED: Sequential progression logic - complete previous stage to unlock next
-    const maxAccessibleStage = Math.max(currentStage, highestStage);
+    // ✅ FIXED: Use new progression checking logic
+    const stageInfo = getStageDisplayInfo(stageNumber);
     
-    if (stageNumber > maxAccessibleStage + 1) {
+    if (!stageInfo.isUnlocked) {
       setShowAccessModal({ show: true, stage: stageNumber });
       return;
     }
 
-    // ✅ FIXED: For onboarding requirements, check only for happiness tracking, not stage access
-    // Stage access is purely sequential, but happiness tracking requires onboarding
+    // ✅ FIXED: Update current stage and navigate
     setCurrentStage(stageNumber);
-
-    if (stageNumber > highestStage) {
-      localStorage.setItem('devCurrentStage', stageNumber.toString());
-    } else {
-      localStorage.setItem('devCurrentStage', highestStage.toString());
-    }
+    
+    // Update localStorage with the accessed stage
+    const currentMax = Math.max(
+      parseInt(localStorage.getItem('devCurrentStage') || '1'),
+      stageNumber
+    );
+    localStorage.setItem('devCurrentStage', currentMax.toString());
 
     navigate(`/stage${stageNumber}`);
-  }, [navigate, currentStage]);
+  }, [navigate, getStageDisplayInfo]);
 
   // ✅ UPDATED: T-Level click handler - now checks for introduction completion
   const handleTLevelClick = useCallback((level: string, duration: number) => {
@@ -418,34 +543,43 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
   }, [forceDataRefresh]);
 
-  // ✅ NEW: Listen for location changes and refresh data
-  useEffect(() => {
-    console.log('🔄 Location changed, refreshing data...', location.pathname);
-    
-    // Check if returning from assessment routes
-    const isReturningFromAssessment = location.state && (
-      (location.state as any).fromSelfAssessment || 
-      (location.state as any).fromQuestionnaire ||
-      (location.state as any).completedAssessment
-    );
-
-    if (isReturningFromAssessment) {
-      console.log('🎯 Returning from assessment - forcing data refresh...');
-      setTimeout(() => {
-        forceDataRefresh();
-      }, 500); // Longer delay for assessment completion
-    }
-
-    // Always refresh on location change with shorter delay
-    setTimeout(() => {
-      forceDataRefresh();
-    }, 100);
-  }, [location.pathname, location.state, forceDataRefresh]);
-
-  // ✅ NEW: Listen for localStorage changes (self-assessment completion)
+  // ✅ ENHANCED: Listen for stage completions and happiness data changes
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       console.log('🔄 Storage changed:', e.key, e.newValue);
+      
+      // Check for stage completions
+      if (e.key?.includes('stage') && e.key?.includes('Complete') && e.newValue === 'true') {
+        console.log(`🎯 Stage completion detected: ${e.key}`);
+        
+        // Extract stage number from key (e.g., 'stage2Complete' → 2)
+        const stageMatch = e.key.match(/stage(\d+)Complete/);
+        if (stageMatch) {
+          const completedStage = parseInt(stageMatch[1]);
+          const nextStage = completedStage + 1;
+          
+          // Update progression to next stage
+          localStorage.setItem('stageProgress', nextStage.toString());
+          localStorage.setItem('devCurrentStage', nextStage.toString());
+          
+          console.log(`✅ Stage ${completedStage} completed, unlocked Stage ${nextStage}`);
+          
+          // Refresh dashboard data
+          setTimeout(() => {
+            refreshDashboardData();
+          }, 100);
+        }
+      }
+      
+      if (e.key === 't5Complete' && e.newValue === 'true') {
+        console.log('🎯 T5 completion detected, unlocking Stage 2');
+        localStorage.setItem('stageProgress', '2');
+        localStorage.setItem('devCurrentStage', '2');
+        
+        setTimeout(() => {
+          refreshDashboardData();
+        }, 100);
+      }
       
       // Check for self-assessment or questionnaire completion
       if (e.key === 'selfAssessment' || 
@@ -460,9 +594,64 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       }
     };
 
+    // ✅ CRITICAL: Listen for happiness data clearing
+    const handleHappinessClear = () => {
+      console.log('🎯 Happiness data cleared - forcing immediate refresh...');
+      forceDataRefresh();
+    };
+
+    // Listen for custom events from admin panel
+    window.addEventListener('happinessDataCleared', handleHappinessClear);
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [forceDataRefresh]);
+    
+    return () => {
+      window.removeEventListener('happinessDataCleared', handleHappinessClear);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refreshDashboardData, forceDataRefresh]);
+
+  // ✅ ENHANCED LOCATION STATE LISTENER
+  useEffect(() => {
+    console.log('🔄 Location changed, checking for stage updates...', location.pathname, location.state);
+    
+    // Check for stage completion in location state
+    const locationState = location.state as any;
+    if (locationState) {
+      if (locationState.stage2Completed) {
+        console.log('🎯 Stage 2 completion confirmed via navigation state');
+        refreshDashboardData();
+      }
+      if (locationState.stage3Completed) {
+        console.log('🎯 Stage 3 completion confirmed via navigation state');
+        refreshDashboardData();
+      }
+      if (locationState.unlockedStage) {
+        console.log(`🎯 Stage ${locationState.unlockedStage} unlocked via navigation state`);
+        refreshDashboardData();
+      }
+    }
+    
+    // Check if returning from assessment routes
+    const isReturningFromAssessment = locationState && (
+      locationState.fromSelfAssessment || 
+      locationState.fromQuestionnaire ||
+      locationState.completedAssessment
+    );
+
+    if (isReturningFromAssessment) {
+      console.log('🎯 Returning from assessment - forcing data refresh...');
+      setTimeout(() => {
+        forceDataRefresh();
+      }, 500); // Longer delay for assessment completion
+    }
+
+    // Always refresh on location change with shorter delay
+    if (location.pathname === '/home') {
+      setTimeout(() => {
+        refreshDashboardData();
+      }, 100);
+    }
+  }, [location.pathname, location.state, refreshDashboardData, forceDataRefresh]);
 
   // ✅ PERFORMANCE: Optimized T5 completion listener with proper cleanup
   useEffect(() => {
@@ -547,9 +736,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   return (
     <div style={styles.container}>
-      {/* ✅ REMOVED: <AdminPanel /> - This was the issue! */}
-      {/* AdminPanel should only be accessible via /admin route */}
-
       <header style={styles.header}>
         <div style={{ 
           display: 'flex', 
@@ -724,7 +910,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         )}
 
         {/* ✅ NEW: Enhanced tracking suggestion for users with basic tracking */}
-        {happinessData.happiness_points > 0 && !userProgress.dataCompleteness.selfAssessment && (
+        {happinessData.happiness_points > 0 && !userProgress.dataCompleteness?.selfAssessment && (
           <section style={{
             ...styles.section,
             background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
@@ -1145,52 +1331,34 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               )}
             </div>
 
-            {/* Stages 2-6 */}
+            {/* ✅ ENHANCED: Stages 2-6 with new progression logic */}
             {stageData.map((stage) => {
-              // ✅ FIXED: Check if previous stage is actually completed
-              const isStage1Completed = localStorage.getItem('t5Completed') === 'true'; // Stage 1 completion
-              const savedStage = localStorage.getItem('devCurrentStage');
-              const completedStage = savedStage ? parseInt(savedStage, 10) : 1;
-              
-              // ✅ FIXED: Strict sequential logic - must complete previous stage
-              let isAccessible = false;
-              let isCurrentOrCompleted = false;
-              
-              if (stage.num === 2) {
-                // Stage 2 requires Stage 1 (T5) completion
-                isAccessible = isStage1Completed;
-                isCurrentOrCompleted = isStage1Completed && completedStage >= 2;
-              } else if (stage.num > 2) {
-                // Stages 3+ require previous PAHM stage completion
-                const isPreviousStageCompleted = localStorage.getItem(`stage${stage.num - 1}Complete`) === 'true';
-                isAccessible = isPreviousStageCompleted;
-                isCurrentOrCompleted = isPreviousStageCompleted && completedStage >= stage.num;
-              }
+              const stageInfo = getStageDisplayInfo(stage.num);
               
               return (
                 <button
                   key={stage.num}
                   onClick={() => handleStageClick(stage.num)}
-                  disabled={!isAccessible}
+                  disabled={!stageInfo.isUnlocked}
                   style={{
-                    background: isCurrentOrCompleted
+                    background: stageInfo.isCurrentOrCompleted
                       ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                      : isAccessible
+                      : stageInfo.isUnlocked
                       ? 'rgba(102, 126, 234, 0.1)'
                       : 'rgba(200, 200, 200, 0.1)',
-                    color: isCurrentOrCompleted ? 'white' : isAccessible ? '#667eea' : '#999',
-                    border: `2px solid ${isCurrentOrCompleted ? 'transparent' : isAccessible ? 'rgba(102, 126, 234, 0.2)' : 'rgba(200, 200, 200, 0.2)'}`,
+                    color: stageInfo.isCurrentOrCompleted ? 'white' : stageInfo.isUnlocked ? '#667eea' : '#999',
+                    border: `2px solid ${stageInfo.isCurrentOrCompleted ? 'transparent' : stageInfo.isUnlocked ? 'rgba(102, 126, 234, 0.2)' : 'rgba(200, 200, 200, 0.2)'}`,
                     borderRadius: '16px',
                     padding: '20px',
                     fontSize: '16px',
                     fontWeight: '600',
-                    cursor: isAccessible ? 'pointer' : 'not-allowed',
+                    cursor: stageInfo.isUnlocked ? 'pointer' : 'not-allowed',
                     transition: 'all 0.3s ease',
                     textAlign: 'left',
-                    opacity: isAccessible ? 1 : 0.6,
+                    opacity: stageInfo.isUnlocked ? 1 : 0.6,
                     position: 'relative'
                   }}
-                  {...(isAccessible ? createHoverHandler('translateY(-2px)', '0 8px 25px rgba(102, 126, 234, 0.3)') : {})}
+                  {...(stageInfo.isUnlocked ? createHoverHandler('translateY(-2px)', '0 8px 25px rgba(102, 126, 234, 0.3)') : {})}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
@@ -1201,27 +1369,24 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                         {stage.desc}
                       </div>
                       {/* ✅ FIXED: Show completion requirement for locked stages */}
-                      {!isAccessible && (
+                      {!stageInfo.isUnlocked && (
                         <div style={{ 
                           fontSize: '12px', 
                           color: '#f59e0b', 
                           marginTop: '4px',
                           fontWeight: '600'
                         }}>
-                          {stage.num === 2 
-                            ? '🔒 Complete Stage 1 (T5) to unlock'
-                            : `🔒 Complete Stage ${stage.num - 1} to unlock`
-                          }
+                          {stageInfo.lockMessage}
                         </div>
                       )}
                     </div>
                     <div style={{ fontSize: '18px' }}>
-                      {isCurrentOrCompleted ? '✅' : isAccessible ? '▶️' : '🔒'}
+                      {stageInfo.icon}
                     </div>
                   </div>
                   
                   {/* ✅ FIXED: Show lock overlay for inaccessible stages */}
-                  {!isAccessible && (
+                  {!stageInfo.isUnlocked && (
                     <div style={{
                       position: 'absolute',
                       top: 0,
@@ -1312,22 +1477,10 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
         {/* Resources Section */}
         <section style={styles.section}>
-          <h3 style={{ 
-            fontSize: '20px', 
-            marginBottom: '16px',
-            textAlign: 'center',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
+          <h2 style={styles.sectionTitle}>
             Learning Resources
-          </h3>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '16px'
-          }}>
+          </h2>
+          <div style={styles.gridLayout}>
             {resourceData.map((resource, index) => (
               <button
                 key={index}
@@ -1335,40 +1488,46 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 style={{
                   background: 'rgba(102, 126, 234, 0.05)',
                   border: '1px solid rgba(102, 126, 234, 0.1)',
-                  borderRadius: '12px',
-                  padding: '20px',
+                  borderRadius: '16px',
+                  padding: '24px',
                   textAlign: 'left',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                }}
+                {...createHoverHandler('translateY(-4px)', '0 8px 25px rgba(102, 126, 234, 0.15)')}
               >
-                <div style={{ fontSize: '24px', marginBottom: '8px' }}>
+                <div style={{
+                  fontSize: '32px',
+                  marginBottom: '12px'
+                }}>
                   {resource.icon}
                 </div>
-                <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px', color: '#333' }}>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#333',
+                  marginBottom: '8px'
+                }}>
                   {resource.title}
                 </div>
-                <div style={{ fontSize: '14px', color: '#666' }}>
+                <div style={{
+                  fontSize: '14px',
+                  color: '#666',
+                  lineHeight: '1.4'
+                }}>
                   {resource.desc}
                 </div>
               </button>
             ))}
           </div>
         </section>
-      </main>
 
-      {/* ✅ FIXED: Sequential Progression Modal */}
-      {showAccessModal.show && (
-        <div 
-          style={{
+        {/* Access Modal for locked stages */}
+        {showAccessModal.show && (
+          <div style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -1379,90 +1538,100 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            padding: '20px'
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowAccessModal({ show: false, stage: 0 });
-            }
-          }}
-        >
-          <div style={{
-            background: 'white',
-            borderRadius: '20px',
-            padding: '32px',
-            maxWidth: '500px',
-            width: '100%',
-            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
-            textAlign: 'center'
+            backdropFilter: 'blur(4px)'
           }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-            <h2 style={{ 
-              fontSize: '24px', 
-              fontWeight: 'bold', 
-              color: '#ef4444', 
-              marginBottom: '16px' 
-            }}>
-              Stage {showAccessModal.stage} is Locked
-            </h2>
-            <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>
-              Please complete Stage {Math.max(currentStage, 1)} before accessing Stage {showAccessModal.stage}.
-            </p>
             <div style={{
-              background: '#fee2e2',
-              borderRadius: '12px',
-              padding: '20px',
-              marginBottom: '24px',
-              textAlign: 'left'
+              background: 'white',
+              borderRadius: '20px',
+              padding: '32px',
+              maxWidth: '400px',
+              margin: '20px',
+              textAlign: 'center',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
             }}>
-              <div style={{ fontWeight: '600', color: '#dc2626', marginBottom: '12px' }}>
-                📚 Sequential Learning Path:
-              </div>
-              <div style={{ color: '#dc2626', fontSize: '14px', lineHeight: '1.6' }}>
-                Each stage builds upon the previous one. Complete your current stage first to ensure proper skill development in your meditation journey.
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+              <h3 style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: '#333',
+                marginBottom: '12px'
+              }}>
+                Stage {showAccessModal.stage} Locked
+              </h3>
+              <p style={{
+                fontSize: '16px',
+                color: '#666',
+                marginBottom: '24px',
+                lineHeight: '1.5'
+              }}>
+                {showAccessModal.stage === 2 
+                  ? 'Complete Stage 1 (T5: 30-minute practice) to unlock Stage 2'
+                  : `Complete Stage ${showAccessModal.stage - 1} to unlock Stage ${showAccessModal.stage}`
+                }
+              </p>
+              
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'center'
+              }}>
+                <button
+                  onClick={() => setShowAccessModal({ show: false, stage: 0 })}
+                  style={{
+                    background: 'rgba(102, 126, 234, 0.1)',
+                    color: '#667eea',
+                    border: '2px solid rgba(102, 126, 234, 0.2)',
+                    borderRadius: '12px',
+                    padding: '12px 24px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(102, 126, 234, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
+                  }}
+                >
+                  Understood
+                </button>
+                
+                {showAccessModal.stage === 2 && (
+                  <button
+                    onClick={() => {
+                      setShowAccessModal({ show: false, stage: 0 });
+                      handleStageClick(1);
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px 24px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    Practice Stage 1
+                  </button>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => setShowAccessModal({ show: false, stage: 0 })}
-              style={{
-                background: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '12px 24px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
-            >
-              I Understand
-            </button>
           </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @media screen and (max-width: 768px) {
-          body {
-            -webkit-text-size-adjust: 100%;
-            -webkit-font-smoothing: antialiased;
-          }
-        }
-      `}</style>
+        )}
+      </main>
     </div>
   );
 };
