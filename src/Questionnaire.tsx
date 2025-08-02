@@ -15,6 +15,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   // 🚀 ENHANCED: Use focused onboarding context with more methods
   const { 
     markQuestionnaireComplete,
+    saveQuestionnaireProgress, // ✅ FIXED: Added missing comma
     questionnaire,
     isQuestionnaireCompleted 
   } = useOnboarding();
@@ -95,9 +96,10 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           version: '2.0'
         }));
 
-        // ✅ TODO: When OnboardingContext has saveQuestionnaireProgress method, use it here
-        // This will save partial progress to Firestore
-        // await saveQuestionnaireProgress?.(answers, currentQuestion);
+        // ✅ FIXED: Now using the actual method from OnboardingContext
+        if (saveQuestionnaireProgress) {
+          await saveQuestionnaireProgress(answers, currentQuestion);
+        }
         
         console.log('💾 Auto-saved questionnaire progress');
       } catch (error) {
@@ -108,7 +110,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     // Debounce auto-save to avoid too frequent saves
     const timeoutId = setTimeout(saveProgress, 1000);
     return () => clearTimeout(timeoutId);
-  }, [answers, currentQuestion, isLoading, isSaving]);
+  }, [answers, currentQuestion, isLoading, isSaving, saveQuestionnaireProgress]); // ✅ FIXED: Added saveQuestionnaireProgress to dependencies
 
   const handleAnswer = (questionId: string, answer: any) => {
     const newAnswers = { ...answers, [questionId]: answer };
@@ -1411,7 +1413,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           font-weight: 700;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          min-height: 56px; /* iPhone touch target */
+          min-height: 56px;
           min-width: 100px;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -1451,9 +1453,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           position: relative;
           flex: 1;
           max-width: 250px;
-          opacity: 1 !important;
-          visibility: visible !important;
-          display: flex !important;
         }
 
         .next-button::before {
@@ -1474,20 +1473,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         .next-button:hover:not(:disabled) {
           background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
-          color: white !important;
           transform: translateY(-2px) !important;
           box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
-          opacity: 1 !important;
-          visibility: visible !important;
-          display: flex !important;
         }
 
         .next-button:active:not(:disabled) {
           transform: translateY(0px) scale(0.98) !important;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-          color: white !important;
-          opacity: 1 !important;
-          visibility: visible !important;
         }
 
         .next-button:disabled {
@@ -1500,32 +1491,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           pointer-events: none !important;
         }
 
-        .next-button:disabled:hover {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          transform: none !important;
-          box-shadow: none !important;
-          cursor: not-allowed !important;
-        }
-
         .answer-required {
           background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
           color: white !important;
           animation: pulse 2s infinite;
-          opacity: 1 !important;
-          visibility: visible !important;
-          display: flex !important;
           cursor: not-allowed !important;
           pointer-events: none !important;
-        }
-
-        .answer-required:hover {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          color: white !important;
-          transform: none !important;
-          box-shadow: none !important;
-          opacity: 1 !important;
-          visibility: visible !important;
-          cursor: not-allowed !important;
         }
 
         @keyframes pulse {
