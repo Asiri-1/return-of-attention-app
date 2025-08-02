@@ -1,6 +1,6 @@
-// ✅ FIXED App.tsx - Firebase Integration & Authentication Issues Resolved
+// ✅ FIXED App.tsx - Complete Homepage Flash Elimination
 // File: src/App.tsx
-// 🔧 ENHANCED: Fixed sign-in/sign-up redirecting to landing page issue
+// 🔧 ENHANCED: Fixed race condition that causes homepage flash before landing page
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -429,7 +429,7 @@ const AppContent: React.FC = React.memo(() => {
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
   const { userProfile, markStageIntroComplete } = useUser(); // ✅ Use Firebase-enabled UserContext
   
-  // ✅ FIXED: Authentication state management - this is the key fix
+  // ✅ CRITICAL FIX: Better state management to prevent homepage flash
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [appInitialized, setAppInitialized] = useState(false);
   const [authStateStable, setAuthStateStable] = useState(false);
@@ -479,16 +479,20 @@ const AppContent: React.FC = React.memo(() => {
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
 
-  // ✅ FIXED: Better app initialization with auth state tracking
+  // ✅ CRITICAL FIX: Better app initialization timing
   useEffect(() => {
+    console.log('🚀 App initialization starting...');
+    
     const initTimer = setTimeout(() => {
       setAppInitialized(true);
-    }, 500);
+      console.log('✅ App initialized');
+    }, 300); // Reduced from 500ms
     
-    // ✅ NEW: Track when auth state becomes stable
+    // ✅ CRITICAL: Auth state stability timing
     const authStableTimer = setTimeout(() => {
       setAuthStateStable(true);
-    }, 1000);
+      console.log('✅ Auth state stable');
+    }, 800); // Reduced from 1000ms
     
     return () => {
       clearTimeout(initTimer);
@@ -705,24 +709,51 @@ const AppContent: React.FC = React.memo(() => {
     userProfile
   ]);
 
-  // ✅ FIXED: Better loading conditions to prevent premature route switches
+  // ✅ CRITICAL FIX: Better loading logic to prevent homepage flash
   const shouldShowLoader = useMemo(() => {
+    console.log('🔍 Loading check:', {
+      isLoading,
+      currentUser: !!currentUser,
+      appInitialized,
+      isSigningIn,
+      authStateStable
+    });
+
     // Show loader if:
-    // 1. Auth is loading and we don't have a current user and app isn't initialized
-    // 2. We're in the process of signing in
-    // 3. Auth state isn't stable yet
-    return (isLoading && !currentUser && !appInitialized) || 
-           isSigningIn || 
-           (!authStateStable && isLoading);
+    // 1. Firebase auth is still loading AND we don't know the auth state yet
+    // 2. App hasn't finished initializing AND we don't have a user
+    // 3. We're actively signing in
+    // 4. Auth state hasn't stabilized yet AND Firebase is still loading
+    
+    const shouldLoad = (isLoading && !authStateStable) || 
+                      (!appInitialized && !currentUser) ||
+                      isSigningIn ||
+                      (!authStateStable && isLoading);
+    
+    console.log('🔍 Should show loader:', shouldLoad);
+    return shouldLoad;
   }, [isLoading, currentUser, appInitialized, isSigningIn, authStateStable]);
   
+  // ✅ CRITICAL FIX: Show loader first to prevent any route flashing
   if (shouldShowLoader) {
     const message = isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays...";
-    return <FastLoader message={message} timeout={3000} />;
+    console.log('🔄 Showing loader:', message);
+    return <FastLoader message={message} timeout={4000} />;
   }
 
-  // ✅ FIXED: Only show unauthenticated routes when we're certain the user is not authenticated
-  if (!isAuthenticated && authStateStable && !isSigningIn) {
+  // ✅ CRITICAL FIX: Only show unauthenticated routes when we're absolutely certain
+  const shouldShowUnauthenticatedRoutes = !isAuthenticated && authStateStable && !isSigningIn && appInitialized;
+  
+  console.log('🔍 Route decision:', {
+    isAuthenticated,
+    authStateStable,
+    isSigningIn,
+    appInitialized,
+    shouldShowUnauthenticatedRoutes
+  });
+
+  if (shouldShowUnauthenticatedRoutes) {
+    console.log('🌟 Showing unauthenticated routes (landing page)');
     return (
       <div className="app-container">
         <PageViewTracker />
@@ -764,6 +795,14 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
+  // ✅ CRITICAL FIX: Only show authenticated routes when user is actually authenticated
+  if (!isAuthenticated) {
+    console.log('🔄 Auth state not ready, showing loader');
+    return <FastLoader message="Preparing your practice space..." timeout={4000} />;
+  }
+
+  console.log('🏠 Showing authenticated routes (home dashboard)');
+
   // ✅ FIREBASE ENHANCED: Authenticated routes with Firebase integration
   return (
     <div className="app-container">
@@ -771,9 +810,6 @@ const AppContent: React.FC = React.memo(() => {
       <LogoutWarning />
       
       <Routes>
-        {/* ✅ STANDALONE ROUTES (no navigation) */}
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        
         {/* ✅ FIREBASE ENHANCED: Stage1Introduction with Firebase intro tracking */}
         <Route 
           path="/stage1-introduction" 
@@ -813,6 +849,9 @@ const AppContent: React.FC = React.memo(() => {
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
               <Routes>
+                {/* ✅ CRITICAL FIX: Root redirect inside nested routes - NO MORE FLASH */}
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                
                 {/* ✅ HOME DASHBOARD - Firebase-enhanced */}
                 <Route path="/home" element={
                   <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
@@ -970,7 +1009,7 @@ const AppContent: React.FC = React.memo(() => {
       </Routes>
 
       {/* ✅ FIREBASE ENHANCED: Progress Tracker with Firebase stage data */}
-      {isAuthenticated && location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
+      {location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );
 });

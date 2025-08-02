@@ -1,3 +1,6 @@
+// ✅ CRITICAL FIX: AuthContext with Race Condition Resolved
+// File: src/contexts/auth/AuthContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { 
   getAuth, 
@@ -137,7 +140,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ PERFORMANCE FIX: Create a provider component with optimized callbacks
+// ✅ CRITICAL FIX: Create a provider component with race condition fix
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -219,14 +222,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           goals: data.goals || []
         } as UserProfile;
         
-        // Set additional properties on currentUser
-        const enhancedUser = user as User;
-        enhancedUser.currentStage = profile.currentStage;
-        enhancedUser.goals = data.goals || [];
-        enhancedUser.assessmentCompleted = false; // Handled by LocalDataContext now
-        
-        setCurrentUser(enhancedUser);
-        
         return profile;
       } else {
         // Create new user document
@@ -240,6 +235,138 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return await createUserDocument(user);
     }
   }, [db, createUserDocument]);
+
+  // ✅ CRITICAL FIX: Auth state change listener with proper race condition handling
+  useEffect(() => {
+    let mounted = true;
+    
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('🔐 Auth state changed:', user ? 'User logged in' : 'User logged out');
+      
+      if (!mounted) return;
+      
+      if (user) {
+        try {
+          // ✅ CRITICAL: Wait for profile to load before setting user
+          const profile = await loadUserProfile(user);
+          
+          if (mounted) {
+            // Set additional properties on currentUser
+            const enhancedUser = user as User;
+            enhancedUser.currentStage = profile?.currentStage || '0';
+            enhancedUser.goals = profile?.goals || [];
+            enhancedUser.assessmentCompleted = false;
+            
+            setUserProfile(profile);
+            setCurrentUser(enhancedUser);
+            console.log('✅ User profile loaded and set');
+            
+            // Update last login time
+            try {
+              if (profile) {
+                await updateDoc(doc(db, 'users', user.uid), {
+                  lastLoginAt: serverTimestamp()
+                });
+              }
+            } catch (error) {
+              // Silent error handling
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('Failed to update last login time:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error in auth state change:', error);
+          if (mounted) {
+            setCurrentUser(null);
+            setUserProfile(null);
+          }
+        }
+      } else {
+        if (mounted) {
+          setCurrentUser(null);
+          setUserProfile(null);
+          console.log('✅ User cleared');
+        }
+      }
+      
+      // ✅ CRITICAL: Set loading to false AFTER state is fully updated
+      if (mounted) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [auth, db, loadUserProfile]);
+
+  // ✅ CRITICAL FIX: Authentication methods with proper state management
+  const signup = useCallback(async (email: string, password: string, displayName: string) => {
+    const intent = intentDetection();
+    
+    try {
+      // ✅ CRITICAL: Don't set loading to false until auth state changes
+      setError(null);
+      
+      console.log('🔐 Starting sign up...');
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(result.user, { displayName });
+      
+      // Send verification email
+      await sendEmailVerification(result.user);
+      
+      intent.logUserAction('user_signup', {
+        userId: result.user.uid,
+        email: result.user.email
+      });
+      
+      // ✅ CRITICAL: Don't set loading false or navigate here
+      // Let onAuthStateChanged handle the state update
+      console.log('✅ Sign up successful - waiting for auth state to update');
+      
+    } catch (err: any) {
+      // ✅ CRITICAL: Only set loading false on error
+      setIsLoading(false);
+      const errorMessage = err?.message || 'Signup failed';
+      setError(errorMessage);
+      throw err;
+    }
+  }, [auth, intentDetection]);
+
+  // Alias for signup
+  const signUp = signup;
+
+  const login = useCallback(async (email: string, password: string) => {
+    const intent = intentDetection();
+    
+    try {
+      // ✅ CRITICAL: Don't set loading to false until auth state changes
+      setError(null);
+      
+      console.log('🔐 Starting sign in...');
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      intent.logUserAction('user_login', {
+        email: email
+      });
+      
+      // ✅ CRITICAL: Don't set loading false or navigate here
+      // Let onAuthStateChanged handle the state update
+      console.log('✅ Sign in successful - waiting for auth state to update');
+      
+    } catch (err: any) {
+      // ✅ CRITICAL: Only set loading false on error
+      setIsLoading(false);
+      const errorMessage = err?.message || 'Login failed';
+      setError(errorMessage);
+      throw err;
+    }
+  }, [auth, intentDetection]);
+
+  // Alias for login
+  const signIn = login;
 
   // ✅ PERFORMANCE FIX: Profile management methods (auth-only)
   const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
@@ -307,36 +434,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [auth, currentUser?.uid, localStorageManager, intentDetection]);
 
-  // ✅ PERFORMANCE FIX: Auth state change listener with proper dependencies
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const profile = await loadUserProfile(user);
-        setUserProfile(profile);
-        
-        // Update last login time
-        try {
-          if (profile) {
-            await updateDoc(doc(db, 'users', user.uid), {
-              lastLoginAt: serverTimestamp()
-            });
-          }
-        } catch (error) {
-          // Silent error handling
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Failed to update last login time:', error);
-          }
-        }
-      } else {
-        setCurrentUser(null);
-        setUserProfile(null);
-      }
-      setIsLoading(false);
-    });
-
-    return unsubscribe;
-  }, [auth, db, loadUserProfile]);
-
   // ✅ PERFORMANCE FIX: Session timeout management with proper dependencies
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
@@ -381,67 +478,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setShowLogoutWarning(false);
     setSessionTimeRemaining(0);
   }, []);
-
-  // ✅ PERFORMANCE FIX: Authentication methods
-  const signup = useCallback(async (email: string, password: string, displayName: string) => {
-    const intent = intentDetection();
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(result.user, { displayName });
-      
-      // Create user profile
-      const profile = await createUserDocument(result.user);
-      setUserProfile(profile);
-      
-      // Send verification email
-      await sendEmailVerification(result.user);
-      
-      intent.logUserAction('user_signup', {
-        userId: result.user.uid,
-        email: result.user.email
-      });
-      
-    } catch (err: any) {
-      const errorMessage = err?.message || 'Signup failed';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [auth, createUserDocument, intentDetection]);
-
-  // Alias for signup
-  const signUp = signup;
-
-  const login = useCallback(async (email: string, password: string) => {
-    const intent = intentDetection();
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      
-      intent.logUserAction('user_login', {
-        userId: result.user.uid,
-        email: result.user.email
-      });
-      
-    } catch (err: any) {
-      const errorMessage = err?.message || 'Login failed';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [auth, intentDetection]);
-
-  // Alias for login
-  const signIn = login;
 
   const resetPassword = useCallback(async (email: string) => {
     const intent = intentDetection();

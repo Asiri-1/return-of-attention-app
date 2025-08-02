@@ -1,12 +1,14 @@
 // ============================================================================
 // src/components/PublicLandingHero.tsx
-// UPDATED VERSION - Removed "Your Mind's Natural Movement" section
+// 🔧 FIXED: Use React Router navigation instead of window.location.href
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // ✅ CRITICAL: Import useNavigate
 import Logo from '../Logo';
 
 const PublicLandingHero: React.FC = () => {
+  const navigate = useNavigate(); // ✅ CRITICAL: Initialize navigation hook
   const [currentQuote, setCurrentQuote] = useState(0);
 
   const quotes = [
@@ -24,16 +26,20 @@ const PublicLandingHero: React.FC = () => {
     "Always seeking, never satisfied"
   ];
 
+  // ✅ CRITICAL FIX: Use React Router navigation instead of window.location.href
   const handleStartJourney = () => {
-    window.location.href = '/signin';
+    console.log('🚀 Starting journey - navigating to /signin');
+    navigate('/signin');
   };
   
   const handleSignIn = () => {
-    window.location.href = '/signin';
+    console.log('🔐 Sign in clicked - navigating to /signin');
+    navigate('/signin');
   };
   
   const handleLearnMore = () => {
-    window.location.href = '/about';
+    console.log('📖 Learn more clicked - navigating to /about');
+    navigate('/about');
   };
 
   useEffect(() => {
@@ -64,7 +70,7 @@ const PublicLandingHero: React.FC = () => {
         alignItems: 'center'
       }}>
         <button 
-          onClick={handleSignIn}
+          onClick={handleSignIn} // ✅ FIXED: Use React Router navigation
           style={{
             padding: '12px 24px',
             background: 'rgba(255, 255, 255, 0.15)',
@@ -472,7 +478,7 @@ const PublicLandingHero: React.FC = () => {
             margin: '0 auto'
           }}>
             <button 
-              onClick={handleStartJourney}
+              onClick={handleStartJourney} // ✅ FIXED: Use React Router navigation
               style={{
                 width: window.innerWidth < 640 ? '100%' : 'auto',
                 padding: '16px 32px',
@@ -498,7 +504,7 @@ const PublicLandingHero: React.FC = () => {
               🚀 Start Your Journey
             </button>
             <button 
-              onClick={handleLearnMore}
+              onClick={handleLearnMore} // ✅ FIXED: Use React Router navigation
               style={{
                 width: window.innerWidth < 640 ? '100%' : 'auto',
                 padding: '16px 32px',
