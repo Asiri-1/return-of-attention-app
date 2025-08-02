@@ -1,6 +1,6 @@
-// ✅ FIXED App.tsx - Firebase Integration & Loading Issues Resolved
+// ✅ FIXED App.tsx - Firebase Integration & Authentication Issues Resolved
 // File: src/App.tsx
-// 🔧 ENHANCED: Added Firebase integration while preserving all functionality
+// 🔧 ENHANCED: Fixed sign-in/sign-up redirecting to landing page issue
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -429,9 +429,10 @@ const AppContent: React.FC = React.memo(() => {
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
   const { userProfile, markStageIntroComplete } = useUser(); // ✅ Use Firebase-enabled UserContext
   
-  // ✅ IMPROVED: Better loading state management
+  // ✅ FIXED: Authentication state management - this is the key fix
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [appInitialized, setAppInitialized] = useState(false);
+  const [authStateStable, setAuthStateStable] = useState(false);
   
   // ✅ FIXED: Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
@@ -478,13 +479,21 @@ const AppContent: React.FC = React.memo(() => {
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
 
-  // ✅ IMPROVED: Better app initialization
+  // ✅ FIXED: Better app initialization with auth state tracking
   useEffect(() => {
     const initTimer = setTimeout(() => {
       setAppInitialized(true);
-    }, 300); // Faster initialization
+    }, 500);
     
-    return () => clearTimeout(initTimer);
+    // ✅ NEW: Track when auth state becomes stable
+    const authStableTimer = setTimeout(() => {
+      setAuthStateStable(true);
+    }, 1000);
+    
+    return () => {
+      clearTimeout(initTimer);
+      clearTimeout(authStableTimer);
+    };
   }, []);
 
   // ✅ PERFORMANCE: Initialize knowledge base
@@ -492,17 +501,31 @@ const AppContent: React.FC = React.memo(() => {
     setKnowledgeBaseReady(true);
   }, []);
 
-  // ✅ IMPROVED: Clear signing in state when authentication completes
+  // ✅ FIXED: Better authentication completion handling
   useEffect(() => {
     if (currentUser && isSigningIn) {
-      console.log('✅ Authentication completed, clearing signing-in state...');
+      console.log('✅ Authentication completed successfully');
       setIsSigningIn(false);
-      // Navigate to home after auth state is confirmed
-      if (location.pathname === '/signin' || location.pathname === '/') {
-        navigate('/home');
-      }
+      
+      // ✅ FIXED: More controlled navigation after sign-in
+      const timer = setTimeout(() => {
+        if (location.pathname === '/signin' || location.pathname === '/signup' || location.pathname === '/') {
+          console.log('🏠 Redirecting to home after successful authentication');
+          navigate('/home', { replace: true });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [currentUser, isSigningIn, location.pathname, navigate]);
+
+  // ✅ FIXED: Clear signing in state if auth fails
+  useEffect(() => {
+    if (!isLoading && !currentUser && isSigningIn) {
+      console.log('❌ Authentication may have failed, clearing signing-in state');
+      setIsSigningIn(false);
+    }
+  }, [isLoading, currentUser, isSigningIn]);
 
   // ✅ FIREBASE ENHANCED: Stage intro completion handler
   const markStageIntroCompleteHandler = useCallback(async (stageNumber: number) => {
@@ -581,7 +604,7 @@ const AppContent: React.FC = React.memo(() => {
       navigate('/self-assessment', { state: { returnTo: returnTo || '/home' } });
     },
     
-    // ✅ AUTH HANDLERS with proper types
+    // ✅ FIXED: AUTH HANDLERS with proper error handling and state management
     logout: async () => {
       try {
         await logout();
@@ -593,18 +616,24 @@ const AppContent: React.FC = React.memo(() => {
     
     signUp: async (email: string, password: string, name: string) => {
       try {
+        console.log('🔐 Starting sign up process...');
         setIsSigningIn(true);
+        
         await signUp(email, password, name);
-        navigate('/home');
+        
+        console.log('✅ Sign up successful, auth state will update automatically...');
+        // Don't navigate here - let the useEffect handle it after currentUser is set
+        
       } catch (error: any) {
+        console.error('❌ Sign up failed:', error);
+        setIsSigningIn(false);
+        
         if (error?.code === 'auth/email-already-in-use') {
           alert('This email is already registered. Please sign in instead.');
           navigate('/signin');
         } else {
           alert(`Signup failed: ${error?.message || 'Unknown error'}`);
         }
-      } finally {
-        setIsSigningIn(false);
       }
     },
     
@@ -615,12 +644,13 @@ const AppContent: React.FC = React.memo(() => {
         
         await signIn(email, password);
         
-        console.log('✅ Sign in successful, staying in loading state until auth updates...');
+        console.log('✅ Sign in successful, auth state will update automatically...');
+        // Don't navigate here - let the useEffect handle it after currentUser is set
         
       } catch (error: any) {
         console.error('❌ Sign in failed:', error);
-        alert(`Failed to sign in: ${error?.message || 'Please check your credentials.'}`);
         setIsSigningIn(false);
+        alert(`Failed to sign in: ${error?.message || 'Please check your credentials.'}`);
       }
     },
     
@@ -675,16 +705,24 @@ const AppContent: React.FC = React.memo(() => {
     userProfile
   ]);
 
-  // ✅ IMPROVED: Better loading conditions
-  const shouldShowLoader = (isLoading && !currentUser && !appInitialized) || isSigningIn;
+  // ✅ FIXED: Better loading conditions to prevent premature route switches
+  const shouldShowLoader = useMemo(() => {
+    // Show loader if:
+    // 1. Auth is loading and we don't have a current user and app isn't initialized
+    // 2. We're in the process of signing in
+    // 3. Auth state isn't stable yet
+    return (isLoading && !currentUser && !appInitialized) || 
+           isSigningIn || 
+           (!authStateStable && isLoading);
+  }, [isLoading, currentUser, appInitialized, isSigningIn, authStateStable]);
   
   if (shouldShowLoader) {
     const message = isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays...";
-    return <FastLoader message={message} timeout={1500} />;
+    return <FastLoader message={message} timeout={3000} />;
   }
 
-  // ✅ FIXED: Don't show unauthenticated routes if we're in the middle of signing in
-  if (!isAuthenticated && !isSigningIn) {
+  // ✅ FIXED: Only show unauthenticated routes when we're certain the user is not authenticated
+  if (!isAuthenticated && authStateStable && !isSigningIn) {
     return (
       <div className="app-container">
         <PageViewTracker />
