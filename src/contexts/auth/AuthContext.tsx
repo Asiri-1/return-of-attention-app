@@ -1,4 +1,4 @@
-// ✅ CRITICAL FIX: AuthContext with Race Condition Resolved
+// ✅ ENHANCED AuthContext with Real-Time User Deletion Detection
 // File: src/contexts/auth/AuthContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -26,7 +26,8 @@ import {
   updateDoc, 
   serverTimestamp,
   FieldValue,
-  Firestore
+  Firestore,
+  onSnapshot
 } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import app, { auth as firebaseAuth, db as firebaseDb } from '../../firebase';
@@ -104,7 +105,7 @@ interface FirestoreUserProfile extends Omit<UserProfile, 'createdAt' | 'lastLogi
   memberSince: FieldValue | null;
 }
 
-// ✅ CLEANED: AuthContext interface (AUTHENTICATION ONLY)
+// ✅ ENHANCED: AuthContext interface with real-time detection
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -133,6 +134,9 @@ interface AuthContextType {
   extendSession: () => void;
   syncWithLocalData: () => Promise<void>;
   
+  // ✅ NEW: Real-time token validation
+  checkTokenValidity: () => Promise<boolean>;
+  
   // Utility
   clearError: () => void;
 }
@@ -140,7 +144,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ CRITICAL FIX: Create a provider component with race condition fix
+// ✅ ENHANCED: Create a provider component with real-time user deletion detection
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -159,6 +163,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Computed properties
   const isAuthenticated = !!currentUser;
+
+  // ✅ NEW: Real-time token validation with server
+  const checkTokenValidity = useCallback(async (): Promise<boolean> => {
+    if (!currentUser) return false;
+
+    try {
+      // Get current user's ID token
+      const idToken = await currentUser.getIdToken();
+      
+      // Check with your admin server
+      const response = await fetch('http://localhost:3001/api/auth/verify-token', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        if (errorData.shouldSignOut) {
+          console.log('🚨 Server says user should sign out:', errorData.reason);
+          await signOut(auth);
+          return false;
+        }
+      }
+
+      const data = await response.json();
+      return data.valid === true;
+
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      // Don't force logout on network errors
+      return true;
+    }
+  }, [currentUser, auth]);
 
   // Create missing user document helper function
   const createUserDocument = useCallback(async (user: FirebaseUser): Promise<UserProfile> => {
@@ -236,6 +277,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [db, createUserDocument]);
 
+  // ✅ NEW: Real-time user deletion detection
+  useEffect(() => {
+    if (!currentUser?.uid || !db) return;
+
+    console.log('🔍 Setting up real-time deletion detection for user:', currentUser.uid);
+
+    // Listen to deletedUsers collection for this user
+    const deletedUserRef = doc(db, 'deletedUsers', currentUser.uid);
+    
+    const unsubscribe = onSnapshot(deletedUserRef, (doc) => {
+      if (doc.exists()) {
+        console.log('🚨 User has been deleted from another device/admin panel');
+        console.log('Deletion info:', doc.data());
+        
+        // Force immediate logout
+        signOut(auth).then(() => {
+          alert('Your account has been deleted by an administrator. You will be signed out.');
+          window.location.reload();
+        });
+      }
+    }, (error) => {
+      console.error('Error listening for user deletion:', error);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUser?.uid, db, auth]);
+
+  // ✅ NEW: Periodic token validation
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log('🔍 Starting periodic token validation for user:', currentUser.email);
+
+    // Check token validity every 5 minutes
+    const interval = setInterval(async () => {
+      const isValid = await checkTokenValidity();
+      if (!isValid) {
+        console.log('🚨 Token is no longer valid, user will be signed out');
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [currentUser, checkTokenValidity]);
+
   // ✅ CRITICAL FIX: Auth state change listener with proper race condition handling
   useEffect(() => {
     let mounted = true;
@@ -247,6 +336,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (user) {
         try {
+          // ✅ NEW: Check if user still exists on server
+          const tokenValid = await checkTokenValidity();
+          
+          if (!tokenValid) {
+            console.log('🚨 User token invalid during auth state change');
+            if (mounted) {
+              setCurrentUser(null);
+              setUserProfile(null);
+              setIsLoading(false);
+            }
+            return;
+          }
+
           // ✅ CRITICAL: Wait for profile to load before setting user
           const profile = await loadUserProfile(user);
           
@@ -300,7 +402,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       mounted = false;
       unsubscribe();
     };
-  }, [auth, db, loadUserProfile]);
+  }, [auth, db, loadUserProfile, checkTokenValidity]);
 
   // ✅ CRITICAL FIX: Authentication methods with proper state management
   const signup = useCallback(async (email: string, password: string, displayName: string) => {
@@ -595,7 +697,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   }, []);
 
-  // ✅ CLEANED: Create context value with ONLY authentication-related methods
+  // ✅ ENHANCED: Create context value with real-time detection methods
   const value: AuthContextType = {
     currentUser,
     userProfile,
@@ -623,6 +725,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     sessionTimeRemaining,
     extendSession,
     syncWithLocalData,
+    
+    // ✅ NEW: Real-time token validation
+    checkTokenValidity,
     
     // Utility
     clearError

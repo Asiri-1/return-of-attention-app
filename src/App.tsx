@@ -875,7 +875,11 @@ const AppContent: React.FC = React.memo(() => {
                 {/* ✅ CLEAN ADMIN PANEL */}
                 <Route path="/admin" element={
                   <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
-                    <CleanAdminPanel />
+                    <CleanAdminPanel contexts={{
+                      practice: {}, // Add your practice context if available
+                      user: {},     // Add your user context if available
+                      wellness: {}  // Add your wellness context if available
+                    }} />
                   </Suspense>
                 } />
                 
