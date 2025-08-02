@@ -1,6 +1,6 @@
-// ✅ FIXED App.tsx - Admin Panel Context Error Resolved
+// ✅ FIXED App.tsx - Firebase Integration & Loading Issues Resolved
 // File: src/App.tsx
-// 🔧 FIXED: Added missing contexts property for CleanAdminPanel
+// 🔧 ENHANCED: Added Firebase integration while preserving all functionality
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -14,10 +14,11 @@ import { AdminProvider } from './contexts/auth/AdminContext';
 import CleanAdminPanel from './components/CleanAdminPanel';
 import LogoutWarning from './components/LogoutWarning';
 
-// ✅ UNIVERSAL ARCHITECTURE: Import the new focused contexts
+// ✅ UNIVERSAL ARCHITECTURE: Import the enhanced Firebase-ready contexts
 import { AppProvider } from './contexts/AppProvider';
 import { useUser } from './contexts/user/UserContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 
 // ✅ CRITICAL COMPONENTS: Import normally to avoid chunk loading errors
 import SignIn from './SignIn';
@@ -64,23 +65,34 @@ const PostureGuide = lazy(() => import('./PostureGuide'));
 const UserProfile = lazy(() => import('./UserProfile'));
 const HappinessTrackerPage = lazy(() => import('./components/HappinessTrackerPage'));
 
-// ✅ FIXED: FastLoader with proper TypeScript interface
+// ✅ ENHANCED: FastLoader with better loading states and shorter emergency exit
 interface FastLoaderProps {
   message?: string;
+  timeout?: number;
 }
 
-const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..." }) => {
+const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading...", timeout = 2000 }) => {
+  const [showEmergencyExit, setShowEmergencyExit] = useState(false);
+
   useEffect(() => {
-    // ✅ SAFETY: Force exit loading after 3 seconds (increased from 2s)
+    // Show emergency exit option after 1.5 seconds
+    const emergencyTimer = setTimeout(() => {
+      setShowEmergencyExit(true);
+    }, 1500);
+
+    // ✅ IMPROVED: Shorter emergency exit (2 seconds instead of 3)
     const emergencyExit = setTimeout(() => {
       if (process.env.NODE_ENV === 'development') {
         console.log('🚨 EMERGENCY EXIT: Loading took too long, forcing navigation');
       }
-      window.location.href = '/';
-    }, 3000);
+      window.location.href = '/home';
+    }, timeout);
 
-    return () => clearTimeout(emergencyExit);
-  }, []);
+    return () => {
+      clearTimeout(emergencyTimer);
+      clearTimeout(emergencyExit);
+    };
+  }, [timeout]);
 
   return (
     <div style={{ 
@@ -108,9 +120,17 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
           animation: 'spin 1s linear infinite'
         }} />
         <div>{message}</div>
-        <div style={{ fontSize: '12px', opacity: 0.7 }}>
-          Emergency exit in 3s if stuck...
-        </div>
+        {showEmergencyExit && (
+          <div style={{ 
+            fontSize: '12px', 
+            opacity: 0.7,
+            textAlign: 'center',
+            cursor: 'pointer'
+          }}
+          onClick={() => window.location.href = '/home'}>
+            Taking too long? Click here to go to dashboard
+          </div>
+        )}
         <style>{`
           @keyframes spin { 
             0% { transform: rotate(0deg); } 
@@ -122,50 +142,95 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
   );
 });
 
-// ✅ NEW: Practice Reflection Wrapper for T1-T5
+// ✅ FIREBASE ENHANCED: Practice Reflection Wrapper with Firebase integration
 const PracticeReflectionWrapper: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { addReflection } = useWellness(); // ✅ Use WellnessContext for Firebase storage
+  const { setT5Completed, updateStageProgress } = useUser(); // ✅ Use UserContext for Firebase storage
+  const [isSaving, setIsSaving] = useState(false);
   
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     navigate('/home');
-  };
+  }, [navigate]);
   
-  const handleSaveReflection = (reflectionData: any) => {
-    // Save reflection data to localStorage
-    const existingReflections = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
-    existingReflections.push({
-      ...reflectionData,
-      timestamp: new Date().toISOString(),
-      sessionData: location.state || {}
-    });
-    localStorage.setItem('practiceReflections', JSON.stringify(existingReflections));
-    
-    console.log('Practice reflection saved:', reflectionData);
-    
-    // Check if this is T5 completion
-    const state = location.state as any;
-    if (state?.tLevel === 'T5' || state?.isT5Completion) {
-      // Set T5 completion flags
-      sessionStorage.setItem('t5Completed', 'true');
-      localStorage.setItem('t5Completed', 'true');
+  const handleSaveReflection = useCallback(async (reflectionData: any) => {
+    try {
+      setIsSaving(true);
       
-      // Set stage progress to allow Stage 2 access
-      sessionStorage.setItem('stageProgress', '2');
-      localStorage.setItem('devCurrentStage', '2');
+      // ✅ FIREBASE INTEGRATION: Save reflection to Firebase via WellnessContext
+      await addReflection({
+        ...reflectionData,
+        timestamp: new Date().toISOString(),
+        sessionData: location.state || {},
+        type: 'practice_reflection'
+      });
       
-      // Force current T level to be beyond T5 to ensure unlock
-      sessionStorage.setItem('currentTLevel', 't6');
+      // ✅ AUDIT COMPLIANCE: Also save to localStorage for backward compatibility
+      const existingReflections = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+      existingReflections.push({
+        ...reflectionData,
+        timestamp: new Date().toISOString(),
+        sessionData: location.state || {}
+      });
+      localStorage.setItem('practiceReflections', JSON.stringify(existingReflections));
       
-      console.log('T5 completed, unlocking Stage 2');
+      console.log('✅ Practice reflection saved to Firebase and localStorage');
       
-      // Force a page reload to ensure all components update
-      window.location.href = '/home';
-      return;
+      // ✅ FIREBASE INTEGRATION: Check if this is T5 completion
+      const state = location.state as any;
+      if (state?.tLevel === 'T5' || state?.isT5Completion) {
+        // ✅ Save T5 completion to Firebase via UserContext
+        await setT5Completed(true);
+        
+        // ✅ Update stage progress to allow Stage 2 access
+        await updateStageProgress({
+          currentStage: 2,
+          devCurrentStage: '2',
+          t5Completed: true
+        });
+        
+        // ✅ BACKWARD COMPATIBILITY: Also set in localStorage
+        sessionStorage.setItem('t5Completed', 'true');
+        localStorage.setItem('t5Completed', 'true');
+        sessionStorage.setItem('stageProgress', '2');
+        localStorage.setItem('devCurrentStage', '2');
+        sessionStorage.setItem('currentTLevel', 't6');
+        
+        console.log('✅ T5 completed, unlocking Stage 2 in Firebase and localStorage');
+        
+        // Force a page reload to ensure all components update
+        window.location.href = '/home';
+        return;
+      }
+      
+      navigate('/home');
+    } catch (error) {
+      console.error('❌ Error saving practice reflection:', error);
+      
+      // ✅ FALLBACK: Save to localStorage only if Firebase fails
+      try {
+        const existingReflections = JSON.parse(localStorage.getItem('practiceReflections') || '[]');
+        existingReflections.push({
+          ...reflectionData,
+          timestamp: new Date().toISOString(),
+          sessionData: location.state || {}
+        });
+        localStorage.setItem('practiceReflections', JSON.stringify(existingReflections));
+        console.log('⚠️ Reflection saved to localStorage as fallback');
+        navigate('/home');
+      } catch (fallbackError) {
+        console.error('❌ Complete save failure:', fallbackError);
+        alert('Failed to save reflection. Please try again.');
+      }
+    } finally {
+      setIsSaving(false);
     }
-    
-    navigate('/home');
-  };
+  }, [addReflection, setT5Completed, updateStageProgress, location.state, navigate]);
+  
+  if (isSaving) {
+    return <FastLoader message="Saving your reflection to cloud..." />;
+  }
   
   return (
     <Suspense fallback={<FastLoader message="Loading practice reflection..." />}>
@@ -182,7 +247,7 @@ const SeekerPracticeTimerRedirect: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  React.useEffect(() => {
+  useEffect(() => {
     // Get T-level from state or default to T1
     const state = location.state as { level?: string } || {};
     const tLevel = (state.level || 't1').toLowerCase();
@@ -198,35 +263,35 @@ const SeekerPracticeTimerRedirect: React.FC = () => {
   }, [navigate, location]);
   
   return (
-    <FastLoader message="Redirecting to modern practice flow..." />
+    <FastLoader message="Redirecting to modern practice flow..." timeout={1500} />
   );
 };
 
 const SeekerPracticeCompleteRedirect: React.FC = () => {
   const navigate = useNavigate();
   
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('🔄 Redirecting legacy seeker-practice-complete to home');
     navigate('/home', { replace: true });
   }, [navigate]);
   
   return (
-    <FastLoader message="Redirecting to dashboard..." />
+    <FastLoader message="Redirecting to dashboard..." timeout={1500} />
   );
 };
 
-// ✅ UNIVERSAL ARCHITECTURE: Updated completion status checker
+// ✅ FIREBASE ENHANCED: Updated completion status checker
 const useCompletionStatus = () => {
   const { getCompletionStatus } = useOnboarding();
   const { currentUser } = useAuth();
 
-  const checkCompletionStatus = useCallback(() => {
+  const checkCompletionStatus = useCallback(async () => {
     if (!currentUser) {
       return;
     }
 
     try {
-      getCompletionStatus();
+      await getCompletionStatus(); // Now async with Firebase
     } catch (error) {
       console.error('❌ Error checking completion status:', error);
     }
@@ -239,38 +304,53 @@ const useCompletionStatus = () => {
   return { recheckStatus: checkCompletionStatus };
 };
 
-// ✅ UNIVERSAL ARCHITECTURE: Updated Questionnaire Component
+// ✅ FIREBASE ENHANCED: Updated Questionnaire Component
 const QuestionnaireComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { markQuestionnaireComplete } = useOnboarding();
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const handleQuestionnaireComplete = async (answers: any) => {
+  const handleQuestionnaireComplete = useCallback(async (answers: any) => {
     try {
       setIsCompleting(true);
+      
+      // ✅ FIREBASE INTEGRATION: Save to Firebase via OnboardingContext
       await markQuestionnaireComplete(answers);
+      
+      console.log('✅ Questionnaire completed and saved to Firebase');
       
       // ✅ FIXED: Properly access React Router location state
       const returnTo = (location.state as any)?.returnTo || '/home';
       navigate(returnTo);
     } catch (error) {
-      console.error('Error completing questionnaire:', error);
+      console.error('❌ Error completing questionnaire:', error);
+      
+      // ✅ FALLBACK: Try localStorage save
+      try {
+        localStorage.setItem('questionnaire_completed', 'true');
+        localStorage.setItem('questionnaire_data', JSON.stringify(answers));
+        console.log('⚠️ Questionnaire saved to localStorage as fallback');
+        navigate('/home');
+      } catch (fallbackError) {
+        console.error('❌ Complete questionnaire save failure:', fallbackError);
+        alert('Failed to save questionnaire. Please try again.');
+      }
       setIsCompleting(false);
     }
-  };
+  }, [markQuestionnaireComplete, location.state, navigate]);
 
   return (
     <div className="questionnaire-container">
-      <Suspense fallback={<FastLoader />}>
+      <Suspense fallback={<FastLoader message="Loading questionnaire..." />}>
         <Questionnaire onComplete={handleQuestionnaireComplete} />
       </Suspense>
-      {isCompleting && <FastLoader />}
+      {isCompleting && <FastLoader message="Saving your responses to cloud..." />}
     </div>
   );
 };
 
-// ✅ UNIVERSAL ARCHITECTURE: Updated Self Assessment Component
+// ✅ FIREBASE ENHANCED: Updated Self Assessment Component
 const SelfAssessmentComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -278,11 +358,14 @@ const SelfAssessmentComponent: React.FC = () => {
   const { updateProfile } = useUser();
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const handleSelfAssessmentComplete = async (data: any) => {
+  const handleSelfAssessmentComplete = useCallback(async (data: any) => {
     try {
       setIsCompleting(true);
+      
+      // ✅ FIREBASE INTEGRATION: Save to Firebase via OnboardingContext
       await markSelfAssessmentComplete(data);
       
+      // ✅ FIREBASE INTEGRATION: Update user profile
       try {
         await updateProfile({ 
           preferences: { 
@@ -297,8 +380,9 @@ const SelfAssessmentComponent: React.FC = () => {
             }
           } 
         });
+        console.log('✅ Self-assessment and profile saved to Firebase');
       } catch (profileError) {
-        console.warn('Profile update failed, continuing anyway:', profileError);
+        console.warn('⚠️ Profile update failed, continuing anyway:', profileError);
       }
       
       // ✅ FIXED: Properly access React Router location state
@@ -309,64 +393,98 @@ const SelfAssessmentComponent: React.FC = () => {
         navigate('/self-assessment-completion');
       }
     } catch (error) {
-      console.error('Error completing self-assessment:', error);
+      console.error('❌ Error completing self-assessment:', error);
+      
+      // ✅ FALLBACK: Try localStorage save
+      try {
+        localStorage.setItem('self_assessment_completed', 'true');
+        localStorage.setItem('self_assessment_data', JSON.stringify(data));
+        console.log('⚠️ Self-assessment saved to localStorage as fallback');
+        navigate('/self-assessment-completion');
+      } catch (fallbackError) {
+        console.error('❌ Complete self-assessment save failure:', fallbackError);
+        alert('Failed to save self-assessment. Please try again.');
+      }
       setIsCompleting(false);
     }
-  };
+  }, [markSelfAssessmentComplete, updateProfile, location.state, navigate]);
 
   return (
     <div className="self-assessment-container">
-      <Suspense fallback={<FastLoader />}>
+      <Suspense fallback={<FastLoader message="Loading self-assessment..." />}>
         <SelfAssessment 
           onComplete={handleSelfAssessmentComplete}
           onBack={() => navigate('/introduction')}
         />
       </Suspense>
-      {isCompleting && <FastLoader />}
+      {isCompleting && <FastLoader message="Saving your assessment to cloud..." />}
     </div>
   );
 };
 
-// ✅ UNIVERSAL ARCHITECTURE: Main app content with focused contexts
+// ✅ FIREBASE ENHANCED: Main app content with Firebase-ready contexts
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
+  const { userProfile, markStageIntroComplete } = useUser(); // ✅ Use Firebase-enabled UserContext
   
-  // ✅ NEW: Add signing in state to prevent flash
+  // ✅ IMPROVED: Better loading state management
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [appInitialized, setAppInitialized] = useState(false);
   
   // ✅ FIXED: Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
   
-  // ✅ UNIVERSAL ARCHITECTURE: Use focused contexts instead of useLocalData
+  // ✅ FIREBASE ENHANCED: Use Firebase-enabled contexts
   const { recheckStatus } = useCompletionStatus();
   
-  // ✅ Get current stage from progressive onboarding (only if authenticated)
-  const currentStage = isAuthenticated ? (() => {
+  // ✅ FIREBASE ENHANCED: Get current stage from UserContext (Firebase-backed)
+  const currentStage = useMemo(() => {
+    if (!isAuthenticated) return 1;
+    
     try {
-      // We'll calculate current stage based on localStorage since we can't use hooks conditionally
+      // ✅ First try Firebase data from UserContext
+      if (userProfile?.stageProgress) {
+        const stageProgress = userProfile.stageProgress;
+        
+        // Check T5 completion from Firebase
+        if (!stageProgress.t5Completed) return 1;
+        
+        // Check PAHM stages from Firebase
+        for (let stage = 2; stage <= 6; stage++) {
+          const stageKey = `stage${stage}Complete`;
+          if (!stageProgress.stageCompletionFlags?.[stageKey]) {
+            return stage;
+          }
+        }
+        return 6; // All completed
+      }
+      
+      // ✅ Fallback to localStorage for backward compatibility
       const t5Complete = localStorage.getItem('t5Complete') === 'true';
       if (!t5Complete) return 1;
       
-      // Check PAHM stages
       for (let stage = 2; stage <= 6; stage++) {
         const stageComplete = localStorage.getItem(`stage${stage}Complete`) === 'true';
         if (!stageComplete) return stage;
       }
-      return 6; // All completed
+      return 6;
     } catch (error) {
+      console.warn('Error calculating current stage:', error);
       return 1;
     }
-  })() : 1;
+  }, [isAuthenticated, userProfile]);
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
-  const [appReady, setAppReady] = useState(false);
 
-  // ✅ PERFORMANCE: Force app ready quickly
+  // ✅ IMPROVED: Better app initialization
   useEffect(() => {
-    const timer = setTimeout(() => setAppReady(true), 500);
-    return () => clearTimeout(timer);
+    const initTimer = setTimeout(() => {
+      setAppInitialized(true);
+    }, 300); // Faster initialization
+    
+    return () => clearTimeout(initTimer);
   }, []);
 
   // ✅ PERFORMANCE: Initialize knowledge base
@@ -374,7 +492,7 @@ const AppContent: React.FC = React.memo(() => {
     setKnowledgeBaseReady(true);
   }, []);
 
-  // ✅ NEW: Clear signing in state when authentication completes
+  // ✅ IMPROVED: Clear signing in state when authentication completes
   useEffect(() => {
     if (currentUser && isSigningIn) {
       console.log('✅ Authentication completed, clearing signing-in state...');
@@ -386,17 +504,59 @@ const AppContent: React.FC = React.memo(() => {
     }
   }, [currentUser, isSigningIn, location.pathname, navigate]);
 
-  // ✅ FIXED: startPractice now checks intro and routes to progressive selection
+  // ✅ FIREBASE ENHANCED: Stage intro completion handler
+  const markStageIntroCompleteHandler = useCallback(async (stageNumber: number) => {
+    try {
+      // ✅ Save to Firebase via UserContext
+      await markStageIntroComplete(`stage${stageNumber}-intro`);
+      
+      // ✅ BACKWARD COMPATIBILITY: Also save to localStorage
+      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
+      if (!completedIntros.includes(stageNumber)) {
+        completedIntros.push(stageNumber);
+        localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
+      }
+      
+      console.log(`✅ Stage ${stageNumber} intro marked complete in Firebase and localStorage`);
+    } catch (error) {
+      console.error(`❌ Error marking stage ${stageNumber} intro complete:`, error);
+      
+      // ✅ FALLBACK: Save to localStorage only
+      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
+      if (!completedIntros.includes(stageNumber)) {
+        completedIntros.push(stageNumber);
+        localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
+      }
+    }
+  }, [markStageIntroComplete]);
+
+  // ✅ FIREBASE ENHANCED: Updated handlers with Firebase integration
   const handlers = useMemo(() => ({
-    // ✅ FIXED: Progressive Stage 1 flow
-    startPractice: () => {
-      const hasSeenStage1Intro = JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1);
-      if (hasSeenStage1Intro) {
-        navigate('/stage1'); // Go to progressive T-level selection
-      } else {
-        navigate('/stage1-introduction'); // Show intro first
+    // ✅ FIREBASE ENHANCED: Progressive Stage 1 flow with Firebase intro tracking
+    startPractice: async () => {
+      try {
+        // ✅ Check Firebase data first, then localStorage fallback
+        let hasSeenStage1Intro = false;
+        
+        if (userProfile?.stageProgress?.completedStageIntros) {
+          hasSeenStage1Intro = userProfile.stageProgress.completedStageIntros.includes('stage1-intro');
+        } else {
+          // Fallback to localStorage
+          hasSeenStage1Intro = JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1);
+        }
+        
+        if (hasSeenStage1Intro) {
+          navigate('/stage1'); // Go to progressive T-level selection
+        } else {
+          navigate('/stage1-introduction'); // Show intro first
+        }
+      } catch (error) {
+        console.error('Error checking stage intro status:', error);
+        // Default to showing intro
+        navigate('/stage1-introduction');
       }
     },
+    
     viewProgress: () => navigate('/analytics'),
     viewLearning: () => navigate('/learning/pahm'),
     showPostureGuide: () => navigate("/posture-guide"),
@@ -410,7 +570,7 @@ const AppContent: React.FC = React.memo(() => {
     navigateToSignUp: () => navigate('/signup'),
     navigateToSignIn: () => navigate('/signin'),
     
-    // ✅ NEW: UserProfile Navigation Handlers
+    // ✅ FIREBASE ENHANCED: UserProfile Navigation Handlers
     navigateToQuestionnaire: (returnTo?: string) => {
       console.log('🚀 Navigating to questionnaire...');
       navigate('/questionnaire', { state: { returnTo: returnTo || '/home' } });
@@ -433,9 +593,8 @@ const AppContent: React.FC = React.memo(() => {
     
     signUp: async (email: string, password: string, name: string) => {
       try {
-        setIsSigningIn(true); // ✅ NEW: Set signing in state
+        setIsSigningIn(true);
         await signUp(email, password, name);
-        // ✅ NEW: Go directly to home after signup
         navigate('/home');
       } catch (error: any) {
         if (error?.code === 'auth/email-already-in-use') {
@@ -445,26 +604,23 @@ const AppContent: React.FC = React.memo(() => {
           alert(`Signup failed: ${error?.message || 'Unknown error'}`);
         }
       } finally {
-        setIsSigningIn(false); // ✅ NEW: Clear signing in state
+        setIsSigningIn(false);
       }
     },
     
     signIn: async (email: string, password: string) => {
       try {
         console.log('🔐 Starting sign in process...');
-        setIsSigningIn(true); // ✅ Set signing in state to prevent flash
+        setIsSigningIn(true);
         
         await signIn(email, password);
         
         console.log('✅ Sign in successful, staying in loading state until auth updates...');
-        // ✅ DON'T navigate or clear isSigningIn immediately
-        // Let the auth state update naturally, which will trigger the authenticated routes
-        // The isSigningIn state will be cleared by useEffect when currentUser changes
         
       } catch (error: any) {
         console.error('❌ Sign in failed:', error);
         alert(`Failed to sign in: ${error?.message || 'Please check your credentials.'}`);
-        setIsSigningIn(false); // Only clear on error
+        setIsSigningIn(false);
       }
     },
     
@@ -491,7 +647,7 @@ const AppContent: React.FC = React.memo(() => {
         if (response.ok) {
           const data = await response.json();
           localStorage.setItem('authToken', data.token);
-          navigate('/home'); // ✅ NEW: Direct to home
+          navigate('/home');
         }
       } catch (error: any) {
         alert(`Google sign-up failed: ${error?.message || 'Unknown error'}`);
@@ -515,12 +671,16 @@ const AppContent: React.FC = React.memo(() => {
     logout, 
     signUp, 
     signIn, 
-    recheckStatus
+    recheckStatus,
+    userProfile
   ]);
 
-  // ✅ FIXED: Show loading when necessary OR when signing in
-  if ((isLoading && !currentUser && !appReady) || isSigningIn) {
-    return <FastLoader message={isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays..."} />;
+  // ✅ IMPROVED: Better loading conditions
+  const shouldShowLoader = (isLoading && !currentUser && !appInitialized) || isSigningIn;
+  
+  if (shouldShowLoader) {
+    const message = isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays...";
+    return <FastLoader message={message} timeout={1500} />;
   }
 
   // ✅ FIXED: Don't show unauthenticated routes if we're in the middle of signing in
@@ -566,7 +726,7 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ AUTHENTICATED ROUTES - NOW USING CLEAN ADMIN PANEL
+  // ✅ FIREBASE ENHANCED: Authenticated routes with Firebase integration
   return (
     <div className="app-container">
       <PageViewTracker />
@@ -576,14 +736,18 @@ const AppContent: React.FC = React.memo(() => {
         {/* ✅ STANDALONE ROUTES (no navigation) */}
         <Route path="/" element={<Navigate to="/home" replace />} />
         
-        {/* ✅ FIXED: Stage1Introduction now navigates to progressive /stage1 */}
+        {/* ✅ FIREBASE ENHANCED: Stage1Introduction with Firebase intro tracking */}
         <Route 
           path="/stage1-introduction" 
           element={
             <Stage1Introduction 
-              onComplete={() => navigate('/stage1')}
+              onComplete={async () => {
+                await markStageIntroCompleteHandler(1);
+                navigate('/stage1');
+              }}
               onBack={() => navigate('/home')}
-              hasSeenBefore={JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1)}
+              hasSeenBefore={userProfile?.stageProgress?.completedStageIntros?.includes('stage1-intro') || 
+                            JSON.parse(localStorage.getItem('completedStageIntros') || '[]').includes(1)}
             />
           } 
         />
@@ -606,12 +770,12 @@ const AppContent: React.FC = React.memo(() => {
           />
         } />
 
-        {/* ✅ MAIN APP ROUTES - NOW USING CLEAN ADMIN PANEL */}
+        {/* ✅ MAIN APP ROUTES - NOW USING FIREBASE-ENHANCED CONTEXTS */}
         <Route path="/*" element={
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
               <Routes>
-                {/* ✅ HOME DASHBOARD - Normal user interface */}
+                {/* ✅ HOME DASHBOARD - Firebase-enhanced */}
                 <Route path="/home" element={
                   <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
                     <HomeDashboard 
@@ -631,14 +795,14 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ CLEAN ADMIN PANEL - SIMPLIFIED: No props needed */}
+                {/* ✅ CLEAN ADMIN PANEL */}
                 <Route path="/admin" element={
                   <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
                     <CleanAdminPanel />
                   </Suspense>
                 } />
                 
-                {/* ✅ PROGRESSIVE STAGE 1 - Uses Stage1Wrapper with sequential logic */}
+                {/* ✅ FIREBASE ENHANCED: Progressive stages with Firebase tracking */}
                 <Route path="/stage1/*" element={
                   <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
                     <Stage1Wrapper />
@@ -681,6 +845,7 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
+                {/* ✅ FIREBASE ENHANCED: Practice reflection with cloud save */}
                 <Route path="/practice-reflection" element={<PracticeReflectionWrapper />} />
                 
                 <Route path="/seeker-practice-timer" element={<SeekerPracticeTimerRedirect />} />
@@ -722,7 +887,7 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ FIXED: UserProfile with working navigation buttons */}
+                {/* ✅ FIREBASE ENHANCED: UserProfile with Firebase navigation */}
                 <Route path="/profile" element={
                   <Suspense fallback={<FastLoader message="Loading your practice profile..." />}>
                     <UserProfile 
@@ -766,13 +931,13 @@ const AppContent: React.FC = React.memo(() => {
         } />
       </Routes>
 
-      {/* ✅ Progress Tracker - ONLY shows on Home Dashboard */}
+      {/* ✅ FIREBASE ENHANCED: Progress Tracker with Firebase stage data */}
       {isAuthenticated && location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );
 });
 
-// ✅ UNIVERSAL ARCHITECTURE: Updated provider chain with clean focused contexts
+// ✅ FIREBASE ENHANCED: Updated provider chain with Firebase-ready contexts
 const App: React.FC = React.memo(() => {
   return (
     <BrowserRouter>

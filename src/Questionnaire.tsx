@@ -10,35 +10,105 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 🚀 UPDATED: Use focused onboarding context
-  const { markQuestionnaireComplete } = useOnboarding();
+  // 🚀 ENHANCED: Use focused onboarding context with more methods
+  const { 
+    markQuestionnaireComplete,
+    questionnaire,
+    isQuestionnaireCompleted 
+  } = useOnboarding();
 
-  // Load saved progress
+  // ✅ ENHANCED: Load saved progress from both Firestore and localStorage
   useEffect(() => {
-    const savedData = localStorage.getItem('questionnaire_progress');
-    if (savedData) {
+    const loadProgress = async () => {
       try {
-        const { answers: savedAnswers, currentQuestion: savedQuestion } = JSON.parse(savedData);
-        setAnswers(savedAnswers);
-        setCurrentQuestion(savedQuestion);
-      } catch (error) {
-        console.error('Error loading saved progress:', error);
-      }
-    }
-    setIsLoading(false);
-  }, []);
+        setIsLoading(true);
+        
+        // ✅ PRIORITY 1: Check if questionnaire is already completed
+        if (isQuestionnaireCompleted()) {
+          console.log('📋 Questionnaire already completed, redirecting...');
+          if (questionnaire?.responses) {
+            setAnswers(questionnaire.responses);
+            setCurrentQuestion(27); // Go to end
+          }
+          setIsLoading(false);
+          return;
+        }
 
-  // Auto-save progress
+        // ✅ PRIORITY 2: Try to load from OnboardingContext (which handles Firestore)
+        if (questionnaire?.responses) {
+          console.log('📦 Loading progress from OnboardingContext (Firestore)');
+          setAnswers(questionnaire.responses);
+          
+          // Calculate current question based on answered questions
+          const answeredCount = Object.keys(questionnaire.responses).filter(key => 
+            !['totalQuestions', 'answeredQuestions'].includes(key) &&
+            questionnaire.responses[key] !== undefined &&
+            questionnaire.responses[key] !== null &&
+            questionnaire.responses[key] !== ''
+          ).length;
+          
+          setCurrentQuestion(Math.min(answeredCount + 1, 27));
+          setIsLoading(false);
+          return;
+        }
+
+        // ✅ PRIORITY 3: Try localStorage for migration/fallback
+        const savedData = localStorage.getItem('questionnaire_progress');
+        if (savedData) {
+          try {
+            const { answers: savedAnswers, currentQuestion: savedQuestion } = JSON.parse(savedData);
+            console.log('📦 Loading progress from localStorage (legacy)');
+            setAnswers(savedAnswers || {});
+            setCurrentQuestion(savedQuestion || 1);
+          } catch (parseError) {
+            console.error('Error parsing saved progress:', parseError);
+            setAnswers({});
+            setCurrentQuestion(1);
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error loading questionnaire progress:', error);
+        setAnswers({});
+        setCurrentQuestion(1);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProgress();
+  }, [questionnaire, isQuestionnaireCompleted]);
+
+  // ✅ ENHANCED: Auto-save progress to both Firestore and localStorage
   useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem('questionnaire_progress', JSON.stringify({
-        answers,
-        currentQuestion,
-        timestamp: new Date().toISOString()
-      }));
-    }
-  }, [answers, currentQuestion, isLoading]);
+    const saveProgress = async () => {
+      if (isLoading || isSaving) return;
+      
+      try {
+        // ✅ IMMEDIATE: Save to localStorage for instant recovery
+        localStorage.setItem('questionnaire_progress', JSON.stringify({
+          answers,
+          currentQuestion,
+          timestamp: new Date().toISOString(),
+          version: '2.0'
+        }));
+
+        // ✅ TODO: When OnboardingContext has saveQuestionnaireProgress method, use it here
+        // This will save partial progress to Firestore
+        // await saveQuestionnaireProgress?.(answers, currentQuestion);
+        
+        console.log('💾 Auto-saved questionnaire progress');
+      } catch (error) {
+        console.warn('Failed to auto-save progress:', error);
+      }
+    };
+
+    // Debounce auto-save to avoid too frequent saves
+    const timeoutId = setTimeout(saveProgress, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [answers, currentQuestion, isLoading, isSaving]);
 
   const handleAnswer = (questionId: string, answer: any) => {
     const newAnswers = { ...answers, [questionId]: answer };
@@ -67,55 +137,65 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
   const completeQuestionnaire = async () => {
     console.log('🔧 QUESTIONNAIRE COMPLETION STARTING...');
-    localStorage.removeItem('questionnaire_progress');
+    setIsSaving(true);
     
-    // ✅ FIXED: Send ONLY raw responses - OnboardingContext will add metadata
-    const rawResponses = {
-      // Demographics & Background (1-7)
-      experience_level: answers.experience_level || 1,
-      goals: answers.goals || [],
-      age_range: answers.age_range || '25-34',
-      location: answers.location || 'Urban area',
-      occupation: answers.occupation || 'Other',
-      education_level: answers.education_level || 'Bachelor\'s degree',
-      meditation_background: answers.meditation_background || 'Never tried meditation',
-      // Lifestyle Patterns (8-15)  
-      sleep_pattern: answers.sleep_pattern || 5,
-      physical_activity: answers.physical_activity || 'moderate',
-      stress_triggers: answers.stress_triggers || [],
-      daily_routine: answers.daily_routine || 'Somewhat organized',
-      diet_pattern: answers.diet_pattern || 'Balanced with occasional treats',
-      screen_time: answers.screen_time || '3-4 hours daily',
-      social_connections: answers.social_connections || 'Few but close relationships',
-      work_life_balance: answers.work_life_balance || 'Sometimes struggle but generally good',
-      // Thinking Patterns (16-21)
-      emotional_awareness: answers.emotional_awareness || 5,
-      stress_response: answers.stress_response || 'Usually manage well',
-      decision_making: answers.decision_making || 'Balanced approach',
-      self_reflection: answers.self_reflection || 'Occasional deep thinking',
-      thought_patterns: answers.thought_patterns || 'Mixed emotions',
-      mindfulness_in_daily_life: answers.mindfulness_in_daily_life || 'Try to be mindful but forget',
-      // Mindfulness Specific (22-27)
-      mindfulness_experience: answers.mindfulness_experience || 1,
-      meditation_background_detail: answers.meditation_background_detail || 'None',
-      practice_goals: answers.practice_goals || 'Quick stress relief',
-      preferred_duration: answers.preferred_duration || 10,
-      biggest_challenges: answers.biggest_challenges || 'Finding time and staying consistent',
-      motivation: answers.motivation || 'Stress reduction and emotional balance',
-      // ✅ REMOVED: No metadata here - OnboardingContext will add it
-      totalQuestions: 27,
-      answeredQuestions: Object.keys(answers).length
-    };
-
     try {
-      console.log('📝 Sending raw responses to OnboardingContext:', rawResponses);
+      // ✅ CLEAR: Remove localStorage progress since we're completing
+      localStorage.removeItem('questionnaire_progress');
+      
+      // ✅ FIXED: Send ONLY raw responses - OnboardingContext will add metadata
+      const rawResponses = {
+        // Demographics & Background (1-7)
+        experience_level: answers.experience_level || 1,
+        goals: answers.goals || [],
+        age_range: answers.age_range || '25-34',
+        location: answers.location || 'Urban area',
+        occupation: answers.occupation || 'Other',
+        education_level: answers.education_level || 'Bachelor\'s degree',
+        meditation_background: answers.meditation_background || 'Never tried meditation',
+        // Lifestyle Patterns (8-15)  
+        sleep_pattern: answers.sleep_pattern || 5,
+        physical_activity: answers.physical_activity || 'moderate',
+        stress_triggers: answers.stress_triggers || [],
+        daily_routine: answers.daily_routine || 'Somewhat organized',
+        diet_pattern: answers.diet_pattern || 'Balanced with occasional treats',
+        screen_time: answers.screen_time || '3-4 hours daily',
+        social_connections: answers.social_connections || 'Few but close relationships',
+        work_life_balance: answers.work_life_balance || 'Sometimes struggle but generally good',
+        // Thinking Patterns (16-21)
+        emotional_awareness: answers.emotional_awareness || 5,
+        stress_response: answers.stress_response || 'Usually manage well',
+        decision_making: answers.decision_making || 'Balanced approach',
+        self_reflection: answers.self_reflection || 'Occasional deep thinking',
+        thought_patterns: answers.thought_patterns || 'Mixed emotions',
+        mindfulness_in_daily_life: answers.mindfulness_in_daily_life || 'Try to be mindful but forget',
+        // Mindfulness Specific (22-27)
+        mindfulness_experience: answers.mindfulness_experience || 1,
+        meditation_background_detail: answers.meditation_background_detail || 'None',
+        practice_goals: answers.practice_goals || 'Quick stress relief',
+        preferred_duration: answers.preferred_duration || 10,
+        biggest_challenges: answers.biggest_challenges || 'Finding time and staying consistent',
+        motivation: answers.motivation || 'Stress reduction and emotional balance',
+        // ✅ METADATA: OnboardingContext will add completion metadata
+        totalQuestions: 27,
+        answeredQuestions: Object.keys(answers).length
+      };
+
+      console.log('📝 Sending raw responses to OnboardingContext (Firebase):', rawResponses);
+      
       if (markQuestionnaireComplete) {
         await markQuestionnaireComplete(rawResponses);
+        console.log('✅ Questionnaire successfully saved to Firebase via OnboardingContext');
       }
+      
       onComplete(rawResponses);
+      
     } catch (error) {
       console.error('❌ QUESTIONNAIRE: Error during completion:', error);
-      onComplete(rawResponses);
+      // Still complete the UI flow even if save fails
+      onComplete(answers);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -143,6 +223,40 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         <h2 style={{ fontSize: 'clamp(20px, 5vw, 28px)', textAlign: 'center', margin: 0 }}>
           Loading your assessment...
         </h2>
+        <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.8 }}>
+          {questionnaire ? 'Syncing with Firebase...' : 'Loading from storage...'}
+        </p>
+      </div>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        color: 'white',
+        padding: '20px'
+      }}>
+        <div style={{
+          width: '60px',
+          height: '60px',
+          border: '4px solid rgba(255, 255, 255, 0.3)',
+          borderTop: '4px solid white',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '24px'
+        }}></div>
+        <h2 style={{ fontSize: 'clamp(20px, 5vw, 28px)', textAlign: 'center', margin: 0 }}>
+          ✅ Saving to Firebase...
+        </h2>
+        <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.9 }}>
+          Your responses are being securely saved
+        </p>
       </div>
     );
   }
@@ -1424,7 +1538,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           100% { transform: rotate(360deg); }
         }
 
-        /* ✅ IPHONE SE (375px and smaller) */
+        /* ✅ RESPONSIVE BREAKPOINTS */
         @media (max-width: 374px) {
           .progress-header {
             padding: max(12px, env(safe-area-inset-top, 12px)) 16px 12px 16px;
@@ -1450,14 +1564,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
             gap: 12px;
           }
 
-          .option-icon {
-            font-size: 20px;
-          }
-
-          .option-text {
-            font-size: 13px;
-          }
-
           .navigation-content {
             gap: 12px;
           }
@@ -1467,47 +1573,15 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
             padding: 14px 16px;
             font-size: 13px;
           }
-
-          .phase-indicator {
-            padding: 6px 12px;
-            font-size: 11px;
-          }
         }
 
-        /* ✅ IPHONE STANDARD (375px - 414px) */
-        @media (min-width: 375px) and (max-width: 414px) {
-          .main-content {
-            padding: 20px 16px;
-            padding-bottom: max(130px, calc(130px + env(safe-area-inset-bottom)));
-          }
-
-          .question-card {
-            padding: 24px 20px;
-          }
-
-          .options-grid {
-            gap: 12px;
-          }
-        }
-
-        /* ✅ IPHONE PLUS/PRO MAX (415px+) */
         @media (min-width: 415px) and (max-width: 768px) {
-          .main-content {
-            padding: 24px 20px;
-            padding-bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
-          }
-
-          .question-card {
-            padding: 32px 24px;
-          }
-
           .options-grid {
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 14px;
           }
         }
 
-        /* ✅ LANDSCAPE MODE - IPHONE OPTIMIZATION */
         @media (max-width: 768px) and (orientation: landscape) {
           .main-content {
             padding: 16px 20px;
@@ -1521,41 +1595,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
             margin-top: 0;
           }
 
-          .question-container h2 {
-            font-size: clamp(18px, 5vw, 24px);
-            margin-bottom: 12px;
-          }
-
-          .question-container p {
-            font-size: clamp(13px, 3.5vw, 16px);
-            margin-bottom: 20px;
-          }
-
-          .options-grid {
-            gap: 10px;
-          }
-
-          .option-button {
-            padding: 12px 16px;
-            min-height: 48px;
-          }
-
-          .slider-container {
-            padding: 16px;
-          }
-
           .bottom-navigation {
             padding: 12px 20px;
             padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
           }
-
-          .nav-button {
-            min-height: 48px;
-            padding: 12px 20px;
-          }
         }
 
-        /* ✅ TABLET AND DESKTOP */
         @media (min-width: 769px) {
           .options-grid {
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1567,29 +1612,10 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           }
         }
 
-        /* ✅ SAFE AREA SUPPORT (iPhone X and newer) */
-        @supports (padding: max(0px)) {
-          .progress-header {
-            padding-top: max(16px, env(safe-area-inset-top));
-          }
-
-          .bottom-navigation {
-            padding-bottom: max(16px, env(safe-area-inset-bottom));
-          }
-
-          .main-content {
-            padding-bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
-          }
-        }
-
-        /* ✅ HIGH CONTRAST MODE SUPPORT */
+        /* ✅ ACCESSIBILITY */
         @media (prefers-contrast: high) {
           .option-button {
             border-width: 3px;
-          }
-
-          .progress-fill {
-            box-shadow: none;
           }
 
           .nav-button {
@@ -1597,31 +1623,14 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           }
         }
 
-        /* ✅ REDUCED MOTION SUPPORT */
         @media (prefers-reduced-motion: reduce) {
-          .option-button::before {
-            transition: none;
-          }
-
-          .next-button::before {
-            transition: none;
-          }
-
-          .progress-fill {
-            transition: none;
-          }
-
-          .pulse {
-            animation: none;
-          }
-
           * {
             transition-duration: 0.01ms !important;
             animation-duration: 0.01ms !important;
           }
         }
 
-        /* ✅ DARK MODE SUPPORT */
+        /* ✅ DARK MODE */
         @media (prefers-color-scheme: dark) {
           .questionnaire-container {
             background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
@@ -1649,10 +1658,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
             background: #374151;
             border-color: #4a5568;
             color: #f7fafc;
-          }
-
-          .option-button:hover {
-            border-color: #667eea;
           }
 
           .bottom-navigation {
@@ -1724,7 +1729,8 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
             disabled={!isCurrentQuestionAnswered()}
             title={!isCurrentQuestionAnswered() ? 'Please answer this question before continuing' : ''}
           >
-            {currentQuestion === 27 ? 'Complete Assessment' : 
+            {isSaving ? '💾 Saving...' : 
+             currentQuestion === 27 ? 'Complete Assessment' : 
              !isCurrentQuestionAnswered() ? '⚠️ Please Answer First' : 'Next →'}
           </button>
         </div>

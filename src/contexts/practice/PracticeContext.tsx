@@ -1,7 +1,24 @@
 // src/contexts/practice/PracticeContext.tsx
+// ✅ ENHANCED: Firebase/Firestore integration while maintaining all existing functionality
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext'
 import { useUser } from '../user/UserContext';
+
+// ✅ FIREBASE IMPORTS
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  serverTimestamp,
+  Timestamp 
+} from 'firebase/firestore';
 
 // ================================
 // PRACTICE SESSION INTERFACES
@@ -42,6 +59,10 @@ interface PracticeSessionData {
     moodImprovement: number;
   };
   metadata?: any;
+  // ✅ FIREBASE FIELDS
+  firestoreId?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 interface PracticeStats {
@@ -63,10 +84,10 @@ interface PracticeContextType {
   stats: PracticeStats;
   
   // Session management
-  addPracticeSession: (session: Omit<PracticeSessionData, 'sessionId'>) => void;
-  addMindRecoverySession: (session: Omit<PracticeSessionData, 'sessionId'>) => void;
-  deletePracticeSession: (sessionId: string) => void;
-  updateSession: (sessionId: string, updates: Partial<PracticeSessionData>) => void;
+  addPracticeSession: (session: Omit<PracticeSessionData, 'sessionId'>) => Promise<void>;
+  addMindRecoverySession: (session: Omit<PracticeSessionData, 'sessionId'>) => Promise<void>;
+  deletePracticeSession: (sessionId: string) => Promise<void>;
+  updateSession: (sessionId: string, updates: Partial<PracticeSessionData>) => Promise<void>;
   
   // Data retrieval
   getPracticeSessions: () => PracticeSessionData[];
@@ -109,6 +130,9 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [sessions, setSessions] = useState<PracticeSessionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ✅ FIREBASE SETUP
+  const db = getFirestore();
+
   // ================================
   // STORAGE UTILITIES
   // ================================
@@ -120,9 +144,94 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
+  // ✅ FIREBASE COLLECTION REFERENCE
+  const getSessionsCollection = useCallback(() => {
+    if (!currentUser?.uid) return null;
+    return collection(db, 'users', currentUser.uid, 'practiceSessions');
+  }, [db, currentUser?.uid]);
+
   // ================================
-  // ✅ FIXED: PREVENT CASCADING SAVES
+  // ✅ ENHANCED: FIREBASE + LOCALSTORAGE HYBRID STORAGE
   // ================================
+  const saveToFirestore = useCallback(async (sessionData: PracticeSessionData) => {
+    if (!currentUser?.uid) {
+      console.warn('No authenticated user - skipping Firestore save');
+      return null;
+    }
+
+    try {
+      const sessionsCollection = getSessionsCollection();
+      if (!sessionsCollection) return null;
+
+      // Create clean data for Firestore (without local-only fields)
+      const firestoreData = {
+        timestamp: sessionData.timestamp,
+        duration: sessionData.duration,
+        sessionType: sessionData.sessionType,
+        stageLevel: sessionData.stageLevel,
+        stageLabel: sessionData.stageLabel,
+        mindRecoveryContext: sessionData.mindRecoveryContext,
+        mindRecoveryPurpose: sessionData.mindRecoveryPurpose,
+        rating: sessionData.rating,
+        notes: sessionData.notes,
+        presentPercentage: sessionData.presentPercentage,
+        environment: sessionData.environment,
+        pahmCounts: sessionData.pahmCounts,
+        recoveryMetrics: sessionData.recoveryMetrics,
+        metadata: sessionData.metadata,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        userId: currentUser.uid
+      };
+
+      const docRef = await addDoc(sessionsCollection, firestoreData);
+      console.log('✅ Practice session saved to Firestore:', docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error('❌ Failed to save to Firestore:', error);
+      return null;
+    }
+  }, [currentUser?.uid, getSessionsCollection]);
+
+  const updateInFirestore = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
+    if (!currentUser?.uid) return;
+
+    try {
+      const session = sessions.find(s => s.sessionId === sessionId);
+      if (!session?.firestoreId) {
+        console.warn('No Firestore ID found for session:', sessionId);
+        return;
+      }
+
+      const sessionDoc = doc(db, 'users', currentUser.uid, 'practiceSessions', session.firestoreId);
+      await updateDoc(sessionDoc, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Practice session updated in Firestore:', session.firestoreId);
+    } catch (error) {
+      console.error('❌ Failed to update in Firestore:', error);
+    }
+  }, [currentUser?.uid, sessions, db]);
+
+  const deleteFromFirestore = useCallback(async (sessionId: string) => {
+    if (!currentUser?.uid) return;
+
+    try {
+      const session = sessions.find(s => s.sessionId === sessionId);
+      if (!session?.firestoreId) {
+        console.warn('No Firestore ID found for session:', sessionId);
+        return;
+      }
+
+      const sessionDoc = doc(db, 'users', currentUser.uid, 'practiceSessions', session.firestoreId);
+      await deleteDoc(sessionDoc);
+      console.log('✅ Practice session deleted from Firestore:', session.firestoreId);
+    } catch (error) {
+      console.error('❌ Failed to delete from Firestore:', error);
+    }
+  }, [currentUser?.uid, sessions, db]);
+
   const saveToStorage = useCallback((sessionData: PracticeSessionData[]) => {
     try {
       const storageKey = getStorageKey();
@@ -131,51 +240,129 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Legacy compatibility
       if (currentUser) {
         localStorage.setItem('practiceHistory', JSON.stringify(sessionData));
+        localStorage.setItem('practice_sessions', JSON.stringify(sessionData));
         
         const mindRecoverySessions = sessionData.filter(s => s.sessionType === 'mind_recovery');
         localStorage.setItem('mindRecoveryHistory', JSON.stringify(mindRecoverySessions));
       }
       
-      // ✅ CRITICAL FIX: Don't automatically sync with auth - let explicit calls handle it
+      console.log(`💾 Saved ${sessionData.length} sessions to localStorage`);
     } catch (error) {
-      console.warn('Failed to save practice data:', error);
+      console.warn('Failed to save practice data to localStorage:', error);
     }
   }, [getStorageKey, currentUser]);
 
   // ================================
-  // LOAD FROM STORAGE
+  // ✅ ENHANCED: LOAD FROM FIREBASE + LOCALSTORAGE
   // ================================
-  const loadFromStorage = useCallback(() => {
+  const loadFromFirestore = useCallback(async () => {
+    if (!currentUser?.uid) return [];
+
+    try {
+      const sessionsCollection = getSessionsCollection();
+      if (!sessionsCollection) return [];
+
+      const q = query(sessionsCollection, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const firestoreSessions: PracticeSessionData[] = [];
+      querySnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        const session: PracticeSessionData = {
+          sessionId: data.sessionId || generateId('session'),
+          firestoreId: docSnapshot.id,
+          timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
+          duration: data.duration || 0,
+          sessionType: data.sessionType || 'meditation',
+          stageLevel: data.stageLevel,
+          stageLabel: data.stageLabel,
+          mindRecoveryContext: data.mindRecoveryContext,
+          mindRecoveryPurpose: data.mindRecoveryPurpose,
+          rating: data.rating,
+          notes: data.notes,
+          presentPercentage: data.presentPercentage,
+          environment: data.environment,
+          pahmCounts: data.pahmCounts,
+          recoveryMetrics: data.recoveryMetrics,
+          metadata: data.metadata,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        };
+        firestoreSessions.push(session);
+      });
+
+      console.log(`✅ Loaded ${firestoreSessions.length} sessions from Firestore`);
+      return firestoreSessions;
+    } catch (error) {
+      console.error('❌ Failed to load from Firestore:', error);
+      return [];
+    }
+  }, [currentUser?.uid, getSessionsCollection, generateId]);
+
+  const loadFromStorage = useCallback(async () => {
     setIsLoading(true);
     
     try {
-      const storageKey = getStorageKey();
-      const sessionData = localStorage.getItem(storageKey);
-      
-      if (sessionData) {
-        const parsedSessions = JSON.parse(sessionData);
-        setSessions(parsedSessions);
-      } else {
-        // Try to load from legacy storage
-        const legacyData = localStorage.getItem('practiceHistory');
-        if (legacyData) {
-          const legacySessions = JSON.parse(legacyData);
-          setSessions(legacySessions);
-          saveToStorage(legacySessions);
+      let loadedSessions: PracticeSessionData[] = [];
+
+      // ✅ PRIORITY 1: Try to load from Firestore (if authenticated)
+      if (currentUser?.uid) {
+        loadedSessions = await loadFromFirestore();
+      }
+
+      // ✅ PRIORITY 2: If no Firestore data, try localStorage
+      if (loadedSessions.length === 0) {
+        const storageKey = getStorageKey();
+        const sessionData = localStorage.getItem(storageKey);
+        
+        if (sessionData) {
+          const parsedSessions = JSON.parse(sessionData);
+          loadedSessions = parsedSessions;
+          console.log(`📦 Loaded ${loadedSessions.length} sessions from localStorage`);
         } else {
-          setSessions([]);
+          // Try legacy storage
+          const legacyData = localStorage.getItem('practiceHistory') || localStorage.getItem('practice_sessions');
+          if (legacyData) {
+            const legacySessions = JSON.parse(legacyData);
+            loadedSessions = legacySessions;
+            console.log(`📦 Loaded ${loadedSessions.length} sessions from legacy storage`);
+          }
+        }
+
+        // ✅ MIGRATION: If we have localStorage data but user is authenticated, migrate to Firestore
+        if (loadedSessions.length > 0 && currentUser?.uid) {
+          console.log('🔄 Migrating localStorage sessions to Firestore...');
+          for (const session of loadedSessions) {
+            try {
+              const firestoreId = await saveToFirestore(session);
+              if (firestoreId) {
+                session.firestoreId = firestoreId;
+              }
+            } catch (error) {
+              console.warn('Failed to migrate session to Firestore:', error);
+            }
+          }
+          console.log('✅ Migration to Firestore completed');
         }
       }
+
+      setSessions(loadedSessions);
+      
+      // ✅ ALWAYS UPDATE LOCALSTORAGE (for offline access)
+      if (loadedSessions.length > 0) {
+        saveToStorage(loadedSessions);
+      }
+
     } catch (error) {
       console.warn('Failed to load practice data:', error);
       setSessions([]);
     } finally {
       setIsLoading(false);
     }
-  }, [getStorageKey, saveToStorage]);
+  }, [currentUser?.uid, getStorageKey, loadFromFirestore, saveToFirestore, saveToStorage]);
 
   // ================================
-  // CALCULATE STATISTICS
+  // CALCULATE STATISTICS (Unchanged)
   // ================================
   const calculateStats = useCallback((): PracticeStats => {
     const allSessions = sessions;
@@ -237,20 +424,34 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // SESSION MANAGEMENT METHODS
+  // ✅ ENHANCED: SESSION MANAGEMENT WITH FIREBASE
   // ================================
-  const addPracticeSession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
+  const addPracticeSession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const newSession: PracticeSessionData = {
       ...session,
-      sessionId: generateId('session')
+      sessionId: generateId('session'),
+      timestamp: session.timestamp || new Date().toISOString()
     };
     
+    // ✅ IMMEDIATE UI UPDATE
     const updatedSessions = [...sessions, newSession];
     setSessions(updatedSessions);
     saveToStorage(updatedSessions);
     
-    // ✅ CRITICAL FIX: Calculate stats and sync with user profile MANUALLY (not in useEffect)
-    // This prevents infinite loops while still updating the user profile
+    // ✅ SAVE TO FIRESTORE (async, non-blocking)
+    try {
+      const firestoreId = await saveToFirestore(newSession);
+      if (firestoreId) {
+        // Update session with Firestore ID
+        const finalSession = { ...newSession, firestoreId };
+        setSessions(prev => prev.map(s => s.sessionId === newSession.sessionId ? finalSession : s));
+        saveToStorage([...sessions.filter(s => s.sessionId !== newSession.sessionId), finalSession]);
+      }
+    } catch (error) {
+      console.error('Failed to save session to Firestore:', error);
+    }
+    
+    // ✅ SYNC WITH USER PROFILE
     const newStats = {
       totalSessions: updatedSessions.length,
       totalMinutes: updatedSessions.reduce((sum, s) => sum + s.duration, 0),
@@ -258,50 +459,54 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         Math.round((updatedSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / updatedSessions.length) * 10) / 10 : 0,
       averagePresentPercentage: updatedSessions.length > 0 ?
         Math.round(updatedSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / updatedSessions.length) : 0,
-      currentStreak: 0, // Could be calculated but keeping simple to avoid complexity
+      currentStreak: 0,
       longestStreak: 0,
       totalMindRecoverySessions: updatedSessions.filter(s => s.sessionType === 'mind_recovery').length,
       totalMindRecoveryMinutes: updatedSessions.filter(s => s.sessionType === 'mind_recovery').reduce((sum, s) => sum + s.duration, 0),
       averageMindRecoveryRating: 0
     };
     
-    // Sync with user profile (this won't cause infinite loop because it's a direct call)
     syncProfile(newStats);
     
-    // Sync with auth if needed
     if (currentUser && syncWithLocalData) {
       setTimeout(() => syncWithLocalData(), 200);
     }
-  }, [sessions, generateId, saveToStorage, syncProfile, currentUser, syncWithLocalData]);
+  }, [sessions, generateId, saveToStorage, saveToFirestore, syncProfile, currentUser, syncWithLocalData]);
 
-  const addMindRecoverySession = useCallback((session: Omit<PracticeSessionData, 'sessionId'>) => {
+  const addMindRecoverySession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
       ...session,
       sessionType: 'mind_recovery'
     };
-    addPracticeSession(mindRecoverySession);
+    await addPracticeSession(mindRecoverySession);
   }, [addPracticeSession]);
 
-  const deletePracticeSession = useCallback((sessionId: string) => {
+  const deletePracticeSession = useCallback(async (sessionId: string) => {
     const updatedSessions = sessions.filter(session => session.sessionId !== sessionId);
     setSessions(updatedSessions);
     saveToStorage(updatedSessions);
     
-    // ✅ MANUAL SYNC: Calculate and sync stats manually
+    // ✅ DELETE FROM FIRESTORE
+    await deleteFromFirestore(sessionId);
+    
+    // ✅ SYNC STATS
     const newStats = calculateStats();
     syncProfile(newStats);
-  }, [sessions, saveToStorage, calculateStats, syncProfile]);
+  }, [sessions, saveToStorage, deleteFromFirestore, calculateStats, syncProfile]);
 
-  const updateSession = useCallback((sessionId: string, updates: Partial<PracticeSessionData>) => {
+  const updateSession = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
     const updatedSessions = sessions.map(session =>
       session.sessionId === sessionId ? { ...session, ...updates } : session
     );
     setSessions(updatedSessions);
     saveToStorage(updatedSessions);
-  }, [sessions, saveToStorage]);
+    
+    // ✅ UPDATE IN FIRESTORE
+    await updateInFirestore(sessionId, updates);
+  }, [sessions, saveToStorage, updateInFirestore]);
 
   // ================================
-  // DATA RETRIEVAL METHODS
+  // DATA RETRIEVAL METHODS (Unchanged)
   // ================================
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     return sessions;
@@ -333,13 +538,12 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // STAGE PROGRESSION METHODS
+  // STAGE PROGRESSION METHODS (Unchanged)
   // ================================
   const getCurrentStage = useCallback((): number => {
     const meditationSessions = getMeditationSessions();
     if (meditationSessions.length === 0) return 1;
     
-    // Determine stage based on session count and quality
     const totalSessions = meditationSessions.length;
     const avgQuality = meditationSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / totalSessions;
     
@@ -373,7 +577,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [getCurrentStage]);
 
   // ================================
-  // STATISTICS METHODS
+  // STATISTICS METHODS (Unchanged)
   // ================================
   const getSessionFrequency = useCallback(() => {
     const now = new Date();
@@ -405,7 +609,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // UTILITY METHODS
+  // UTILITY METHODS (Enhanced)
   // ================================
   const clearPracticeData = useCallback(() => {
     setSessions([]);
@@ -415,6 +619,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.removeItem(storageKey);
       localStorage.removeItem('practiceHistory');
       localStorage.removeItem('mindRecoveryHistory');
+      localStorage.removeItem('practice_sessions');
     } catch (error) {
       console.warn('Failed to clear practice data:', error);
     }
@@ -426,12 +631,13 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return {
       sessions: sessions,
       stats: calculateStats(),
-      exportedAt: new Date().toISOString()
+      exportedAt: new Date().toISOString(),
+      source: 'firebase_enhanced'
     };
   }, [sessions, calculateStats]);
 
   // ================================
-  // LEGACY COMPATIBILITY
+  // LEGACY COMPATIBILITY (Unchanged)
   // ================================
   const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
     return getPracticeSessions();
@@ -447,14 +653,57 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const stats = useMemo(() => calculateStats(), [calculateStats]);
 
   // ================================
-  // ✅ FIXED: EFFECTS WITH STABLE DEPENDENCIES
+  // ✅ ENHANCED: EFFECTS WITH FIREBASE INTEGRATION
   // ================================
   useEffect(() => {
     loadFromStorage();
-  }, [currentUser?.uid]); // ✅ CRITICAL FIX: Only depend on uid, not the entire loadFromStorage function
+  }, [loadFromStorage]);
 
-  // ✅ REMOVED: Auto-sync effect that was causing infinite loops
-  // The syncProfile is now called manually in addPracticeSession and deletePracticeSession
+  // ✅ REAL-TIME FIRESTORE LISTENER
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const sessionsCollection = getSessionsCollection();
+    if (!sessionsCollection) return;
+
+    const q = query(sessionsCollection, orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const firestoreSessions: PracticeSessionData[] = [];
+      querySnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        const session: PracticeSessionData = {
+          sessionId: data.sessionId || generateId('session'),
+          firestoreId: docSnapshot.id,
+          timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
+          duration: data.duration || 0,
+          sessionType: data.sessionType || 'meditation',
+          stageLevel: data.stageLevel,
+          stageLabel: data.stageLabel,
+          mindRecoveryContext: data.mindRecoveryContext,
+          mindRecoveryPurpose: data.mindRecoveryPurpose,
+          rating: data.rating,
+          notes: data.notes,
+          presentPercentage: data.presentPercentage,
+          environment: data.environment,
+          pahmCounts: data.pahmCounts,
+          recoveryMetrics: data.recoveryMetrics,
+          metadata: data.metadata,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        };
+        firestoreSessions.push(session);
+      });
+
+      setSessions(firestoreSessions);
+      saveToStorage(firestoreSessions); // Keep localStorage in sync
+      console.log(`🔄 Real-time update: ${firestoreSessions.length} sessions`);
+    }, (error) => {
+      console.error('❌ Firestore listener error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser?.uid, getSessionsCollection, generateId, saveToStorage]);
 
   // ================================
   // CONTEXT VALUE

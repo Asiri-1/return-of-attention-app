@@ -30,6 +30,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [isActive, setIsActive] = useState<boolean>(false);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
   
+  // ✅ NEW: Background-resilient timer states
+  const [sessionStartTimestamp, setSessionStartTimestamp] = useState<number | null>(null);
+  const [totalPausedTime, setTotalPausedTime] = useState<number>(0);
+  const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
+  
   // Bell settings
   const [bellEnabled, setBellEnabled] = useState<boolean>(true);
   const [lastBellMinute, setLastBellMinute] = useState<number>(0);
@@ -61,7 +66,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const endBellRef = useRef<HTMLAudioElement>(null);
   const minuteBellRef = useRef<HTMLAudioElement>(null);
   
-  // Ref for interval
+  // Ref for timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 🔒 Wake Lock Functions to prevent screen from sleeping
@@ -411,12 +416,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   }, []);
 
   // 🔥 CRITICAL: Unified session tracking that ensures immediate synchronization
+  // 📊 SESSION DATA IS STORED HERE - This function saves everything!
   const saveSessionToAllStorageLocations = useCallback((sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
     const tLevelUpper = tLevel.toUpperCase();
     const timestamp = new Date().toISOString();
     
     try {
+      console.log('💾 SAVING SESSION DATA NOW...', { sessionData, isCompleted });
+      
       // 1. Create the session object in Stage1Wrapper compatible format
       const sessionObject = {
         id: `session_${Date.now()}`,
@@ -492,7 +500,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         detail: { tLevel: tLevelUpper, completed: isCompleted }
       }));
       
-      console.log(`✅ Session saved to all storage locations - ${tLevelUpper}: ${existingSessions.filter((s: any) => s.isCompleted).length}/3 completed`);
+      console.log(`✅ SESSION SAVED SUCCESSFULLY! - ${tLevelUpper}: ${existingSessions.filter((s: any) => s.isCompleted).length}/3 completed`);
       
       return sessionObject;
       
@@ -530,8 +538,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
 
-  // Start timer with wake lock
+  // ✅ FIXED: Start timer with timestamp tracking
   const startTimer = async () => {
+    const now = Date.now();
+    setSessionStartTimestamp(now);
+    setTotalPausedTime(0);
     setIsActive(true);
     setIsPaused(false);
     setIsRunning(true);
@@ -554,10 +565,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       }, 2000); // Delay to avoid overlap with bell
     }
     
-    // Store start time
-    const now = new Date().toISOString();
-    setSessionStartTime(now);
-    sessionStorage.setItem('practiceStartTime', now);
+    // Store start time (keep for compatibility)
+    const nowISO = new Date(now).toISOString();
+    setSessionStartTime(nowISO);
+    sessionStorage.setItem('practiceStartTime', nowISO);
     
     // Reset bell and voice tracking
     setLastBellMinute(0);
@@ -567,7 +578,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // Handle back button with wake lock cleanup
   const handleBack = async () => {
     if (timerRef.current) {
-      clearInterval(timerRef.current);
+      clearTimeout(timerRef.current);
     }
     
     // 🔒 Release wake lock
@@ -580,11 +591,30 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     onBack();
   };
 
-  // Record session data with unified storage and wake lock cleanup
+  // ✅ NEW: Pause/Resume handlers with timestamp tracking
+  const handlePause = () => {
+    if (!isPaused) {
+      setPauseStartTime(Date.now());
+      setIsPaused(true);
+    }
+  };
+
+  const handleResume = () => {
+    if (isPaused && pauseStartTime) {
+      const pauseDuration = Date.now() - pauseStartTime;
+      setTotalPausedTime(prev => prev + pauseDuration);
+      setPauseStartTime(null);
+      setIsPaused(false);
+    }
+  };
+
+  // 📊 SESSION DATA IS STORED HERE - When you click "Complete Practice"
   const recordSession = async (isFullyCompleted: boolean) => {
     if (timerRef.current) {
-      clearInterval(timerRef.current);
+      clearTimeout(timerRef.current);
     }
+    
+    console.log('🎯 RECORDING SESSION - User clicked Complete Practice');
     
     // 🔒 Release wake lock
     await releaseWakeLock();
@@ -654,7 +684,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     onComplete();
   };
 
+  // 📊 SESSION DATA IS STORED HERE - When timer reaches 00:00
   const handleTimerComplete = useCallback(async () => {
+    console.log('⏰ TIMER COMPLETED - Time reached 00:00');
+    
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
@@ -716,46 +749,57 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // Main timer effect
+  // ✅ FIXED: Background-resilient timer using timestamps
   useEffect(() => {
-    if (isRunning && !isPaused && timeRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            return 0;
-          }
-          
-          // Check for minute bells
-          checkMinuteBell(prev - 1);
-          
-          return prev - 1;
-        });
-      }, 1000);
+    if (isRunning && !isPaused && sessionStartTimestamp && timeRemaining > 0) {
+      const updateTimer = () => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - sessionStartTimestamp - totalPausedTime) / 1000);
+        const newTimeRemaining = Math.max(0, (initialMinutes * 60) - elapsed);
+        
+        setTimeRemaining(newTimeRemaining);
+        
+        // Check for minute bells
+        if (newTimeRemaining > 0) {
+          checkMinuteBell(newTimeRemaining);
+        }
+        
+        if (newTimeRemaining > 0) {
+          timerRef.current = setTimeout(updateTimer, 1000);
+        }
+      };
+      
+      updateTimer();
+      timerRef.current = setTimeout(updateTimer, 1000);
     } else {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     }
 
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [isRunning, isPaused, timeRemaining, checkMinuteBell]);
+  }, [isRunning, isPaused, sessionStartTimestamp, totalPausedTime, initialMinutes, checkMinuteBell]);
 
+  // ✅ FIXED: handleStart with timestamp tracking
   const handleStart = () => {
     if (initialMinutes < 5) {
       alert('Practice requires a minimum of 5 minutes.');
       return;
     }
     
+    const now = Date.now();
+    setSessionStartTimestamp(now);
+    setTotalPausedTime(0);
     setTimeRemaining(initialMinutes * 60);
     setCurrentStage('practice');
     setIsRunning(true);
-    setSessionStartTime(new Date().toISOString());
+    setSessionStartTime(new Date(now).toISOString());
   };
 
   // Handle skip (early completion)
@@ -766,6 +810,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // Fast forward for development with unified storage
   const handleFastForward = async () => {
     const now = new Date().toISOString();
+    
+    console.log('🚀 DEV FAST-FORWARD - Simulating completed session');
     
     // 🔒 Release wake lock
     await releaseWakeLock();
@@ -828,7 +874,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   useEffect(() => {
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        clearTimeout(timerRef.current);
       }
       // Cancel any ongoing speech
       if ('speechSynthesis' in window) {
@@ -839,14 +885,13 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
   }, [releaseWakeLock]);
 
-  // Skip setup if initialMinutes prop is provided
+  // ✅ FIXED: Setup with props but don't auto-start
   useEffect(() => {
     if (propInitialMinutes && propInitialMinutes >= 5) {
+      setInitialMinutes(propInitialMinutes);
       setTimeRemaining(propInitialMinutes * 60);
-      setCurrentStage('practice');
-      setIsRunning(true);
-      setIsActive(true);
-      setSessionStartTime(new Date().toISOString());
+      // Keep in setup stage - don't auto-start
+      setCurrentStage('setup');
     }
   }, [propInitialMinutes]);
 
@@ -881,8 +926,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Get wake lock status indicator
+  // ✅ FIXED: Get wake lock status indicator - always shows "Screen lock disabled" during practice
   const getWakeLockIndicator = () => {
+    // If practice has started (isActive), always show "Screen lock disabled"
+    if (isActive) {
+      return '🔒 Screen lock disabled';
+    }
+    
+    // For setup screen, show the actual status
     switch (wakeLockStatus) {
       case 'active': return '🔒 Screen lock disabled';
       case 'released': return '⚠️ Screen lock re-enabled';
@@ -917,21 +968,28 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           width: '100%',
           textAlign: 'center'
         }}>
-          <h3 style={{ marginBottom: '15px' }}>Duration (minimum 5 minutes)</h3>
+          <h3 style={{ marginBottom: '15px', fontSize: '18px', fontWeight: '600', color: '#FFFFFF', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' }}>Duration (minimum 5 minutes)</h3>
           <input
             type="number"
             min="5"
             max="90"
             value={initialMinutes}
             onChange={(e) => setInitialMinutes(parseInt(e.target.value) || 5)}
+            className="minutes-input"
             style={{
-              fontSize: '24px',
-              padding: '15px',
-              width: '100px',
+              fontSize: '28px',
+              fontWeight: '700',
+              padding: '12px 16px',
+              width: '120px',
               textAlign: 'center',
-              borderRadius: '10px',
-              border: 'none',
-              marginBottom: '20px'
+              borderRadius: '12px',
+              border: '2px solid #5865F2',
+              marginBottom: '20px',
+              backgroundColor: '#FFFFFF',
+              color: '#212529',
+              boxShadow: '0 2px 8px rgba(88, 101, 242, 0.2)',
+              minHeight: '60px',
+              outline: 'none'
             }}
           />
           
@@ -1237,7 +1295,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               Start Practice
             </button>
           ) : isPaused ? (
-            <button className="resume-button" onClick={() => setIsPaused(false)} style={{
+            <button className="resume-button" onClick={handleResume} style={{
               padding: '16px 24px',
               fontSize: '18px',
               fontWeight: 'bold',
@@ -1251,7 +1309,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               Resume
             </button>
           ) : (
-            <button className="pause-button" onClick={() => setIsPaused(!isPaused)} style={{
+            <button className="pause-button" onClick={handlePause} style={{
               padding: '16px 24px',
               fontSize: '18px',
               fontWeight: 'bold',

@@ -1,11 +1,14 @@
-// ✅ COMPLETE FIXED HomeDashboard.tsx - Using useHappinessCalculation Hook (Full Version)
+// ✅ COMPLETE HomeDashboard.tsx with Firebase Integration - ALL Functionality Preserved
 // File: src/HomeDashboard.tsx
-// 🔧 FIXED: Enhanced tracking logic shows correctly regardless of completion order
+// 🔧 ENHANCED: Firebase integration while maintaining 100% backward compatibility
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePractice } from './contexts/practice/PracticeContext';
+import { useUser } from './contexts/user/UserContext';
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 // 🎯 CRITICAL FIX: Import and use the happiness calculation hook
 import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
@@ -42,6 +45,27 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const { sessions } = usePractice();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 🔥 FIREBASE INTEGRATION: Enhanced contexts for Firebase data
+  const { 
+    userProfile, 
+    updateProfile, 
+    markStageComplete, 
+    addStageHours, 
+    markStageIntroComplete, 
+    setT5Completed, 
+    updateStageProgress 
+  } = useUser();
+  
+  const { 
+    questionnaire, 
+    selfAssessment, 
+    isQuestionnaireCompleted, 
+    isSelfAssessmentCompleted,
+    getCompletionStatus 
+  } = useOnboarding();
+  
+  const { addReflection } = useWellness();
 
   // 🎯 CRITICAL FIX: Use the centralized happiness calculation hook instead of local state
   const { 
@@ -80,27 +104,50 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [forceRecalculation]);
 
-  // ✅ CRITICAL FIX: Universal stage unlock checker
+  // ✅ ENHANCED: Universal stage unlock checker with Firebase integration
   const checkStageUnlocked = useCallback((targetStage: number): boolean => {
     try {
-      // Get current stage progress from multiple sources
-      const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
-      const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
-      const currentStageValue = parseInt(localStorage.getItem('currentStage') || '1');
-      
-      // Use the highest stage value from all sources
-      const maxStageReached = Math.max(stageProgress, devCurrentStage, currentStageValue);
-      
-      // Check specific stage completion flags
-      const t5Complete = localStorage.getItem('t5Complete') === 'true';
-      const stage2Complete = localStorage.getItem('stage2Complete') === 'true';
-      const stage3Complete = localStorage.getItem('stage3Complete') === 'true';
-      const stage4Complete = localStorage.getItem('stage4Complete') === 'true';
-      const stage5Complete = localStorage.getItem('stage5Complete') === 'true';
+      let stageProgress = 1;
+      let t5Complete = false;
+      let stage2Complete = false;
+      let stage3Complete = false;
+      let stage4Complete = false;
+      let stage5Complete = false;
+
+      // 🔥 FIREBASE: Try to get from Firebase-backed UserContext first
+      if (userProfile && typeof userProfile === 'object') {
+        console.log('🔥 Using Firebase-backed user profile for stage checking:', userProfile);
+        const profile = userProfile as any; // Safe casting for Firebase properties
+        stageProgress = profile.currentStage || 1;
+        t5Complete = profile.t5Completed || false;
+        
+        // Check completion flags from stageCompletionFlags object
+        const flags = profile.stageCompletionFlags || {};
+        stage2Complete = flags.stage2Complete || false;
+        stage3Complete = flags.stage3Complete || false;
+        stage4Complete = flags.stage4Complete || false;
+        stage5Complete = flags.stage5Complete || false;
+      } else {
+        // Fallback: Get from localStorage
+        console.log('📱 Falling back to localStorage for stage checking');
+        stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
+        const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
+        const currentStageValue = parseInt(localStorage.getItem('currentStage') || '1');
+        
+        // Use the highest stage value from all sources
+        stageProgress = Math.max(stageProgress, devCurrentStage, currentStageValue);
+        
+        // Check specific stage completion flags
+        t5Complete = localStorage.getItem('t5Complete') === 'true';
+        stage2Complete = localStorage.getItem('stage2Complete') === 'true';
+        stage3Complete = localStorage.getItem('stage3Complete') === 'true';
+        stage4Complete = localStorage.getItem('stage4Complete') === 'true';
+        stage5Complete = localStorage.getItem('stage5Complete') === 'true';
+      }
       
       console.log('🔍 Stage unlock check:', {
         targetStage,
-        maxStageReached,
+        stageProgress,
         t5Complete,
         stage2Complete,
         stage3Complete,
@@ -115,23 +162,23 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           
         case 2:
           // Stage 2 unlocks when T5 is complete OR stageProgress >= 2
-          return t5Complete || maxStageReached >= 2;
+          return t5Complete || stageProgress >= 2;
           
         case 3:
           // Stage 3 unlocks when Stage 2 is complete OR stageProgress >= 3
-          return stage2Complete || maxStageReached >= 3;
+          return stage2Complete || stageProgress >= 3;
           
         case 4:
           // Stage 4 unlocks when Stage 3 is complete OR stageProgress >= 4
-          return stage3Complete || maxStageReached >= 4;
+          return stage3Complete || stageProgress >= 4;
           
         case 5:
           // Stage 5 unlocks when Stage 4 is complete OR stageProgress >= 5
-          return stage4Complete || maxStageReached >= 5;
+          return stage4Complete || stageProgress >= 5;
           
         case 6:
           // Stage 6 unlocks when Stage 5 is complete OR stageProgress >= 6
-          return stage5Complete || maxStageReached >= 6;
+          return stage5Complete || stageProgress >= 6;
           
         default:
           return false;
@@ -140,16 +187,26 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       console.error('Error checking stage unlock:', error);
       return targetStage === 1; // Default to only Stage 1 unlocked
     }
-  }, []);
+  }, [userProfile]);
 
-  // ✅ ENHANCED STAGE DISPLAY LOGIC
+  // ✅ ENHANCED STAGE DISPLAY LOGIC with Firebase integration
   const getStageDisplayInfo = useCallback((stageNumber: number) => {
     const isUnlocked = checkStageUnlocked(stageNumber);
-    const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
-    const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
-    const maxStageReached = Math.max(stageProgress, devCurrentStage);
     
-    const isCurrentOrCompleted = isUnlocked && maxStageReached >= stageNumber;
+    let stageProgress = 1;
+    
+    // 🔥 FIREBASE: Try to get from Firebase-backed UserContext first
+    if (userProfile && typeof userProfile === 'object') {
+      const profile = userProfile as any; // Safe casting for Firebase properties
+      stageProgress = profile.currentStage || 1;
+    } else {
+      // Fallback to localStorage
+      const localStageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
+      const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
+      stageProgress = Math.max(localStageProgress, devCurrentStage);
+    }
+    
+    const isCurrentOrCompleted = isUnlocked && stageProgress >= stageNumber;
     
     let lockMessage = '';
     if (!isUnlocked) {
@@ -180,20 +237,35 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       lockMessage,
       icon: isCurrentOrCompleted ? '✅' : isUnlocked ? '▶️' : '🔒'
     };
-  }, [checkStageUnlocked]);
+  }, [checkStageUnlocked, userProfile]);
 
-  // ✅ DATA REFRESH FUNCTION
+  // ✅ ENHANCED DATA REFRESH FUNCTION with Firebase integration
   const refreshDashboardData = useCallback(() => {
     console.log('🔄 Refreshing dashboard data...');
     
-    // Force re-read all progression data
-    const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
-    const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
-    const maxStage = Math.max(stageProgress, devCurrentStage);
+    let maxStage = 1;
     
-    if (maxStage !== currentStage) {
-      console.log(`📈 Stage updated: ${currentStage} → ${maxStage}`);
-      setCurrentStage(maxStage);
+    // 🔥 FIREBASE: Try to get from Firebase-backed UserContext first
+    if (userProfile && typeof userProfile === 'object') {
+      const profile = userProfile as any; // Safe casting for Firebase properties
+      const firebaseStage = profile.currentStage || 1;
+      console.log(`📈 Firebase stage data: ${firebaseStage}`);
+      maxStage = firebaseStage;
+      
+      if (firebaseStage !== currentStage) {
+        console.log(`📈 Stage updated from Firebase: ${currentStage} → ${firebaseStage}`);
+        setCurrentStage(firebaseStage);
+      }
+    } else {
+      // Fallback: Force re-read all progression data from localStorage
+      const stageProgress = parseInt(localStorage.getItem('stageProgress') || '1');
+      const devCurrentStage = parseInt(localStorage.getItem('devCurrentStage') || '1');
+      maxStage = Math.max(stageProgress, devCurrentStage);
+      
+      if (maxStage !== currentStage) {
+        console.log(`📈 Stage updated from localStorage: ${currentStage} → ${maxStage}`);
+        setCurrentStage(maxStage);
+      }
     }
     
     // Recalculate user stats
@@ -203,7 +275,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     if (forceRecalculation) {
       forceRecalculation();
     }
-  }, [currentStage, forceRecalculation]);
+  }, [currentStage, forceRecalculation, userProfile]);
 
   // ✅ PERFORMANCE: Memoized static data to prevent recreation
   const tLevels = useMemo(() => [
@@ -243,6 +315,42 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       onClick: onShowPAHMExplanation
     }
   ], [currentStage, onViewLearning, onShowPostureGuide, onShowPAHMExplanation]);
+
+  // ✅ ENHANCED: Get completed stage intros with Firebase integration
+  const getCompletedStageIntros = useCallback((): string[] => {
+    // 🔥 FIREBASE: Try to get from Firebase-backed UserContext first
+    if (userProfile && typeof userProfile === 'object') {
+      const profile = userProfile as any; // Safe casting for Firebase properties
+      if (profile.completedStageIntros && Array.isArray(profile.completedStageIntros)) {
+        console.log('🔥 Using Firebase-backed completed stage intros:', profile.completedStageIntros);
+        return profile.completedStageIntros;
+      }
+    }
+    
+    // Fallback to localStorage
+    console.log('📱 Falling back to localStorage for completed stage intros');
+    return JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
+  }, [userProfile]);
+
+  // ✅ ENHANCED: Get onboarding completion status with Firebase integration
+  const getOnboardingCompletionStatus = useCallback(() => {
+    // 🔥 FIREBASE: Use Firebase-enabled OnboardingContext
+    const questionnaireCompleted = isQuestionnaireCompleted();
+    const selfAssessmentCompleted = isSelfAssessmentCompleted();
+    const completionStatus = getCompletionStatus();
+    
+    console.log('🔥 Firebase-backed onboarding status:', {
+      questionnaireCompleted,
+      selfAssessmentCompleted,
+      completionStatus
+    });
+    
+    return {
+      questionnaireCompleted,
+      selfAssessmentCompleted,
+      completionStatus
+    };
+  }, [isQuestionnaireCompleted, isSelfAssessmentCompleted, getCompletionStatus]);
 
   // ✅ PERFORMANCE: Memoized styles to prevent recreation on every render
   const styles = useMemo(() => ({
@@ -414,12 +522,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     navigate('/happiness-tracker');
   }, [navigate]);
 
-  // ✅ ENHANCED: Updated Stage Click Logic with proper progression checking
-  const handleStageClick = useCallback((stageNumber: number) => {
+  // ✅ ENHANCED: Updated Stage Click Logic with Firebase integration
+  const handleStageClick = useCallback(async (stageNumber: number) => {
     if (stageNumber === 1) {
-      // ✅ NEW: Check if user has seen Stage 1 introduction before
-      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-      const hasSeenIntroduction = completedIntros.includes(1);
+      // ✅ ENHANCED: Check if user has seen Stage 1 introduction with Firebase integration
+      const completedIntros = getCompletedStageIntros();
+      const hasSeenIntroduction = completedIntros.includes('1') || completedIntros.includes('stage1-intro');
       
       if (!hasSeenIntroduction) {
         // First time - go to introduction
@@ -445,10 +553,20 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       return;
     }
 
-    // ✅ FIXED: Update current stage and navigate
+    // ✅ ENHANCED: Update current stage with Firebase integration
     setCurrentStage(stageNumber);
     
-    // Update localStorage with the accessed stage
+    try {
+      // 🔥 FIREBASE: Try to update via UserContext methods (which handle Firebase)
+      if (markStageComplete && typeof markStageComplete === 'function') {
+        await markStageComplete(stageNumber);
+        console.log('🔥 Stage marked complete in Firebase:', stageNumber);
+      }
+    } catch (error) {
+      console.error('Firebase stage update failed, using localStorage:', error);
+    }
+
+    // Update localStorage with the accessed stage (backward compatibility)
     const currentMax = Math.max(
       parseInt(localStorage.getItem('devCurrentStage') || '1'),
       stageNumber
@@ -456,14 +574,22 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     localStorage.setItem('devCurrentStage', currentMax.toString());
 
     navigate(`/stage${stageNumber}`);
-  }, [navigate, getStageDisplayInfo]);
+  }, [navigate, getStageDisplayInfo, getCompletedStageIntros, markStageComplete]);
 
-  // ✅ UPDATED: T-Level click handler - now checks for introduction completion
-  const handleTLevelClick = useCallback((level: string, duration: number) => {
+  // ✅ ENHANCED: T-Level click handler with Firebase integration
+  const handleTLevelClick = useCallback(async (level: string, duration: number) => {
     sessionStorage.setItem('currentTLevel', level.toLowerCase());
 
-    // ✅ NEW: Check if user has seen T-level introduction
-    const hasSeenTLevelIntro = localStorage.getItem('hasSeenTLevelIntro') === 'true';
+    // ✅ ENHANCED: Check if user has seen T-level introduction with Firebase integration
+    let hasSeenTLevelIntro = false;
+
+    if (userProfile && typeof userProfile === 'object') {
+      const profile = userProfile as any; // Safe casting for Firebase properties
+      hasSeenTLevelIntro = profile.hasSeenTLevelIntro || false;
+    } else {
+      // Fallback to localStorage
+      hasSeenTLevelIntro = localStorage.getItem('hasSeenTLevelIntro') === 'true';
+    }
     
     navigate(`/stage1`, { 
       state: { 
@@ -475,7 +601,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         hasSeenBefore: hasSeenTLevelIntro
       } 
     });
-  }, [navigate]);
+  }, [navigate, userProfile]);
 
   // ✅ PERFORMANCE: Stable navigation handlers
   const handleNavigateToNotes = useCallback(() => {
@@ -543,9 +669,9 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
   }, [forceDataRefresh]);
 
-  // ✅ ENHANCED: Listen for stage completions and happiness data changes
+  // ✅ ENHANCED: Listen for stage completions with Firebase integration
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = async (e: StorageEvent) => {
       console.log('🔄 Storage changed:', e.key, e.newValue);
       
       // Check for stage completions
@@ -558,7 +684,17 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           const completedStage = parseInt(stageMatch[1]);
           const nextStage = completedStage + 1;
           
-          // Update progression to next stage
+          try {
+            // 🔥 FIREBASE: Try to update via UserContext methods (which handle Firebase)
+            if (markStageComplete && typeof markStageComplete === 'function') {
+              await markStageComplete(completedStage);
+              console.log(`🔥 Firebase updated: Stage ${completedStage} marked complete`);
+            }
+          } catch (error) {
+            console.error('Firebase update failed, using localStorage:', error);
+          }
+
+          // Update localStorage for backward compatibility
           localStorage.setItem('stageProgress', nextStage.toString());
           localStorage.setItem('devCurrentStage', nextStage.toString());
           
@@ -573,6 +709,18 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       
       if (e.key === 't5Complete' && e.newValue === 'true') {
         console.log('🎯 T5 completion detected, unlocking Stage 2');
+        
+        try {
+          // 🔥 FIREBASE: Try to update via UserContext methods
+          if (setT5Completed && typeof setT5Completed === 'function') {
+            await setT5Completed(true);
+            console.log('🔥 Firebase updated: T5 completion and Stage 2 unlock');
+          }
+        } catch (error) {
+          console.error('Firebase T5 update failed, using localStorage:', error);
+        }
+
+        // Fallback to localStorage
         localStorage.setItem('stageProgress', '2');
         localStorage.setItem('devCurrentStage', '2');
         
@@ -608,7 +756,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       window.removeEventListener('happinessDataCleared', handleHappinessClear);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [refreshDashboardData, forceDataRefresh]);
+  }, [refreshDashboardData, forceDataRefresh, markStageComplete, setT5Completed]);
 
   // ✅ ENHANCED LOCATION STATE LISTENER
   useEffect(() => {
@@ -653,10 +801,21 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [location.pathname, location.state, refreshDashboardData, forceDataRefresh]);
 
-  // ✅ PERFORMANCE: Optimized T5 completion listener with proper cleanup
+  // ✅ ENHANCED: T5 completion listener with Firebase integration
   useEffect(() => {
-    const t5Completed = sessionStorage.getItem('t5Completed') === 'true' ||
-                        localStorage.getItem('t5Completed') === 'true';
+    let t5Completed = false;
+
+    // 🔥 FIREBASE: Check Firebase-backed UserContext first
+    if (userProfile && typeof userProfile === 'object') {
+      const profile = userProfile as any; // Safe casting for Firebase properties
+      t5Completed = profile.t5Completed || false;
+      console.log('🔥 Checking T5 completion from Firebase:', t5Completed);
+    } else {
+      // Fallback to localStorage
+      t5Completed = sessionStorage.getItem('t5Completed') === 'true' ||
+                    localStorage.getItem('t5Completed') === 'true';
+      console.log('📱 Checking T5 completion from localStorage:', t5Completed);
+    }
 
     if (t5Completed && currentStage < 2) {
       setCurrentStage(2);
@@ -680,7 +839,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         t5ListenerRef.current();
       }
     };
-  }, [currentStage]);
+  }, [currentStage, userProfile]);
 
   // ✅ PERFORMANCE: Optimized location-based effects with stable dependencies
   useEffect(() => {
@@ -909,7 +1068,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </section>
         )}
 
-        {/* ✅ FIXED: Enhanced tracking suggestion - shows for incomplete assessments regardless of order */}
+        {/* ✅ ENHANCED: Tracking suggestion with Firebase-backed onboarding status */}
         {happinessData.happiness_points > 0 && (
           !userProgress.dataCompleteness?.selfAssessment || 
           !userProgress.dataCompleteness?.questionnaire
@@ -1066,7 +1225,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </section>
         )}
 
-        {/* ✅ FIXED: Improved onboarding section logic - only show when truly no happiness data */}
+        {/* ✅ ENHANCED: Onboarding section with Firebase-backed completion checking */}
         {happinessData.happiness_points === 0 && !happinessData.isCalculating && (
           <section style={styles.section}>
             <h2 style={{ ...styles.sectionTitle, color: '#f59e0b' }}>
@@ -1409,7 +1568,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               )}
             </div>
 
-            {/* ✅ ENHANCED: Stages 2-6 with new progression logic */}
+            {/* ✅ ENHANCED: Stages 2-6 with Firebase-backed progression logic */}
             {stageData.map((stage) => {
               const stageInfo = getStageDisplayInfo(stage.num);
               
