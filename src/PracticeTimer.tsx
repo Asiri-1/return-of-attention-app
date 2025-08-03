@@ -538,7 +538,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
 
-  // ✅ FIXED: Start timer with timestamp tracking
+  // ✅ FIXED: Start timer with timestamp tracking - ONLY for actual timer start
   const startTimer = async () => {
     const now = Date.now();
     setSessionStartTimestamp(now);
@@ -786,20 +786,28 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
   }, [isRunning, isPaused, sessionStartTimestamp, totalPausedTime, initialMinutes, checkMinuteBell]);
 
-  // ✅ FIXED: handleStart with timestamp tracking
+  // ✅ FIXED: handleStart with NO auto-timer start - just prepare practice stage
   const handleStart = () => {
     if (initialMinutes < 5) {
       alert('Practice requires a minimum of 5 minutes.');
       return;
     }
     
-    const now = Date.now();
-    setSessionStartTimestamp(now);
-    setTotalPausedTime(0);
+    // ✅ FIX: Only set up for practice stage, don't start timer yet
     setTimeRemaining(initialMinutes * 60);
     setCurrentStage('practice');
-    setIsRunning(true);
-    setSessionStartTime(new Date(now).toISOString());
+    
+    // ✅ CRITICAL: Reset all timer states but DON'T start timer
+    setSessionStartTimestamp(null);
+    setTotalPausedTime(0);
+    setIsPaused(false);
+    setIsActive(false);
+    setIsRunning(false); // ✅ KEY FIX: Don't start timer automatically!
+    setSessionStartTime(null);
+    
+    // Reset bell and voice tracking
+    setLastBellMinute(0);
+    setLastVoiceAnnouncement(0);
   };
 
   // Handle skip (early completion)
@@ -885,23 +893,23 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
   }, [releaseWakeLock]);
 
-  // ✅ FIXED: Setup with props but don't auto-start
+  // ✅ FIXED: Setup with props but don't auto-start timer
   useEffect(() => {
     if (propInitialMinutes && propInitialMinutes >= 5) {
       setInitialMinutes(propInitialMinutes);
-      setTimeRemaining(propInitialMinutes * 60);
+      // ✅ REMOVED: setTimeRemaining(propInitialMinutes * 60); // This was causing auto-countdown
       // Keep in setup stage - don't auto-start
       setCurrentStage('setup');
     }
   }, [propInitialMinutes]);
 
-  // ✅ OPTION 1 FIX: Request wake lock immediately when entering practice stage
+  // ✅ FIXED: Only request wake lock when timer actually starts (isActive), not just practice stage
   useEffect(() => {
-    if (currentStage === 'practice' && wakeLockEnabled) {
-      console.log('🔒 Practice stage detected, requesting wake lock...');
+    if (isActive && wakeLockEnabled) {
+      console.log('🔒 Timer active, requesting wake lock...');
       requestWakeLock();
     }
-  }, [currentStage, wakeLockEnabled, requestWakeLock]);
+  }, [isActive, wakeLockEnabled, requestWakeLock]);
 
   // 🔒 Handle visibility change to maintain wake lock
   useEffect(() => {
@@ -926,14 +934,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // ✅ FIXED: Get wake lock status indicator - always shows "Screen lock disabled" during practice
+  // ✅ FIXED: Get wake lock status indicator - shows proper status
   const getWakeLockIndicator = () => {
-    // If practice has started (isActive), always show "Screen lock disabled"
+    // If timer is actively running (isActive), always show "Screen lock disabled"
     if (isActive) {
       return '🔒 Screen lock disabled';
     }
     
-    // For setup screen, show the actual status
+    // For setup screen or practice screen before timer starts
     switch (wakeLockStatus) {
       case 'active': return '🔒 Screen lock disabled';
       case 'released': return '⚠️ Screen lock re-enabled';
@@ -1216,8 +1224,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         <div style={{ width: '65px' }}></div>
       </div>
       
-      {/* 🔒 Wake Lock Status Indicator */}
-      {(isActive || currentStage === 'practice') && (
+      {/* 🔒 Wake Lock Status Indicator - Only show when timer is active */}
+      {isActive && (
         <div style={{
           background: wakeLockStatus === 'active' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 165, 0, 0.1)',
           padding: '8px',
