@@ -5,7 +5,6 @@ import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
-// 🚀 UPDATED: Use focused contexts instead of LocalDataContext
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
 
@@ -29,47 +28,95 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
-  
-  // ✅ NEW: Background-resilient timer states
   const [sessionStartTimestamp, setSessionStartTimestamp] = useState<number | null>(null);
   const [totalPausedTime, setTotalPausedTime] = useState<number>(0);
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
   
-  // Bell settings
-  const [bellEnabled, setBellEnabled] = useState<boolean>(true);
-  const [lastBellMinute, setLastBellMinute] = useState<number>(0);
+  // Bell tracking states
+  const [lastBellMinute, setLastBellMinute] = useState<number>(-1);
+  const [bellsPlayed, setBellsPlayed] = useState<Set<number>>(new Set());
   
   // Voice settings
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
-  const [lastVoiceAnnouncement, setLastVoiceAnnouncement] = useState<number>(0);
+  const [lastVoiceAnnouncement, setLastVoiceAnnouncement] = useState<number>(-1);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   
-  // 🔒 Wake Lock for preventing screen lock during meditation
+  // Audio context management
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [bellEnabled, setBellEnabled] = useState<boolean>(true);
+  const [isAudioInitialized, setIsAudioInitialized] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  // Wake Lock
   const [wakeLock, setWakeLock] = useState<any>(null);
   const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
   const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
-  // 🚀 UPDATED: Use focused contexts for analytics integration
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
   
-  // Refs for recorder components
+  // Refs
   const t1RecorderRef = useRef<any>(null);
   const t2RecorderRef = useRef<any>(null);
   const t3RecorderRef = useRef<any>(null);
   const t4RecorderRef = useRef<any>(null);
   const t5RecorderRef = useRef<any>(null);
-  
-  // Audio refs for bells
   const startBellRef = useRef<HTMLAudioElement>(null);
   const endBellRef = useRef<HTMLAudioElement>(null);
   const minuteBellRef = useRef<HTMLAudioElement>(null);
-  
-  // Ref for timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🔒 Wake Lock Functions to prevent screen from sleeping
+  // Detect mobile devices
+  useEffect(() => {
+    const detectMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i;
+      return mobileRegex.test(userAgent);
+    };
+    setIsMobile(detectMobile());
+  }, []);
+
+  // Initialize AudioContext
+  const initializeAudioContext = useCallback(async () => {
+    if (audioContext || !bellEnabled) return audioContext;
+    
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        console.warn('Web Audio API not supported');
+        return null;
+      }
+      
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        console.log('Audio context suspended, will resume on user interaction');
+      }
+      
+      setAudioContext(ctx);
+      setIsAudioInitialized(true);
+      console.log('✅ Audio context initialized successfully');
+      return ctx;
+    } catch (error) {
+      console.error('Failed to initialize audio context:', error);
+      return null;
+    }
+  }, [audioContext, bellEnabled]);
+
+  // Resume audio context
+  const resumeAudioContext = useCallback(async () => {
+    if (audioContext && audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume();
+        console.log('✅ Audio context resumed');
+      } catch (error) {
+        console.error('Failed to resume audio context:', error);
+      }
+    }
+  }, [audioContext]);
+
+  // Wake Lock functions
   const requestWakeLock = useCallback(async () => {
     if (!wakeLockEnabled) return;
     
@@ -78,15 +125,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         const lock = await (navigator as any).wakeLock.request('screen');
         setWakeLock(lock);
         setWakeLockStatus('active');
-        console.log('✅ Screen wake lock activated - screen will stay on during meditation');
+        console.log('✅ Screen wake lock activated');
         
-        // Handle wake lock release
         lock.addEventListener('release', () => {
           setWakeLockStatus('released');
           console.log('⚠️ Screen wake lock released');
         });
       } else {
-        console.warn('⚠️ Wake Lock API not supported - screen may turn off during practice');
+        console.warn('⚠️ Wake Lock API not supported');
         setWakeLockStatus('unsupported');
       }
     } catch (error) {
@@ -108,207 +154,170 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [wakeLock]);
 
-  // 🎙️ Voice Selection Functions - Find Rough Male Voices for Physical Training
+  // Voice functions
   const loadVoices = useCallback(() => {
     const voices = speechSynthesis.getVoices();
     setAvailableVoices(voices);
     
-    // Priority order for rough, deep male voices suitable for physical training
     const voicePreferences = [
-      // Look for deep/rough male voices
       (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('deep') && voice.name.toLowerCase().includes('male'),
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('bass') && voice.name.toLowerCase().includes('male'),
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('alex'), // macOS Alex is deep male
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('daniel'), // Often a good rough male voice
-      
-      // Look for Indian male voices (secondary priority)
-      (voice: SpeechSynthesisVoice) => voice.lang.includes('hi') && voice.name.toLowerCase().includes('male'),
-      (voice: SpeechSynthesisVoice) => voice.lang.includes('en-IN') && voice.name.toLowerCase().includes('male'),
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('ravi'), // Common Indian name
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('raj'), // Common Indian name
-      
-      // Any male voice
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('alex'),
+      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('daniel'),
       (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('male'),
-      (voice: SpeechSynthesisVoice) => !voice.name.toLowerCase().includes('female') && !voice.name.toLowerCase().includes('woman'),
-      
-      // Voices that typically sound rougher
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('tom'),
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('bruce'),
-      (voice: SpeechSynthesisVoice) => voice.name.toLowerCase().includes('fred'),
     ];
     
-    // Try each preference in order
     for (const preference of voicePreferences) {
       const preferredVoice = voices.find(preference);
       if (preferredVoice) {
         setSelectedVoice(preferredVoice);
-        console.log(`🎙️ Selected rough male voice: ${preferredVoice.name} (${preferredVoice.lang})`);
+        console.log(`🎙️ Selected voice: ${preferredVoice.name}`);
         return;
       }
     }
     
-    // If no preferred voice found, use default
     if (voices.length > 0) {
       setSelectedVoice(voices[0]);
-      console.log(`🎙️ Using default voice: ${voices[0].name}`);
     }
   }, []);
 
-  // Load voices when component mounts and when voices change
   useEffect(() => {
     loadVoices();
     speechSynthesis.addEventListener('voiceschanged', loadVoices);
     return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
   }, [loadVoices]);
 
-  // Enhanced Bell Audio Functions with Web Audio API for authentic bell sounds
-  const createBellSound = useCallback((frequency: number, duration: number) => {
-    if (!bellEnabled) return;
+  // Bell audio functions
+  const createBellSound = useCallback(async (frequency: number, duration: number) => {
+    if (!bellEnabled || !audioContext) return;
     
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Create oscillators for bell harmonics
-      const fundamental = audioContext.createOscillator();
-      const harmonic2 = audioContext.createOscillator();
-      const harmonic3 = audioContext.createOscillator();
-      
-      // Create gain nodes for volume control
-      const fundamentalGain = audioContext.createGain();
-      const harmonic2Gain = audioContext.createGain();
-      const harmonic3Gain = audioContext.createGain();
-      const masterGain = audioContext.createGain();
-      
-      // Set frequencies for bell-like harmonics
-      fundamental.frequency.setValueAtTime(frequency, audioContext.currentTime);
-      harmonic2.frequency.setValueAtTime(frequency * 2.76, audioContext.currentTime); // Bell harmonic
-      harmonic3.frequency.setValueAtTime(frequency * 5.42, audioContext.currentTime); // Bell harmonic
-      
-      // Use sine waves for clean bell tones
-      fundamental.type = 'sine';
-      harmonic2.type = 'sine';
-      harmonic3.type = 'sine';
-      
-      // Connect oscillators to gain nodes
-      fundamental.connect(fundamentalGain);
-      harmonic2.connect(harmonic2Gain);
-      harmonic3.connect(harmonic3Gain);
-      
-      // Connect gain nodes to master gain
-      fundamentalGain.connect(masterGain);
-      harmonic2Gain.connect(masterGain);
-      harmonic3Gain.connect(masterGain);
-      
-      // Connect to output
-      masterGain.connect(audioContext.destination);
-      
-      // Set initial volumes
-      fundamentalGain.gain.setValueAtTime(0.6, audioContext.currentTime);
-      harmonic2Gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-      harmonic3Gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-      masterGain.gain.setValueAtTime(0.7, audioContext.currentTime);
-      
-      // Create bell envelope (quick attack, slow decay)
-      const now = audioContext.currentTime;
-      masterGain.gain.setValueAtTime(0, now);
-      masterGain.gain.linearRampToValueAtTime(0.7, now + 0.01); // Quick attack
-      masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration); // Slow decay
-      
-      // Start oscillators
-      fundamental.start(now);
-      harmonic2.start(now);
-      harmonic3.start(now);
-      
-      // Stop oscillators
-      fundamental.stop(now + duration);
-      harmonic2.stop(now + duration);
-      harmonic3.stop(now + duration);
-      
-      console.log(`🔔 Generated bell sound: ${frequency}Hz for ${duration}s`);
-      
-    } catch (error) {
-      console.warn('Web Audio bell generation failed, using fallback:', error);
-      // Fallback to original audio elements - call the playBell function directly with fallback logic
+    const playFallbackBell = (freq: number) => {
       try {
         let audioRef;
-        switch (frequency) {
-          case 523: // Start bell
-            audioRef = startBellRef;
-            break;
-          case 659: // Minute bell  
-            audioRef = minuteBellRef;
-            break;
-          case 440: // End bell
-            audioRef = endBellRef;
-            break;
-          default:
-            audioRef = minuteBellRef;
+        const type = freq === 523 ? 'start' : freq === 440 ? 'end' : 'minute';
+        
+        switch (type) {
+          case 'start': audioRef = startBellRef; break;
+          case 'end': audioRef = endBellRef; break;
+          case 'minute': audioRef = minuteBellRef; break;
         }
         
         if (audioRef?.current) {
           audioRef.current.currentTime = 0;
+          audioRef.current.volume = 0.7;
           audioRef.current.play().catch(e => console.warn('Fallback audio play failed:', e));
         }
-      } catch (fallbackError) {
-        console.warn('Fallback bell audio error:', fallbackError);
+      } catch (error) {
+        console.warn('Fallback bell audio error:', error);
       }
-    }
-  }, [bellEnabled]);
-
-  // Fallback bell function for when Web Audio fails
-  const playBellFallback = useCallback((type: 'start' | 'end' | 'minute') => {
+    };
+    
     try {
-      let audioRef;
-      switch (type) {
-        case 'start':
-          audioRef = startBellRef;
-          break;
-        case 'end':
-          audioRef = endBellRef;
-          break;
-        case 'minute':
-          audioRef = minuteBellRef;
-          break;
+      if (audioContext.state === 'closed') {
+        console.warn('AudioContext is closed, reinitializing...');
+        await initializeAudioContext();
+        return;
       }
       
-      if (audioRef?.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(e => console.warn('Fallback audio play failed:', e));
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
       }
+      
+      if (isMobile) {
+        // Simple mobile bell
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        oscillator.type = 'sine';
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        const now = audioContext.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.5, now + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+      } else {
+        // Desktop harmonic bell
+        const fundamental = audioContext.createOscillator();
+        const harmonic2 = audioContext.createOscillator();
+        const harmonic3 = audioContext.createOscillator();
+        
+        const fundamentalGain = audioContext.createGain();
+        const harmonic2Gain = audioContext.createGain();
+        const harmonic3Gain = audioContext.createGain();
+        const masterGain = audioContext.createGain();
+        
+        fundamental.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        harmonic2.frequency.setValueAtTime(frequency * 2.76, audioContext.currentTime);
+        harmonic3.frequency.setValueAtTime(frequency * 5.42, audioContext.currentTime);
+        
+        fundamental.type = 'sine';
+        harmonic2.type = 'sine';
+        harmonic3.type = 'sine';
+        
+        fundamental.connect(fundamentalGain);
+        harmonic2.connect(harmonic2Gain);
+        harmonic3.connect(harmonic3Gain);
+        
+        fundamentalGain.connect(masterGain);
+        harmonic2Gain.connect(masterGain);
+        harmonic3Gain.connect(masterGain);
+        masterGain.connect(audioContext.destination);
+        
+        fundamentalGain.gain.setValueAtTime(0.6, audioContext.currentTime);
+        harmonic2Gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        harmonic3Gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        masterGain.gain.setValueAtTime(0.7, audioContext.currentTime);
+        
+        const now = audioContext.currentTime;
+        masterGain.gain.setValueAtTime(0, now);
+        masterGain.gain.linearRampToValueAtTime(0.7, now + 0.01);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        
+        fundamental.start(now);
+        harmonic2.start(now);
+        harmonic3.start(now);
+        
+        fundamental.stop(now + duration);
+        harmonic2.stop(now + duration);
+        harmonic3.stop(now + duration);
+      }
+      
     } catch (error) {
-      console.warn('Fallback bell audio error:', error);
+      console.warn('Web Audio bell generation failed, using fallback:', error);
+      playFallbackBell(frequency);
     }
-  }, []);
+  }, [bellEnabled, audioContext, isMobile, initializeAudioContext]);
 
-  const playBell = useCallback((type: 'start' | 'end' | 'minute') => {
+  const playBell = useCallback(async (type: 'start' | 'end' | 'minute') => {
     if (!bellEnabled) return;
     
-    // Use Web Audio API for authentic bell sounds
-    switch (type) {
-      case 'start':
-        createBellSound(523, 3.0); // C5 note, 3 second decay
-        break;
-      case 'minute':
-        createBellSound(659, 1.5); // E5 note, 1.5 second decay
-        break;
-      case 'end':
-        createBellSound(440, 4.0); // A4 note, 4 second decay
-        break;
+    if (!audioContext) {
+      await initializeAudioContext();
     }
-  }, [bellEnabled, createBellSound]);
+    
+    await resumeAudioContext();
+    
+    switch (type) {
+      case 'start': await createBellSound(523, 3.0); break;
+      case 'minute': await createBellSound(659, 1.5); break;
+      case 'end': await createBellSound(440, 4.0); break;
+    }
+  }, [bellEnabled, audioContext, initializeAudioContext, resumeAudioContext, createBellSound]);
 
-  // 🎙️ Voice Synthesis with Rough Male Voice for Physical Stillness Training
+  // Voice announcements
   const announceTime = useCallback((remainingMinutes: number) => {
     if (!voiceEnabled || !selectedVoice) return;
     
     try {
       if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech
         speechSynthesis.cancel();
         
         const utterance = new SpeechSynthesisUtterance();
         
-        // Simple, direct messages focused on physical stillness training
         if (remainingMinutes === 0) {
           utterance.text = "Practice session complete";
         } else if (remainingMinutes === 1) {
@@ -317,62 +326,55 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           utterance.text = `${remainingMinutes} minutes remaining`;
         }
         
-        // Rougher, more masculine voice settings
         utterance.voice = selectedVoice;
         utterance.volume = 0.9;
-        utterance.rate = 0.8; // Slightly faster, more direct
-        utterance.pitch = 0.6; // Much lower pitch for rougher, deeper voice
+        utterance.rate = 0.8;
+        utterance.pitch = 0.6;
         
         speechSynthesis.speak(utterance);
-        console.log(`🎙️ Announced: "${utterance.text}" using ${selectedVoice.name}`);
       }
     } catch (error) {
       console.warn('Voice synthesis error:', error);
     }
   }, [voiceEnabled, selectedVoice]);
 
-  // Check for minute bells and voice announcements
+  // Bell and voice timing
   const checkMinuteBell = useCallback((remainingSeconds: number) => {
+    if (!isRunning || isPaused) return;
+    
     const totalSeconds = initialMinutes * 60;
     const elapsedSeconds = totalSeconds - remainingSeconds;
     const elapsedMinutes = Math.floor(elapsedSeconds / 60);
     const remainingMinutes = Math.ceil(remainingSeconds / 60);
     
-    // Play bell every complete minute (but not at start)
-    if (elapsedMinutes > 0 && elapsedMinutes !== lastBellMinute) {
+    if (elapsedMinutes > 0 && !bellsPlayed.has(elapsedMinutes)) {
       playBell('minute');
-      setLastBellMinute(elapsedMinutes);
+      setBellsPlayed(prev => new Set([...prev, elapsedMinutes]));
     }
     
-    // Voice announcements every 5 minutes for remaining time
     if (voiceEnabled && remainingMinutes > 0) {
-      // Announce at 5-minute intervals (when remaining time is 25, 20, 15, 10, 5 minutes)
       if (remainingMinutes % 5 === 0 && remainingMinutes !== lastVoiceAnnouncement) {
         announceTime(remainingMinutes);
         setLastVoiceAnnouncement(remainingMinutes);
-      }
-      // Also announce at 1 minute remaining
-      else if (remainingMinutes === 1 && lastVoiceAnnouncement !== 1) {
+      } else if (remainingMinutes === 1 && lastVoiceAnnouncement !== 1) {
         announceTime(1);
         setLastVoiceAnnouncement(1);
       }
     }
-  }, [initialMinutes, lastBellMinute, bellEnabled, voiceEnabled, lastVoiceAnnouncement, playBell, announceTime]);
+  }, [initialMinutes, bellsPlayed, voiceEnabled, lastVoiceAnnouncement, playBell, announceTime, isRunning, isPaused]);
 
-  // Extract T-level from stageLevel - memoized to prevent useCallback deps changing
+  // Helper functions
   const getTLevel = useCallback((): string => {
-    // Check multiple possible patterns for T-level detection
     const patterns = [
-      /^(T[1-5])/i,  // T1, T2, etc.
-      /T([1-5])/i,   // Any T1, T2 in the string
-      /(Stage\s*1.*T[1-5])/i,  // Stage 1: T1, etc.
-      /Physical\s*Stillness.*([1-5])/i  // Physical Stillness with number
+      /^(T[1-5])/i,
+      /T([1-5])/i,
+      /(Stage\s*1.*T[1-5])/i,
+      /Physical\s*Stillness.*([1-5])/i
     ];
     
     for (const pattern of patterns) {
       const match = stageLevel.match(pattern);
       if (match) {
-        // Extract T-level or convert number to T-level
         if (match[1]?.toLowerCase().startsWith('t')) {
           return match[1].toLowerCase();
         } else if (match[1]) {
@@ -381,51 +383,29 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       }
     }
     
-    // Fallback: check if it's a Stage 1 practice (default to T1)
-    if (stageLevel.toLowerCase().includes('stage 1') || stageLevel.toLowerCase().includes('stillness')) {
-      return 't1';
-    }
-    
     return 't1';
   }, [stageLevel]);
   
-  // Convert T-level to number for analytics - memoized to prevent useCallback deps changing
   const getTLevelNumber = useCallback((tLevel: string): number => {
-    const levelMap: { [key: string]: number } = {
-      't1': 1,
-      't2': 2, 
-      't3': 3,
-      't4': 4,
-      't5': 5
-    };
+    const levelMap: { [key: string]: number } = { 't1': 1, 't2': 2, 't3': 3, 't4': 4, 't5': 5 };
     return levelMap[tLevel] || 1;
   }, []);
 
-  // Calculate session quality for basic stillness practice - memoized to prevent useCallback deps changing
   const calculateSessionQuality = useCallback((duration: number, completed: boolean) => {
-    let quality = 7; // Base quality
-    
-    // Completion bonus
+    let quality = 7;
     if (completed) quality += 1.5;
-    
-    // Duration factor
-    const durationFactor = Math.min(1, duration / (10 * 60)); // 10 min baseline for T1
+    const durationFactor = Math.min(1, duration / (10 * 60));
     quality = quality * (0.8 + 0.2 * durationFactor);
-    
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   }, []);
 
-  // 🔥 CRITICAL: Unified session tracking that ensures immediate synchronization
-  // 📊 SESSION DATA IS STORED HERE - This function saves everything!
+  // Session saving
   const saveSessionToAllStorageLocations = useCallback((sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
     const tLevelUpper = tLevel.toUpperCase();
     const timestamp = new Date().toISOString();
     
     try {
-      console.log('💾 SAVING SESSION DATA NOW...', { sessionData, isCompleted });
-      
-      // 1. Create the session object in Stage1Wrapper compatible format
       const sessionObject = {
         id: `session_${Date.now()}`,
         timestamp: timestamp,
@@ -440,73 +420,19 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         metadata: sessionData.metadata || {}
       };
 
-      // 2. IMMEDIATE localStorage write (no debounce) for Stage1Wrapper compatibility
       const existingSessions = JSON.parse(localStorage.getItem(`${tLevelUpper}Sessions`) || '[]');
       existingSessions.push(sessionObject);
       localStorage.setItem(`${tLevelUpper}Sessions`, JSON.stringify(existingSessions));
       
-      // 3. Update completion status immediately
       if (isCompleted) {
         localStorage.setItem(`${tLevelUpper}Complete`, 'true');
         localStorage.setItem(`${tLevelUpper}LastCompleted`, timestamp);
       }
       
-      // 4. Update stage1Progress immediately
       const existingProgress = JSON.parse(localStorage.getItem('stage1Progress') || '{"T1": 0, "T2": 0, "T3": 0, "T4": 0, "T5": 0}');
       existingProgress[tLevelUpper] = existingSessions.filter((s: any) => s.isCompleted).length;
       localStorage.setItem('stage1Progress', JSON.stringify(existingProgress));
       
-      // 5. Enhanced session data for focused contexts
-      const enhancedSessionData = {
-        timestamp: timestamp,
-        duration: sessionData.duration || initialMinutes,
-        sessionType: 'meditation' as const,
-        stageLevel: getTLevelNumber(tLevel),
-        stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
-        rating: sessionData.rating || (isCompleted ? 8 : 6),
-        notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes) - Progressive capacity building for PAHM Matrix practice`,
-        presentPercentage: isCompleted ? 85 : 70,
-        environment: {
-          posture: sessionStorage.getItem('currentPosture') || 'seated',
-          location: 'indoor',
-          lighting: 'natural',
-          sounds: 'quiet'
-        },
-        pahmCounts: {
-          present_attachment: 0,
-          present_neutral: 0,
-          present_aversion: 0,
-          past_attachment: 0,
-          past_neutral: 0,
-          past_aversion: 0,
-          future_attachment: 0,
-          future_neutral: 0,
-          future_aversion: 0
-        }
-      };
-      
-      // 6. Add to focused contexts (this will handle debounced storage to comprehensiveUserData)
-      addPracticeSession(enhancedSessionData);
-      
-      // 7. Force a storage event to notify other components
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: `${tLevelUpper}Sessions`,
-        newValue: JSON.stringify(existingSessions),
-        storageArea: localStorage
-      }));
-      
-      // 8. Dispatch custom event for immediate UI updates
-      window.dispatchEvent(new CustomEvent('sessionUpdate', {
-        detail: { tLevel: tLevelUpper, completed: isCompleted }
-      }));
-      
-      console.log(`✅ SESSION SAVED SUCCESSFULLY! - ${tLevelUpper}: ${existingSessions.filter((s: any) => s.isCompleted).length}/3 completed`);
-      
-      return sessionObject;
-      
-    } catch (error) {
-      console.error('❌ Error saving session to storage:', error);
-      // Still try to save to focused contexts as fallback
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
@@ -523,182 +449,48 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           sounds: 'quiet'
         },
         pahmCounts: {
-          present_attachment: 0,
-          present_neutral: 0,
-          present_aversion: 0,
-          past_attachment: 0,
-          past_neutral: 0,
-          past_aversion: 0,
-          future_attachment: 0,
-          future_neutral: 0,
-          future_aversion: 0
+          present_attachment: 0, present_neutral: 0, present_aversion: 0,
+          past_attachment: 0, past_neutral: 0, past_aversion: 0,
+          future_attachment: 0, future_neutral: 0, future_aversion: 0
         }
       };
+      
       addPracticeSession(enhancedSessionData);
+      
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: `${tLevelUpper}Sessions`,
+        newValue: JSON.stringify(existingSessions),
+        storageArea: localStorage
+      }));
+      
+      console.log(`✅ SESSION SAVED SUCCESSFULLY! - ${tLevelUpper}`);
+      return sessionObject;
+      
+    } catch (error) {
+      console.error('❌ Error saving session to storage:', error);
     }
   }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
 
-  // ✅ FIXED: Start timer with timestamp tracking - ONLY for actual timer start
-  const startTimer = async () => {
-    const now = Date.now();
-    setSessionStartTimestamp(now);
-    setTotalPausedTime(0);
-    setIsActive(true);
-    setIsPaused(false);
-    setIsRunning(true);
-    
-    // 🔒 Request wake lock to prevent screen from sleeping
-    await requestWakeLock();
-    
-    // Play start bell
-    playBell('start');
-    
-    // Simple start announcement focused on physical stillness
-    if (voiceEnabled && selectedVoice) {
-      setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance("Begin stillness training");
-        utterance.voice = selectedVoice;
-        utterance.volume = 0.9;
-        utterance.rate = 0.8;
-        utterance.pitch = 0.6; // Rough, deep voice
-        speechSynthesis.speak(utterance);
-      }, 2000); // Delay to avoid overlap with bell
-    }
-    
-    // Store start time (keep for compatibility)
-    const nowISO = new Date(now).toISOString();
-    setSessionStartTime(nowISO);
-    sessionStorage.setItem('practiceStartTime', nowISO);
-    
-    // Reset bell and voice tracking
-    setLastBellMinute(0);
-    setLastVoiceAnnouncement(0);
-  };
-  
-  // Handle back button with wake lock cleanup
-  const handleBack = async () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    
-    // 🔒 Release wake lock
-    await releaseWakeLock();
-    
-    // Cancel any ongoing speech
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-    }
-    onBack();
-  };
-
-  // ✅ NEW: Pause/Resume handlers with timestamp tracking
-  const handlePause = () => {
-    if (!isPaused) {
-      setPauseStartTime(Date.now());
-      setIsPaused(true);
-    }
-  };
-
-  const handleResume = () => {
-    if (isPaused && pauseStartTime) {
-      const pauseDuration = Date.now() - pauseStartTime;
-      setTotalPausedTime(prev => prev + pauseDuration);
-      setPauseStartTime(null);
-      setIsPaused(false);
-    }
-  };
-
-  // 📊 SESSION DATA IS STORED HERE - When you click "Complete Practice"
-  const recordSession = async (isFullyCompleted: boolean) => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    
-    console.log('🎯 RECORDING SESSION - User clicked Complete Practice');
-    
-    // 🔒 Release wake lock
-    await releaseWakeLock();
-    
-    // Cancel any ongoing speech
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-    }
-    
-    // Play completion bell and announce if completed
-    if (isFullyCompleted) {
-      playBell('end');
-      announceTime(0); // Announce "Practice session complete"
-    }
-    
-    // Calculate time spent
-    const startTime = sessionStartTime || new Date().toISOString();
-    const endTime = new Date().toISOString();
-    sessionStorage.setItem('practiceEndTime', endTime);
-    
-    // Calculate time spent in minutes
-    const timeSpentMs = sessionStartTime 
-      ? new Date(endTime).getTime() - new Date(startTime).getTime() 
-      : 0;
-    const timeSpentMinutes = Math.round(timeSpentMs / (1000 * 60));
-    
-    const sessionData = {
-      duration: timeSpentMinutes || initialMinutes,
-      rating: isFullyCompleted ? 8 : 6,
-      notes: `${getTLevel().toUpperCase()} physical stillness training`,
-      metadata: {
-        startTime: startTime,
-        endTime: endTime,
-        wasFullyCompleted: isFullyCompleted,
-        initialMinutes: initialMinutes,
-        actualMinutes: timeSpentMinutes,
-        wakeLockUsed: wakeLockStatus === 'active'
-      }
-    };
-    
-    // 🔥 Save to all storage locations with immediate synchronization
-    saveSessionToAllStorageLocations(sessionData, isFullyCompleted);
-    
-    // ✅ FIXED: Add achievement note for motivation with intensity property
-    if (isFullyCompleted) {
-      addEmotionalNote({
-        content: `Successfully completed ${getTLevel().toUpperCase()} physical stillness training! 🧘‍♂️ Built ${initialMinutes} minutes of capacity toward PAHM practice.`,
-        emotion: 'accomplished',
-        energyLevel: 8,
-        intensity: 8, // ✅ FIXED: Added missing intensity property
-        tags: ['achievement', 'physical_training', getTLevel(), 't-level']
-      });
-    }
-    
-    // Store session data for reflection component
-    const reflectionData = {
-      level: getTLevel(),
-      targetDuration: initialMinutes,
-      timeSpent: timeSpentMinutes || 0,
-      isCompleted: isFullyCompleted,
-      completedAt: endTime
-    };
-    
-    sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
-    
-    console.log('✅ Session recording completed, calling onComplete...');
-    onComplete();
-  };
-
-  // 📊 SESSION DATA IS STORED HERE - When timer reaches 00:00
+  // Timer completion handler
   const handleTimerComplete = useCallback(async () => {
-    console.log('⏰ TIMER COMPLETED - Time reached 00:00');
+    console.log('⏰ TIMER COMPLETED');
+    
+    setIsRunning(false);
+    setIsActive(false);
+    
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     
     const endTime = new Date().toISOString();
     const actualDuration = Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
     const sessionQuality = calculateSessionQuality(actualDuration, isFullyCompleted);
 
-    // 🔒 Release wake lock
     await releaseWakeLock();
-
-    // Play completion bell and announce completion
-    playBell('end');
-    announceTime(0); // Announce "Practice session complete"
+    await playBell('end');
+    announceTime(0);
 
     const sessionData = {
       duration: Math.round(actualDuration / 60),
@@ -713,45 +505,31 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       }
     };
 
-    // 🔥 Save to all storage locations with immediate synchronization
     saveSessionToAllStorageLocations(sessionData, isFullyCompleted);
 
-    // Completion note
     const completionMessage = isFullyCompleted 
       ? `Completed full ${initialMinutes}-minute ${getTLevel().toUpperCase()} stillness session! 🎯`
       : `Completed ${Math.round(actualDuration / 60)}-minute ${getTLevel().toUpperCase()} stillness session.`;
-    
-    const stillnessInsight = "Building foundation for deeper mindfulness practice.";
 
-    // ✅ FIXED: Completion note with intensity property
     addEmotionalNote({
-      content: `${completionMessage} ${stillnessInsight} Quality rating: ${sessionQuality}/10.`,
+      content: `${completionMessage} Building foundation for deeper mindfulness practice. Quality rating: ${sessionQuality}/10.`,
       emotion: isFullyCompleted ? 'accomplished' : 'content',
       energyLevel: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
-      intensity: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6, // ✅ FIXED: Added missing intensity property
+      intensity: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
       tags: ['stillness-practice', 'stage-1', 'basic-meditation', getTLevel()],
-      gratitude: [
-        'meditation practice',
-        'inner stillness',
-        isFullyCompleted ? 'session completion' : 'practice effort'
-      ]
+      gratitude: ['meditation practice', 'inner stillness', isFullyCompleted ? 'session completion' : 'practice effort']
     });
 
-    console.log('✅ Timer completion processed, calling onComplete...');
     onComplete();
   }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToAllStorageLocations, calculateSessionQuality, getTLevel, playBell, announceTime, releaseWakeLock, wakeLockStatus]);
 
-  // Handle timer completion
+  // Timer effect
   useEffect(() => {
-    if (timeRemaining === 0 && isRunning) {
-      setIsRunning(false);
-      handleTimerComplete();
-    }
-  }, [timeRemaining, isRunning, handleTimerComplete]);
-
-  // ✅ FIXED: Background-resilient timer using timestamps
-  useEffect(() => {
-    if (isRunning && !isPaused && sessionStartTimestamp && timeRemaining > 0) {
+    if (isRunning && !isPaused && sessionStartTimestamp) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      
       const updateTimer = () => {
         const now = Date.now();
         const elapsed = Math.floor((now - sessionStartTimestamp - totalPausedTime) / 1000);
@@ -759,108 +537,163 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         
         setTimeRemaining(newTimeRemaining);
         
-        // Check for minute bells
         if (newTimeRemaining > 0) {
           checkMinuteBell(newTimeRemaining);
-        }
-        
-        if (newTimeRemaining > 0) {
-          timerRef.current = setTimeout(updateTimer, 1000);
         }
       };
       
       updateTimer();
-      timerRef.current = setTimeout(updateTimer, 1000);
+      intervalRef.current = setInterval(updateTimer, 1000);
     } else {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     }
 
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [isRunning, isPaused, sessionStartTimestamp, totalPausedTime, initialMinutes, checkMinuteBell]);
 
-  // ✅ FIXED: handleStart with NO auto-timer start - just prepare practice stage
-  const handleStart = () => {
+  // Timer completion effect
+  useEffect(() => {
+    if (timeRemaining === 0 && isRunning) {
+      handleTimerComplete();
+    }
+  }, [timeRemaining, isRunning, handleTimerComplete]);
+
+  // Start practice directly from setup
+  const handleStart = async () => {
     if (initialMinutes < 5) {
       alert('Practice requires a minimum of 5 minutes.');
       return;
     }
     
-    // ✅ FIX: Only set up for practice stage, don't start timer yet
-    setTimeRemaining(initialMinutes * 60);
     setCurrentStage('practice');
     
-    // ✅ CRITICAL: Reset all timer states but DON'T start timer
-    setSessionStartTimestamp(null);
-    setTotalPausedTime(0);
-    setIsPaused(false);
-    setIsActive(false);
-    setIsRunning(false); // ✅ KEY FIX: Don't start timer automatically!
-    setSessionStartTime(null);
+    const totalSeconds = initialMinutes * 60;
+    setTimeRemaining(totalSeconds);
     
-    // Reset bell and voice tracking
-    setLastBellMinute(0);
-    setLastVoiceAnnouncement(0);
+    await initializeAudioContext();
+    await resumeAudioContext();
+    
+    const now = Date.now();
+    setSessionStartTimestamp(now);
+    setTotalPausedTime(0);
+    setIsActive(true);
+    setIsPaused(false);
+    setIsRunning(true);
+    
+    setLastBellMinute(-1);
+    setBellsPlayed(new Set());
+    setLastVoiceAnnouncement(-1);
+    
+    await requestWakeLock();
+    await playBell('start');
+    
+    if (voiceEnabled && selectedVoice) {
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance("Begin stillness training");
+        utterance.voice = selectedVoice;
+        utterance.volume = 0.9;
+        utterance.rate = 0.8;
+        utterance.pitch = 0.6;
+        speechSynthesis.speak(utterance);
+      }, 2000);
+    }
+    
+    const nowISO = new Date(now).toISOString();
+    setSessionStartTime(nowISO);
+    sessionStorage.setItem('practiceStartTime', nowISO);
   };
 
-  // Handle skip (early completion)
-  const handleSkip = () => {
-    recordSession(false);
-  };
-  
-  // Fast forward for development with unified storage
-  const handleFastForward = async () => {
-    const now = new Date().toISOString();
+  // Control handlers
+  const handleBack = async () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     
-    console.log('🚀 DEV FAST-FORWARD - Simulating completed session');
-    
-    // 🔒 Release wake lock
     await releaseWakeLock();
     
-    sessionStorage.setItem('practiceStartTime', now);
-    sessionStorage.setItem('practiceEndTime', now);
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+    
+    if (audioContext && audioContext.state !== 'closed') {
+      try {
+        audioContext.close();
+        setAudioContext(null);
+      } catch (error) {
+        console.warn('AudioContext cleanup error:', error);
+      }
+    }
+    
+    onBack();
+  };
+
+  const handlePause = () => {
+    if (!isPaused && isRunning) {
+      setPauseStartTime(Date.now());
+      setIsPaused(true);
+      setIsRunning(false);
+      
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  };
+
+  const handleResume = () => {
+    if (isPaused && pauseStartTime) {
+      const pauseDuration = Date.now() - pauseStartTime;
+      setTotalPausedTime(prev => prev + pauseDuration);
+      setPauseStartTime(null);
+      setIsPaused(false);
+      setIsRunning(true);
+    }
+  };
+
+  const handleSkip = () => {
+    const now = new Date().toISOString();
+    const timeSpentMs = sessionStartTime 
+      ? new Date(now).getTime() - new Date(sessionStartTime).getTime() 
+      : 0;
+    const timeSpentMinutes = Math.round(timeSpentMs / (1000 * 60));
     
     const sessionData = {
-      duration: initialMinutes,
-      rating: 8,
-      notes: `${getTLevel().toUpperCase()} physical stillness training - DEV FAST-FORWARD`,
+      duration: timeSpentMinutes || initialMinutes,
+      rating: 6,
+      notes: `${getTLevel().toUpperCase()} physical stillness training`,
       metadata: {
-        fastForwarded: true,
-        endTime: now
+        startTime: sessionStartTime,
+        endTime: now,
+        wasFullyCompleted: false,
+        initialMinutes: initialMinutes,
+        actualMinutes: timeSpentMinutes
       }
     };
     
-    // 🔥 Save to all storage locations with immediate synchronization
-    saveSessionToAllStorageLocations(sessionData, true);
+    saveSessionToAllStorageLocations(sessionData, false);
     
     const reflectionData = {
       level: getTLevel(),
       targetDuration: initialMinutes,
-      timeSpent: initialMinutes,
-      isCompleted: true,
-      completedAt: now,
-      fastForwarded: true
+      timeSpent: timeSpentMinutes || 0,
+      isCompleted: false,
+      completedAt: now
     };
     
     sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
-    
-    // ✅ FIXED: Fast-forward note with intensity property
-    addEmotionalNote({
-      content: `DEV: Fast-forwarded ${getTLevel().toUpperCase()} training session for testing.`,
-      emotion: 'accomplished',
-      energyLevel: 8,
-      intensity: 8, // ✅ FIXED: Added missing intensity property
-      tags: ['dev', 'fast-forward', getTLevel(), 't-level']
-    });
-    
-    console.log(`✅ DEV fast-forward completed, calling onComplete...`);
     onComplete();
   };
 
@@ -872,76 +705,60 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       setTimeRemaining(newTimeRemaining);
     }
   };
-  
-  // Handle session recording via appropriate recorder component
-  const handleRecordSession = (sessionData: any) => {
-    console.log('Session recorded:', sessionData);
-  };
-  
-  // Clean up interval and wake lock on unmount
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      // Cancel any ongoing speech
-      if ('speechSynthesis' in window) {
-        speechSynthesis.cancel();
-      }
-      // Release wake lock
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
       releaseWakeLock();
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+      }
     };
-  }, [releaseWakeLock]);
+  }, [releaseWakeLock, audioContext]);
 
-  // ✅ FIXED: Setup with props but don't auto-start timer
+  // Setup with props
   useEffect(() => {
     if (propInitialMinutes && propInitialMinutes >= 5) {
       setInitialMinutes(propInitialMinutes);
-      // ✅ REMOVED: setTimeRemaining(propInitialMinutes * 60); // This was causing auto-countdown
-      // Keep in setup stage - don't auto-start
       setCurrentStage('setup');
     }
   }, [propInitialMinutes]);
 
-  // ✅ FIXED: Only request wake lock when timer actually starts (isActive), not just practice stage
-  useEffect(() => {
-    if (isActive && wakeLockEnabled) {
-      console.log('🔒 Timer active, requesting wake lock...');
-      requestWakeLock();
-    }
-  }, [isActive, wakeLockEnabled, requestWakeLock]);
-
-  // 🔒 Handle visibility change to maintain wake lock
+  // Visibility change handler
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && wakeLock) {
-        // Document became hidden, wake lock might be released
-        setWakeLockStatus('background');
+      if (document.hidden) {
+        if (wakeLock) {
+          setWakeLockStatus('background');
+        }
       } else if (!document.hidden && isActive && wakeLockEnabled) {
-        // Document became visible again, re-request wake lock if needed
         requestWakeLock();
+        if (audioContext && audioContext.state === 'suspended') {
+          audioContext.resume().catch(error => {
+            console.warn('Failed to resume AudioContext:', error);
+          });
+        }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock]);
+  }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock, audioContext]);
 
-  // Format time as MM:SS
+  // Format time
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // ✅ FIXED: Get wake lock status indicator - shows proper status
+  // Wake lock indicator
   const getWakeLockIndicator = () => {
-    // If timer is actively running (isActive), always show "Screen lock disabled"
-    if (isActive) {
-      return '🔒 Screen lock disabled';
-    }
+    if (isActive) return '🔒 Screen lock disabled';
     
-    // For setup screen or practice screen before timer starts
     switch (wakeLockStatus) {
       case 'active': return '🔒 Screen lock disabled';
       case 'released': return '⚠️ Screen lock re-enabled';
@@ -976,14 +793,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           width: '100%',
           textAlign: 'center'
         }}>
-          <h3 style={{ marginBottom: '15px', fontSize: '18px', fontWeight: '600', color: '#FFFFFF', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' }}>Duration (minimum 5 minutes)</h3>
+          <h3 style={{ marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>
+            Duration (minimum 5 minutes)
+          </h3>
           <input
             type="number"
             min="5"
             max="90"
             value={initialMinutes}
             onChange={(e) => setInitialMinutes(parseInt(e.target.value) || 5)}
-            className="minutes-input"
             style={{
               fontSize: '28px',
               fontWeight: '700',
@@ -995,13 +813,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               marginBottom: '20px',
               backgroundColor: '#FFFFFF',
               color: '#212529',
-              boxShadow: '0 2px 8px rgba(88, 101, 242, 0.2)',
               minHeight: '60px',
               outline: 'none'
             }}
           />
           
-          {/* Enhanced Audio Settings */}
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             padding: '20px',
@@ -1018,7 +834,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
                 onChange={(e) => setBellEnabled(e.target.checked)}
                 style={{ marginRight: '10px' }}
               />
-              🔔 Authentic meditation bells (generated tones)
+              🔔 {isMobile ? 'Meditation bells (mobile optimized)' : 'Authentic meditation bells (generated tones)'}
             </label>
             
             <label style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', cursor: 'pointer' }}>
@@ -1031,7 +847,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               🎙️ Voice commands (rough male voice)
             </label>
             
-            {/* Voice Selection */}
             {voiceEnabled && availableVoices.length > 0 && (
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
@@ -1055,32 +870,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
                 >
                   {availableVoices.map((voice) => (
                     <option key={voice.name} value={voice.name}>
-                      {voice.name} ({voice.lang}) {voice.name.toLowerCase().includes('male') ? '👨' : voice.name.toLowerCase().includes('female') ? '👩' : ''}
+                      {voice.name} ({voice.lang})
                     </option>
                   ))}
                 </select>
-                {selectedVoice && (
-                  <div style={{ fontSize: '10px', marginTop: '5px', opacity: 0.8 }}>
-                    Selected: {selectedVoice.name} ({selectedVoice.lang})
-                  </div>
-                )}
               </div>
             )}
-            
-            <div style={{ 
-              fontSize: '12px', 
-              marginTop: '10px', 
-              opacity: 0.8,
-              background: 'rgba(255, 255, 255, 0.1)',
-              padding: '8px',
-              borderRadius: '5px'
-            }}>
-              🔔 Authentic meditation bells with harmonic tones<br/>
-              🎙️ Direct voice commands for physical stillness training
-            </div>
           </div>
 
-          {/* 🔒 Wake Lock Settings */}
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             padding: '20px',
@@ -1099,18 +896,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               />
               🔒 Keep screen awake during practice
             </label>
-            
-            <div style={{ 
-              fontSize: '12px', 
-              marginTop: '10px', 
-              opacity: 0.8,
-              background: 'rgba(255, 255, 255, 0.1)',
-              padding: '8px',
-              borderRadius: '5px'
-            }}>
-              🔒 Prevents screen from sleeping during stillness training<br/>
-              📱 Automatically releases when practice completes
-            </div>
           </div>
           
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -1147,26 +932,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             </button>
           </div>
         </div>
-        
-        <div style={{
-          marginTop: '30px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          padding: '20px',
-          borderRadius: '10px',
-          maxWidth: '500px',
-          fontSize: '14px',
-          lineHeight: '1.6'
-        }}>
-          <h4 style={{ marginBottom: '10px' }}>Stillness Practice Instructions:</h4>
-          <ul style={{ textAlign: 'left', marginTop: '10px' }}>
-            <li>Sit comfortably with your back straight</li>
-            <li>Close your eyes or soften your gaze</li>
-            <li>Focus on your breath or body sensations</li>
-            <li>Maintain physical stillness throughout the session</li>
-            <li>Gently return attention to your breath when distracted</li>
-            <li>The goal is developing stillness and stability</li>
-          </ul>
-        </div>
       </div>
     );
   }
@@ -1179,7 +944,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       padding: '10px',
       boxSizing: 'border-box'
     }}>
-      {/* Fallback audio elements with improved bell sounds */}
       <audio ref={startBellRef} preload="auto">
         <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
       </audio>
@@ -1190,23 +954,22 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
       </audio>
       
-      {/* Include all recorder components but hide them */}
       <div style={{ display: 'none' }}>
-        <T1PracticeRecorder onRecordSession={handleRecordSession} ref={t1RecorderRef} />
-        <T2PracticeRecorder onRecordSession={handleRecordSession} ref={t2RecorderRef} />
-        <T3PracticeRecorder onRecordSession={handleRecordSession} ref={t3RecorderRef} />
-        <T4PracticeRecorder onRecordSession={handleRecordSession} ref={t4RecorderRef} />
-        <T5PracticeRecorder onRecordSession={handleRecordSession} ref={t5RecorderRef} />
+        <T1PracticeRecorder onRecordSession={() => {}} ref={t1RecorderRef} />
+        <T2PracticeRecorder onRecordSession={() => {}} ref={t2RecorderRef} />
+        <T3PracticeRecorder onRecordSession={() => {}} ref={t3RecorderRef} />
+        <T4PracticeRecorder onRecordSession={() => {}} ref={t4RecorderRef} />
+        <T5PracticeRecorder onRecordSession={() => {}} ref={t5RecorderRef} />
       </div>
       
-      <div className="timer-header" style={{ 
+      <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
         marginBottom: '15px',
         minHeight: '50px'
       }}>
-        <button className="back-button" onClick={handleBack} style={{
+        <button onClick={handleBack} style={{
           padding: '8px 16px',
           fontSize: '14px',
           borderRadius: '8px',
@@ -1224,7 +987,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         <div style={{ width: '65px' }}></div>
       </div>
       
-      {/* 🔒 Wake Lock Status Indicator - Only show when timer is active */}
       {isActive && (
         <div style={{
           background: wakeLockStatus === 'active' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 165, 0, 0.1)',
@@ -1239,7 +1001,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         </div>
       )}
       
-      <div className="timer-content" style={{ 
+      <div style={{ 
         flex: 1, 
         display: 'flex', 
         flexDirection: 'column',
@@ -1247,24 +1009,20 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         alignItems: 'center',
         textAlign: 'center'
       }}>
-        <div className="timer-display" style={{ marginBottom: '30px' }}>
-          <div className="time-remaining" style={{ 
+        <div style={{ marginBottom: '30px' }}>
+          <div style={{ 
             fontSize: '64px', 
             fontWeight: 'bold',
             margin: '20px 0',
             color: '#2c3e50'
           }}>{formatTime(timeRemaining)}</div>
-          <div className="timer-instruction" style={{
+          <div style={{
             fontSize: '16px',
             color: '#666',
             margin: '10px 0',
             lineHeight: '1.4'
           }}>
-            {!isActive 
-              ? "Press Start when ready" 
-              : isPaused 
-                ? "Practice paused" 
-                : "Maintain physical stillness"}
+            {isPaused ? "Practice paused" : "Maintain physical stillness"}
           </div>
           {(bellEnabled || voiceEnabled) && isActive && (
             <div style={{
@@ -1272,7 +1030,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               color: '#888',
               marginTop: '5px'
             }}>
-              {bellEnabled && <span>🔔 Harmonic meditation bells</span>}
+              {bellEnabled && <span>🔔 {isMobile ? 'Mobile-optimized' : 'Harmonic'} meditation bells</span>}
               {bellEnabled && voiceEnabled && <br/>}
               {voiceEnabled && selectedVoice && (
                 <span>🎙️ Voice commands: {selectedVoice.name.split(' ')[0]}</span>
@@ -1281,29 +1039,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           )}
         </div>
         
-        <div className="timer-controls" style={{ 
+        <div style={{ 
           display: 'flex', 
           flexDirection: 'column',
           gap: '15px',
           width: '100%',
           maxWidth: '280px'
         }}>
-          {!isActive ? (
-            <button className="start-button" onClick={startTimer} style={{
-              padding: '16px 24px',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              borderRadius: '30px',
-              border: 'none',
-              backgroundColor: '#27ae60',
-              color: 'white',
-              cursor: 'pointer',
-              width: '100%'
-            }}>
-              Start Practice
-            </button>
-          ) : isPaused ? (
-            <button className="resume-button" onClick={handleResume} style={{
+          {isPaused ? (
+            <button onClick={handleResume} style={{
               padding: '16px 24px',
               fontSize: '18px',
               fontWeight: 'bold',
@@ -1317,7 +1061,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               Resume
             </button>
           ) : (
-            <button className="pause-button" onClick={handlePause} style={{
+            <button onClick={handlePause} style={{
               padding: '16px 24px',
               fontSize: '18px',
               fontWeight: 'bold',
@@ -1332,24 +1076,21 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             </button>
           )}
           
-          {isActive && !isPaused && (
-            <button className="complete-button" onClick={handleSkip} style={{
-              backgroundColor: '#4A67E3', 
-              color: 'white',
-              padding: '14px 20px',
-              borderRadius: '30px',
-              border: 'none',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              fontSize: '16px',
-              width: '100%'
-            }}>
-              Complete Practice
-            </button>
-          )}
+          <button onClick={handleSkip} style={{
+            backgroundColor: '#4A67E3', 
+            color: 'white',
+            padding: '14px 20px',
+            borderRadius: '30px',
+            border: 'none',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            fontSize: '16px',
+            width: '100%'
+          }}>
+            Complete Practice
+          </button>
         </div>
 
-        {/* Development Controls - Clean Version */}
         {process.env.NODE_ENV !== 'production' && (
           <div style={{
             marginTop: '20px',
@@ -1390,20 +1131,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
                 }}
               >
                 +5min
-              </button>
-              <button
-                onClick={handleFastForward}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  padding: '5px 10px',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '10px',
-                  fontSize: '10px',
-                  cursor: 'pointer'
-                }}
-              >
-                Complete
               </button>
             </div>
           </div>
