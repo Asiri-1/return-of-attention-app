@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+// ✅ ADD: Import useAuth for current user
+import { useAuth } from './contexts/auth/AuthContext';
 // 🚀 UPDATED: Use focused onboarding context instead of LocalDataContext
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
@@ -12,23 +14,43 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // ✅ CRITICAL: Get current user for data isolation
+  const { currentUser } = useAuth();
+
   // 🚀 ENHANCED: Use focused onboarding context with more methods
   const { 
     markQuestionnaireComplete,
-    saveQuestionnaireProgress, // ✅ FIXED: Added missing comma
+    saveQuestionnaireProgress,
     questionnaire,
     isQuestionnaireCompleted 
   } = useOnboarding();
 
-  // ✅ ENHANCED: Load saved progress from both Firestore and localStorage
+  // ✅ USER-SPECIFIC: Generate user-specific storage keys
+  const getUserStorageKey = (baseKey: string): string => {
+    const userId = currentUser?.uid;
+    if (!userId) {
+      console.warn('🚨 No user ID for questionnaire storage');
+      return baseKey; // Fallback to base key
+    }
+    return `${baseKey}_${userId}`;
+  };
+
+  // ✅ ENHANCED: Load saved progress from both Firestore and localStorage (user-specific)
   useEffect(() => {
     const loadProgress = async () => {
+      // ✅ SECURITY: Must have current user
+      if (!currentUser?.uid) {
+        console.warn('🚨 No current user - cannot load questionnaire progress');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         
         // ✅ PRIORITY 1: Check if questionnaire is already completed
         if (isQuestionnaireCompleted()) {
-          console.log('📋 Questionnaire already completed, redirecting...');
+          console.log(`📋 Questionnaire already completed for user ${currentUser.uid.substring(0, 8)}...`);
           if (questionnaire?.responses) {
             setAnswers(questionnaire.responses);
             setCurrentQuestion(27); // Go to end
@@ -39,12 +61,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
 
         // ✅ PRIORITY 2: Try to load from OnboardingContext (which handles Firestore)
         if (questionnaire?.responses) {
-          console.log('📦 Loading progress from OnboardingContext (Firestore)');
+          console.log(`📦 Loading progress from OnboardingContext (Firestore) for user ${currentUser.uid.substring(0, 8)}...`);
           setAnswers(questionnaire.responses);
           
           // Calculate current question based on answered questions
           const answeredCount = Object.keys(questionnaire.responses).filter(key => 
-            !['totalQuestions', 'answeredQuestions'].includes(key) &&
+            !['totalQuestions', 'answeredQuestions', 'userId', 'completedAt', 'completed'].includes(key) &&
             questionnaire.responses[key] !== undefined &&
             questionnaire.responses[key] !== null &&
             questionnaire.responses[key] !== ''
@@ -55,20 +77,82 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           return;
         }
 
-        // ✅ PRIORITY 3: Try localStorage for migration/fallback
-        const savedData = localStorage.getItem('questionnaire_progress');
+        // ✅ PRIORITY 3: Try user-specific localStorage for migration/fallback
+        const userProgressKey = getUserStorageKey('questionnaire_progress');
+        const savedData = localStorage.getItem(userProgressKey);
+        
         if (savedData) {
           try {
-            const { answers: savedAnswers, currentQuestion: savedQuestion } = JSON.parse(savedData);
-            console.log('📦 Loading progress from localStorage (legacy)');
+            const parsed = JSON.parse(savedData);
+            
+            // ✅ SECURITY: Verify ownership
+            if (parsed.userId && parsed.userId !== currentUser.uid) {
+              console.error(`🚨 DATA LEAK PREVENTED: Questionnaire progress belongs to ${parsed.userId}, not ${currentUser.uid}`);
+              localStorage.removeItem(userProgressKey); // Clean up contaminated data
+              setAnswers({});
+              setCurrentQuestion(1);
+              setIsLoading(false);
+              return;
+            }
+            
+            const { answers: savedAnswers, currentQuestion: savedQuestion } = parsed;
+            console.log(`📦 Loading progress from user-specific localStorage for user ${currentUser.uid.substring(0, 8)}...`);
             setAnswers(savedAnswers || {});
             setCurrentQuestion(savedQuestion || 1);
+            setIsLoading(false);
+            return;
           } catch (parseError) {
-            console.error('Error parsing saved progress:', parseError);
-            setAnswers({});
-            setCurrentQuestion(1);
+            console.error('Error parsing user-specific saved progress:', parseError);
+            localStorage.removeItem(userProgressKey); // Clean up corrupted data
           }
         }
+
+        // ✅ FALLBACK: Check legacy global localStorage but verify ownership
+        const legacyData = localStorage.getItem('questionnaire_progress');
+        if (legacyData) {
+          try {
+            const parsed = JSON.parse(legacyData);
+            
+            // Only use legacy data if it belongs to current user or has no userId
+            if (parsed.userId && parsed.userId === currentUser.uid) {
+              console.log(`📦 Migrating legacy questionnaire progress for user ${currentUser.uid.substring(0, 8)}...`);
+              setAnswers(parsed.answers || {});
+              setCurrentQuestion(parsed.currentQuestion || 1);
+              
+              // Migrate to user-specific storage
+              localStorage.setItem(userProgressKey, JSON.stringify({
+                ...parsed,
+                userId: currentUser.uid,
+                migratedAt: new Date().toISOString()
+              }));
+              
+              setIsLoading(false);
+              return;
+            } else if (!parsed.userId) {
+              console.warn(`⚠️ Legacy questionnaire progress has no userId - assuming belongs to current user ${currentUser.uid.substring(0, 8)}...`);
+              const dataWithUser = {
+                ...parsed,
+                userId: currentUser.uid,
+                migratedAt: new Date().toISOString()
+              };
+              setAnswers(parsed.answers || {});
+              setCurrentQuestion(parsed.currentQuestion || 1);
+              
+              // Save to user-specific storage
+              localStorage.setItem(userProgressKey, JSON.stringify(dataWithUser));
+              setIsLoading(false);
+              return;
+            }
+          } catch (parseError) {
+            console.error('Error parsing legacy progress:', parseError);
+            localStorage.removeItem('questionnaire_progress'); // Clean up corrupted data
+          }
+        }
+        
+        // No saved progress found
+        console.log(`🆕 Starting fresh questionnaire for user ${currentUser.uid.substring(0, 8)}...`);
+        setAnswers({});
+        setCurrentQuestion(1);
         
       } catch (error) {
         console.error('Error loading questionnaire progress:', error);
@@ -80,28 +164,35 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     };
 
     loadProgress();
-  }, [questionnaire, isQuestionnaireCompleted]);
+  }, [questionnaire, isQuestionnaireCompleted, currentUser]);
 
-  // ✅ ENHANCED: Auto-save progress to both Firestore and localStorage
+  // ✅ ENHANCED: Auto-save progress to both Firestore and user-specific localStorage
   useEffect(() => {
     const saveProgress = async () => {
-      if (isLoading || isSaving) return;
+      if (isLoading || isSaving || !currentUser?.uid) return;
       
       try {
-        // ✅ IMMEDIATE: Save to localStorage for instant recovery
-        localStorage.setItem('questionnaire_progress', JSON.stringify({
+        // ✅ USER-SPECIFIC: Save to localStorage with user ID
+        const userProgressKey = getUserStorageKey('questionnaire_progress');
+        const progressData = {
           answers,
           currentQuestion,
+          userId: currentUser.uid,
           timestamp: new Date().toISOString(),
-          version: '2.0'
-        }));
+          version: '3.0_user_isolated'
+        };
+        
+        localStorage.setItem(userProgressKey, JSON.stringify(progressData));
 
-        // ✅ FIXED: Now using the actual method from OnboardingContext
+        // ✅ SECURITY: Also clear any legacy global storage to prevent contamination
+        localStorage.removeItem('questionnaire_progress');
+
+        // ✅ CLOUD: Save to Firestore via OnboardingContext
         if (saveQuestionnaireProgress) {
           await saveQuestionnaireProgress(answers, currentQuestion);
         }
         
-        console.log('💾 Auto-saved questionnaire progress');
+        console.log(`💾 Auto-saved questionnaire progress for user ${currentUser.uid.substring(0, 8)}...`);
       } catch (error) {
         console.warn('Failed to auto-save progress:', error);
       }
@@ -110,7 +201,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     // Debounce auto-save to avoid too frequent saves
     const timeoutId = setTimeout(saveProgress, 1000);
     return () => clearTimeout(timeoutId);
-  }, [answers, currentQuestion, isLoading, isSaving, saveQuestionnaireProgress]); // ✅ FIXED: Added saveQuestionnaireProgress to dependencies
+  }, [answers, currentQuestion, isLoading, isSaving, saveQuestionnaireProgress, currentUser]);
 
   const handleAnswer = (questionId: string, answer: any) => {
     const newAnswers = { ...answers, [questionId]: answer };
@@ -138,15 +229,26 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   };
 
   const completeQuestionnaire = async () => {
-    console.log('🔧 QUESTIONNAIRE COMPLETION STARTING...');
+    // ✅ SECURITY: Must have current user
+    if (!currentUser?.uid) {
+      console.error('🚨 No current user - cannot complete questionnaire');
+      alert('Authentication error. Please sign in again.');
+      return;
+    }
+
+    console.log(`🔧 QUESTIONNAIRE COMPLETION STARTING for user ${currentUser.uid.substring(0, 8)}...`);
     setIsSaving(true);
     
     try {
-      // ✅ CLEAR: Remove localStorage progress since we're completing
-      localStorage.removeItem('questionnaire_progress');
+      // ✅ CLEAR: Remove user-specific localStorage progress since we're completing
+      const userProgressKey = getUserStorageKey('questionnaire_progress');
+      localStorage.removeItem(userProgressKey);
+      localStorage.removeItem('questionnaire_progress'); // Also clear legacy
       
-      // ✅ FIXED: Send ONLY raw responses - OnboardingContext will add metadata
+      // ✅ USER-SPECIFIC: Send responses with user ID
       const rawResponses = {
+        // ✅ SECURITY: Include user ID in responses
+        userId: currentUser.uid,
         // Demographics & Background (1-7)
         experience_level: answers.experience_level || 1,
         goals: answers.goals || [],
@@ -180,26 +282,75 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         motivation: answers.motivation || 'Stress reduction and emotional balance',
         // ✅ METADATA: OnboardingContext will add completion metadata
         totalQuestions: 27,
-        answeredQuestions: Object.keys(answers).length
+        answeredQuestions: Object.keys(answers).length,
+        completedAt: new Date().toISOString()
       };
 
-      console.log('📝 Sending raw responses to OnboardingContext (Firebase):', rawResponses);
+      console.log(`📝 Sending user-specific responses to OnboardingContext (Firebase) for user ${currentUser.uid.substring(0, 8)}...`);
       
       if (markQuestionnaireComplete) {
         await markQuestionnaireComplete(rawResponses);
-        console.log('✅ Questionnaire successfully saved to Firebase via OnboardingContext');
+        console.log(`✅ Questionnaire successfully saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       }
+      
+      // ✅ BACKUP: Also save to user-specific localStorage as backup
+      const userQuestionnaireKey = `questionnaire_${currentUser.uid}`;
+      localStorage.setItem(userQuestionnaireKey, JSON.stringify(rawResponses));
       
       onComplete(rawResponses);
       
     } catch (error) {
       console.error('❌ QUESTIONNAIRE: Error during completion:', error);
-      // Still complete the UI flow even if save fails
+      
+      // ✅ FALLBACK: Save to user-specific localStorage if Firebase fails
+      try {
+        const userQuestionnaireKey = `questionnaire_${currentUser.uid}`;
+        const fallbackData = {
+          ...answers,
+          userId: currentUser.uid,
+          completed: true,
+          completedAt: new Date().toISOString(),
+          savedMethod: 'localStorage_fallback'
+        };
+        localStorage.setItem(userQuestionnaireKey, JSON.stringify(fallbackData));
+        console.log(`⚠️ Questionnaire saved to localStorage as fallback for user ${currentUser.uid.substring(0, 8)}...`);
+      } catch (fallbackError) {
+        console.error('❌ Complete save failure:', fallbackError);
+        alert('Failed to save questionnaire. Please try again.');
+        setIsSaving(false);
+        return;
+      }
+      
+      // Still complete the UI flow
       onComplete(answers);
     } finally {
       setIsSaving(false);
     }
   };
+
+  // ✅ SECURITY: Show error if no user
+  if (!currentUser) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+        color: 'white',
+        padding: '20px'
+      }}>
+        <div style={{ fontSize: '48px', marginBottom: '24px' }}>🚨</div>
+        <h2 style={{ fontSize: 'clamp(20px, 5vw, 28px)', textAlign: 'center', margin: 0 }}>
+          Authentication Required
+        </h2>
+        <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.9 }}>
+          Please sign in to access the questionnaire
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -227,6 +378,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         </h2>
         <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.8 }}>
           {questionnaire ? 'Syncing with Firebase...' : 'Loading from storage...'}
+        </p>
+        <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', textAlign: 'center', marginTop: '4px', opacity: 0.6 }}>
+          User: {currentUser.email}
         </p>
       </div>
     );
@@ -258,6 +412,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         </h2>
         <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.9 }}>
           Your responses are being securely saved
+        </p>
+        <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', textAlign: 'center', marginTop: '4px', opacity: 0.7 }}>
+          User: {currentUser.email}
         </p>
       </div>
     );
@@ -1164,224 +1321,215 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           justify-content: center;
           padding: 20px;
           padding-bottom: max(140px, calc(140px + env(safe-area-inset-bottom)));
-          min-height: calc(100vh - 200px);
-          min-height: calc(100dvh - 200px);
+          min-height: calc(100vh - 120px);
+          min-height: calc(100dvh - 120px);
         }
 
-        .question-card {
-          background: white;
-          border-radius: 24px;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-          padding: clamp(24px, 6vw, 40px);
-          max-width: 700px;
+        .question-container {
           width: 100%;
-          text-align: center;
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          max-width: 600px;
           margin: 0 auto;
-          transition: all 0.3s ease;
+          text-align: center;
+          animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .question-card.answer-required-card {
-          border: 2px solid #f59e0b;
-          box-shadow: 0 20px 60px rgba(245, 158, 11, 0.15);
-        }
-
-        .answer-required-message {
-          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-          border: 1px solid #f59e0b;
-          border-radius: 12px;
-          padding: 16px;
-          margin-top: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          animation: shake 0.5s ease-in-out;
-        }
-
-        .answer-required-icon {
-          font-size: 20px;
-          flex-shrink: 0;
-        }
-
-        .answer-required-text {
-          color: #92400e;
-          font-weight: 600;
-          font-size: clamp(13px, 3.5vw, 15px);
-        }
-
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         .question-container h2 {
-          font-size: clamp(20px, 6vw, 36px);
+          font-size: clamp(24px, 6vw, 32px);
+          font-weight: 800;
           color: #1a202c;
           margin: 0 0 16px 0;
-          font-weight: 800;
           line-height: 1.2;
+          letter-spacing: -0.02em;
         }
 
         .question-container p {
-          font-size: clamp(14px, 4vw, 20px);
+          font-size: clamp(16px, 4vw, 18px);
           color: #4a5568;
-          margin: 0 0 30px 0;
-          line-height: 1.6;
+          margin: 0 0 32px 0;
+          line-height: 1.5;
           font-weight: 500;
         }
 
-        /* ✅ OPTIONS GRID - IPHONE RESPONSIVE */
+        /* ✅ SLIDER STYLES - PERFECTLY OPTIMIZED */
+        .slider-container {
+          width: 100%;
+          padding: 20px;
+          background: rgba(255, 255, 255, 0.8);
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          margin: 0 auto;
+        }
+
+        .range-slider {
+          width: 100%;
+          height: 8px;
+          border-radius: 20px;
+          background: #e2e8f0;
+          outline: none;
+          appearance: none;
+          -webkit-appearance: none;
+          margin: 20px 0;
+          cursor: pointer;
+          position: relative;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+          appearance: none;
+          -webkit-appearance: none;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          cursor: pointer;
+          border: 3px solid white;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+          transition: all 0.2s ease;
+        }
+
+        .range-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .range-slider::-moz-range-thumb {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          cursor: pointer;
+          border: 3px solid white;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .slider-labels {
+          display: flex;
+          justify-content: space-between;
+          font-size: clamp(12px, 3vw, 14px);
+          color: #718096;
+          margin-top: 16px;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .slider-labels span {
+          font-weight: 600;
+          text-align: center;
+          flex: 1;
+          min-width: 80px;
+        }
+
+        .slider-value {
+          font-size: clamp(18px, 4.5vw, 22px);
+          font-weight: 800;
+          color: #667eea;
+          margin-top: 20px;
+          padding: 12px 24px;
+          background: linear-gradient(135deg, #667eea15 0%, #764ba208 100%);
+          border-radius: 12px;
+          border: 2px solid #667eea30;
+        }
+
+        /* ✅ OPTIONS GRID - RESPONSIVE & TOUCH OPTIMIZED */
         .options-grid {
           display: grid;
-          gap: 12px;
-          grid-template-columns: 1fr;
-          max-width: 600px;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px;
           margin: 0 auto;
+          max-width: 800px;
+        }
+
+        @media (max-width: 640px) {
+          .options-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
         }
 
         .option-button {
           display: flex;
           align-items: center;
           gap: 16px;
-          padding: 16px 20px;
+          padding: 20px 24px;
+          background: rgba(255, 255, 255, 0.9);
           border: 2px solid #e2e8f0;
           border-radius: 16px;
-          background: white;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          font-size: clamp(14px, 3.5vw, 16px);
+          font-weight: 600;
+          color: #4a5568;
           text-align: left;
-          min-height: 60px; /* iPhone touch target minimum */
-          -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
-          touch-action: manipulation;
+          min-height: 72px;
           position: relative;
           overflow: hidden;
-          box-sizing: border-box;
-          user-select: none;
-          -webkit-user-select: none;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
 
         .option-button::before {
           content: '';
           position: absolute;
           top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
-          transition: left 0.6s;
-        }
-
-        .option-button:hover::before {
-          left: 100%;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(135deg, #667eea15 0%, #764ba208 100%);
+          opacity: 0;
+          transition: opacity 0.3s ease;
         }
 
         .option-button:hover {
-          border-color: #667eea;
           transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+          border-color: #667eea;
+        }
+
+        .option-button:hover::before {
+          opacity: 1;
         }
 
         .option-button:active {
-          transform: translateY(0px) scale(0.98);
+          transform: translateY(0);
         }
 
         .option-button.selected {
-          border-color: #667eea;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-color: #667eea;
           color: white;
           transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(102, 126, 234, 0.25);
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .option-button.selected::before {
+          opacity: 0;
         }
 
         .option-icon {
-          font-size: clamp(18px, 5vw, 24px);
+          font-size: clamp(24px, 6vw, 28px);
           flex-shrink: 0;
+          z-index: 1;
+          position: relative;
         }
 
         .option-text {
-          font-size: clamp(13px, 3.5vw, 16px);
-          font-weight: 600;
-          line-height: 1.4;
-          word-break: break-word;
-        }
-
-        /* ✅ SLIDER DESIGN - IPHONE OPTIMIZED */
-        .slider-container {
-          padding: 20px;
-          max-width: 500px;
-          margin: 0 auto;
-        }
-
-        .range-slider {
-          width: 100%;
-          height: 12px;
-          border-radius: 6px;
-          background: #e2e8f0;
-          outline: none;
-          -webkit-appearance: none;
-          margin-bottom: 20px;
+          flex: 1;
+          z-index: 1;
           position: relative;
-          touch-action: manipulation;
+          line-height: 1.4;
         }
 
-        .range-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-          transition: all 0.2s ease;
-          border: none;
-        }
-
-        .range-slider::-webkit-slider-thumb:hover {
-          transform: scale(1.1);
-          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .range-slider::-webkit-slider-thumb:active {
-          transform: scale(1.2);
-        }
-
-        .range-slider::-moz-range-thumb {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          cursor: pointer;
-          border: none;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .slider-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          font-size: clamp(10px, 2.5vw, 13px);
-          color: #6b7280;
-          font-weight: 500;
-          flex-wrap: wrap;
-          gap: 4px;
-        }
-
-        .slider-value {
-          text-align: center;
-          font-size: clamp(16px, 4vw, 22px);
-          font-weight: 700;
-          color: #667eea;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        /* ✅ BOTTOM NAVIGATION - IPHONE OPTIMIZED */
-        .bottom-navigation {
+        /* ✅ BOTTOM NAVIGATION - FIXED & IPHONE SAFE */
+        .navigation-container {
           position: fixed;
           bottom: 0;
           left: 0;
@@ -1391,9 +1539,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           -webkit-backdrop-filter: blur(20px);
           border-top: 1px solid #e2e8f0;
           padding: 16px 20px;
-          padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
-          z-index: 1000;
-          box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+          padding-bottom: max(16px, calc(16px + env(safe-area-inset-bottom)));
+          z-index: 100;
+          box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.08);
         }
 
         .navigation-content {
@@ -1406,259 +1554,292 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         }
 
         .nav-button {
-          padding: 16px 24px;
-          border: none;
-          border-radius: 16px;
-          font-size: clamp(13px, 3.5vw, 16px);
+          padding: 14px 28px;
+          border-radius: 12px;
+          font-size: clamp(14px, 3.5vw, 16px);
           font-weight: 700;
+          border: none;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          min-height: 56px;
           min-width: 100px;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
           position: relative;
           overflow: hidden;
-          box-sizing: border-box;
-          user-select: none;
-          -webkit-user-select: none;
         }
 
-        .back-button {
-          background: #f1f5f9;
-          color: #475569;
-          border: 2px solid #e2e8f0;
-        }
-
-        .back-button:hover:not(:disabled) {
-          background: #e2e8f0;
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .back-button:active:not(:disabled) {
-          transform: translateY(0px) scale(0.98);
-        }
-
-        .back-button:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .next-button {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-          color: white !important;
-          border: 2px solid transparent !important;
-          position: relative;
-          flex: 1;
-          max-width: 250px;
-        }
-
-        .next-button::before {
+        .nav-button::before {
           content: '';
           position: absolute;
           top: 0;
           left: -100%;
           width: 100%;
           height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.6s;
-          pointer-events: none;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+          transition: left 0.5s ease;
         }
 
-        .next-button:hover::before {
+        .nav-button:hover::before {
           left: 100%;
         }
 
-        .next-button:hover:not(:disabled) {
-          background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+        .nav-button.back {
+          background: #f7fafc;
+          color: #4a5568;
+          border: 2px solid #e2e8f0;
         }
 
-        .next-button:active:not(:disabled) {
-          transform: translateY(0px) scale(0.98) !important;
+        .nav-button.back:hover {
+          background: #edf2f7;
+          border-color: #cbd5e0;
+          transform: translateX(-2px);
         }
 
-        .next-button:disabled {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          color: white !important;
-          cursor: not-allowed !important;
-          opacity: 0.8 !important;
-          transform: none !important;
-          box-shadow: none !important;
-          pointer-events: none !important;
+        .nav-button.next {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: 2px solid transparent;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
 
-        .answer-required {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          color: white !important;
+        .nav-button.next:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .nav-button.next:disabled {
+          background: #cbd5e0;
+          color: #a0aec0;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+          opacity: 0.6;
+        }
+
+        .nav-button.next:disabled:hover {
+          transform: none;
+          box-shadow: none;
+        }
+
+        .nav-button.complete {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          border: 2px solid transparent;
+          box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
           animation: pulse 2s infinite;
-          cursor: not-allowed !important;
-          pointer-events: none !important;
         }
 
         @keyframes pulse {
           0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.02); }
+          50% { transform: scale(1.05); }
         }
 
+        .nav-button.complete:hover {
+          transform: translateY(-2px) scale(1.05);
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+          animation: none;
+        }
+
+        /* ✅ QUESTION INDICATORS */
+        .question-indicator {
+          font-size: clamp(12px, 3vw, 14px);
+          color: #718096;
+          font-weight: 600;
+          text-align: center;
+          flex: 1;
+        }
+
+        /* ✅ LOADING ANIMATION */
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
 
-        /* ✅ RESPONSIVE BREAKPOINTS */
-        @media (max-width: 374px) {
-          .progress-header {
-            padding: max(12px, env(safe-area-inset-top, 12px)) 16px 12px 16px;
-          }
-
-          .main-content {
-            padding: 16px 12px;
-            padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom)));
-          }
-
-          .question-card {
-            padding: 20px 16px;
-            border-radius: 20px;
-          }
-
-          .options-grid {
-            gap: 10px;
-          }
-
-          .option-button {
-            padding: 14px 16px;
-            min-height: 56px;
-            gap: 12px;
-          }
-
-          .navigation-content {
-            gap: 12px;
-          }
-
-          .nav-button {
-            min-width: 80px;
-            padding: 14px 16px;
-            font-size: 13px;
+        /* ✅ ACCESSIBILITY IMPROVEMENTS */
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
           }
         }
 
-        @media (min-width: 415px) and (max-width: 768px) {
-          .options-grid {
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 14px;
-          }
-        }
-
-        @media (max-width: 768px) and (orientation: landscape) {
-          .main-content {
-            padding: 16px 20px;
-            padding-bottom: max(100px, calc(100px + env(safe-area-inset-bottom)));
-            align-items: flex-start;
-            padding-top: 16px;
-          }
-
-          .question-card {
-            padding: 20px 24px;
-            margin-top: 0;
-          }
-
-          .bottom-navigation {
-            padding: 12px 20px;
-            padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
-          }
-        }
-
-        @media (min-width: 769px) {
-          .options-grid {
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-          }
-
-          .question-card {
-            padding: 40px;
-          }
-        }
-
-        /* ✅ ACCESSIBILITY */
+        /* ✅ HIGH CONTRAST MODE */
         @media (prefers-contrast: high) {
           .option-button {
             border-width: 3px;
           }
-
-          .nav-button {
-            border-width: 3px;
+          
+          .option-button.selected {
+            border-color: #000;
+            background: #000;
+          }
+          
+          .nav-button.next {
+            background: #000;
           }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          * {
-            transition-duration: 0.01ms !important;
-            animation-duration: 0.01ms !important;
-          }
-        }
-
-        /* ✅ DARK MODE */
+        /* ✅ DARK MODE SUPPORT */
         @media (prefers-color-scheme: dark) {
           .questionnaire-container {
             background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
           }
-
+          
           .progress-header {
             background: rgba(26, 32, 44, 0.95);
             border-bottom-color: #4a5568;
           }
-
-          .question-card {
-            background: #2d3748;
-            border-color: #4a5568;
-          }
-
-          .question-container h2 {
-            color: #f7fafc;
-          }
-
-          .question-container p {
-            color: #e2e8f0;
-          }
-
-          .option-button {
-            background: #374151;
-            border-color: #4a5568;
-            color: #f7fafc;
-          }
-
-          .bottom-navigation {
+          
+          .navigation-container {
             background: rgba(26, 32, 44, 0.95);
             border-top-color: #4a5568;
           }
-
-          .back-button {
-            background: #374151;
-            color: #e2e8f0;
+          
+          .question-container h2 {
+            color: #f7fafc;
+          }
+          
+          .question-container p {
+            color: #cbd5e0;
+          }
+          
+          .option-button {
+            background: rgba(45, 55, 72, 0.9);
             border-color: #4a5568;
+            color: #cbd5e0;
+          }
+          
+          .option-button:hover {
+            border-color: #667eea;
+          }
+          
+          .slider-container {
+            background: rgba(45, 55, 72, 0.8);
+          }
+        }
+
+        /* ✅ PRINT STYLES */
+        @media print {
+          .navigation-container,
+          .progress-header {
+            display: none;
+          }
+          
+          .main-content {
+            padding: 20px;
+          }
+          
+          .questionnaire-container {
+            background: white;
+          }
+        }
+
+        /* ✅ ULTRA-WIDE SCREEN SUPPORT */
+        @media (min-width: 1400px) {
+          .progress-content,
+          .navigation-content {
+            max-width: 1200px;
+          }
+          
+          .question-container {
+            max-width: 800px;
+          }
+        }
+
+        /* ✅ SMALL SCREEN OPTIMIZATIONS */
+        @media (max-width: 360px) {
+          .progress-header {
+            padding: 12px 16px;
+          }
+          
+          .main-content {
+            padding: 16px;
+          }
+          
+          .navigation-container {
+            padding: 12px 16px;
+            padding-bottom: max(12px, calc(12px + env(safe-area-inset-bottom)));
+          }
+          
+          .option-button {
+            padding: 16px 20px;
+            min-height: 64px;
+          }
+          
+          .nav-button {
+            padding: 12px 20px;
+            min-width: 80px;
+          }
+        }
+
+        /* ✅ LANDSCAPE MOBILE OPTIMIZATIONS */
+        @media (max-height: 500px) and (orientation: landscape) {
+          .main-content {
+            padding: 10px 20px;
+            padding-bottom: 80px;
+          }
+          
+          .question-container h2 {
+            margin-bottom: 8px;
+          }
+          
+          .question-container p {
+            margin-bottom: 16px;
+          }
+          
+          .options-grid {
+            gap: 8px;
+          }
+          
+          .option-button {
+            padding: 12px 16px;
+            min-height: 56px;
+          }
+        }
+
+        /* ✅ FOCUS STYLES FOR ACCESSIBILITY */
+        .option-button:focus,
+        .nav-button:focus,
+        .range-slider:focus {
+          outline: 3px solid #667eea;
+          outline-offset: 2px;
+        }
+
+        /* ✅ TOUCH TARGET IMPROVEMENTS */
+        @media (pointer: coarse) {
+          .option-button {
+            min-height: 80px;
+            padding: 20px 24px;
+          }
+          
+          .nav-button {
+            min-height: 48px;
+            min-width: 120px;
+          }
+          
+          .range-slider::-webkit-slider-thumb {
+            width: 32px;
+            height: 32px;
           }
         }
       `}</style>
 
-      {/* ✅ TOP PROGRESS BAR */}
+      {/* ✅ PROGRESS HEADER */}
       <div className="progress-header">
         <div className="progress-content">
           <div className="progress-main">
             <h1 className="progress-text">Question {currentQuestion} of 27</h1>
-            <span className="progress-percentage">{Math.round(progress)}% Complete</span>
+            <div className="progress-percentage">{Math.round(progress)}%</div>
           </div>
-          
           <div className="progress-bar">
             <div 
               className="progress-fill" 
               style={{ width: `${progress}%` }}
-            />
+            ></div>
           </div>
-          
           <div className="phase-indicator">
             <span>{phaseInfo.icon}</span>
             <span>Phase {phaseInfo.phase}: {phaseInfo.name}</span>
@@ -1666,44 +1847,50 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         </div>
       </div>
 
-      {/* ✅ CENTERED MAIN CONTENT */}
+      {/* ✅ MAIN CONTENT */}
       <div className="main-content">
-        <div className={`question-card ${!isCurrentQuestionAnswered() ? 'answer-required-card' : ''}`}>
-          {renderQuestion()}
-          
-          {/* ✅ ANSWER REQUIRED MESSAGE */}
-          {!isCurrentQuestionAnswered() && (
-            <div className="answer-required-message">
-              <div className="answer-required-icon">⚠️</div>
-              <div className="answer-required-text">
-                Please select an answer to continue
-              </div>
-            </div>
-          )}
-        </div>
+        {renderQuestion()}
       </div>
 
       {/* ✅ BOTTOM NAVIGATION */}
-      <div className="bottom-navigation">
+      <div className="navigation-container">
         <div className="navigation-content">
           <button 
-            className="nav-button back-button" 
+            className="nav-button back" 
             onClick={prevQuestion}
             disabled={currentQuestion === 1}
+            style={{ 
+              opacity: currentQuestion === 1 ? 0.5 : 1,
+              cursor: currentQuestion === 1 ? 'not-allowed' : 'pointer'
+            }}
           >
             ← Back
           </button>
-
-          <button 
-            className={`nav-button next-button ${!isCurrentQuestionAnswered() ? 'answer-required' : ''}`}
-            onClick={nextQuestion}
-            disabled={!isCurrentQuestionAnswered()}
-            title={!isCurrentQuestionAnswered() ? 'Please answer this question before continuing' : ''}
-          >
-            {isSaving ? '💾 Saving...' : 
-             currentQuestion === 27 ? 'Complete Assessment' : 
-             !isCurrentQuestionAnswered() ? '⚠️ Please Answer First' : 'Next →'}
-          </button>
+          
+          <div className="question-indicator">
+            {currentQuestion < 27 ? 
+              `${isCurrentQuestionAnswered() ? '✅' : '⏳'} Answer to continue` : 
+              '🎉 Ready to complete!'
+            }
+          </div>
+          
+          {currentQuestion < 27 ? (
+            <button 
+              className="nav-button next" 
+              onClick={nextQuestion}
+              disabled={!isCurrentQuestionAnswered()}
+            >
+              Next →
+            </button>
+          ) : (
+            <button 
+              className="nav-button complete" 
+              onClick={completeQuestionnaire}
+              disabled={!isCurrentQuestionAnswered()}
+            >
+              ✅ Complete
+            </button>
+          )}
         </div>
       </div>
     </div>

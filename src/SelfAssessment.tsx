@@ -29,6 +29,16 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
   const [animateTransition, setAnimateTransition] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // ✅ USER-SPECIFIC: Generate user-specific storage keys
+  const getUserStorageKey = (baseKey: string): string => {
+    const userId = currentUser?.uid;
+    if (!userId) {
+      console.warn('🚨 No user ID for self-assessment storage');
+      return baseKey; // Fallback to base key
+    }
+    return `${baseKey}_${userId}`;
+  };
+
   // Animation effect when changing categories
   useEffect(() => {
     if (animateTransition) {
@@ -46,38 +56,127 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     }
   }, [currentCategoryIndex]);
 
-  // Load saved responses if available
+  // ✅ ENHANCED: Load saved responses with user isolation
   useEffect(() => {
-    const savedResponses = localStorage.getItem('tempSelfAssessmentResponses');
-    if (savedResponses) {
-      try {
-        const parsed = JSON.parse(savedResponses);
-        setResponses(parsed);
-        
-        // Find the first incomplete category
-        const categories = getCategories();
-        const firstIncompleteIndex = categories.findIndex(cat => {
-          return !parsed[cat.id] || !parsed[cat.id].level;
-        });
-        
-        if (firstIncompleteIndex >= 0) {
-          setCurrentCategoryIndex(firstIncompleteIndex);
-        } else if (Object.keys(parsed).length === categories.length) {
-          // All categories completed, go to last one
-          setCurrentCategoryIndex(categories.length - 1);
-        }
-      } catch (e) {
-        console.error('Error loading saved responses:', e);
+    const loadSavedResponses = () => {
+      // ✅ SECURITY: Must have current user
+      if (!currentUser?.uid) {
+        console.warn('🚨 No current user - cannot load self-assessment progress');
+        return;
       }
-    }
-  }, []);
 
-  // Save responses to localStorage when they change
+      try {
+        // ✅ PRIORITY 1: Try user-specific localStorage
+        const userResponsesKey = getUserStorageKey('tempSelfAssessmentResponses');
+        const savedResponses = localStorage.getItem(userResponsesKey);
+        
+        if (savedResponses) {
+          const parsed = JSON.parse(savedResponses);
+          
+          // ✅ SECURITY: Verify ownership
+          if (parsed.userId && parsed.userId !== currentUser.uid) {
+            console.error(`🚨 DATA LEAK PREVENTED: Self-assessment responses belong to ${parsed.userId}, not ${currentUser.uid}`);
+            localStorage.removeItem(userResponsesKey); // Clean up contaminated data
+            return;
+          }
+          
+          console.log(`📦 Loading self-assessment progress for user ${currentUser.uid.substring(0, 8)}...`);
+          setResponses(parsed.responses || parsed); // Handle both formats
+          
+          // Find the first incomplete category
+          const categories = getCategories();
+          const responseData = parsed.responses || parsed;
+          const firstIncompleteIndex = categories.findIndex(cat => {
+            return !responseData[cat.id] || !responseData[cat.id].level;
+          });
+          
+          if (firstIncompleteIndex >= 0) {
+            setCurrentCategoryIndex(firstIncompleteIndex);
+          } else if (Object.keys(responseData).length === categories.length) {
+            // All categories completed, go to last one
+            setCurrentCategoryIndex(categories.length - 1);
+          }
+          return;
+        }
+
+        // ✅ FALLBACK: Check legacy global localStorage but verify ownership
+        const legacyData = localStorage.getItem('tempSelfAssessmentResponses');
+        if (legacyData) {
+          try {
+            const parsed = JSON.parse(legacyData);
+            
+            // Only use legacy data if it belongs to current user or has no userId
+            if (parsed.userId && parsed.userId === currentUser.uid) {
+              console.log(`📦 Migrating legacy self-assessment progress for user ${currentUser.uid.substring(0, 8)}...`);
+              const responseData = parsed.responses || parsed;
+              setResponses(responseData);
+              
+              // Migrate to user-specific storage
+              const migratedData = {
+                responses: responseData,
+                userId: currentUser.uid,
+                migratedAt: new Date().toISOString()
+              };
+              localStorage.setItem(userResponsesKey, JSON.stringify(migratedData));
+              
+              // Find first incomplete category
+              const categories = getCategories();
+              const firstIncompleteIndex = categories.findIndex(cat => {
+                return !responseData[cat.id] || !responseData[cat.id].level;
+              });
+              
+              if (firstIncompleteIndex >= 0) {
+                setCurrentCategoryIndex(firstIncompleteIndex);
+              } else if (Object.keys(responseData).length === categories.length) {
+                setCurrentCategoryIndex(categories.length - 1);
+              }
+              
+            } else if (!parsed.userId) {
+              console.warn(`⚠️ Legacy self-assessment progress has no userId - assuming belongs to current user ${currentUser.uid.substring(0, 8)}...`);
+              const responseData = parsed.responses || parsed;
+              setResponses(responseData);
+              
+              // Save to user-specific storage
+              const dataWithUser = {
+                responses: responseData,
+                userId: currentUser.uid,
+                migratedAt: new Date().toISOString()
+              };
+              localStorage.setItem(userResponsesKey, JSON.stringify(dataWithUser));
+            }
+          } catch (parseError) {
+            console.error('Error parsing legacy self-assessment progress:', parseError);
+            localStorage.removeItem('tempSelfAssessmentResponses'); // Clean up corrupted data
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error loading self-assessment responses:', error);
+      }
+    };
+
+    loadSavedResponses();
+  }, [currentUser]);
+
+  // ✅ ENHANCED: Save responses with user isolation
   useEffect(() => {
-    if (Object.keys(responses).length > 0) {
-      localStorage.setItem('tempSelfAssessmentResponses', JSON.stringify(responses));
+    if (Object.keys(responses).length > 0 && currentUser?.uid) {
+      const userResponsesKey = getUserStorageKey('tempSelfAssessmentResponses');
+      const dataToSave = {
+        responses,
+        userId: currentUser.uid,
+        timestamp: new Date().toISOString(),
+        version: '3.0_user_isolated'
+      };
+      
+      localStorage.setItem(userResponsesKey, JSON.stringify(dataToSave));
+      
+      // ✅ SECURITY: Also clear any legacy global storage to prevent contamination
+      localStorage.removeItem('tempSelfAssessmentResponses');
+      
+      console.log(`💾 Auto-saved self-assessment progress for user ${currentUser.uid.substring(0, 8)}...`);
     }
-  }, [responses]);
+  }, [responses, currentUser]);
 
   const getCategories = (): Category[] => {
     return [
@@ -171,10 +270,17 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
   };
 
   const processAssessment = async () => {
+    // ✅ SECURITY: Must have current user
+    if (!currentUser?.uid) {
+      console.error('🚨 No current user - cannot complete self-assessment');
+      alert('Authentication error. Please sign in again.');
+      return;
+    }
+
     if (isSubmitting) return;
     setIsSubmitting(true);
     
-    console.log('🔄 Processing self-assessment with responses:', responses);
+    console.log(`🔄 Processing self-assessment for user ${currentUser.uid.substring(0, 8)}... with responses:`, responses);
 
     // Check if all categories are completed
     const incompleteCategories = categories.filter(cat => {
@@ -194,12 +300,15 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     // Wait for animation
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // ===== THIS IS THE FIXED PART - STANDARDIZED DATA FORMAT =====
+    // ===== STANDARDIZED DATA FORMAT WITH USER ID =====
     // Create standardized format that works with ALL components
     const standardizedData = {
+      // ✅ SECURITY: Include user ID in all data
+      userId: currentUser.uid,
+      
       // Format identifier - helps with detection
       format: 'standard',
-      version: '2.0',
+      version: '3.0_user_isolated',
       
       // Direct category values - for UserProfile and simple calculations
       taste: responses.taste?.level || 'none',
@@ -247,55 +356,69 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       completedAt: new Date().toISOString(),
       type: 'selfAssessment'
     };
-    // ===== END OF FIXED PART =====
+    // ===== END OF STANDARDIZED DATA FORMAT =====
 
-    console.log('✅ Standardized assessment data:', standardizedData);
+    console.log(`✅ Standardized assessment data for user ${currentUser.uid.substring(0, 8)}:`, standardizedData);
 
     try {
       // ✅ FIXED: Use OnboardingContext method with standardized data
-      console.log('🔄 Calling OnboardingContext markSelfAssessmentComplete with standardized format...');
+      console.log(`🔄 Calling OnboardingContext markSelfAssessmentComplete for user ${currentUser.uid.substring(0, 8)}...`);
       
       await markSelfAssessmentComplete(standardizedData);
       
-      console.log('✅ Self-assessment saved successfully via OnboardingContext!');
+      console.log(`✅ Self-assessment saved successfully via OnboardingContext for user ${currentUser.uid.substring(0, 8)}!`);
       
-      // Clear temporary storage
-      localStorage.removeItem('tempSelfAssessmentResponses');
+      // ✅ CLEAR: Remove user-specific temporary storage
+      const userResponsesKey = getUserStorageKey('tempSelfAssessmentResponses');
+      localStorage.removeItem(userResponsesKey);
+      localStorage.removeItem('tempSelfAssessmentResponses'); // Also clear legacy
       
       // Call onComplete to proceed to next step
       onComplete(standardizedData);
       
     } catch (error) {
-      console.error('❌ Error saving through OnboardingContext:', error);
+      console.error(`❌ Error saving through OnboardingContext for user ${currentUser.uid.substring(0, 8)}:`, error);
       
-      // Fallback: Save directly to storage in standardized format
-      console.log('🔄 Attempting fallback save in standardized format...');
+      // Fallback: Save directly to storage in standardized format with user ID
+      console.log(`🔄 Attempting fallback save for user ${currentUser.uid.substring(0, 8)}...`);
       
       try {
-        const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+        // ✅ USER-SPECIFIC: Save to user-specific profile storage
+        const userProfileKey = `userProfile_${currentUser.uid}`;
+        const userProfile = JSON.parse(localStorage.getItem(userProfileKey) || '{}');
         const updatedProfile = {
           ...userProfile,
           selfAssessmentData: standardizedData,
           assessmentCompleted: true,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          userId: currentUser.uid // Ensure user ID is always included
         };
 
-        // Save to both storage locations
-        localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+        // Save to user-specific storage
+        localStorage.setItem(userProfileKey, JSON.stringify(updatedProfile));
         
-        if (currentUser?.uid) {
-          localStorage.setItem(`userProfile_${currentUser.uid}`, JSON.stringify(updatedProfile));
-        }
+        // ✅ LEGACY COMPATIBILITY: Also save to global userProfile but with user verification
+        const globalProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+        const updatedGlobalProfile = {
+          ...globalProfile,
+          selfAssessmentData: standardizedData,
+          assessmentCompleted: true,
+          lastUpdated: new Date().toISOString(),
+          userId: currentUser.uid // Mark ownership
+        };
+        localStorage.setItem('userProfile', JSON.stringify(updatedGlobalProfile));
 
-        console.log('✅ Fallback save successful in standardized format!');
+        console.log(`✅ Fallback save successful for user ${currentUser.uid.substring(0, 8)}!`);
         
-        // Clear temporary storage
-        localStorage.removeItem('tempSelfAssessmentResponses');
+        // ✅ CLEAR: Remove user-specific temporary storage
+        const userResponsesKey = getUserStorageKey('tempSelfAssessmentResponses');
+        localStorage.removeItem(userResponsesKey);
+        localStorage.removeItem('tempSelfAssessmentResponses'); // Also clear legacy
         
         onComplete(standardizedData);
         
       } catch (fallbackError) {
-        console.error('❌ Fallback save failed:', fallbackError);
+        console.error(`❌ Fallback save failed for user ${currentUser.uid.substring(0, 8)}:`, fallbackError);
         // Still call onComplete to not block user progress
         onComplete(standardizedData);
       }
@@ -303,6 +426,30 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
       setIsSubmitting(false);
     }
   };
+
+  // ✅ SECURITY: Show error if no user
+  if (!currentUser) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+        color: 'white',
+        padding: '20px'
+      }}>
+        <div style={{ fontSize: '48px', marginBottom: '24px' }}>🚨</div>
+        <h2 style={{ fontSize: 'clamp(20px, 5vw, 28px)', textAlign: 'center', margin: 0 }}>
+          Authentication Required
+        </h2>
+        <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.9 }}>
+          Please sign in to access the self-assessment
+        </p>
+      </div>
+    );
+  }
 
   // Attachment = minus points, Non-attachment = zero points
   const calculateAttachmentScore = (responses: Record<string, any>): number => {
@@ -628,7 +775,8 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
 
       {/* Privacy Notice */}
       <div className="privacy-notice">
-        Your responses are stored locally and used only to personalize your experience.
+        Your responses are stored securely and used only to personalize your experience.
+        User: {currentUser.email}
       </div>
     </div>
   );
