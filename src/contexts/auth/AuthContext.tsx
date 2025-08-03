@@ -1,4 +1,4 @@
-// ✅ FINAL AuthContext with Universal Environment Config Integration
+// ✅ FINAL AuthContext with Universal Environment Config Integration + User Isolation Cache Cleanup
 // File: src/contexts/auth/AuthContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -49,6 +49,69 @@ try {
   isFeatureEnabled = (feature: string) => feature === 'debugging';
   getEnvironmentInfo = () => ({ environment: 'cloudshell' });
 }
+
+// ✅ USER ISOLATION: Clean up previous user's cached data
+const cleanupPreviousUserData = (currentUserId?: string) => {
+  console.log('🧹 Cleaning up cached data for user isolation...');
+  
+  const keysToPreserve = [
+    'app_settings',
+    'app_preferences', 
+    'theme_settings',
+    'language_preference',
+    'environment_config'
+  ];
+  
+  // Get all localStorage keys
+  const allKeys = Object.keys(localStorage);
+  let removedCount = 0;
+  let preservedCount = 0;
+  
+  allKeys.forEach(key => {
+    // ✅ PRESERVE: App-wide settings that should persist across users
+    if (keysToPreserve.some(preserve => key.includes(preserve))) {
+      console.log(`✅ Preserving app setting: ${key}`);
+      preservedCount++;
+      return;
+    }
+    
+    // ✅ PRESERVE: Current user's data (if we have a userId)
+    if (currentUserId && key.includes(currentUserId)) {
+      console.log(`✅ Preserving current user data: ${key}`);
+      preservedCount++;
+      return;
+    }
+    
+    // ✅ REMOVE: Previous user data and global contaminated keys
+    const isContaminatedKey = [
+      'questionnaire_progress',
+      'questionnaire',
+      'selfAssessment', 
+      'tempSelfAssessmentResponses',
+      'emotionalNotes',
+      'practiceSessions',
+      'T1Sessions', 'T2Sessions', 'T3Sessions', 'T4Sessions', 'T5Sessions',
+      'happiness_points',
+      'user_level',
+      'focus_ability',
+      'habit_change_score',
+      'practice_streak',
+      'lastHappinessUpdate',
+      'userProfile'
+    ].some(contaminated => key === contaminated || key.startsWith(contaminated));
+    
+    if (isContaminatedKey || (!currentUserId && !keysToPreserve.some(preserve => key.includes(preserve)))) {
+      console.log(`🗑️ Removing contaminated data: ${key}`);
+      localStorage.removeItem(key);
+      removedCount++;
+    } else {
+      preservedCount++;
+    }
+  });
+  
+  console.log(`✅ Cache cleanup complete - Removed ${removedCount} keys, Preserved ${preservedCount} keys`);
+  console.log(`👤 User isolation enforced for: ${currentUserId ? currentUserId.substring(0, 8) + '...' : 'No specific user'}`);
+};
 
 // Enhanced Local Storage Manager (for auth-only data)
 class EnhancedLocalStorageManager {
@@ -126,7 +189,7 @@ interface FirestoreUserProfile extends Omit<UserProfile, 'createdAt' | 'lastLogi
   memberSince: FieldValue | null;
 }
 
-// ✅ ENHANCED: AuthContext interface with real-time detection
+// ✅ ENHANCED: AuthContext interface with real-time detection + cache cleanup
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -158,6 +221,9 @@ interface AuthContextType {
   // ✅ UNIVERSAL: Token validation with environment awareness
   checkTokenValidity: () => Promise<boolean>;
   
+  // ✅ NEW: User isolation cache management
+  cleanupUserCache: (userId?: string) => void;
+  
   // Utility
   clearError: () => void;
 }
@@ -165,7 +231,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ ENHANCED: Create a provider component with universal environment awareness
+// ✅ ENHANCED: Create a provider component with universal environment awareness + user isolation
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -184,6 +250,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Computed properties
   const isAuthenticated = !!currentUser;
+
+  // ✅ NEW: Expose cache cleanup function
+  const cleanupUserCache = useCallback((userId?: string) => {
+    cleanupPreviousUserData(userId);
+  }, []);
 
   // ✅ UNIVERSAL: Environment-aware debug logging
   useEffect(() => {
@@ -400,7 +471,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser, userProfile?.membershipType, checkAdvancedTokenValidity]);
 
-  // ✅ CRITICAL FIX: Auth state change listener with proper race condition handling
+  // ✅ CRITICAL FIX: Auth state change listener with proper race condition handling + user isolation
   useEffect(() => {
     let mounted = true;
     
@@ -413,6 +484,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (user) {
         try {
+          // ✅ USER ISOLATION: Clean up previous user's data before setting new user
+          cleanupPreviousUserData(user.uid);
+          
           // ✅ KEEP WORKING: Skip token validation to keep login working
           // We'll add this back gradually once the system is stable
           
@@ -430,7 +504,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCurrentUser(enhancedUser);
             
             if (isFeatureEnabled('debugging')) {
-              console.log('✅ User profile loaded and set');
+              console.log(`✅ User profile loaded and set for ${user.uid.substring(0, 8)}...`);
             }
             
             // Update last login time
@@ -456,10 +530,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } else {
         if (mounted) {
+          // ✅ USER ISOLATION: Clean up all user data on logout
+          cleanupPreviousUserData();
+          
           setCurrentUser(null);
           setUserProfile(null);
           if (isFeatureEnabled('debugging')) {
-            console.log('✅ User cleared');
+            console.log('✅ User cleared and cache cleaned');
           }
         }
       }
@@ -476,11 +553,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [auth, db, loadUserProfile]);
 
-  // ✅ CRITICAL FIX: Authentication methods with proper state management
+  // ✅ CRITICAL FIX: Authentication methods with proper state management + user isolation
   const signup = useCallback(async (email: string, password: string, displayName: string) => {
     const intent = intentDetection();
     
     try {
+      // ✅ USER ISOLATION: Clean up any existing data before signup
+      cleanupPreviousUserData();
+      
       // ✅ CRITICAL: Don't set loading to false until auth state changes
       setError(null);
       
@@ -520,6 +600,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const intent = intentDetection();
     
     try {
+      // ✅ USER ISOLATION: Clean up any existing data before login
+      cleanupPreviousUserData();
+      
       // ✅ CRITICAL: Don't set loading to false until auth state changes
       setError(null);
       
@@ -588,7 +671,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, userProfile, db, localStorageManager, intentDetection]);
 
-  // ✅ PERFORMANCE FIX: Logout function with useCallback
+  // ✅ PERFORMANCE FIX: Logout function with useCallback + user isolation
   const logout = useCallback(async () => {
     const storage = localStorageManager();
     const intent = intentDetection();
@@ -600,12 +683,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         userId: currentUser?.uid
       });
       
+      // ✅ USER ISOLATION: Clean up all user data before logout
+      cleanupPreviousUserData();
+      
       await signOut(auth);
       setShowLogoutWarning(false);
       setSessionTimeRemaining(0);
       
       // Clear only auth-related localStorage
       storage.removeItem('userProfile');
+      
+      if (isFeatureEnabled('debugging')) {
+        console.log('✅ User logged out and all data cleaned');
+      }
       
     } catch (err: any) {
       const errorMessage = err?.message || 'Logout failed';
@@ -777,7 +867,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   }, []);
 
-  // ✅ UNIVERSAL: Create context value with environment-aware methods
+  // ✅ UNIVERSAL: Create context value with environment-aware methods + user isolation
   const value: AuthContextType = {
     currentUser,
     userProfile,
@@ -808,6 +898,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // ✅ UNIVERSAL: Environment-aware token validation
     checkTokenValidity,
+    
+    // ✅ NEW: User isolation cache management
+    cleanupUserCache,
     
     // Utility
     clearError
