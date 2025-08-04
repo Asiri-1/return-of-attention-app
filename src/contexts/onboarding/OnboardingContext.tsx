@@ -1,26 +1,18 @@
-// ✅ ENHANCED OnboardingContext.tsx - Firebase/Firestore Integration
-// src/contexts/onboarding/OnboardingContext.tsx
+// ✅ FIREBASE-ONLY OnboardingContext - No localStorage conflicts
+// File: src/contexts/onboarding/OnboardingContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
-
-// ✅ FIREBASE IMPORTS - FIXED PATH AND SIMPLIFIED
 import { 
   doc, 
   collection, 
   setDoc, 
   getDoc, 
-  addDoc, 
   updateDoc, 
-  deleteDoc, 
   onSnapshot, 
-  query, 
-  where, 
-  orderBy, 
-  Timestamp, 
-  writeBatch 
+  serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../../firebase'; // FIXED: Correct path to your firebase.js
+import { db } from '../../firebase';
 
 // ================================
 // ONBOARDING DATA INTERFACES (UNCHANGED)
@@ -183,23 +175,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 // ================================
-// FIREBASE UTILITIES - SIMPLIFIED
-// ================================
-const getOnboardingCollections = (userId: string) => {
-  if (!db) {
-    console.warn('Firebase not available');
-    return null;
-  }
-  
-  return {
-    questionnaires: collection(db, 'users', userId, 'questionnaires'),
-    selfAssessments: collection(db, 'users', userId, 'selfAssessments'),
-    progressDrafts: collection(db, 'users', userId, 'progressDrafts')
-  };
-};
-
-// ================================
-// ONBOARDING PROVIDER IMPLEMENTATION
+// FIREBASE-ONLY ONBOARDING PROVIDER
 // ================================
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
@@ -209,168 +185,103 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [error, setError] = useState<string | null>(null);
 
   // ================================
-  // STORAGE UTILITIES (UNCHANGED)
+  // FIREBASE-ONLY: Data persistence
   // ================================
-  const getQuestionnaireStorageKey = useCallback((): string => {
-    return currentUser?.uid ? `questionnaire_${currentUser.uid}` : 'questionnaire';
-  }, [currentUser?.uid]);
-
-  const getSelfAssessmentStorageKey = useCallback((): string => {
-    return currentUser?.uid ? `selfAssessment_${currentUser.uid}` : 'selfAssessment';
-  }, [currentUser?.uid]);
-
-  // ================================
-  // FIREBASE OPERATIONS - SIMPLIFIED WITH ERROR HANDLING
-  // ================================
-  const saveQuestionnaireToFirestore = useCallback(async (questionnaireData: QuestionnaireData) => {
-    if (!currentUser?.uid || !db) {
-      console.log('📱 Firebase not available, using localStorage only');
-      return null;
-    }
-
-    try {
-      const collections = getOnboardingCollections(currentUser.uid);
-      if (!collections) return null;
-
-      const firestoreData = {
-        ...questionnaireData,
-        userId: currentUser.uid,
-        createdAt: questionnaireData.createdAt || Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
-
-      if (questionnaireData.firestoreId) {
-        // Update existing document
-        const docRef = doc(collections.questionnaires, questionnaireData.firestoreId);
-        await updateDoc(docRef, firestoreData);
-        console.log('✅ Updated questionnaire in Firestore:', questionnaireData.firestoreId);
-        return questionnaireData.firestoreId;
-      } else {
-        // Create new document
-        const docRef = await addDoc(collections.questionnaires, firestoreData);
-        console.log('✅ Saved questionnaire to Firestore:', docRef.id);
-        return docRef.id;
-      }
-    } catch (error) {
-      console.error('❌ Error saving questionnaire to Firestore:', error);
-      setError('Failed to save questionnaire to cloud. Data saved locally.');
-      return null;
-    }
-  }, [currentUser?.uid]);
-
-  const saveSelfAssessmentToFirestore = useCallback(async (assessmentData: SelfAssessmentData) => {
-    if (!currentUser?.uid || !db) {
-      console.log('📱 Firebase not available, using localStorage only');
-      return null;
-    }
-
-    try {
-      const collections = getOnboardingCollections(currentUser.uid);
-      if (!collections) return null;
-
-      const firestoreData = {
-        ...assessmentData,
-        userId: currentUser.uid,
-        createdAt: assessmentData.createdAt || Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
-
-      if (assessmentData.firestoreId) {
-        // Update existing document
-        const docRef = doc(collections.selfAssessments, assessmentData.firestoreId);
-        await updateDoc(docRef, firestoreData);
-        console.log('✅ Updated self-assessment in Firestore:', assessmentData.firestoreId);
-        return assessmentData.firestoreId;
-      } else {
-        // Create new document
-        const docRef = await addDoc(collections.selfAssessments, firestoreData);
-        console.log('✅ Saved self-assessment to Firestore:', docRef.id);
-        return docRef.id;
-      }
-    } catch (error) {
-      console.error('❌ Error saving self-assessment to Firestore:', error);
-      setError('Failed to save assessment to cloud. Data saved locally.');
-      return null;
-    }
-  }, [currentUser?.uid]);
-
-  const loadFromFirestore = useCallback(async () => {
-    if (!currentUser?.uid || !db) {
-      console.log('📱 Firebase not available, using localStorage only');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
+  const saveQuestionnaireToFirebase = useCallback(async (questionnaireData: QuestionnaireData) => {
+    if (!currentUser?.uid) return;
     
     try {
-      const collections = getOnboardingCollections(currentUser.uid);
-      if (!collections) return;
-
-      // Load questionnaire
-      const questionnaireQuery = query(
-        collections.questionnaires,
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
-
-      const selfAssessmentQuery = query(
-        collections.selfAssessments,
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
-
-      // Set up real-time listeners for questionnaire
-      const unsubscribeQuestionnaire = onSnapshot(questionnaireQuery, (snapshot) => {
-        if (!snapshot.empty) {
-          const latestDoc = snapshot.docs[0];
-          const questionnaireData = {
-            ...latestDoc.data(),
-            firestoreId: latestDoc.id,
-            createdAt: latestDoc.data().createdAt?.toDate?.()?.toISOString(),
-            updatedAt: latestDoc.data().updatedAt?.toDate?.()?.toISOString()
-          } as QuestionnaireData;
-          
-          setQuestionnaire(questionnaireData);
-          console.log('📦 Loaded questionnaire from Firestore (real-time)');
-        }
-      }, (error) => {
-        console.warn('Failed to load questionnaire from Firestore:', error);
-        setError('Failed to sync questionnaire from cloud');
-      });
-
-      // Set up real-time listeners for self-assessment
-      const unsubscribeSelfAssessment = onSnapshot(selfAssessmentQuery, (snapshot) => {
-        if (!snapshot.empty) {
-          const latestDoc = snapshot.docs[0];
-          const assessmentData = {
-            ...latestDoc.data(),
-            firestoreId: latestDoc.id,
-            createdAt: latestDoc.data().createdAt?.toDate?.()?.toISOString(),
-            updatedAt: latestDoc.data().updatedAt?.toDate?.()?.toISOString()
-          } as SelfAssessmentData;
-          
-          setSelfAssessment(assessmentData);
-          console.log('📦 Loaded self-assessment from Firestore (real-time)');
-        }
-      }, (error) => {
-        console.warn('Failed to load self-assessment from Firestore:', error);
-        setError('Failed to sync assessment from cloud');
-      });
-
-      // Return cleanup function
-      return () => {
-        unsubscribeQuestionnaire();
-        unsubscribeSelfAssessment();
+      const questionnaireDoc = {
+        ...questionnaireData,
+        userId: currentUser.uid,
+        lastUpdated: serverTimestamp()
       };
-
+      
+      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), questionnaireDoc);
+      console.log(`✅ Questionnaire saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      
     } catch (error) {
-      console.error('❌ Error loading from Firestore:', error);
-      setError('Failed to load data from cloud');
+      console.error('❌ Failed to save questionnaire to Firebase:', error);
+      throw error;
+    }
+  }, [currentUser?.uid]);
+
+  const saveSelfAssessmentToFirebase = useCallback(async (assessmentData: SelfAssessmentData) => {
+    if (!currentUser?.uid) return;
+    
+    try {
+      const assessmentDoc = {
+        ...assessmentData,
+        userId: currentUser.uid,
+        lastUpdated: serverTimestamp()
+      };
+      
+      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), assessmentDoc);
+      console.log(`✅ Self-assessment saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      
+    } catch (error) {
+      console.error('❌ Failed to save self-assessment to Firebase:', error);
+      throw error;
+    }
+  }, [currentUser?.uid]);
+
+  const loadFromFirebase = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Load questionnaire
+      const questionnaireDocRef = doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current');
+      const questionnaireDoc = await getDoc(questionnaireDocRef);
+      
+      if (questionnaireDoc.exists()) {
+        const data = questionnaireDoc.data();
+        const questionnaireData = {
+          ...data,
+          createdAt: data.createdAt?.toDate?.()?.toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
+          completedAt: data.completedAt?.toDate?.()?.toISOString() || data.completedAt
+        } as QuestionnaireData;
+        setQuestionnaire(questionnaireData);
+        console.log(`📦 Questionnaire loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      }
+      
+      // Load self-assessment
+      const assessmentDocRef = doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current');
+      const assessmentDoc = await getDoc(assessmentDocRef);
+      
+      if (assessmentDoc.exists()) {
+        const data = assessmentDoc.data();
+        const assessmentData = {
+          ...data,
+          createdAt: data.createdAt?.toDate?.()?.toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
+          completedAt: data.completedAt?.toDate?.()?.toISOString() || data.completedAt
+        } as SelfAssessmentData;
+        setSelfAssessment(assessmentData);
+        console.log(`📦 Self-assessment loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to load onboarding data from Firebase:', error);
     } finally {
       setIsLoading(false);
     }
   }, [currentUser?.uid]);
+
+  // ================================
+  // LOAD DATA ON USER CHANGE
+  // ================================
+  useEffect(() => {
+    if (currentUser?.uid) {
+      loadFromFirebase();
+    } else {
+      // Reset to defaults when no user
+      setQuestionnaire(null);
+      setSelfAssessment(null);
+    }
+  }, [currentUser?.uid, loadFromFirebase]);
 
   // ================================
   // EMIT COMPLETION EVENTS (UNCHANGED)
@@ -400,102 +311,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [currentUser?.uid]);
 
   // ================================
-  // STORAGE MANAGEMENT (UNCHANGED)
-  // ================================
-  const saveToStorage = useCallback((questionnaireData: QuestionnaireData | null, assessmentData: SelfAssessmentData | null) => {
-    try {
-      if (questionnaireData) {
-        const questionnaireKey = getQuestionnaireStorageKey();
-        localStorage.setItem(questionnaireKey, JSON.stringify(questionnaireData));
-        // Legacy compatibility
-        localStorage.setItem('questionnaire_responses', JSON.stringify(questionnaireData.responses));
-        localStorage.setItem('questionnaire_completed', questionnaireData.completed ? 'true' : 'false');
-        console.log('💾 Saved questionnaire to localStorage');
-      }
-      
-      if (assessmentData) {
-        const assessmentKey = getSelfAssessmentStorageKey();
-        localStorage.setItem(assessmentKey, JSON.stringify(assessmentData));
-        // Legacy compatibility - CRITICAL for happiness calculation
-        localStorage.setItem('self_assessment_responses', JSON.stringify(assessmentData));
-        localStorage.setItem('self_assessment_completed', assessmentData.completed ? 'true' : 'false');
-        localStorage.setItem('selfAssessment', JSON.stringify(assessmentData));
-        console.log('💾 Saved self-assessment to localStorage');
-      }
-    } catch (error) {
-      console.warn('Failed to save onboarding data to localStorage:', error);
-    }
-  }, [getQuestionnaireStorageKey, getSelfAssessmentStorageKey]);
-
-  const loadFromStorage = useCallback(async () => {
-    setIsLoading(true);
-    
-    try {
-      // Load questionnaire
-      const questionnaireKey = getQuestionnaireStorageKey();
-      const questionnaireData = localStorage.getItem(questionnaireKey);
-      if (questionnaireData) {
-        try {
-          const parsedQuestionnaire = JSON.parse(questionnaireData);
-          setQuestionnaire(parsedQuestionnaire);
-          console.log('📦 Loaded questionnaire from localStorage');
-        } catch (parseError) {
-          console.warn('Error parsing questionnaire data:', parseError);
-        }
-      } else {
-        // Try legacy storage
-        const legacyResponses = localStorage.getItem('questionnaire_responses');
-        const legacyCompleted = localStorage.getItem('questionnaire_completed') === 'true';
-        
-        if (legacyResponses) {
-          try {
-            const responses = JSON.parse(legacyResponses);
-            const legacyQuestionnaire: QuestionnaireData = {
-              completed: legacyCompleted,
-              completedAt: legacyCompleted ? new Date().toISOString() : undefined,
-              responses
-            };
-            setQuestionnaire(legacyQuestionnaire);
-            console.log('📦 Migrated questionnaire from legacy localStorage');
-          } catch (parseError) {
-            console.warn('Error parsing legacy questionnaire data:', parseError);
-          }
-        }
-      }
-      
-      // Load self-assessment
-      const assessmentKey = getSelfAssessmentStorageKey();
-      const assessmentData = localStorage.getItem(assessmentKey);
-      if (assessmentData) {
-        try {
-          const parsedAssessment = JSON.parse(assessmentData);
-          setSelfAssessment(parsedAssessment);
-          console.log('📦 Loaded self-assessment from localStorage');
-        } catch (parseError) {
-          console.warn('Error parsing self-assessment data:', parseError);
-        }
-      } else {
-        // Try legacy storage
-        const legacyAssessment = localStorage.getItem('selfAssessment');
-        if (legacyAssessment) {
-          try {
-            const assessment = JSON.parse(legacyAssessment);
-            setSelfAssessment(assessment);
-            console.log('📦 Migrated self-assessment from legacy localStorage');
-          } catch (parseError) {
-            console.warn('Error parsing legacy self-assessment data:', parseError);
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load onboarding data from localStorage:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getQuestionnaireStorageKey, getSelfAssessmentStorageKey]);
-
-  // ================================
-  // QUESTIONNAIRE MANAGEMENT (UNCHANGED FUNCTIONALITY)
+  // QUESTIONNAIRE MANAGEMENT (FIREBASE-ONLY)
   // ================================
   const updateQuestionnaire = useCallback(async (questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
     const updatedQuestionnaire: QuestionnaireData = {
@@ -505,16 +321,12 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedAt: new Date().toISOString()
     };
     
-    // Save to Firestore first (if available)
-    const firestoreId = await saveQuestionnaireToFirestore(updatedQuestionnaire);
-    if (firestoreId) {
-      updatedQuestionnaire.firestoreId = firestoreId;
-    }
+    // Save to Firebase
+    await saveQuestionnaireToFirebase(updatedQuestionnaire);
     
     setQuestionnaire(updatedQuestionnaire);
-    saveToStorage(updatedQuestionnaire, selfAssessment);
     emitOnboardingEvent('questionnaire', updatedQuestionnaire);
-  }, [selfAssessment, saveQuestionnaireToFirestore, saveToStorage, emitOnboardingEvent]);
+  }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
 
   const markQuestionnaireComplete = useCallback(async (responses: any) => {
     // Handle both raw responses and already-structured data
@@ -564,53 +376,32 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
     
-    // Save to Firestore first (if available)
-    const firestoreId = await saveQuestionnaireToFirestore(questionnaireData);
-    if (firestoreId) {
-      questionnaireData.firestoreId = firestoreId;
-    }
+    // Save to Firebase
+    await saveQuestionnaireToFirebase(questionnaireData);
     
     setQuestionnaire(questionnaireData);
-    saveToStorage(questionnaireData, selfAssessment);
     emitOnboardingEvent('questionnaire', questionnaireData);
-  }, [selfAssessment, saveQuestionnaireToFirestore, saveToStorage, emitOnboardingEvent]);
+  }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
 
   const saveQuestionnaireProgress = useCallback(async (responses: any, currentQuestion?: number) => {
-    if (!currentUser?.uid || !db) {
-      // Fallback to localStorage for non-authenticated users or when Firebase unavailable
-      localStorage.setItem('questionnaire_progress', JSON.stringify({
-        responses,
-        currentQuestion,
-        timestamp: new Date().toISOString()
-      }));
-      return;
-    }
+    if (!currentUser?.uid) return;
 
     try {
-      const collections = getOnboardingCollections(currentUser.uid);
-      if (!collections) return;
-
       const progressData = {
         type: 'questionnaire_progress',
         responses,
         currentQuestion,
         userId: currentUser.uid,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       };
 
-      // Save/update progress draft in Firestore
-      const progressDocRef = doc(collections.progressDrafts, 'questionnaire');
+      // Save progress to Firebase
+      const progressDocRef = doc(db, 'userOnboarding', currentUser.uid, 'progress', 'questionnaire');
       await setDoc(progressDocRef, progressData, { merge: true });
       
-      console.log('💾 Saved questionnaire progress to Firestore');
+      console.log('💾 Saved questionnaire progress to Firebase');
     } catch (error) {
       console.error('❌ Error saving questionnaire progress:', error);
-      // Fallback to localStorage
-      localStorage.setItem('questionnaire_progress', JSON.stringify({
-        responses,
-        currentQuestion,
-        timestamp: new Date().toISOString()
-      }));
     }
   }, [currentUser?.uid]);
 
@@ -623,7 +414,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [questionnaire?.completed]);
 
   // ================================
-  // SELF-ASSESSMENT MANAGEMENT (UNCHANGED FUNCTIONALITY)
+  // SELF-ASSESSMENT MANAGEMENT (FIREBASE-ONLY)
   // ================================
   const updateSelfAssessment = useCallback(async (selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
     const updatedAssessment: SelfAssessmentData = {
@@ -633,16 +424,12 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedAt: new Date().toISOString()
     } as SelfAssessmentData;
     
-    // Save to Firestore first (if available)
-    const firestoreId = await saveSelfAssessmentToFirestore(updatedAssessment);
-    if (firestoreId) {
-      updatedAssessment.firestoreId = firestoreId;
-    }
+    // Save to Firebase
+    await saveSelfAssessmentToFirebase(updatedAssessment);
     
     setSelfAssessment(updatedAssessment);
-    saveToStorage(questionnaire, updatedAssessment);
     emitOnboardingEvent('selfAssessment', updatedAssessment);
-  }, [questionnaire, saveSelfAssessmentToFirestore, saveToStorage, emitOnboardingEvent]);
+  }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
 
   const markSelfAssessmentComplete = useCallback(async (responses: any) => {
     console.log('🎯 Marking self-assessment complete with responses:', responses);
@@ -756,14 +543,10 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     console.log('🎯 Created self-assessment data:', selfAssessmentData);
     
-    // Save to Firestore first (if available)
-    const firestoreId = await saveSelfAssessmentToFirestore(selfAssessmentData);
-    if (firestoreId) {
-      selfAssessmentData.firestoreId = firestoreId;
-    }
+    // Save to Firebase
+    await saveSelfAssessmentToFirebase(selfAssessmentData);
     
     setSelfAssessment(selfAssessmentData);
-    saveToStorage(questionnaire, selfAssessmentData);
     emitOnboardingEvent('selfAssessment', selfAssessmentData);
     
     // Trigger happiness recalculation
@@ -778,46 +561,26 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       window.dispatchEvent(happinessEvent);
       console.log('🚀 Triggered happiness recalculation from self-assessment completion');
     }, 100);
-    
-    // Force storage event for cross-tab communication
-    setTimeout(() => {
-      localStorage.setItem('lastAssessmentUpdate', new Date().toISOString());
-    }, 150);
-  }, [questionnaire, saveSelfAssessmentToFirestore, saveToStorage, emitOnboardingEvent]);
+  }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
 
   const saveSelfAssessmentProgress = useCallback(async (responses: any) => {
-    if (!currentUser?.uid || !db) {
-      // Fallback to localStorage for non-authenticated users or when Firebase unavailable
-      localStorage.setItem('self_assessment_progress', JSON.stringify({
-        responses,
-        timestamp: new Date().toISOString()
-      }));
-      return;
-    }
+    if (!currentUser?.uid) return;
 
     try {
-      const collections = getOnboardingCollections(currentUser.uid);
-      if (!collections) return;
-
       const progressData = {
         type: 'self_assessment_progress',
         responses,
         userId: currentUser.uid,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       };
 
-      // Save/update progress draft in Firestore
-      const progressDocRef = doc(collections.progressDrafts, 'selfAssessment');
+      // Save progress to Firebase
+      const progressDocRef = doc(db, 'userOnboarding', currentUser.uid, 'progress', 'selfAssessment');
       await setDoc(progressDocRef, progressData, { merge: true });
       
-      console.log('💾 Saved self-assessment progress to Firestore');
+      console.log('💾 Saved self-assessment progress to Firebase');
     } catch (error) {
       console.error('❌ Error saving self-assessment progress:', error);
-      // Fallback to localStorage
-      localStorage.setItem('self_assessment_progress', JSON.stringify({
-        responses,
-        timestamp: new Date().toISOString()
-      }));
     }
   }, [currentUser?.uid]);
 
@@ -953,42 +716,33 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [questionnaire, selfAssessment, getOnboardingInsights]);
 
   // ================================
-  // UTILITY METHODS (UNCHANGED)
+  // UTILITY METHODS (FIREBASE-ONLY)
   // ================================
   const clearOnboardingData = useCallback(async () => {
     setQuestionnaire(null);
     setSelfAssessment(null);
     
-    // Clear Firestore data (if available)
-    if (currentUser?.uid && db) {
+    // Clear Firebase data
+    if (currentUser?.uid) {
       try {
-        console.log('🗑️ Clearing Firestore data for user:', currentUser.uid);
-        // Note: In a real app, you might want to delete documents individually
-        // or mark them as deleted rather than actually deleting them
+        // Clear questionnaire
+        await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), {
+          cleared: true,
+          clearedAt: serverTimestamp()
+        });
+        
+        // Clear self-assessment
+        await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), {
+          cleared: true,
+          clearedAt: serverTimestamp()
+        });
+        
+        console.log(`🧹 Onboarding data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       } catch (error) {
-        console.error('❌ Error clearing Firestore data:', error);
+        console.error('❌ Error clearing onboarding data in Firebase:', error);
       }
     }
-    
-    // Clear localStorage
-    try {
-      const questionnaireKey = getQuestionnaireStorageKey();
-      const assessmentKey = getSelfAssessmentStorageKey();
-      
-      localStorage.removeItem(questionnaireKey);
-      localStorage.removeItem(assessmentKey);
-      localStorage.removeItem('questionnaire_responses');
-      localStorage.removeItem('questionnaire_completed');
-      localStorage.removeItem('self_assessment_responses');
-      localStorage.removeItem('self_assessment_completed');
-      localStorage.removeItem('selfAssessment');
-      localStorage.removeItem('lastAssessmentUpdate');
-      localStorage.removeItem('questionnaire_progress');
-      localStorage.removeItem('self_assessment_progress');
-    } catch (error) {
-      console.warn('Failed to clear localStorage onboarding data:', error);
-    }
-  }, [currentUser?.uid, getQuestionnaireStorageKey, getSelfAssessmentStorageKey]);
+  }, [currentUser?.uid]);
 
   const exportOnboardingData = useCallback(() => {
     return {
@@ -1013,36 +767,6 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       assessment: isSelfAssessmentCompleted()
     };
   }, [isQuestionnaireCompleted, isSelfAssessmentCompleted]);
-
-  // ================================
-  // EFFECTS
-  // ================================
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    const initializeData = async () => {
-      if (currentUser?.uid && db) {
-        // Load from Firestore with real-time updates (if available)
-        try {
-          unsubscribe = await loadFromFirestore();
-        } catch (error) {
-          console.warn('Firestore initialization failed, using localStorage:', error);
-          await loadFromStorage();
-        }
-      } else {
-        // Load from localStorage for non-authenticated users or when Firebase unavailable
-        await loadFromStorage();
-      }
-    };
-
-    initializeData();
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [currentUser?.uid, loadFromFirestore, loadFromStorage]);
 
   // ================================
   // CONTEXT VALUE (UNCHANGED)

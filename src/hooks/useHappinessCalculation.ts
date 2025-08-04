@@ -1,12 +1,12 @@
-// ✅ COMPLETE FIXED useHappinessCalculation.ts - User Data Isolation + All Functions Preserved
+// ✅ FIREBASE-ONLY useHappinessCalculation.ts - NO localStorage
 // File: src/hooks/useHappinessCalculation.ts
-// 🔧 FIXED: Now properly isolates data by user UID - no cross-user contamination
-// ✅ PRESERVED: ALL calculation functions and logic exactly as before
+// 🔥 REMOVED: All localStorage code - reads from Firebase via OnboardingContext
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../contexts/auth/AuthContext'; // ✅ ADD: Get current user
-import { useUser } from '../contexts/user/UserContext'; // ✅ ADD: Get user-specific data
-import { useLocalDataCompat as useLocalData } from './useLocalDataCompat';
+import { useAuth } from '../contexts/auth/AuthContext';
+import { useOnboarding } from '../contexts/onboarding/OnboardingContext';
+import { usePractice } from '../contexts/practice/PracticeContext';
+import { useWellness } from '../contexts/wellness/WellnessContext';
 
 // ✅ PRESERVED: All existing interfaces unchanged
 interface ComponentResult {
@@ -86,219 +86,13 @@ export interface UseHappinessCalculationReturn {
   testComponents: () => void;
 }
 
-// ✅ USER-SPECIFIC: Get user-isolated storage keys
-const getUserSpecificKey = (baseKey: string, userId: string): string => {
-  return `${baseKey}_${userId}`;
-};
-
-// ✅ USER-SPECIFIC: Safe data retrieval that never crosses users
-const getUserSpecificData = (key: string, userId: string | null): any => {
-  if (!userId) {
-    console.warn(`🚨 No user ID for ${key} - returning empty data`);
-    return null;
-  }
-  
-  try {
-    const userKey = getUserSpecificKey(key, userId);
-    const data = localStorage.getItem(userKey);
-    
-    // ✅ DOUBLE-CHECK: Ensure data belongs to current user
-    if (data) {
-      const parsed = JSON.parse(data);
-      
-      // Verify ownership if the data has a userId field
-      if (parsed && parsed.userId && parsed.userId !== userId) {
-        console.error(`🚨 DATA LEAK PREVENTED: ${key} data belongs to ${parsed.userId}, not ${userId}`);
-        return null;
-      }
-      
-      console.log(`✅ Retrieved user-specific ${key} for user ${userId.substring(0, 8)}...`);
-      return parsed;
-    }
-    
-    // ✅ FALLBACK: Check legacy keys but verify ownership
-    const legacyData = localStorage.getItem(key);
-    if (legacyData) {
-      const parsed = JSON.parse(legacyData);
-      
-      // Only use legacy data if it belongs to current user
-      if (parsed && parsed.userId && parsed.userId === userId) {
-        console.log(`✅ Using legacy ${key} data for user ${userId.substring(0, 8)}...`);
-        return parsed;
-      } else if (parsed && !parsed.userId) {
-        // Legacy data without userId - assume it belongs to current user but flag it
-        console.warn(`⚠️ Using legacy ${key} data (no userId check possible)`);
-        return parsed;
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error(`❌ Error retrieving user-specific ${key}:`, error);
-    return null;
-  }
-};
-
-// ✅ USER-SPECIFIC: Get practice sessions for current user only
-const getUserPracticeSessions = (userId: string | null): any[] => {
-  if (!userId) return [];
-  
-  try {
-    // Check user-specific keys first
-    const userKeys = [
-      `T1Sessions_${userId}`,
-      `T2Sessions_${userId}`,
-      `T3Sessions_${userId}`,
-      `T4Sessions_${userId}`,
-      `T5Sessions_${userId}`,
-      `practiceSessions_${userId}`,
-      `sessions_${userId}`
-    ];
-    
-    let allSessions: any[] = [];
-    
-    userKeys.forEach(key => {
-      const data = localStorage.getItem(key);
-      if (data) {
-        try {
-          const sessions = JSON.parse(data);
-          if (Array.isArray(sessions)) {
-            // Verify each session belongs to the user
-            const validSessions = sessions.filter(session => 
-              !session.userId || session.userId === userId
-            );
-            allSessions = [...allSessions, ...validSessions];
-          }
-        } catch (error) {
-          console.warn(`⚠️ Error parsing ${key}:`, error);
-        }
-      }
-    });
-    
-    // ✅ FALLBACK: Check legacy keys but verify ownership
-    if (allSessions.length === 0) {
-      const legacyKeys = ['T1Sessions', 'T2Sessions', 'T3Sessions', 'T4Sessions', 'T5Sessions', 'practiceSessions'];
-      
-      legacyKeys.forEach(key => {
-        const data = localStorage.getItem(key);
-        if (data) {
-          try {
-            const sessions = JSON.parse(data);
-            if (Array.isArray(sessions)) {
-              // Only include sessions that belong to current user or have no userId
-              const validSessions = sessions.filter(session => {
-                if (session.userId) {
-                  return session.userId === userId;
-                } else {
-                  // Legacy session without userId - assume current user but log warning
-                  console.warn(`⚠️ Legacy session in ${key} has no userId - assuming current user`);
-                  return true;
-                }
-              });
-              allSessions = [...allSessions, ...validSessions];
-            }
-          } catch (error) {
-            console.warn(`⚠️ Error parsing legacy ${key}:`, error);
-          }
-        }
-      });
-    }
-    
-    // ✅ SECURITY: Remove duplicates and ensure data integrity
-    const uniqueSessions = allSessions.filter((session, index, array) => 
-      array.findIndex(s => s.timestamp === session.timestamp) === index
-    );
-    
-    console.log(`✅ Retrieved ${uniqueSessions.length} practice sessions for user ${userId.substring(0, 8)}...`);
-    return uniqueSessions;
-    
-  } catch (error) {
-    console.error(`❌ Error getting user practice sessions:`, error);
-    return [];
-  }
-};
-
-// ✅ USER-SPECIFIC: Get emotional notes for current user only
-const getUserEmotionalNotes = (userId: string | null): any[] => {
-  if (!userId) return [];
-  
-  try {
-    const userKey = getUserSpecificKey('emotionalNotes', userId);
-    let notes = getUserSpecificData('emotionalNotes', userId);
-    
-    if (!notes || !Array.isArray(notes)) {
-      // Try alternative keys
-      const altKey = getUserSpecificKey('dailyEmotionalNotes', userId);
-      notes = localStorage.getItem(altKey);
-      if (notes) {
-        notes = JSON.parse(notes);
-      }
-    }
-    
-    if (Array.isArray(notes)) {
-      // Verify ownership
-      const validNotes = notes.filter(note => 
-        !note.userId || note.userId === userId
-      );
-      
-      console.log(`✅ Retrieved ${validNotes.length} emotional notes for user ${userId.substring(0, 8)}...`);
-      return validNotes;
-    }
-    
-    return [];
-  } catch (error) {
-    console.error(`❌ Error getting user emotional notes:`, error);
-    return [];
-  }
-};
-
-// ✅ USER-SPECIFIC: Get questionnaire for current user only
-const getUserQuestionnaire = (userId: string | null): any => {
-  if (!userId) return null;
-  
-  const questionnaire = getUserSpecificData('questionnaire', userId);
-  
-  // Also check onboarding data
-  const onboardingData = getUserSpecificData('onboardingData', userId);
-  if (!questionnaire && onboardingData?.questionnaire) {
-    console.log(`✅ Found questionnaire in onboarding data for user ${userId.substring(0, 8)}...`);
-    return onboardingData.questionnaire;
-  }
-  
-  if (questionnaire) {
-    console.log(`✅ Retrieved questionnaire for user ${userId.substring(0, 8)}...`);
-  }
-  
-  return questionnaire;
-};
-
-// ✅ USER-SPECIFIC: Get self-assessment for current user only
-const getUserSelfAssessment = (userId: string | null): any => {
-  if (!userId) return null;
-  
-  const selfAssessment = getUserSpecificData('selfAssessment', userId);
-  
-  // Also check onboarding data
-  const onboardingData = getUserSpecificData('onboardingData', userId);
-  if (!selfAssessment && onboardingData?.selfAssessment) {
-    console.log(`✅ Found self-assessment in onboarding data for user ${userId.substring(0, 8)}...`);
-    return onboardingData.selfAssessment;
-  }
-  
-  if (selfAssessment) {
-    console.log(`✅ Retrieved self-assessment for user ${userId.substring(0, 8)}...`);
-  }
-  
-  return selfAssessment;
-};
-
-// ✅ PRESERVED: Flexible data detection logic (now user-specific)
+// ✅ FIREBASE-ONLY: Data detection logic
 const hasMinimumDataForCalculation = (
   questionnaire: any,
   selfAssessment: any,
   sessions: any[]
 ): boolean => {
-  console.log('🔍 User-Specific Data Check:');
+  console.log('🔍 Firebase Data Check:');
   console.log('📋 Questionnaire:', {
     exists: !!questionnaire,
     completed: questionnaire?.completed,
@@ -342,7 +136,7 @@ const hasMinimumDataForCalculation = (
     (hasQuestionnaire && hasAnySessions)
   );
   
-  console.log('✅ User-Specific Requirements Check:', {
+  console.log('✅ Firebase Requirements Check:', {
     hasQuestionnaire,
     hasSelfAssessment,
     sufficient
@@ -413,9 +207,9 @@ const calculateCurrentStateFromAssessment = (questionnaire: any, notes: any[], h
   return { currentMoodScore: Math.max(0, Math.round(currentStateScore)) };
 };
 
-// ✅ PRESERVED: Attachment-based happiness calculation (unchanged logic)
+// ✅ PRESERVED: Attachment-based happiness calculation (unchanged logic but cleaner logging)
 const calculateAttachmentBasedHappiness = (selfAssessment: any, hasMinimumData: boolean): ComponentResult => {
-  console.log('🎯 User-Specific Attachment Calculation:', {
+  console.log('🎯 Firebase Attachment Calculation:', {
     selfAssessment: !!selfAssessment,
     hasMinimumData,
     attachmentScore: selfAssessment?.attachmentScore,
@@ -487,7 +281,7 @@ const calculateAttachmentBasedHappiness = (selfAssessment: any, hasMinimumData: 
   const nonAttachmentBonus = nonAttachmentCount * 12;
   finalScore += nonAttachmentBonus;
   
-  console.log('✅ User-Specific Attachment Scoring Breakdown:', {
+  console.log('✅ Firebase Attachment Scoring Breakdown:', {
     attachmentScore: `${attachmentScore} points (${Math.abs(attachmentScore)} penalty)`,
     nonAttachmentCount: `${nonAttachmentCount} categories`,
     nonAttachmentBonus: `+${nonAttachmentBonus} happiness points`,
@@ -944,14 +738,17 @@ const calculateSessionStreak = (sessions: any[]): number => {
   return streak;
 };
 
-// ✅ MAIN HOOK - Now with user isolation + ALL functionality preserved
+// ✅ MAIN HOOK - Now Firebase-only via contexts
 export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
-  // ✅ CRITICAL: Get current user for data isolation
+  // ✅ FIREBASE-ONLY: Get current user and Firebase data via contexts
   const { currentUser } = useAuth();
-  const { userProfile } = useUser();
-  
-  // ✅ FALLBACK: Still use useLocalData for compatibility but verify user ownership
-  const localData = useLocalData();
+  const { 
+    questionnaire, 
+    selfAssessment,
+    isLoading: onboardingLoading 
+  } = useOnboarding();
+  const { sessions } = usePractice();
+  const { emotionalNotes } = useWellness();
 
   const [userProgress, setUserProgress] = useState<UserProgress>({
     happiness_points: 0,
@@ -975,61 +772,40 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [recalculationTrigger, setRecalculationTrigger] = useState(0);
 
-  // ✅ USER-SPECIFIC: Get data for current user only
+  // ✅ FIREBASE-ONLY: Data comes from contexts, not localStorage
   const practiceSessions = useMemo(() => {
-    const userId = currentUser?.uid;
-    if (!userId) {
+    if (!currentUser?.uid) {
       console.warn('🚨 No current user - returning empty practice sessions');
       return [];
     }
-    return getUserPracticeSessions(userId);
-  }, [currentUser?.uid, recalculationTrigger]);
+    console.log(`✅ Retrieved ${sessions?.length || 0} practice sessions from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+    return sessions || [];
+  }, [currentUser?.uid, sessions]);
 
-  const emotionalNotes = useMemo(() => {
-    const userId = currentUser?.uid;
-    if (!userId) {
+  const userEmotionalNotes = useMemo(() => {
+    if (!currentUser?.uid) {
       console.warn('🚨 No current user - returning empty emotional notes');
       return [];
     }
-    return getUserEmotionalNotes(userId);
-  }, [currentUser?.uid, recalculationTrigger]);
-
-  const questionnaire = useMemo(() => {
-    const userId = currentUser?.uid;
-    if (!userId) {
-      console.warn('🚨 No current user - returning empty questionnaire');
-      return null;
-    }
-    const data = getUserQuestionnaire(userId);
-    console.log(`📋 User-specific questionnaire for ${userId.substring(0, 8)}...:`, !!data);
-    return data;
-  }, [currentUser?.uid, recalculationTrigger]);
-  
-  const selfAssessment = useMemo(() => {
-    const userId = currentUser?.uid;
-    if (!userId) {
-      console.warn('🚨 No current user - returning empty self-assessment');
-      return null;
-    }
-    const data = getUserSelfAssessment(userId);
-    console.log(`🎯 User-specific self-assessment for ${userId.substring(0, 8)}...:`, !!data);
-    return data;
-  }, [currentUser?.uid, recalculationTrigger]);
+    console.log(`✅ Retrieved ${emotionalNotes?.length || 0} emotional notes from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+    return emotionalNotes || [];
+  }, [currentUser?.uid, emotionalNotes]);
 
   // ✅ DEBUG: Log current user context
   useEffect(() => {
     if (currentUser) {
-      console.log(`👤 Happiness calculation for user: ${currentUser.uid.substring(0, 8)}... (${currentUser.email})`);
-      console.log('📊 User data summary:', {
+      console.log(`👤 Firebase happiness calculation for user: ${currentUser.uid.substring(0, 8)}... (${currentUser.email})`);
+      console.log('📊 Firebase data summary:', {
         practiceSessions: practiceSessions.length,
-        emotionalNotes: emotionalNotes.length,
+        emotionalNotes: userEmotionalNotes.length,
         hasQuestionnaire: !!questionnaire,
-        hasSelfAssessment: !!selfAssessment
+        hasSelfAssessment: !!selfAssessment,
+        onboardingLoading
       });
     } else {
       console.warn('👤 No current user - happiness calculation disabled');
     }
-  }, [currentUser, practiceSessions.length, emotionalNotes.length, questionnaire, selfAssessment]);
+  }, [currentUser, practiceSessions.length, userEmotionalNotes.length, questionnaire, selfAssessment, onboardingLoading]);
 
   // ✅ PRESERVED: Extract numeric scores utility
   const extractNumericScore = useCallback((result: ComponentResult): number => {
@@ -1056,7 +832,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     return 0;
   }, []);
 
-  // ✅ USER-SPECIFIC: Complete calculation with ALL components preserved
+  // ✅ FIREBASE-ONLY: Complete calculation with Firebase data
   const calculateHappinessScore = useCallback(() => {
     // ✅ SECURITY: Must have current user
     if (!currentUser?.uid) {
@@ -1083,14 +859,14 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     setIsCalculating(true);
     
     try {
-      console.log(`🔄 User-Specific Calculation Starting for ${currentUser.uid.substring(0, 8)}...`);
-      console.log('📊 Input data:', {
+      console.log(`🔄 Firebase Calculation Starting for ${currentUser.uid.substring(0, 8)}...`);
+      console.log('📊 Firebase input data:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         email: currentUser.email,
         questionnaire: !!questionnaire,
         selfAssessment: !!selfAssessment,
         sessionCount: practiceSessions.length,
-        notesCount: emotionalNotes.length
+        notesCount: userEmotionalNotes.length
       });
       
       // Check minimum data for calculation
@@ -1109,12 +885,12 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         sufficientForCalculation: hasMinimumData
       };
       
-      console.log(`✅ User-specific data completeness for ${currentUser.uid.substring(0, 8)}...:`, dataCompleteness);
+      console.log(`✅ Firebase data completeness for ${currentUser.uid.substring(0, 8)}...:`, dataCompleteness);
       
-      // ✅ Calculate ALL components (preserved logic, just user-specific data)
-      console.log('🧮 Calculating user-specific components...');
+      // ✅ Calculate ALL components (preserved logic, Firebase data)
+      console.log('🧮 Calculating Firebase-based components...');
       
-      const currentStateResult = calculateCurrentStateFromAssessment(questionnaire, emotionalNotes, hasMinimumData);
+      const currentStateResult = calculateCurrentStateFromAssessment(questionnaire, userEmotionalNotes, hasMinimumData);
       const currentStateScore = extractNumericScore(currentStateResult);
       
       const attachmentResult = calculateAttachmentBasedHappiness(selfAssessment, hasMinimumData);
@@ -1138,7 +914,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       const pahmResult = calculatePAHMCentralDevelopment(practiceSessions, questionnaire, hasMinimumData);
       const pahmScore = extractNumericScore(pahmResult);
 
-      console.log(`🎯 User-specific component scores for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`🎯 Firebase component scores for ${currentUser.uid.substring(0, 8)}...:`, {
         currentStateScore,
         attachmentScore,
         socialScore,
@@ -1177,7 +953,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
       const finalHappinessScore = Math.round(weightedScore);
 
-      console.log(`🎯 User-specific final calculation for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`🎯 Firebase final calculation for ${currentUser.uid.substring(0, 8)}...:`, {
         weightedScore,
         finalHappinessScore,
         breakdown: {
@@ -1238,15 +1014,6 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
       setUserProgress(result);
 
-      // ✅ SECURITY: Save with user ID prefix
-      const userStorageKey = `happiness_points_${currentUser.uid}`;
-      localStorage.setItem(userStorageKey, finalHappinessScore.toString());
-      localStorage.setItem(`user_level_${currentUser.uid}`, userLevel);
-      localStorage.setItem(`focus_ability_${currentUser.uid}`, focusAbility.toString());
-      localStorage.setItem(`habit_change_score_${currentUser.uid}`, habitChangeScore.toString());
-      localStorage.setItem(`practice_streak_${currentUser.uid}`, practiceStreak.toString());
-      localStorage.setItem(`lastHappinessUpdate_${currentUser.uid}`, new Date().toISOString());
-
       // ✅ PRESERVED: Emit detailed event
       const event = new CustomEvent('happinessUpdated', {
         detail: {
@@ -1258,12 +1025,12 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
           hasMinimumData: hasMinimumData,
           dataCompleteness: dataCompleteness,
           calculatedAt: new Date().toISOString(),
-          trigger: 'user_specific_assessment_calculation'
+          trigger: 'firebase_assessment_calculation'
         }
       });
       window.dispatchEvent(event);
 
-      console.log(`✅ User-specific calculation completed for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`✅ Firebase calculation completed for ${currentUser.uid.substring(0, 8)}...:`, {
         happiness_points: finalHappinessScore,
         user_level: userLevel,
         hasMinimumData: hasMinimumData,
@@ -1271,7 +1038,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       });
 
     } catch (error) {
-      console.error(`❌ Error in user-specific calculation for ${currentUser.uid.substring(0, 8)}...:`, error);
+      console.error(`❌ Error in Firebase calculation for ${currentUser.uid.substring(0, 8)}...:`, error);
       // ✅ PRESERVED: Fallback state
       setUserProgress({
         happiness_points: 0,
@@ -1297,7 +1064,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     questionnaire,
     selfAssessment,
     practiceSessions,
-    emotionalNotes,
+    userEmotionalNotes,
     extractNumericScore,
     recalculationTrigger
   ]);
@@ -1305,7 +1072,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   // ✅ Force recalculation function
   const forceRecalculation = useCallback(() => {
     if (currentUser?.uid) {
-      console.log(`🔄 User-specific force recalculation triggered for ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`🔄 Firebase force recalculation triggered for ${currentUser.uid.substring(0, 8)}...`);
       setRecalculationTrigger(prev => prev + 1);
       setTimeout(() => {
         calculateHappinessScore();
@@ -1320,84 +1087,73 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         id: currentUser.uid.substring(0, 8) + '...',
         email: currentUser.email
       } : null,
-      questionnaire: questionnaire ? 'Available' : 'Missing',
-      selfAssessment: selfAssessment ? 'Available' : 'Missing',
+      questionnaire: questionnaire ? 'Available from Firebase' : 'Missing',
+      selfAssessment: selfAssessment ? 'Available from Firebase' : 'Missing',
       practiceSessions: practiceSessions?.length || 0,
-      emotionalNotes: emotionalNotes?.length || 0,
+      emotionalNotes: userEmotionalNotes?.length || 0,
       hasMinimumData: hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions || []),
       currentResults: userProgress,
       recalculationTrigger,
+      onboardingLoading,
       questionnaire_data: questionnaire,
       selfAssessment_data: selfAssessment,
-      calculationType: 'User-Specific Assessment-Based (Isolated by UID)'
+      calculationType: 'Firebase-Only Assessment-Based (Real-time via OnboardingContext)'
     };
     
     setCalculationDebugInfo(debugInfo);
-    console.log('🔍 User-Specific Calculation Debug:', debugInfo);
-  }, [currentUser, questionnaire, selfAssessment, practiceSessions, emotionalNotes, userProgress, recalculationTrigger]);
+    console.log('🔍 Firebase Calculation Debug:', debugInfo);
+  }, [currentUser, questionnaire, selfAssessment, practiceSessions, userEmotionalNotes, userProgress, recalculationTrigger, onboardingLoading]);
 
   const logProgress = useCallback(() => {
     if (currentUser?.uid) {
-      console.log(`📊 User-Specific Progress for ${currentUser.uid.substring(0, 8)}...:`, userProgress);
+      console.log(`📊 Firebase Progress for ${currentUser.uid.substring(0, 8)}...:`, userProgress);
       console.log('📊 Component Breakdown:', componentBreakdown);
     }
   }, [currentUser, userProgress, componentBreakdown]);
 
   const testComponents = useCallback(() => {
     if (currentUser?.uid) {
-      console.log(`🧪 Testing User-Specific Components for ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`🧪 Testing Firebase Components for ${currentUser.uid.substring(0, 8)}...`);
       const hasMinimumData = hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions || []);
       console.log('Has minimum data:', hasMinimumData);
       debugCalculation();
     }
   }, [currentUser, questionnaire, selfAssessment, practiceSessions, debugCalculation]);
 
-  // ✅ Auto-calculate when data changes (only if user exists)
+  // ✅ Auto-calculate when Firebase data changes (only if user exists and not loading)
   useEffect(() => {
-    if (currentUser?.uid) {
+    if (currentUser?.uid && !onboardingLoading) {
       const timeoutId = setTimeout(() => {
         calculateHappinessScore();
       }, 250);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [calculateHappinessScore, currentUser?.uid]);
+  }, [calculateHappinessScore, currentUser?.uid, onboardingLoading]);
 
   // ✅ PRESERVED: Listen for events to trigger recalculation
   useEffect(() => {
     if (!currentUser?.uid) return;
 
-    const handleStorageChange = (e: StorageEvent) => {
-      // Only react to current user's data changes
-      if (e.key?.includes(currentUser.uid) || 
-          (e.key === 'selfAssessment' || e.key === 'questionnaire') // Legacy global keys
-      ) {
-        console.log(`🔄 User-specific storage change detected for ${currentUser.uid.substring(0, 8)}...:`, e.key);
-        forceRecalculation();
-      }
-    };
-
     const handleOnboardingEvent = (event: any) => {
-      console.log(`🎯 Received onboarding event for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
+      console.log(`🎯 Received Firebase onboarding event for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
       if (event.detail.type === 'selfAssessment' || event.detail.type === 'questionnaire') {
-        console.log('🔄 Onboarding event triggered user-specific recalculation');
+        console.log('🔄 Onboarding event triggered Firebase recalculation');
         forceRecalculation();
       }
     };
 
     const handleHappinessRecalculation = (event: any) => {
-      console.log(`🚀 Direct user-specific happiness recalculation trigger for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
+      console.log(`🚀 Direct Firebase happiness recalculation trigger for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
       forceRecalculation();
     };
 
-    window.addEventListener('storage', handleStorageChange);
     window.addEventListener('onboardingUpdated', handleOnboardingEvent);
     window.addEventListener('selfAssessmentCompleted', handleOnboardingEvent);
     window.addEventListener('questionnaireCompleted', handleOnboardingEvent);
     window.addEventListener('triggerHappinessRecalculation', handleHappinessRecalculation);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('onboardingUpdated', handleOnboardingEvent);
       window.removeEventListener('selfAssessmentCompleted', handleOnboardingEvent);
       window.removeEventListener('questionnaireCompleted', handleOnboardingEvent);
@@ -1412,7 +1168,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     calculationDebugInfo,
     isCalculating,
     practiceSessions: practiceSessions || [],
-    emotionalNotes: emotionalNotes || [],
+    emotionalNotes: userEmotionalNotes || [],
     questionnaire,
     selfAssessment,
     forceRecalculation,
@@ -1425,7 +1181,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     calculationDebugInfo,
     isCalculating,
     practiceSessions,
-    emotionalNotes,
+    userEmotionalNotes,
     questionnaire,
     selfAssessment,
     forceRecalculation,

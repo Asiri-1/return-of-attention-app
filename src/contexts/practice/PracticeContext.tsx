@@ -1,12 +1,10 @@
-// src/contexts/practice/PracticeContext.tsx
-// ✅ ENHANCED: Firebase/Firestore integration while maintaining all existing functionality
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../auth/AuthContext'
-import { useUser } from '../user/UserContext';
+// ✅ FIREBASE-ONLY PracticeContext - No localStorage conflicts
+// File: src/contexts/practice/PracticeContext.tsx
 
-// ✅ FIREBASE IMPORTS
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { useUser } from '../user/UserContext';
 import { 
-  getFirestore, 
   collection, 
   doc, 
   addDoc, 
@@ -17,11 +15,13 @@ import {
   orderBy, 
   onSnapshot, 
   serverTimestamp,
-  Timestamp 
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 // ================================
-// PRACTICE SESSION INTERFACES
+// PRACTICE SESSION INTERFACES (UNCHANGED)
 // ================================
 interface PracticeSessionData {
   sessionId: string;
@@ -122,49 +122,31 @@ interface PracticeContextType {
 const PracticeContext = createContext<PracticeContextType | undefined>(undefined);
 
 // ================================
-// PRACTICE PROVIDER IMPLEMENTATION
+// FIREBASE-ONLY PRACTICE PROVIDER
 // ================================
 export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, syncWithLocalData } = useAuth();
+  const { currentUser } = useAuth();
   const { syncProfile } = useUser();
   const [sessions, setSessions] = useState<PracticeSessionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ FIREBASE SETUP
-  const db = getFirestore();
-
   // ================================
-  // STORAGE UTILITIES
+  // UTILITY FUNCTIONS
   // ================================
-  const getStorageKey = useCallback((): string => {
-    return currentUser?.uid ? `practiceSessions_${currentUser.uid}` : 'practiceSessions';
-  }, [currentUser?.uid]);
-
   const generateId = useCallback((prefix: string): string => {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // ✅ FIREBASE COLLECTION REFERENCE
-  const getSessionsCollection = useCallback(() => {
-    if (!currentUser?.uid) return null;
-    return collection(db, 'users', currentUser.uid, 'practiceSessions');
-  }, [db, currentUser?.uid]);
-
   // ================================
-  // ✅ ENHANCED: FIREBASE + LOCALSTORAGE HYBRID STORAGE
+  // FIREBASE-ONLY: Data persistence
   // ================================
-  const saveToFirestore = useCallback(async (sessionData: PracticeSessionData) => {
-    if (!currentUser?.uid) {
-      console.warn('No authenticated user - skipping Firestore save');
-      return null;
-    }
+  const saveSessionToFirebase = useCallback(async (sessionData: PracticeSessionData) => {
+    if (!currentUser?.uid) return;
 
     try {
-      const sessionsCollection = getSessionsCollection();
-      if (!sessionsCollection) return null;
-
-      // Create clean data for Firestore (without local-only fields)
+      // Create clean data for Firestore
       const firestoreData = {
+        sessionId: sessionData.sessionId,
         timestamp: sessionData.timestamp,
         duration: sessionData.duration,
         sessionType: sessionData.sessionType,
@@ -179,21 +161,21 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pahmCounts: sessionData.pahmCounts,
         recoveryMetrics: sessionData.recoveryMetrics,
         metadata: sessionData.metadata,
+        userId: currentUser.uid,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        userId: currentUser.uid
+        updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(sessionsCollection, firestoreData);
-      console.log('✅ Practice session saved to Firestore:', docRef.id);
+      const docRef = await addDoc(collection(db, 'userSessions', currentUser.uid, 'practiceSessions'), firestoreData);
+      console.log(`✅ Practice session saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       return docRef.id;
     } catch (error) {
-      console.error('❌ Failed to save to Firestore:', error);
-      return null;
+      console.error('❌ Failed to save session to Firebase:', error);
+      throw error;
     }
-  }, [currentUser?.uid, getSessionsCollection]);
+  }, [currentUser?.uid]);
 
-  const updateInFirestore = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
+  const updateSessionInFirebase = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
     if (!currentUser?.uid) return;
 
     try {
@@ -203,18 +185,18 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      const sessionDoc = doc(db, 'users', currentUser.uid, 'practiceSessions', session.firestoreId);
+      const sessionDoc = doc(db, 'userSessions', currentUser.uid, 'practiceSessions', session.firestoreId);
       await updateDoc(sessionDoc, {
         ...updates,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Practice session updated in Firestore:', session.firestoreId);
+      console.log(`✅ Session updated in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
     } catch (error) {
-      console.error('❌ Failed to update in Firestore:', error);
+      console.error('❌ Failed to update session in Firebase:', error);
     }
-  }, [currentUser?.uid, sessions, db]);
+  }, [currentUser?.uid, sessions]);
 
-  const deleteFromFirestore = useCallback(async (sessionId: string) => {
+  const deleteSessionFromFirebase = useCallback(async (sessionId: string) => {
     if (!currentUser?.uid) return;
 
     try {
@@ -224,45 +206,24 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      const sessionDoc = doc(db, 'users', currentUser.uid, 'practiceSessions', session.firestoreId);
+      const sessionDoc = doc(db, 'userSessions', currentUser.uid, 'practiceSessions', session.firestoreId);
       await deleteDoc(sessionDoc);
-      console.log('✅ Practice session deleted from Firestore:', session.firestoreId);
+      console.log(`✅ Session deleted from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
     } catch (error) {
-      console.error('❌ Failed to delete from Firestore:', error);
+      console.error('❌ Failed to delete session from Firebase:', error);
     }
-  }, [currentUser?.uid, sessions, db]);
+  }, [currentUser?.uid, sessions]);
 
-  const saveToStorage = useCallback((sessionData: PracticeSessionData[]) => {
+  const loadFromFirebase = useCallback(async () => {
+    if (!currentUser?.uid) return;
+
+    setIsLoading(true);
+    
     try {
-      const storageKey = getStorageKey();
-      localStorage.setItem(storageKey, JSON.stringify(sessionData));
-      
-      // Legacy compatibility
-      if (currentUser) {
-        localStorage.setItem('practiceHistory', JSON.stringify(sessionData));
-        localStorage.setItem('practice_sessions', JSON.stringify(sessionData));
-        
-        const mindRecoverySessions = sessionData.filter(s => s.sessionType === 'mind_recovery');
-        localStorage.setItem('mindRecoveryHistory', JSON.stringify(mindRecoverySessions));
-      }
-      
-      console.log(`💾 Saved ${sessionData.length} sessions to localStorage`);
-    } catch (error) {
-      console.warn('Failed to save practice data to localStorage:', error);
-    }
-  }, [getStorageKey, currentUser]);
-
-  // ================================
-  // ✅ ENHANCED: LOAD FROM FIREBASE + LOCALSTORAGE
-  // ================================
-  const loadFromFirestore = useCallback(async () => {
-    if (!currentUser?.uid) return [];
-
-    try {
-      const sessionsCollection = getSessionsCollection();
-      if (!sessionsCollection) return [];
-
-      const q = query(sessionsCollection, orderBy('createdAt', 'desc'));
+      const q = query(
+        collection(db, 'userSessions', currentUser.uid, 'practiceSessions'), 
+        orderBy('createdAt', 'desc')
+      );
       const querySnapshot = await getDocs(q);
       
       const firestoreSessions: PracticeSessionData[] = [];
@@ -291,78 +252,29 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         firestoreSessions.push(session);
       });
 
-      console.log(`✅ Loaded ${firestoreSessions.length} sessions from Firestore`);
-      return firestoreSessions;
+      setSessions(firestoreSessions);
+      console.log(`📦 Loaded ${firestoreSessions.length} sessions from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
     } catch (error) {
-      console.error('❌ Failed to load from Firestore:', error);
-      return [];
-    }
-  }, [currentUser?.uid, getSessionsCollection, generateId]);
-
-  const loadFromStorage = useCallback(async () => {
-    setIsLoading(true);
-    
-    try {
-      let loadedSessions: PracticeSessionData[] = [];
-
-      // ✅ PRIORITY 1: Try to load from Firestore (if authenticated)
-      if (currentUser?.uid) {
-        loadedSessions = await loadFromFirestore();
-      }
-
-      // ✅ PRIORITY 2: If no Firestore data, try localStorage
-      if (loadedSessions.length === 0) {
-        const storageKey = getStorageKey();
-        const sessionData = localStorage.getItem(storageKey);
-        
-        if (sessionData) {
-          const parsedSessions = JSON.parse(sessionData);
-          loadedSessions = parsedSessions;
-          console.log(`📦 Loaded ${loadedSessions.length} sessions from localStorage`);
-        } else {
-          // Try legacy storage
-          const legacyData = localStorage.getItem('practiceHistory') || localStorage.getItem('practice_sessions');
-          if (legacyData) {
-            const legacySessions = JSON.parse(legacyData);
-            loadedSessions = legacySessions;
-            console.log(`📦 Loaded ${loadedSessions.length} sessions from legacy storage`);
-          }
-        }
-
-        // ✅ MIGRATION: If we have localStorage data but user is authenticated, migrate to Firestore
-        if (loadedSessions.length > 0 && currentUser?.uid) {
-          console.log('🔄 Migrating localStorage sessions to Firestore...');
-          for (const session of loadedSessions) {
-            try {
-              const firestoreId = await saveToFirestore(session);
-              if (firestoreId) {
-                session.firestoreId = firestoreId;
-              }
-            } catch (error) {
-              console.warn('Failed to migrate session to Firestore:', error);
-            }
-          }
-          console.log('✅ Migration to Firestore completed');
-        }
-      }
-
-      setSessions(loadedSessions);
-      
-      // ✅ ALWAYS UPDATE LOCALSTORAGE (for offline access)
-      if (loadedSessions.length > 0) {
-        saveToStorage(loadedSessions);
-      }
-
-    } catch (error) {
-      console.warn('Failed to load practice data:', error);
-      setSessions([]);
+      console.error('❌ Failed to load sessions from Firebase:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.uid, getStorageKey, loadFromFirestore, saveToFirestore, saveToStorage]);
+  }, [currentUser?.uid, generateId]);
 
   // ================================
-  // CALCULATE STATISTICS (Unchanged)
+  // LOAD DATA ON USER CHANGE
+  // ================================
+  useEffect(() => {
+    if (currentUser?.uid) {
+      loadFromFirebase();
+    } else {
+      // Reset to defaults when no user
+      setSessions([]);
+    }
+  }, [currentUser?.uid, loadFromFirebase]);
+
+  // ================================
+  // CALCULATE STATISTICS (UNCHANGED)
   // ================================
   const calculateStats = useCallback((): PracticeStats => {
     const allSessions = sessions;
@@ -424,7 +336,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // ✅ ENHANCED: SESSION MANAGEMENT WITH FIREBASE
+  // FIREBASE-ONLY: SESSION MANAGEMENT
   // ================================
   const addPracticeSession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const newSession: PracticeSessionData = {
@@ -436,19 +348,20 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // ✅ IMMEDIATE UI UPDATE
     const updatedSessions = [...sessions, newSession];
     setSessions(updatedSessions);
-    saveToStorage(updatedSessions);
     
-    // ✅ SAVE TO FIRESTORE (async, non-blocking)
+    // ✅ SAVE TO FIREBASE
     try {
-      const firestoreId = await saveToFirestore(newSession);
+      const firestoreId = await saveSessionToFirebase(newSession);
       if (firestoreId) {
         // Update session with Firestore ID
         const finalSession = { ...newSession, firestoreId };
         setSessions(prev => prev.map(s => s.sessionId === newSession.sessionId ? finalSession : s));
-        saveToStorage([...sessions.filter(s => s.sessionId !== newSession.sessionId), finalSession]);
       }
     } catch (error) {
-      console.error('Failed to save session to Firestore:', error);
+      console.error('Failed to save session to Firebase:', error);
+      // Remove from UI if Firebase save failed
+      setSessions(prev => prev.filter(s => s.sessionId !== newSession.sessionId));
+      throw error;
     }
     
     // ✅ SYNC WITH USER PROFILE
@@ -466,12 +379,10 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       averageMindRecoveryRating: 0
     };
     
-    syncProfile(newStats);
-    
-    if (currentUser && syncWithLocalData) {
-      setTimeout(() => syncWithLocalData(), 200);
+    if (syncProfile) {
+      syncProfile(newStats);
     }
-  }, [sessions, generateId, saveToStorage, saveToFirestore, syncProfile, currentUser, syncWithLocalData]);
+  }, [sessions, generateId, saveSessionToFirebase, syncProfile]);
 
   const addMindRecoverySession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
@@ -484,29 +395,29 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deletePracticeSession = useCallback(async (sessionId: string) => {
     const updatedSessions = sessions.filter(session => session.sessionId !== sessionId);
     setSessions(updatedSessions);
-    saveToStorage(updatedSessions);
     
-    // ✅ DELETE FROM FIRESTORE
-    await deleteFromFirestore(sessionId);
+    // ✅ DELETE FROM FIREBASE
+    await deleteSessionFromFirebase(sessionId);
     
     // ✅ SYNC STATS
     const newStats = calculateStats();
-    syncProfile(newStats);
-  }, [sessions, saveToStorage, deleteFromFirestore, calculateStats, syncProfile]);
+    if (syncProfile) {
+      syncProfile(newStats);
+    }
+  }, [sessions, deleteSessionFromFirebase, calculateStats, syncProfile]);
 
   const updateSession = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
     const updatedSessions = sessions.map(session =>
       session.sessionId === sessionId ? { ...session, ...updates } : session
     );
     setSessions(updatedSessions);
-    saveToStorage(updatedSessions);
     
-    // ✅ UPDATE IN FIRESTORE
-    await updateInFirestore(sessionId, updates);
-  }, [sessions, saveToStorage, updateInFirestore]);
+    // ✅ UPDATE IN FIREBASE
+    await updateSessionInFirebase(sessionId, updates);
+  }, [sessions, updateSessionInFirebase]);
 
   // ================================
-  // DATA RETRIEVAL METHODS (Unchanged)
+  // DATA RETRIEVAL METHODS (UNCHANGED)
   // ================================
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     return sessions;
@@ -538,7 +449,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // STAGE PROGRESSION METHODS (Unchanged)
+  // STAGE PROGRESSION METHODS (UNCHANGED)
   // ================================
   const getCurrentStage = useCallback((): number => {
     const meditationSessions = getMeditationSessions();
@@ -577,7 +488,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [getCurrentStage]);
 
   // ================================
-  // STATISTICS METHODS (Unchanged)
+  // STATISTICS METHODS (UNCHANGED)
   // ================================
   const getSessionFrequency = useCallback(() => {
     const now = new Date();
@@ -609,35 +520,41 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // UTILITY METHODS (Enhanced)
+  // UTILITY METHODS (FIREBASE-ONLY)
   // ================================
-  const clearPracticeData = useCallback(() => {
+  const clearPracticeData = useCallback(async () => {
     setSessions([]);
     
-    try {
-      const storageKey = getStorageKey();
-      localStorage.removeItem(storageKey);
-      localStorage.removeItem('practiceHistory');
-      localStorage.removeItem('mindRecoveryHistory');
-      localStorage.removeItem('practice_sessions');
-    } catch (error) {
-      console.warn('Failed to clear practice data:', error);
+    // Clear Firebase data
+    if (currentUser?.uid) {
+      try {
+        const q = query(collection(db, 'userSessions', currentUser.uid, 'practiceSessions'));
+        const querySnapshot = await getDocs(q);
+        
+        const batch = writeBatch(db);
+        querySnapshot.forEach((docSnapshot) => {
+          batch.delete(docSnapshot.ref);
+        });
+        await batch.commit();
+        
+        console.log(`🧹 Practice data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      } catch (error) {
+        console.error('❌ Error clearing practice data in Firebase:', error);
+      }
     }
-    
-    saveToStorage([]);
-  }, [getStorageKey, saveToStorage]);
+  }, [currentUser?.uid]);
 
   const exportPracticeData = useCallback(() => {
     return {
       sessions: sessions,
       stats: calculateStats(),
       exportedAt: new Date().toISOString(),
-      source: 'firebase_enhanced'
+      source: 'firebase_only'
     };
   }, [sessions, calculateStats]);
 
   // ================================
-  // LEGACY COMPATIBILITY (Unchanged)
+  // LEGACY COMPATIBILITY (UNCHANGED)
   // ================================
   const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
     return getPracticeSessions();
@@ -653,20 +570,15 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const stats = useMemo(() => calculateStats(), [calculateStats]);
 
   // ================================
-  // ✅ ENHANCED: EFFECTS WITH FIREBASE INTEGRATION
+  // REAL-TIME FIREBASE LISTENER
   // ================================
-  useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
-
-  // ✅ REAL-TIME FIRESTORE LISTENER
   useEffect(() => {
     if (!currentUser?.uid) return;
 
-    const sessionsCollection = getSessionsCollection();
-    if (!sessionsCollection) return;
-
-    const q = query(sessionsCollection, orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, 'userSessions', currentUser.uid, 'practiceSessions'), 
+      orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const firestoreSessions: PracticeSessionData[] = [];
@@ -696,17 +608,16 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
 
       setSessions(firestoreSessions);
-      saveToStorage(firestoreSessions); // Keep localStorage in sync
-      console.log(`🔄 Real-time update: ${firestoreSessions.length} sessions`);
+      console.log(`🔄 Real-time update: ${firestoreSessions.length} sessions for user ${currentUser.uid.substring(0, 8)}...`);
     }, (error) => {
-      console.error('❌ Firestore listener error:', error);
+      console.error('❌ Firebase listener error:', error);
     });
 
     return () => unsubscribe();
-  }, [currentUser?.uid, getSessionsCollection, generateId, saveToStorage]);
+  }, [currentUser?.uid, generateId]);
 
   // ================================
-  // CONTEXT VALUE
+  // CONTEXT VALUE (UNCHANGED)
   // ================================
   const contextValue: PracticeContextType = useMemo(() => ({
     // Data
@@ -764,7 +675,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 };
 
 // ================================
-// CUSTOM HOOK
+// CUSTOM HOOK (UNCHANGED)
 // ================================
 export const usePractice = (): PracticeContextType => {
   const context = useContext(PracticeContext);

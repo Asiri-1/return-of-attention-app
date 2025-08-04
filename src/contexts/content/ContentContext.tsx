@@ -1,6 +1,22 @@
-// src/contexts/content/ContentContext.tsx
+// ✅ FIREBASE-ONLY ContentContext - No localStorage conflicts
+// File: src/contexts/content/ContentContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/AuthContext';
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc, 
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs
+} from 'firebase/firestore';
+import { db } from '../../firebase';
 
 // ================================
 // CONTENT DATA INTERFACES
@@ -274,10 +290,10 @@ const DEFAULT_GUIDED_CONTENT: GuidedContent[] = [
 ];
 
 // ================================
-// CONTENT PROVIDER IMPLEMENTATION
+// FIREBASE-ONLY CONTENT PROVIDER
 // ================================
 export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, syncWithLocalData } = useAuth();
+  const { currentUser } = useAuth();
   const [achievements, setAchievements] = useState<Achievement[]>(DEFAULT_ACHIEVEMENTS);
   const [guidedContent, setGuidedContent] = useState<GuidedContent[]>(DEFAULT_GUIDED_CONTENT);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -292,84 +308,89 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState(false);
 
   // ================================
-  // STORAGE UTILITIES
+  // FIREBASE-ONLY: Data persistence
   // ================================
-  const getStorageKey = useCallback((type: string): string => {
-    return currentUser?.uid ? `${type}_${currentUser.uid}` : type;
-  }, [currentUser?.uid]);
-
-  // ================================
-  // SAVE TO STORAGE
-  // ================================
-  const saveToStorage = useCallback(() => {
+  const saveToFirebase = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    
     try {
-      localStorage.setItem(getStorageKey('achievements'), JSON.stringify(achievements));
-      localStorage.setItem(getStorageKey('guidedContent'), JSON.stringify(guidedContent));
-      localStorage.setItem(getStorageKey('courses'), JSON.stringify(courses));
-      localStorage.setItem(getStorageKey('contentProgress'), JSON.stringify(contentProgress));
+      const contentDoc = {
+        achievements,
+        guidedContent,
+        courses,
+        contentProgress,
+        lastUpdated: serverTimestamp()
+      };
       
-      // Legacy compatibility - extract just achievement titles
-      const achievementTitles = achievements.filter(a => a.isUnlocked).map(a => a.id);
-      localStorage.setItem('achievements', JSON.stringify(achievementTitles));
+      await setDoc(doc(db, 'userContent', currentUser.uid), contentDoc);
+      console.log(`✅ Content data saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       
-      // Sync with auth if available
-      if (currentUser && syncWithLocalData) {
-        setTimeout(() => syncWithLocalData(), 100);
-      }
     } catch (error) {
-      console.warn('Failed to save content data:', error);
+      console.error('❌ Failed to save content data to Firebase:', error);
     }
-  }, [achievements, guidedContent, courses, contentProgress, getStorageKey, currentUser, syncWithLocalData]);
+  }, [currentUser?.uid, achievements, guidedContent, courses, contentProgress]);
 
-  // ================================
-  // LOAD FROM STORAGE
-  // ================================
-  const loadFromStorage = useCallback(() => {
+  const loadFromFirebase = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    
     setIsLoading(true);
     
     try {
-      // Load achievements
-      const achievementsData = localStorage.getItem(getStorageKey('achievements'));
-      if (achievementsData) {
-        const savedAchievements = JSON.parse(achievementsData);
-        setAchievements(savedAchievements);
+      const contentDocRef = doc(db, 'userContent', currentUser.uid);
+      const contentDoc = await getDoc(contentDocRef);
+      
+      if (contentDoc.exists()) {
+        const data = contentDoc.data();
+        
+        // Load saved data
+        if (data.achievements) setAchievements(data.achievements);
+        if (data.guidedContent) setGuidedContent(data.guidedContent);
+        if (data.courses) setCourses(data.courses);
+        if (data.contentProgress) setContentProgress(data.contentProgress);
+        
+        console.log(`📦 Content data loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       } else {
-        // Try legacy format
-        const legacyAchievements = localStorage.getItem('achievements');
-        if (legacyAchievements) {
-          const legacyIds = JSON.parse(legacyAchievements);
-          const updatedAchievements = DEFAULT_ACHIEVEMENTS.map(achievement => ({
-            ...achievement,
-            isUnlocked: legacyIds.includes(achievement.id),
-            unlockedAt: legacyIds.includes(achievement.id) ? new Date().toISOString() : undefined
-          }));
-          setAchievements(updatedAchievements);
-        }
-      }
-      
-      // Load guided content
-      const contentData = localStorage.getItem(getStorageKey('guidedContent'));
-      if (contentData) {
-        setGuidedContent(JSON.parse(contentData));
-      }
-      
-      // Load courses
-      const coursesData = localStorage.getItem(getStorageKey('courses'));
-      if (coursesData) {
-        setCourses(JSON.parse(coursesData));
-      }
-      
-      // Load content progress
-      const progressData = localStorage.getItem(getStorageKey('contentProgress'));
-      if (progressData) {
-        setContentProgress(JSON.parse(progressData));
+        // Initialize new user with defaults
+        console.log(`🆕 Initializing default content for new user ${currentUser.uid.substring(0, 8)}...`);
+        await saveToFirebase();
       }
     } catch (error) {
-      console.warn('Failed to load content data:', error);
+      console.error('❌ Failed to load content data from Firebase:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [getStorageKey]);
+  }, [currentUser?.uid, saveToFirebase]);
+
+  // ================================
+  // LOAD DATA ON USER CHANGE
+  // ================================
+  useEffect(() => {
+    if (currentUser?.uid) {
+      loadFromFirebase();
+    } else {
+      // Reset to defaults when no user
+      setAchievements(DEFAULT_ACHIEVEMENTS);
+      setGuidedContent(DEFAULT_GUIDED_CONTENT);
+      setCourses([]);
+      setContentProgress({
+        totalContentCompleted: 0,
+        totalTimeSpent: 0,
+        averageRating: 0,
+        completionsByType: {},
+        streakDays: 0,
+        favoriteContent: []
+      });
+    }
+  }, [currentUser?.uid, loadFromFirebase]);
+
+  // ================================
+  // AUTO-SAVE TO FIREBASE
+  // ================================
+  useEffect(() => {
+    if (currentUser?.uid) {
+      saveToFirebase();
+    }
+  }, [achievements, guidedContent, courses, contentProgress, saveToFirebase]);
 
   // ================================
   // ACHIEVEMENT MANAGEMENT
@@ -562,7 +583,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   // ================================
-  // COURSE MANAGEMENT (BASIC STRUCTURE)
+  // COURSE MANAGEMENT
   // ================================
   const getCourses = useCallback((filters?: { level?: string; category?: string }): Course[] => {
     let filtered = courses;
@@ -647,7 +668,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ================================
   // UTILITY METHODS
   // ================================
-  const clearContentData = useCallback(() => {
+  const clearContentData = useCallback(async () => {
     setAchievements(DEFAULT_ACHIEVEMENTS);
     setGuidedContent(DEFAULT_GUIDED_CONTENT);
     setCourses([]);
@@ -660,16 +681,29 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       favoriteContent: []
     });
     
-    try {
-      localStorage.removeItem(getStorageKey('achievements'));
-      localStorage.removeItem(getStorageKey('guidedContent'));
-      localStorage.removeItem(getStorageKey('courses'));
-      localStorage.removeItem(getStorageKey('contentProgress'));
-      localStorage.removeItem('achievements');
-    } catch (error) {
-      console.warn('Failed to clear content data:', error);
+    // Clear Firebase data
+    if (currentUser?.uid) {
+      try {
+        await setDoc(doc(db, 'userContent', currentUser.uid), {
+          achievements: DEFAULT_ACHIEVEMENTS,
+          guidedContent: DEFAULT_GUIDED_CONTENT,
+          courses: [],
+          contentProgress: {
+            totalContentCompleted: 0,
+            totalTimeSpent: 0,
+            averageRating: 0,
+            completionsByType: {},
+            streakDays: 0,
+            favoriteContent: []
+          },
+          lastUpdated: serverTimestamp()
+        });
+        console.log(`🧹 Content data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      } catch (error) {
+        console.error('❌ Failed to clear content data in Firebase:', error);
+      }
     }
-  }, [getStorageKey]);
+  }, [currentUser?.uid, saveToFirebase]);
 
   const exportContentData = useCallback(() => {
     return {
@@ -707,17 +741,6 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setAchievements(updatedAchievements);
     }
   }, [achievements]);
-
-  // ================================
-  // EFFECTS
-  // ================================
-  useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
-
-  useEffect(() => {
-    saveToStorage();
-  }, [saveToStorage]);
 
   // ================================
   // CONTEXT VALUE

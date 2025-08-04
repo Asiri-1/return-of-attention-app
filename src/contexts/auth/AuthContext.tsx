@@ -1,4 +1,4 @@
-// ✅ FINAL AuthContext with Universal Environment Config Integration + User Isolation Cache Cleanup
+// ✅ FIREBASE-ONLY AuthContext - No localStorage conflicts
 // File: src/contexts/auth/AuthContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -50,106 +50,34 @@ try {
   getEnvironmentInfo = () => ({ environment: 'cloudshell' });
 }
 
-// ✅ USER ISOLATION: Clean up previous user's cached data
-const cleanupPreviousUserData = (currentUserId?: string) => {
-  console.log('🧹 Cleaning up cached data for user isolation...');
+// ✅ FIREBASE-ONLY: Only preserve essential app settings (no user data)
+const preserveEssentialAppSettings = () => {
+  console.log('🧹 Preserving only essential app settings...');
   
-  const keysToPreserve = [
-    'app_settings',
-    'app_preferences', 
-    'theme_settings',
-    'language_preference',
-    'environment_config'
+  const essentialSettings = [
+    'app_theme',           // App-wide theme preference
+    'app_language',        // App language setting
+    'app_environment'      // Environment configuration
   ];
   
-  // Get all localStorage keys
-  const allKeys = Object.keys(localStorage);
-  let removedCount = 0;
-  let preservedCount = 0;
+  // Preserve essential settings
+  const preserved: { [key: string]: string | null } = {};
+  essentialSettings.forEach(key => {
+    preserved[key] = localStorage.getItem(key);
+  });
   
-  allKeys.forEach(key => {
-    // ✅ PRESERVE: App-wide settings that should persist across users
-    if (keysToPreserve.some(preserve => key.includes(preserve))) {
-      console.log(`✅ Preserving app setting: ${key}`);
-      preservedCount++;
-      return;
-    }
-    
-    // ✅ PRESERVE: Current user's data (if we have a userId)
-    if (currentUserId && key.includes(currentUserId)) {
-      console.log(`✅ Preserving current user data: ${key}`);
-      preservedCount++;
-      return;
-    }
-    
-    // ✅ REMOVE: Previous user data and global contaminated keys
-    const isContaminatedKey = [
-      'questionnaire_progress',
-      'questionnaire',
-      'selfAssessment', 
-      'tempSelfAssessmentResponses',
-      'emotionalNotes',
-      'practiceSessions',
-      'T1Sessions', 'T2Sessions', 'T3Sessions', 'T4Sessions', 'T5Sessions',
-      'happiness_points',
-      'user_level',
-      'focus_ability',
-      'habit_change_score',
-      'practice_streak',
-      'lastHappinessUpdate',
-      'userProfile'
-    ].some(contaminated => key === contaminated || key.startsWith(contaminated));
-    
-    if (isContaminatedKey || (!currentUserId && !keysToPreserve.some(preserve => key.includes(preserve)))) {
-      console.log(`🗑️ Removing contaminated data: ${key}`);
-      localStorage.removeItem(key);
-      removedCount++;
-    } else {
-      preservedCount++;
+  // Clear localStorage completely
+  localStorage.clear();
+  
+  // Restore only essential settings
+  Object.entries(preserved).forEach(([key, value]) => {
+    if (value !== null) {
+      localStorage.setItem(key, value);
     }
   });
   
-  console.log(`✅ Cache cleanup complete - Removed ${removedCount} keys, Preserved ${preservedCount} keys`);
-  console.log(`👤 User isolation enforced for: ${currentUserId ? currentUserId.substring(0, 8) + '...' : 'No specific user'}`);
+  console.log('✅ Essential app settings preserved, all user data cleared');
 };
-
-// Enhanced Local Storage Manager (for auth-only data)
-class EnhancedLocalStorageManager {
-  setItem(key: string, value: string): void {
-    try {
-      localStorage.setItem(key, value);
-    } catch (error) {
-      // Silent error handling
-    }
-  }
-
-  getItem(key: string): string | null {
-    try {
-      const value = localStorage.getItem(key);
-      return value;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  removeItem(key: string): void {
-    try {
-      localStorage.removeItem(key);
-    } catch (error) {
-      // Silent error handling
-    }
-  }
-}
-
-// Smart Intent Detection (for auth actions only)
-class SmartIntentDetection {
-  logUserAction(action: string, data: any): void {
-    // Production ready - no debug logging unless debugging is enabled
-    if (isFeatureEnabled('debugging')) {
-      console.log(`🔍 User Action: ${action}`, data);
-    }
-  }
-}
 
 // ✅ CLEANED: User interface with only auth-related properties
 interface User extends FirebaseUser {
@@ -189,7 +117,7 @@ interface FirestoreUserProfile extends Omit<UserProfile, 'createdAt' | 'lastLogi
   memberSince: FieldValue | null;
 }
 
-// ✅ ENHANCED: AuthContext interface with real-time detection + cache cleanup
+// ✅ ENHANCED: AuthContext interface with Firebase-only approach
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -205,7 +133,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   
-  // Profile management (auth-only)
+  // Profile management (Firebase-only)
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   updateUserProfileInContext: (data: Partial<UserProfile>) => Promise<void>;
   updateUserEmail: (newEmail: string, password: string) => Promise<void>;
@@ -221,8 +149,8 @@ interface AuthContextType {
   // ✅ UNIVERSAL: Token validation with environment awareness
   checkTokenValidity: () => Promise<boolean>;
   
-  // ✅ NEW: User isolation cache management
-  cleanupUserCache: (userId?: string) => void;
+  // ✅ FIREBASE-ONLY: Clean cache management
+  cleanupUserCache: () => void;
   
   // Utility
   clearError: () => void;
@@ -231,7 +159,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ ENHANCED: Create a provider component with universal environment awareness + user isolation
+// ✅ FIREBASE-ONLY: Create a provider component with no localStorage conflicts
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -243,17 +171,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // ✅ FIXED: Use pre-initialized Firebase instances from firebase.js
   const auth: Auth = firebaseAuth;
   const db: Firestore = firebaseDb;
-  
-  // ✅ PERFORMANCE FIX: Create stable instances to avoid dependency issues
-  const localStorageManager = useCallback(() => new EnhancedLocalStorageManager(), []);
-  const intentDetection = useCallback(() => new SmartIntentDetection(), []);
 
   // Computed properties
   const isAuthenticated = !!currentUser;
 
-  // ✅ NEW: Expose cache cleanup function
-  const cleanupUserCache = useCallback((userId?: string) => {
-    cleanupPreviousUserData(userId);
+  // ✅ FIREBASE-ONLY: Cache cleanup function (preserves only essential app settings)
+  const cleanupUserCache = useCallback(() => {
+    preserveEssentialAppSettings();
   }, []);
 
   // ✅ UNIVERSAL: Environment-aware debug logging
@@ -361,7 +285,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       goals: []
     };
     
-    // Save to Firestore
+    // ✅ FIREBASE-ONLY: Save to Firestore only
     try {
       await setDoc(doc(db, 'users', user.uid), {
         ...newUserProfile,
@@ -369,11 +293,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastLoginAt: serverTimestamp(),
         memberSince: serverTimestamp()
       } as FirestoreUserProfile);
+      
+      console.log(`✅ User profile created in Firebase for ${user.uid.substring(0, 8)}...`);
     } catch (firestoreError) {
-      // Continue with local profile even if Firestore fails
-      if (isFeatureEnabled('debugging')) {
-        console.warn('Failed to save user profile to Firestore:', firestoreError);
-      }
+      console.error('Failed to save user profile to Firestore:', firestoreError);
+      throw firestoreError; // Don't proceed if Firebase fails
     }
     
     return newUserProfile;
@@ -398,17 +322,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           goals: data.goals || []
         } as UserProfile;
         
+        console.log(`📦 User profile loaded from Firebase for ${user.uid.substring(0, 8)}...`);
         return profile;
       } else {
         // Create new user document
+        console.log(`🆕 Creating new user profile for ${user.uid.substring(0, 8)}...`);
         return await createUserDocument(user);
       }
     } catch (error) {
-      if (isFeatureEnabled('debugging')) {
-        console.warn('Error loading user profile:', error);
-      }
-      // Fallback to creating a basic profile
-      return await createUserDocument(user);
+      console.error('Error loading user profile:', error);
+      throw error; // Don't fallback, ensure Firebase works
     }
   }, [db, createUserDocument]);
 
@@ -471,7 +394,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser, userProfile?.membershipType, checkAdvancedTokenValidity]);
 
-  // ✅ CRITICAL FIX: Auth state change listener with proper race condition handling + user isolation
+  // ✅ FIREBASE-ONLY: Auth state change listener with user isolation
   useEffect(() => {
     let mounted = true;
     
@@ -484,11 +407,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (user) {
         try {
-          // ✅ USER ISOLATION: Clean up previous user's data before setting new user
-          cleanupPreviousUserData(user.uid);
-          
-          // ✅ KEEP WORKING: Skip token validation to keep login working
-          // We'll add this back gradually once the system is stable
+          // ✅ FIREBASE-ONLY: Clean cache but preserve essential app settings
+          cleanupUserCache();
           
           // ✅ CRITICAL: Wait for profile to load before setting user
           const profile = await loadUserProfile(user);
@@ -507,13 +427,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               console.log(`✅ User profile loaded and set for ${user.uid.substring(0, 8)}...`);
             }
             
-            // Update last login time
+            // Update last login time in Firebase only
             try {
-              if (profile) {
-                await updateDoc(doc(db, 'users', user.uid), {
-                  lastLoginAt: serverTimestamp()
-                });
-              }
+              await updateDoc(doc(db, 'users', user.uid), {
+                lastLoginAt: serverTimestamp()
+              });
             } catch (error) {
               // Silent error handling
               if (isFeatureEnabled('debugging')) {
@@ -530,8 +448,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } else {
         if (mounted) {
-          // ✅ USER ISOLATION: Clean up all user data on logout
-          cleanupPreviousUserData();
+          // ✅ FIREBASE-ONLY: Clean up cache on logout
+          cleanupUserCache();
           
           setCurrentUser(null);
           setUserProfile(null);
@@ -551,15 +469,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       mounted = false;
       unsubscribe();
     };
-  }, [auth, db, loadUserProfile]);
+  }, [auth, db, loadUserProfile, cleanupUserCache]);
 
-  // ✅ CRITICAL FIX: Authentication methods with proper state management + user isolation
+  // ✅ FIREBASE-ONLY: Authentication methods with proper state management
   const signup = useCallback(async (email: string, password: string, displayName: string) => {
-    const intent = intentDetection();
-    
     try {
-      // ✅ USER ISOLATION: Clean up any existing data before signup
-      cleanupPreviousUserData();
+      // ✅ FIREBASE-ONLY: Clean up cache before signup
+      cleanupUserCache();
       
       // ✅ CRITICAL: Don't set loading to false until auth state changes
       setError(null);
@@ -573,15 +489,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Send verification email
       await sendEmailVerification(result.user);
       
-      intent.logUserAction('user_signup', {
-        userId: result.user.uid,
-        email: result.user.email
-      });
-      
-      // ✅ CRITICAL: Don't set loading false or navigate here
-      // Let onAuthStateChanged handle the state update
       if (isFeatureEnabled('debugging')) {
-        console.log('✅ Sign up successful - waiting for auth state to update');
+        console.log(`✅ Sign up successful for ${result.user.uid.substring(0, 8)}... - waiting for auth state to update`);
       }
       
     } catch (err: any) {
@@ -591,17 +500,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(errorMessage);
       throw err;
     }
-  }, [auth, intentDetection]);
+  }, [auth, cleanupUserCache]);
 
   // Alias for signup
   const signUp = signup;
 
   const login = useCallback(async (email: string, password: string) => {
-    const intent = intentDetection();
-    
     try {
-      // ✅ USER ISOLATION: Clean up any existing data before login
-      cleanupPreviousUserData();
+      // ✅ FIREBASE-ONLY: Clean up cache before login
+      cleanupUserCache();
       
       // ✅ CRITICAL: Don't set loading to false until auth state changes
       setError(null);
@@ -611,12 +518,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       await signInWithEmailAndPassword(auth, email, password);
       
-      intent.logUserAction('user_login', {
-        email: email
-      });
-      
-      // ✅ CRITICAL: Don't set loading false or navigate here
-      // Let onAuthStateChanged handle the state update
       if (isFeatureEnabled('debugging')) {
         console.log('✅ Sign in successful - waiting for auth state to update');
       }
@@ -628,16 +529,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(errorMessage);
       throw err;
     }
-  }, [auth, intentDetection]);
+  }, [auth, cleanupUserCache]);
 
   // Alias for login
   const signIn = login;
 
-  // ✅ PERFORMANCE FIX: Profile management methods (auth-only)
+  // ✅ FIREBASE-ONLY: Profile management methods
   const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
-    const storage = localStorageManager();
-    const intent = intentDetection();
-    
     try {
       if (!currentUser || !userProfile) {
         throw new Error('No user logged in');
@@ -652,46 +550,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentUser(updatedUser);
       }
       
-      // Update localStorage (auth profile only)
-      storage.setItem('userProfile', JSON.stringify(updatedProfile));
-      
-      // Update Firestore
+      // ✅ FIREBASE-ONLY: Update Firestore only
       const userDocRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userDocRef, data);
       
-      intent.logUserAction('profile_updated', {
-        userId: currentUser.uid,
-        updatedFields: Object.keys(data)
-      });
+      if (isFeatureEnabled('debugging')) {
+        console.log(`✅ Profile updated in Firebase for ${currentUser.uid.substring(0, 8)}...`);
+      }
       
     } catch (err: any) {
       const errorMessage = err?.message || 'Unknown error occurred';
       setError(errorMessage);
       throw err;
     }
-  }, [currentUser, userProfile, db, localStorageManager, intentDetection]);
+  }, [currentUser, userProfile, db]);
 
-  // ✅ PERFORMANCE FIX: Logout function with useCallback + user isolation
+  // ✅ FIREBASE-ONLY: Logout function with cache cleanup
   const logout = useCallback(async () => {
-    const storage = localStorageManager();
-    const intent = intentDetection();
-    
     try {
       setIsLoading(true);
       
-      intent.logUserAction('user_logout', {
-        userId: currentUser?.uid
-      });
+      if (isFeatureEnabled('debugging')) {
+        console.log(`🔄 Logging out user ${currentUser?.uid?.substring(0, 8)}...`);
+      }
       
-      // ✅ USER ISOLATION: Clean up all user data before logout
-      cleanupPreviousUserData();
+      // ✅ FIREBASE-ONLY: Clean up cache before logout
+      cleanupUserCache();
       
       await signOut(auth);
       setShowLogoutWarning(false);
       setSessionTimeRemaining(0);
-      
-      // Clear only auth-related localStorage
-      storage.removeItem('userProfile');
       
       if (isFeatureEnabled('debugging')) {
         console.log('✅ User logged out and all data cleaned');
@@ -704,7 +592,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  }, [auth, currentUser?.uid, localStorageManager, intentDetection]);
+  }, [auth, currentUser?.uid, cleanupUserCache]);
 
   // ✅ PERFORMANCE FIX: Session timeout management with proper dependencies
   useEffect(() => {
@@ -752,29 +640,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    const intent = intentDetection();
-    
     try {
       setError(null);
       await sendPasswordResetEmail(auth, email);
       
-      intent.logUserAction('password_reset_requested', {
-        email
-      });
+      if (isFeatureEnabled('debugging')) {
+        console.log(`✅ Password reset email sent to ${email}`);
+      }
       
     } catch (err: any) {
       const errorMessage = err?.message || 'Password reset failed';
       setError(errorMessage);
       throw err;
     }
-  }, [auth, intentDetection]);
+  }, [auth]);
 
   // Alias for updateUserProfile
   const updateUserProfileInContext = updateUserProfile;
 
   const updateUserEmail = useCallback(async (newEmail: string, password: string) => {
-    const intent = intentDetection();
-    
     try {
       if (!currentUser) {
         throw new Error('No user logged in');
@@ -787,27 +671,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Update email
       await updateEmail(currentUser, newEmail);
       
-      // Update profile
+      // Update profile in Firebase
       await updateUserProfile({ email: newEmail });
       
       // Send verification email
       await sendEmailVerification(currentUser);
       
-      intent.logUserAction('email_updated', {
-        userId: currentUser.uid,
-        newEmail
-      });
+      if (isFeatureEnabled('debugging')) {
+        console.log(`✅ Email updated to ${newEmail} for ${currentUser.uid.substring(0, 8)}...`);
+      }
       
     } catch (err: any) {
       const errorMessage = err?.message || 'Email update failed';
       setError(errorMessage);
       throw err;
     }
-  }, [currentUser, updateUserProfile, intentDetection]);
+  }, [currentUser, updateUserProfile]);
 
   const updateUserPassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    const intent = intentDetection();
-    
     try {
       if (!currentUser) {
         throw new Error('No user logged in');
@@ -820,20 +701,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Update password
       await updatePassword(currentUser, newPassword);
       
-      intent.logUserAction('password_updated', {
-        userId: currentUser.uid
-      });
+      if (isFeatureEnabled('debugging')) {
+        console.log(`✅ Password updated for ${currentUser.uid.substring(0, 8)}...`);
+      }
       
     } catch (err: any) {
       const errorMessage = err?.message || 'Password update failed';
       setError(errorMessage);
       throw err;
     }
-  }, [currentUser, intentDetection]);
+  }, [currentUser]);
 
   const sendVerificationEmail = useCallback(async () => {
-    const intent = intentDetection();
-    
     try {
       if (!currentUser) {
         throw new Error('No user logged in');
@@ -841,22 +720,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       await sendEmailVerification(currentUser);
       
-      intent.logUserAction('verification_email_sent', {
-        userId: currentUser.uid
-      });
+      if (isFeatureEnabled('debugging')) {
+        console.log(`✅ Verification email sent to ${currentUser.email}`);
+      }
       
     } catch (err: any) {
       const errorMessage = err?.message || 'Verification email failed';
       setError(errorMessage);
       throw err;
     }
-  }, [currentUser, intentDetection]);
+  }, [currentUser]);
 
-  // ✅ CLEANED: Sync with local data (placeholder - LocalDataContext handles all data now)
+  // ✅ FIREBASE-ONLY: Sync placeholder (no localStorage syncing needed)
   const syncWithLocalData = useCallback(async () => {
     try {
       // This method now just serves as a placeholder
-      // All data syncing is handled by LocalDataContext
+      // All data syncing is handled by Firebase contexts
+      if (isFeatureEnabled('debugging')) {
+        console.log('📄 Sync placeholder - all data is Firebase-only');
+      }
     } catch (err) {
       // Silent error handling
     }
@@ -867,7 +749,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   }, []);
 
-  // ✅ UNIVERSAL: Create context value with environment-aware methods + user isolation
+  // ✅ FIREBASE-ONLY: Create context value with no localStorage dependencies
   const value: AuthContextType = {
     currentUser,
     userProfile,
@@ -883,7 +765,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     logout,
     resetPassword,
     
-    // Profile management (auth-only)
+    // Profile management (Firebase-only)
     updateUserProfile,
     updateUserProfileInContext,
     updateUserEmail,
@@ -899,7 +781,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // ✅ UNIVERSAL: Environment-aware token validation
     checkTokenValidity,
     
-    // ✅ NEW: User isolation cache management
+    // ✅ FIREBASE-ONLY: Clean cache management
     cleanupUserCache,
     
     // Utility

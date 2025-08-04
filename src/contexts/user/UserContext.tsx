@@ -1,9 +1,8 @@
+// ✅ FIREBASE-ONLY UserContext - No localStorage conflicts
+// File: src/contexts/user/UserContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
-
-// ================================
-// FIREBASE IMPORTS - Ensure these are correct and complete
-// ================================
 import {
   doc,
   setDoc,
@@ -12,10 +11,10 @@ import {
   deleteDoc,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../../firebase'; // Assuming your firebase config is exported as 'db'
+import { db } from '../../firebase';
 
 // ================================
-// USER PROFILE INTERFACES (Copied from your provided code)
+// USER PROFILE INTERFACES (UNCHANGED)
 // ================================
 interface UserProfile {
   userId: string;
@@ -114,43 +113,16 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 // ================================
-// USER PROVIDER IMPLEMENTATION
+// FIREBASE-ONLY USER PROVIDER
 // ================================
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, syncWithLocalData } = useAuth();
+  const { currentUser } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [achievements, setAchievements] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); // Keep error state for UI feedback
 
   // ================================
-  // FIREBASE UTILITIES (Copied from your provided code)
-  // ================================
-  const getUserProfileDoc = useCallback(() => {
-    if (!currentUser?.uid) return null;
-    return doc(db, 'users', currentUser.uid);
-  }, [currentUser?.uid]);
-
-  // NOTE: Your provided code uses a separate 'achievements' subcollection. 
-  // For simplicity and to keep user profile and achievements together in one document 
-  // (which is generally better for single-user data), I'm assuming achievements 
-  // will be part of the main user profile document. If you specifically need 
-  // a separate subcollection for achievements, let me know, and I can adjust.
-  // For now, getUserAchievementsDoc is removed as achievements are in UserProfile.
-
-  // ================================
-  // STORAGE UTILITIES - Simplified as Firestore is primary
-  // ================================
-  const getStorageKey = useCallback((): string => {
-    return currentUser?.uid ? `userProfile_${currentUser.uid}` : 'userProfile';
-  }, [currentUser?.uid]);
-
-  const getAchievementsKey = useCallback((): string => {
-    return currentUser?.uid ? `achievements_${currentUser.uid}` : 'achievements';
-  }, [currentUser?.uid]);
-
-  // ================================
-  // CREATE DEFAULT PROFILE - STABLE (Copied from your provided code)
+  // CREATE DEFAULT PROFILE (UNCHANGED)
   // ================================
   const createDefaultProfile = useCallback((): UserProfile => {
     return {
@@ -210,196 +182,101 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
 
   // ================================
-  // FIREBASE OPERATIONS (Adjusted for single user doc)
+  // FIREBASE-ONLY: Data persistence
   // ================================
-  const saveProfileToFirestore = useCallback(async (profile: UserProfile): Promise<void> => {
+  const saveToFirebase = useCallback(async (profile: UserProfile) => {
     if (!currentUser?.uid) return;
 
     try {
-      const userDoc = getUserProfileDoc();
-      if (!userDoc) return;
-
-      const firestoreData = {
+      const userDoc = {
         ...profile,
-        updatedAt: serverTimestamp(),
-        createdAt: profile.createdAt || serverTimestamp() // Only set createdAt if not already present
+        userId: currentUser.uid,
+        lastUpdated: serverTimestamp()
       };
-
-      await setDoc(userDoc, firestoreData, { merge: true });
-      console.log('✅ User profile saved to Firestore');
-      setError(null); // Clear any previous errors
+      
+      await setDoc(doc(db, 'userProfiles', currentUser.uid), userDoc, { merge: true });
+      console.log(`✅ User profile saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      
     } catch (error) {
-      console.error('❌ Error saving profile to Firestore:', error);
-      setError('Failed to save profile to cloud. Data saved locally.');
-      throw error; // Re-throw to allow local fallback if needed
+      console.error('❌ Failed to save user profile to Firebase:', error);
+      throw error;
     }
-  }, [currentUser?.uid, getUserProfileDoc]);
+  }, [currentUser?.uid]);
 
-  const loadFromFirestore = useCallback(async (): Promise<{ profile: UserProfile | null }> => {
-    if (!currentUser?.uid) {
-      return { profile: null };
-    }
-
-    try {
-      const userDoc = getUserProfileDoc();
-      if (!userDoc) {
-        return { profile: null };
-      }
-
-      const profileSnap = await getDoc(userDoc);
-
-      const profile = profileSnap.exists() ? profileSnap.data() as UserProfile : null;
-
-      console.log('✅ Data loaded from Firestore');
-      return { profile };
-    } catch (error) {
-      console.error('❌ Error loading from Firestore:', error);
-      setError('Failed to load from cloud. Using local data as fallback.');
-      return { profile: null };
-    }
-  }, [currentUser?.uid, getUserProfileDoc]);
-
-  // ================================
-  // UNIFIED STORAGE SYSTEM (Adjusted to prioritize Firestore)
-  // ================================
-  const saveToStorage = useCallback(async (profile: UserProfile) => {
-    try {
-      // 1. Save to localStorage immediately (for immediate UI update and offline caching)
-      const storageKey = getStorageKey();
-      const achievementsKey = getAchievementsKey();
-
-      localStorage.setItem(storageKey, JSON.stringify(profile));
-      localStorage.setItem(achievementsKey, JSON.stringify(profile.achievements || [])); // Save achievements to local storage as well
-
-      // Legacy compatibility
-      if (currentUser) {
-        localStorage.setItem('userProfile', JSON.stringify(profile));
-        localStorage.setItem('achievements', JSON.stringify(profile.achievements || []));
-      }
-
-      // 2. Save to Firestore (async, with error handling)
-      if (currentUser?.uid) {
-        try {
-          await saveProfileToFirestore(profile);
-          setError(null); // Clear any previous errors
-        } catch (firestoreError) {
-          console.warn('Firestore save failed, data saved locally:', firestoreError);
-          // Error already set by saveProfileToFirestore
-        }
-      }
-
-    } catch (error) {
-      console.error('Failed to save user data:', error);
-      setError('Failed to save data locally.');
-    }
-  }, [getStorageKey, getAchievementsKey, currentUser, saveProfileToFirestore]);
-
-  // ================================
-  // LOAD FROM STORAGE WITH MIGRATION (Adjusted for real-time listener)
-  // ================================
-  // This useEffect now primarily sets up the real-time listener
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      setUserProfile(null);
-      setAchievements([]);
-      setIsLoading(false);
-      return;
-    }
+  const loadFromFirebase = useCallback(async () => {
+    if (!currentUser?.uid) return;
 
     setIsLoading(true);
-    const userDocRef = getUserProfileDoc();
-
-    if (!userDocRef) {
-      setIsLoading(false);
-      return;
-    }
-
-    console.log('🔄 Setting up real-time Firestore sync...');
-
-    const unsubscribe = onSnapshot(userDocRef, async (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as UserProfile;
-        console.log('🔄 Profile updated from Firestore sync');
-        setUserProfile(data);
-        setAchievements(data.achievements || []);
-
-        // Update localStorage cache
-        const storageKey = getStorageKey();
-        localStorage.setItem(storageKey, JSON.stringify(data));
-        localStorage.setItem('userProfile', JSON.stringify(data)); // Legacy
-        localStorage.setItem(getAchievementsKey(), JSON.stringify(data.achievements || []));
-        localStorage.setItem('achievements', JSON.stringify(data.achievements || [])); // Legacy
-
+    
+    try {
+      const userDocRef = doc(db, 'userProfiles', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data() as UserProfile;
+        
+        // Convert timestamps if needed
+        const profile: UserProfile = {
+          ...data,
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || new Date().toISOString()
+        };
+        
+        setUserProfile(profile);
+        setAchievements(profile.achievements || ['journey_started']);
+        console.log(`📦 User profile loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       } else {
-        // Document does not exist, check localStorage for migration
-        const storageKey = getStorageKey();
-        const achievementsKey = getAchievementsKey();
-
-        const profileData = localStorage.getItem(storageKey);
-        const achievementsData = localStorage.getItem(achievementsKey);
-
-        let profileToSave: UserProfile;
-        let achievementsToSave: string[];
-
-        if (profileData) {
-          profileToSave = JSON.parse(profileData);
-          achievementsToSave = achievementsData ? JSON.parse(achievementsData) : [];
-          console.log('🔄 Migrating localStorage data to Firestore...');
-        } else {
-          // No data in localStorage either, create default
-          profileToSave = createDefaultProfile();
-          achievementsToSave = profileToSave.achievements || [];
-          console.log('🆕 Creating default profile in Firestore...');
-        }
-
-        // Ensure happiness_points field exists for new/migrated profiles
-        if (typeof profileToSave.happiness_points === 'undefined') {
-          profileToSave.happiness_points = 0;
-        }
-
-        // Set achievements in the profile object before saving
-        profileToSave.achievements = achievementsToSave;
-
-        // Save the profile (which includes achievements) to Firestore
-        await saveProfileToFirestore(profileToSave);
-        setUserProfile(profileToSave);
-        setAchievements(achievementsToSave);
+        // Initialize new user with defaults
+        console.log(`🆕 Initializing default profile for new user ${currentUser.uid.substring(0, 8)}...`);
+        const defaultProfile = createDefaultProfile();
+        await saveToFirebase(defaultProfile);
+        setUserProfile(defaultProfile);
+        setAchievements(defaultProfile.achievements || ['journey_started']);
       }
+    } catch (error) {
+      console.error('❌ Failed to load user profile from Firebase:', error);
+    } finally {
       setIsLoading(false);
-      setError(null); // Clear any errors on successful load/sync
-    }, (err) => {
-      console.error('❌ Firestore sync error:', err);
-      setError('Real-time sync temporarily unavailable. Using local data.');
-      setIsLoading(false);
-
-      // Fallback to loading from localStorage if Firestore fails
-      try {
-        const storageKey = getStorageKey();
-        const achievementsKey = getAchievementsKey();
-
-        const profileData = localStorage.getItem(storageKey);
-        const achievementsData = localStorage.getItem(achievementsKey);
-
-        if (profileData) {
-          setUserProfile(JSON.parse(profileData));
-        }
-        if (achievementsData) {
-          setAchievements(JSON.parse(achievementsData));
-        }
-      } catch (localError) {
-        console.error('❌ Fallback to localStorage failed:', localError);
-        setError('Failed to load any data.');
-      }
-    });
-
-    return () => {
-      unsubscribe();
-      console.log('🔄 Firestore sync listener cleaned up');
-    };
-  }, [currentUser?.uid, getUserProfileDoc, getStorageKey, getAchievementsKey, createDefaultProfile, saveProfileToFirestore]);
+    }
+  }, [currentUser?.uid, createDefaultProfile, saveToFirebase]);
 
   // ================================
-  // PROFILE MANAGEMENT METHODS (Adjusted to use saveToStorage)
+  // LOAD DATA ON USER CHANGE
+  // ================================
+  useEffect(() => {
+    if (currentUser?.uid) {
+      loadFromFirebase();
+    } else {
+      // Reset to defaults when no user
+      setUserProfile(null);
+      setAchievements([]);
+    }
+  }, [currentUser?.uid, loadFromFirebase]);
+
+  // ================================
+  // REAL-TIME FIREBASE LISTENER
+  // ================================
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const userDocRef = doc(db, 'userProfiles', currentUser.uid);
+    
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as UserProfile;
+        console.log(`🔄 Real-time profile update for user ${currentUser.uid.substring(0, 8)}...`);
+        setUserProfile(data);
+        setAchievements(data.achievements || ['journey_started']);
+      }
+    }, (error) => {
+      console.error('❌ Firebase listener error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser?.uid]);
+
+  // ================================
+  // PROFILE MANAGEMENT METHODS (FIREBASE-ONLY)
   // ================================
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
@@ -411,13 +288,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedProfile); // Optimistic UI update
-    await saveToStorage(updatedProfile); // Persist to unified storage
-
-    // Your existing syncWithLocalData call (if still needed for AuthContext)
-    if (currentUser && syncWithLocalData) {
-      setTimeout(() => syncWithLocalData(), 100);
-    }
-  }, [userProfile, saveToStorage, currentUser, syncWithLocalData]);
+    await saveToFirebase(updatedProfile);
+  }, [userProfile, saveToFirebase]);
 
   const updatePreferences = useCallback(async (preferences: Partial<UserProfile['preferences']>) => {
     if (!userProfile?.preferences) return;
@@ -432,8 +304,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedProfile); // Optimistic UI update
-    await saveToStorage(updatedProfile); // Persist to unified storage
-  }, [userProfile, saveToStorage]);
+    await saveToFirebase(updatedProfile);
+  }, [userProfile, saveToFirebase]);
 
   const updateProgress = useCallback(async (progress: Partial<UserProfile['currentProgress']>) => {
     if (!userProfile?.currentProgress) return;
@@ -448,11 +320,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedProfile); // Optimistic UI update
-    await saveToStorage(updatedProfile); // Persist to unified storage
-  }, [userProfile, saveToStorage]);
+    await saveToFirebase(updatedProfile);
+  }, [userProfile, saveToFirebase]);
 
   // ================================
-  // ✅ AUDIT COMPLIANCE - STAGE MANAGEMENT METHODS (Adjusted to use saveToStorage)
+  // ✅ AUDIT COMPLIANCE - STAGE MANAGEMENT METHODS (FIREBASE-ONLY)
   // ================================
   const updateStageProgress = useCallback(async (stageData: Partial<UserProfile['stageProgress']>) => {
     if (!userProfile) return;
@@ -467,8 +339,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedProfile); // Optimistic UI update
-    await saveToStorage(updatedProfile); // Persist to unified storage
-  }, [userProfile, saveToStorage]);
+    await saveToFirebase(updatedProfile);
+  }, [userProfile, saveToFirebase]);
 
   const markStageComplete = useCallback(async (stage: number) => {
     if (!userProfile?.stageProgress) return;
@@ -529,7 +401,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [userProfile, updateStageProgress]);
 
   // ================================
-  // ✅ NEW - HAPPINESS POINTS METHODS (Adjusted to use saveToStorage)
+  // ✅ NEW - HAPPINESS POINTS METHODS (FIREBASE-ONLY)
   // ================================
   const updateHappinessPoints = useCallback(async (points: number) => {
     if (!userProfile) return;
@@ -541,8 +413,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedProfile); // Optimistic UI update
-    await saveToStorage(updatedProfile); // Persist to unified storage
-  }, [userProfile, saveToStorage]);
+    await saveToFirebase(updatedProfile);
+  }, [userProfile, saveToFirebase]);
 
   const addHappinessPoints = useCallback(async (points: number) => {
     if (!userProfile) return;
@@ -554,7 +426,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [userProfile, updateHappinessPoints]);
 
   // ================================
-  // ACHIEVEMENT MANAGEMENT (Adjusted to use saveToStorage)
+  // ACHIEVEMENT MANAGEMENT (FIREBASE-ONLY)
   // ================================
   const addAchievement = useCallback(async (achievement: string) => {
     if (achievements.includes(achievement)) return;
@@ -563,10 +435,15 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAchievements(updatedAchievements); // Optimistic UI update
 
     if (userProfile) {
-      const updatedProfile = { ...userProfile, achievements: updatedAchievements };
-      await saveToStorage(updatedProfile); // Persist to unified storage
+      const updatedProfile = { 
+        ...userProfile, 
+        achievements: updatedAchievements,
+        updatedAt: new Date().toISOString()
+      };
+      setUserProfile(updatedProfile);
+      await saveToFirebase(updatedProfile);
     }
-  }, [achievements, userProfile, saveToStorage]);
+  }, [achievements, userProfile, saveToFirebase]);
 
   const getAchievements = useCallback((): string[] => {
     return achievements;
@@ -577,7 +454,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [achievements]);
 
   // ================================
-  // SYNC PROFILE (Adjusted to use saveToStorage)
+  // SYNC PROFILE (FIREBASE-ONLY)
   // ================================
   const syncProfile = useCallback(async (sessionData?: any) => {
     if (!userProfile || !sessionData) return;
@@ -607,11 +484,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedProfile); // Optimistic UI update
-    await saveToStorage(updatedProfile); // Persist to unified storage
-  }, [userProfile, saveToStorage]);
+    await saveToFirebase(updatedProfile);
+  }, [userProfile, saveToFirebase]);
 
   // ================================
-  // UTILITY METHODS (Adjusted to use Firestore delete)
+  // UTILITY METHODS (FIREBASE-ONLY)
   // ================================
   const clearUserData = useCallback(async () => {
     const defaultProfile = createDefaultProfile();
@@ -620,43 +497,31 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile(defaultProfile);
     setAchievements(defaultAchievements);
 
-    try {
-      // Clear from localStorage
-      const storageKey = getStorageKey();
-      const achievementsKey = getAchievementsKey();
-
-      localStorage.removeItem(storageKey);
-      localStorage.removeItem(achievementsKey);
-      localStorage.removeItem('userProfile'); // Legacy
-      localStorage.removeItem('achievements'); // Legacy
-
-      // Clear from Firestore
-      if (currentUser?.uid) {
-        const userDoc = getUserProfileDoc();
-        if (userDoc) {
-          await deleteDoc(userDoc); // Delete the entire user document
-          console.log('User data cleared from Firestore.');
-        }
+    // Clear Firebase data
+    if (currentUser?.uid) {
+      try {
+        await deleteDoc(doc(db, 'userProfiles', currentUser.uid));
+        console.log(`🧹 User data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+        
+        // Save default profile back to Firebase
+        await saveToFirebase(defaultProfile);
+      } catch (error) {
+        console.error('❌ Error clearing user data in Firebase:', error);
       }
-    } catch (error) {
-      console.warn('Failed to clear user data:', error);
-      setError('Failed to clear user data completely.');
     }
-
-    // After clearing, save the default profile to Firestore (will be handled by the useEffect listener)
-    // No explicit saveToStorage here as the onSnapshot listener will create a default if doc doesn't exist
-  }, [createDefaultProfile, getStorageKey, getAchievementsKey, currentUser, getUserProfileDoc]);
+  }, [createDefaultProfile, currentUser?.uid, saveToFirebase]);
 
   const exportUserData = useCallback(() => {
     return {
       profile: userProfile,
       achievements: achievements,
-      exportedAt: new Date().toISOString()
+      exportedAt: new Date().toISOString(),
+      source: 'firebase_only'
     };
   }, [userProfile, achievements]);
 
   // ================================
-  // CONTEXT VALUE
+  // CONTEXT VALUE (UNCHANGED)
   // ================================
   const contextValue: UserContextType = useMemo(() => ({
     // Data
@@ -706,7 +571,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 // ================================
-// CUSTOM HOOK
+// CUSTOM HOOK (UNCHANGED)
 // ================================
 export const useUser = (): UserContextType => {
   const context = useContext(UserContext);
@@ -717,4 +582,3 @@ export const useUser = (): UserContextType => {
 };
 
 export default UserContext;
-

@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// ✅ ADD: Import useAuth for current user
 import { useAuth } from './contexts/auth/AuthContext';
-// 🚀 UPDATED: Use focused onboarding context instead of LocalDataContext
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
 interface QuestionnaireProps {
@@ -14,31 +12,19 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ✅ CRITICAL: Get current user for data isolation
+  // ✅ FIREBASE-ONLY: Get current user and Firebase data
   const { currentUser } = useAuth();
-
-  // 🚀 ENHANCED: Use focused onboarding context with more methods
   const { 
     markQuestionnaireComplete,
     saveQuestionnaireProgress,
     questionnaire,
-    isQuestionnaireCompleted 
+    isQuestionnaireCompleted,
+    isLoading: onboardingLoading
   } = useOnboarding();
 
-  // ✅ USER-SPECIFIC: Generate user-specific storage keys
-  const getUserStorageKey = (baseKey: string): string => {
-    const userId = currentUser?.uid;
-    if (!userId) {
-      console.warn('🚨 No user ID for questionnaire storage');
-      return baseKey; // Fallback to base key
-    }
-    return `${baseKey}_${userId}`;
-  };
-
-  // ✅ ENHANCED: Load saved progress from both Firestore and localStorage (user-specific)
+  // ✅ FIREBASE-ONLY: Load progress from OnboardingContext
   useEffect(() => {
     const loadProgress = async () => {
-      // ✅ SECURITY: Must have current user
       if (!currentUser?.uid) {
         console.warn('🚨 No current user - cannot load questionnaire progress');
         setIsLoading(false);
@@ -48,7 +34,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       try {
         setIsLoading(true);
         
-        // ✅ PRIORITY 1: Check if questionnaire is already completed
+        // ✅ Check if questionnaire is already completed
         if (isQuestionnaireCompleted()) {
           console.log(`📋 Questionnaire already completed for user ${currentUser.uid.substring(0, 8)}...`);
           if (questionnaire?.responses) {
@@ -59,9 +45,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           return;
         }
 
-        // ✅ PRIORITY 2: Try to load from OnboardingContext (which handles Firestore)
+        // ✅ Load from OnboardingContext (Firebase)
         if (questionnaire?.responses) {
-          console.log(`📦 Loading progress from OnboardingContext (Firestore) for user ${currentUser.uid.substring(0, 8)}...`);
+          console.log(`📦 Loading progress from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
           setAnswers(questionnaire.responses);
           
           // Calculate current question based on answered questions
@@ -75,78 +61,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           setCurrentQuestion(Math.min(answeredCount + 1, 27));
           setIsLoading(false);
           return;
-        }
-
-        // ✅ PRIORITY 3: Try user-specific localStorage for migration/fallback
-        const userProgressKey = getUserStorageKey('questionnaire_progress');
-        const savedData = localStorage.getItem(userProgressKey);
-        
-        if (savedData) {
-          try {
-            const parsed = JSON.parse(savedData);
-            
-            // ✅ SECURITY: Verify ownership
-            if (parsed.userId && parsed.userId !== currentUser.uid) {
-              console.error(`🚨 DATA LEAK PREVENTED: Questionnaire progress belongs to ${parsed.userId}, not ${currentUser.uid}`);
-              localStorage.removeItem(userProgressKey); // Clean up contaminated data
-              setAnswers({});
-              setCurrentQuestion(1);
-              setIsLoading(false);
-              return;
-            }
-            
-            const { answers: savedAnswers, currentQuestion: savedQuestion } = parsed;
-            console.log(`📦 Loading progress from user-specific localStorage for user ${currentUser.uid.substring(0, 8)}...`);
-            setAnswers(savedAnswers || {});
-            setCurrentQuestion(savedQuestion || 1);
-            setIsLoading(false);
-            return;
-          } catch (parseError) {
-            console.error('Error parsing user-specific saved progress:', parseError);
-            localStorage.removeItem(userProgressKey); // Clean up corrupted data
-          }
-        }
-
-        // ✅ FALLBACK: Check legacy global localStorage but verify ownership
-        const legacyData = localStorage.getItem('questionnaire_progress');
-        if (legacyData) {
-          try {
-            const parsed = JSON.parse(legacyData);
-            
-            // Only use legacy data if it belongs to current user or has no userId
-            if (parsed.userId && parsed.userId === currentUser.uid) {
-              console.log(`📦 Migrating legacy questionnaire progress for user ${currentUser.uid.substring(0, 8)}...`);
-              setAnswers(parsed.answers || {});
-              setCurrentQuestion(parsed.currentQuestion || 1);
-              
-              // Migrate to user-specific storage
-              localStorage.setItem(userProgressKey, JSON.stringify({
-                ...parsed,
-                userId: currentUser.uid,
-                migratedAt: new Date().toISOString()
-              }));
-              
-              setIsLoading(false);
-              return;
-            } else if (!parsed.userId) {
-              console.warn(`⚠️ Legacy questionnaire progress has no userId - assuming belongs to current user ${currentUser.uid.substring(0, 8)}...`);
-              const dataWithUser = {
-                ...parsed,
-                userId: currentUser.uid,
-                migratedAt: new Date().toISOString()
-              };
-              setAnswers(parsed.answers || {});
-              setCurrentQuestion(parsed.currentQuestion || 1);
-              
-              // Save to user-specific storage
-              localStorage.setItem(userProgressKey, JSON.stringify(dataWithUser));
-              setIsLoading(false);
-              return;
-            }
-          } catch (parseError) {
-            console.error('Error parsing legacy progress:', parseError);
-            localStorage.removeItem('questionnaire_progress'); // Clean up corrupted data
-          }
         }
         
         // No saved progress found
@@ -163,45 +77,31 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
       }
     };
 
-    loadProgress();
-  }, [questionnaire, isQuestionnaireCompleted, currentUser]);
+    if (!onboardingLoading) {
+      loadProgress();
+    }
+  }, [questionnaire, isQuestionnaireCompleted, currentUser, onboardingLoading]);
 
-  // ✅ ENHANCED: Auto-save progress to both Firestore and user-specific localStorage
+  // ✅ FIREBASE-ONLY: Auto-save progress to Firebase
   useEffect(() => {
     const saveProgress = async () => {
-      if (isLoading || isSaving || !currentUser?.uid) return;
+      if (isLoading || isSaving || !currentUser?.uid || onboardingLoading) return;
       
       try {
-        // ✅ USER-SPECIFIC: Save to localStorage with user ID
-        const userProgressKey = getUserStorageKey('questionnaire_progress');
-        const progressData = {
-          answers,
-          currentQuestion,
-          userId: currentUser.uid,
-          timestamp: new Date().toISOString(),
-          version: '3.0_user_isolated'
-        };
-        
-        localStorage.setItem(userProgressKey, JSON.stringify(progressData));
-
-        // ✅ SECURITY: Also clear any legacy global storage to prevent contamination
-        localStorage.removeItem('questionnaire_progress');
-
-        // ✅ CLOUD: Save to Firestore via OnboardingContext
         if (saveQuestionnaireProgress) {
           await saveQuestionnaireProgress(answers, currentQuestion);
         }
         
-        console.log(`💾 Auto-saved questionnaire progress for user ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`💾 Auto-saved questionnaire progress to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       } catch (error) {
-        console.warn('Failed to auto-save progress:', error);
+        console.warn('Failed to auto-save progress to Firebase:', error);
       }
     };
 
     // Debounce auto-save to avoid too frequent saves
     const timeoutId = setTimeout(saveProgress, 1000);
     return () => clearTimeout(timeoutId);
-  }, [answers, currentQuestion, isLoading, isSaving, saveQuestionnaireProgress, currentUser]);
+  }, [answers, currentQuestion, isLoading, isSaving, saveQuestionnaireProgress, currentUser, onboardingLoading]);
 
   const handleAnswer = (questionId: string, answer: any) => {
     const newAnswers = { ...answers, [questionId]: answer };
@@ -209,10 +109,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   };
 
   const nextQuestion = () => {
-    // ✅ MANDATORY: Check if current question is answered before proceeding
     if (!isCurrentQuestionAnswered()) {
       console.log('❌ Cannot proceed: Current question not answered');
-      return; // Block progression
+      return;
     }
 
     if (currentQuestion < 27) {
@@ -229,7 +128,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   };
 
   const completeQuestionnaire = async () => {
-    // ✅ SECURITY: Must have current user
     if (!currentUser?.uid) {
       console.error('🚨 No current user - cannot complete questionnaire');
       alert('Authentication error. Please sign in again.');
@@ -240,14 +138,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     setIsSaving(true);
     
     try {
-      // ✅ CLEAR: Remove user-specific localStorage progress since we're completing
-      const userProgressKey = getUserStorageKey('questionnaire_progress');
-      localStorage.removeItem(userProgressKey);
-      localStorage.removeItem('questionnaire_progress'); // Also clear legacy
-      
-      // ✅ USER-SPECIFIC: Send responses with user ID
       const rawResponses = {
-        // ✅ SECURITY: Include user ID in responses
         userId: currentUser.uid,
         // Demographics & Background (1-7)
         experience_level: answers.experience_level || 1,
@@ -280,49 +171,26 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
         preferred_duration: answers.preferred_duration || 10,
         biggest_challenges: answers.biggest_challenges || 'Finding time and staying consistent',
         motivation: answers.motivation || 'Stress reduction and emotional balance',
-        // ✅ METADATA: OnboardingContext will add completion metadata
+        // Metadata
         totalQuestions: 27,
         answeredQuestions: Object.keys(answers).length,
         completedAt: new Date().toISOString()
       };
 
-      console.log(`📝 Sending user-specific responses to OnboardingContext (Firebase) for user ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`📝 Sending responses to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       
       if (markQuestionnaireComplete) {
         await markQuestionnaireComplete(rawResponses);
         console.log(`✅ Questionnaire successfully saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       }
       
-      // ✅ BACKUP: Also save to user-specific localStorage as backup
-      const userQuestionnaireKey = `questionnaire_${currentUser.uid}`;
-      localStorage.setItem(userQuestionnaireKey, JSON.stringify(rawResponses));
-      
       onComplete(rawResponses);
       
     } catch (error) {
       console.error('❌ QUESTIONNAIRE: Error during completion:', error);
-      
-      // ✅ FALLBACK: Save to user-specific localStorage if Firebase fails
-      try {
-        const userQuestionnaireKey = `questionnaire_${currentUser.uid}`;
-        const fallbackData = {
-          ...answers,
-          userId: currentUser.uid,
-          completed: true,
-          completedAt: new Date().toISOString(),
-          savedMethod: 'localStorage_fallback'
-        };
-        localStorage.setItem(userQuestionnaireKey, JSON.stringify(fallbackData));
-        console.log(`⚠️ Questionnaire saved to localStorage as fallback for user ${currentUser.uid.substring(0, 8)}...`);
-      } catch (fallbackError) {
-        console.error('❌ Complete save failure:', fallbackError);
-        alert('Failed to save questionnaire. Please try again.');
-        setIsSaving(false);
-        return;
-      }
-      
-      // Still complete the UI flow
-      onComplete(answers);
+      alert('Failed to save questionnaire to Firebase. Please try again.');
+      setIsSaving(false);
+      return;
     } finally {
       setIsSaving(false);
     }
@@ -352,7 +220,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || onboardingLoading) {
     return (
       <div style={{
         display: 'flex',
@@ -374,14 +242,20 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           marginBottom: '24px'
         }}></div>
         <h2 style={{ fontSize: 'clamp(20px, 5vw, 28px)', textAlign: 'center', margin: 0 }}>
-          Loading your assessment...
+          Loading from Firebase...
         </h2>
         <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.8 }}>
-          {questionnaire ? 'Syncing with Firebase...' : 'Loading from storage...'}
+          Syncing your questionnaire progress
         </p>
         <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', textAlign: 'center', marginTop: '4px', opacity: 0.6 }}>
           User: {currentUser.email}
         </p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -411,11 +285,17 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           ✅ Saving to Firebase...
         </h2>
         <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', marginTop: '8px', opacity: 0.9 }}>
-          Your responses are being securely saved
+          Your responses are being securely saved to the cloud
         </p>
         <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', textAlign: 'center', marginTop: '4px', opacity: 0.7 }}>
           User: {currentUser.email}
         </p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -452,20 +332,18 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
     const questionKey = getQuestionKey(currentQuestion);
     const answer = answers[questionKey];
     
-    // ✅ ENHANCED: More comprehensive validation
     if (Array.isArray(answer)) {
-      return answer.length > 0; // Arrays must have at least one selection
+      return answer.length > 0;
     }
     
     if (typeof answer === 'string') {
-      return answer.trim().length > 0; // Strings must not be empty
+      return answer.trim().length > 0;
     }
     
     if (typeof answer === 'number') {
-      return !isNaN(answer) && answer > 0; // Numbers must be valid and positive
+      return !isNaN(answer) && answer > 0;
     }
     
-    // All other cases: must not be undefined, null, or empty
     return answer !== undefined && answer !== null && answer !== '';
   };
 
@@ -1221,10 +1099,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
   return (
     <div className="questionnaire-container">
       <style>{`
-        /* ✅ UNIVERSAL QUESTIONNAIRE DESIGN - FULLY IPHONE OPTIMIZED */
         .questionnaire-container {
           min-height: 100vh;
-          min-height: 100dvh; /* Dynamic viewport height for iPhone */
+          min-height: 100dvh;
           background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           display: flex;
@@ -1235,7 +1112,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
         }
 
-        /* ✅ TOP PROGRESS BAR - IPHONE OPTIMIZED */
         .progress-header {
           background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
@@ -1304,16 +1180,15 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           align-items: center;
           gap: 10px;
           padding: 8px 16px;
-          background: linear-gradient(135deg, ${phaseInfo.color}15 0%, ${phaseInfo.color}08 100%);
-          border: 1px solid ${phaseInfo.color}30;
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.08) 100%);
+          border: 1px solid rgba(102, 126, 234, 0.3);
           border-radius: 12px;
           font-size: clamp(12px, 3.5vw, 14px);
           font-weight: 600;
-          color: ${phaseInfo.color};
+          color: #667eea;
           width: fit-content;
         }
 
-        /* ✅ MAIN CONTENT - IPHONE CENTERED DESIGN */
         .main-content {
           flex: 1;
           display: flex;
@@ -1361,7 +1236,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           font-weight: 500;
         }
 
-        /* ✅ SLIDER STYLES - PERFECTLY OPTIMIZED */
         .slider-container {
           width: 100%;
           padding: 20px;
@@ -1435,12 +1309,11 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           color: #667eea;
           margin-top: 20px;
           padding: 12px 24px;
-          background: linear-gradient(135deg, #667eea15 0%, #764ba208 100%);
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.08) 100%);
           border-radius: 12px;
-          border: 2px solid #667eea30;
+          border: 2px solid rgba(102, 126, 234, 0.3);
         }
 
-        /* ✅ OPTIONS GRID - RESPONSIVE & TOUCH OPTIMIZED */
         .options-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1483,10 +1356,10 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           left: 0;
           right: 0;
           bottom: 0;
-          background: linear-gradient(135deg, #667eea15 0%, #764ba208 100%);
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.08) 100%);
           opacity: 0;
           transition: opacity 0.3s ease;
-        }
+          }
 
         .option-button:hover {
           transform: translateY(-2px);
@@ -1528,7 +1401,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           line-height: 1.4;
         }
 
-        /* ✅ BOTTOM NAVIGATION - FIXED & IPHONE SAFE */
         .navigation-container {
           position: fixed;
           bottom: 0;
@@ -1642,7 +1514,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           animation: none;
         }
 
-        /* ✅ QUESTION INDICATORS */
         .question-indicator {
           font-size: clamp(12px, 3vw, 14px);
           color: #718096;
@@ -1651,13 +1522,11 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           flex: 1;
         }
 
-        /* ✅ LOADING ANIMATION */
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
 
-        /* ✅ ACCESSIBILITY IMPROVEMENTS */
         @media (prefers-reduced-motion: reduce) {
           * {
             animation-duration: 0.01ms !important;
@@ -1666,90 +1535,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           }
         }
 
-        /* ✅ HIGH CONTRAST MODE */
-        @media (prefers-contrast: high) {
-          .option-button {
-            border-width: 3px;
-          }
-          
-          .option-button.selected {
-            border-color: #000;
-            background: #000;
-          }
-          
-          .nav-button.next {
-            background: #000;
-          }
-        }
-
-        /* ✅ DARK MODE SUPPORT */
-        @media (prefers-color-scheme: dark) {
-          .questionnaire-container {
-            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-          }
-          
-          .progress-header {
-            background: rgba(26, 32, 44, 0.95);
-            border-bottom-color: #4a5568;
-          }
-          
-          .navigation-container {
-            background: rgba(26, 32, 44, 0.95);
-            border-top-color: #4a5568;
-          }
-          
-          .question-container h2 {
-            color: #f7fafc;
-          }
-          
-          .question-container p {
-            color: #cbd5e0;
-          }
-          
-          .option-button {
-            background: rgba(45, 55, 72, 0.9);
-            border-color: #4a5568;
-            color: #cbd5e0;
-          }
-          
-          .option-button:hover {
-            border-color: #667eea;
-          }
-          
-          .slider-container {
-            background: rgba(45, 55, 72, 0.8);
-          }
-        }
-
-        /* ✅ PRINT STYLES */
-        @media print {
-          .navigation-container,
-          .progress-header {
-            display: none;
-          }
-          
-          .main-content {
-            padding: 20px;
-          }
-          
-          .questionnaire-container {
-            background: white;
-          }
-        }
-
-        /* ✅ ULTRA-WIDE SCREEN SUPPORT */
-        @media (min-width: 1400px) {
-          .progress-content,
-          .navigation-content {
-            max-width: 1200px;
-          }
-          
-          .question-container {
-            max-width: 800px;
-          }
-        }
-
-        /* ✅ SMALL SCREEN OPTIMIZATIONS */
         @media (max-width: 360px) {
           .progress-header {
             padding: 12px 16px;
@@ -1775,55 +1560,11 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
           }
         }
 
-        /* ✅ LANDSCAPE MOBILE OPTIMIZATIONS */
-        @media (max-height: 500px) and (orientation: landscape) {
-          .main-content {
-            padding: 10px 20px;
-            padding-bottom: 80px;
-          }
-          
-          .question-container h2 {
-            margin-bottom: 8px;
-          }
-          
-          .question-container p {
-            margin-bottom: 16px;
-          }
-          
-          .options-grid {
-            gap: 8px;
-          }
-          
-          .option-button {
-            padding: 12px 16px;
-            min-height: 56px;
-          }
-        }
-
-        /* ✅ FOCUS STYLES FOR ACCESSIBILITY */
         .option-button:focus,
         .nav-button:focus,
         .range-slider:focus {
           outline: 3px solid #667eea;
           outline-offset: 2px;
-        }
-
-        /* ✅ TOUCH TARGET IMPROVEMENTS */
-        @media (pointer: coarse) {
-          .option-button {
-            min-height: 80px;
-            padding: 20px 24px;
-          }
-          
-          .nav-button {
-            min-height: 48px;
-            min-width: 120px;
-          }
-          
-          .range-slider::-webkit-slider-thumb {
-            width: 32px;
-            height: 32px;
-          }
         }
       `}</style>
 
@@ -1892,6 +1633,21 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ onComplete }) => {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Privacy Notice */}
+      <div style={{ 
+        position: 'fixed', 
+        bottom: '20px', 
+        right: '20px', 
+        background: 'rgba(0,0,0,0.8)', 
+        color: 'white', 
+        padding: '8px 12px', 
+        borderRadius: '8px', 
+        fontSize: '12px',
+        zIndex: 1000
+      }}>
+        🔥 Firebase-Only | User: {currentUser.email}
       </div>
     </div>
   );

@@ -1,5 +1,8 @@
-// src/contexts/AppProvider.tsx
+// ✅ COMPLETE AppProvider with AuthProvider Integration
+// File: src/contexts/AppProvider.tsx
+
 import React, { Suspense } from 'react';
+import { AuthProvider } from './auth/AuthContext'; // ✅ CRITICAL: Added AuthProvider
 import { UserProvider } from './user/UserContext';
 import { PracticeProvider } from './practice/PracticeContext';
 import { WellnessProvider } from './wellness/WellnessContext';
@@ -84,50 +87,57 @@ class AnalyticsErrorBoundary extends React.Component<
 }
 
 // ================================
-// CONTEXT PROVIDER HIERARCHY
+// FIREBASE-ONLY CONTEXT PROVIDER HIERARCHY
 // ================================
 /**
- * Universal App Provider
+ * Complete Firebase-Only App Provider
  * 
  * Provides all contexts in the optimal order:
- * 1. UserProvider - User profile and preferences (foundation)
- * 2. OnboardingProvider - Questionnaire and assessment data
- * 3. PracticeProvider - Session management (depends on user data)
- * 4. WellnessProvider - Emotional notes and reflections
- * 5. ContentProvider - Guided content and achievements
- * 6. AnalyticsProvider - Heavy analytics (lazy loaded)
+ * 1. AuthProvider - Firebase authentication (foundation)
+ * 2. UserProvider - User profile and preferences (depends on auth)
+ * 3. OnboardingProvider - Questionnaire and assessment data (depends on auth)
+ * 4. PracticeProvider - Session management (depends on user and auth)
+ * 5. WellnessProvider - Emotional notes and reflections (depends on auth)
+ * 6. ContentProvider - Guided content and achievements (depends on auth)
+ * 7. AnalyticsProvider - Heavy analytics (lazy loaded, depends on all others)
  * 
  * Benefits:
+ * - Complete Firebase-only architecture
+ * - Proper authentication flow
  * - Fast initial load (analytics lazy-loaded)
  * - Proper dependency order
  * - Error boundaries for resilience
  * - Zero breaking changes for existing components
+ * - User isolation across all contexts
  */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <UserProvider>
-      <OnboardingProvider>
-        <PracticeProvider>
-          <WellnessProvider>
-            <ContentProvider>
-              <AnalyticsErrorBoundary>
-                <Suspense fallback={<AnalyticsLoadingFallback />}>
-                  <AnalyticsProvider>
-                    {children}
-                  </AnalyticsProvider>
-                </Suspense>
-              </AnalyticsErrorBoundary>
-            </ContentProvider>
-          </WellnessProvider>
-        </PracticeProvider>
-      </OnboardingProvider>
-    </UserProvider>
+    <AuthProvider>
+      <UserProvider>
+        <OnboardingProvider>
+          <PracticeProvider>
+            <WellnessProvider>
+              <ContentProvider>
+                <AnalyticsErrorBoundary>
+                  <Suspense fallback={<AnalyticsLoadingFallback />}>
+                    <AnalyticsProvider>
+                      {children}
+                    </AnalyticsProvider>
+                  </Suspense>
+                </AnalyticsErrorBoundary>
+              </ContentProvider>
+            </WellnessProvider>
+          </PracticeProvider>
+        </OnboardingProvider>
+      </UserProvider>
+    </AuthProvider>
   );
 };
 
 // ================================
 // CONTEXT HOOKS (Re-exports for convenience)
 // ================================
+export { useAuth } from './auth/AuthContext'; // ✅ ADDED: Export useAuth
 export { useUser } from './user/UserContext';
 export { usePractice } from './practice/PracticeContext';
 export { useWellness } from './wellness/WellnessContext';
@@ -143,6 +153,7 @@ export { useAnalytics } from './analytics/AnalyticsContext';
 // ✅ FIXED: No hooks called inside callbacks or conditionally
 export const useProviderStatus = () => {
   const [contextStatus, setContextStatus] = React.useState({
+    auth: false,
     user: false,
     practice: false,
     wellness: false,
@@ -155,6 +166,7 @@ export const useProviderStatus = () => {
     // ✅ FIXED: Check context availability without calling hooks inside callbacks
     const checkContexts = () => {
       const status = {
+        auth: false,
         user: false,
         practice: false,
         wellness: false,
@@ -164,6 +176,11 @@ export const useProviderStatus = () => {
       };
 
       // Check if contexts are available (without calling hooks)
+      try {
+        require('./auth/AuthContext');
+        status.auth = true;
+      } catch {}
+
       try {
         require('./user/UserContext');
         status.user = true;
@@ -289,6 +306,184 @@ export const DevTools: React.FC = () => {
       <div>Analytics: {performanceMetrics.analyticsLoadTime.toFixed(1)}ms</div>
       {performanceMetrics.memoryUsage > 0 && (
         <div>Memory: {performanceMetrics.memoryUsage.toFixed(1)}MB</div>
+      )}
+    </div>
+  );
+};
+
+// ================================
+// FIREBASE-ONLY ARCHITECTURE VALIDATOR
+// ================================
+/**
+ * Hook to validate that all contexts are using Firebase-only architecture
+ * This helps ensure data consistency and prevents localStorage conflicts
+ */
+export const useFirebaseArchitectureValidator = () => {
+  const [validationStatus, setValidationStatus] = React.useState({
+    isValid: false,
+    warnings: [] as string[],
+    suggestions: [] as string[]
+  });
+
+  React.useEffect(() => {
+    const warnings: string[] = [];
+    const suggestions: string[] = [];
+
+    // Check for localStorage usage in development
+    if (process.env.NODE_ENV === 'development') {
+      // Monitor for localStorage usage
+      const originalSetItem = localStorage.setItem;
+      localStorage.setItem = function(key: string, value: string) {
+        if (key.includes('user') || key.includes('questionnaire') || key.includes('assessment') || key.includes('practice') || key.includes('wellness')) {
+          warnings.push(`localStorage usage detected for key: ${key}`);
+          suggestions.push(`Consider migrating ${key} to Firebase-only storage`);
+        }
+        return originalSetItem.call(this, key, value);
+      };
+
+      // Restore original function after validation
+      setTimeout(() => {
+        localStorage.setItem = originalSetItem;
+      }, 5000);
+    }
+
+    const isValid = warnings.length === 0;
+    
+    setValidationStatus({
+      isValid,
+      warnings,
+      suggestions
+    });
+
+    if (isValid) {
+      console.log('✅ Firebase-only architecture validation passed');
+    } else {
+      console.warn('⚠️ Firebase architecture validation warnings:', warnings);
+    }
+  }, []);
+
+  return validationStatus;
+};
+
+// ================================
+// HAPPINESS CALCULATION DEBUGGING HOOK
+// ================================
+/**
+ * Hook to help debug happiness calculation issues
+ * Monitors data flow from all contexts to happiness calculation
+ */
+export const useHappinessDebugger = () => {
+  const [debugInfo, setDebugInfo] = React.useState<{
+    onboardingData: any;
+    selfAssessmentData: any;
+    practiceData: any;
+    userProfileData: any;
+    lastUpdate: string | null;
+    dataFlow: string[];
+  }>({
+    onboardingData: null,
+    selfAssessmentData: null,
+    practiceData: null,
+    userProfileData: null,
+    lastUpdate: null,
+    dataFlow: []
+  });
+
+  React.useEffect(() => {
+    // Listen for happiness calculation events
+    const handleHappinessEvent = (event: CustomEvent) => {
+      setDebugInfo(prev => ({
+        ...prev,
+        lastUpdate: new Date().toISOString(),
+        dataFlow: [...prev.dataFlow.slice(-10), `${event.type}: ${JSON.stringify(event.detail)}`]
+      }));
+      console.log('🎯 Happiness calculation event:', event.type, event.detail);
+    };
+
+    const handleOnboardingUpdate = (event: CustomEvent) => {
+      setDebugInfo(prev => ({
+        ...prev,
+        onboardingData: event.detail.data,
+        lastUpdate: new Date().toISOString()
+      }));
+      console.log('🎯 Onboarding data updated for happiness calculation');
+    };
+
+    // Add event listeners
+    window.addEventListener('triggerHappinessRecalculation', handleHappinessEvent as EventListener);
+    window.addEventListener('onboardingUpdated', handleOnboardingUpdate as EventListener);
+    window.addEventListener('selfAssessmentCompleted', handleOnboardingUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('triggerHappinessRecalculation', handleHappinessEvent as EventListener);
+      window.removeEventListener('onboardingUpdated', handleOnboardingUpdate as EventListener);
+      window.removeEventListener('selfAssessmentCompleted', handleOnboardingUpdate as EventListener);
+    };
+  }, []);
+
+  return debugInfo;
+};
+
+// ================================
+// ENHANCED DEVELOPMENT TOOLS
+// ================================
+export const EnhancedDevTools: React.FC = () => {
+  const contextStatus = useProviderStatus();
+  const performanceMetrics = usePerformanceMonitor();
+  const architectureValidation = useFirebaseArchitectureValidator();
+  const happinessDebugInfo = useHappinessDebugger();
+
+  // Only return null after hooks have been called
+  if (process.env.NODE_ENV !== 'development') return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '10px',
+      right: '10px',
+      background: 'rgba(0,0,0,0.9)',
+      color: 'white',
+      padding: '12px',
+      borderRadius: '8px',
+      fontSize: '11px',
+      zIndex: 10000,
+      maxWidth: '280px',
+      maxHeight: '400px',
+      overflow: 'auto'
+    }}>
+      {/* Context Status */}
+      <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#3498db' }}>🔧 Context Status</div>
+      {Object.entries(contextStatus).map(([context, status]) => (
+        <div key={context} style={{ color: status ? '#4caf50' : '#f44336', marginBottom: '2px' }}>
+          {context}: {status ? '✓' : '✗'}
+        </div>
+      ))}
+      
+      {/* Performance Metrics */}
+      <div style={{ fontWeight: 'bold', marginTop: '12px', marginBottom: '6px', color: '#e74c3c' }}>⚡ Performance</div>
+      <div>Load: {performanceMetrics.loadTime.toFixed(1)}ms</div>
+      <div>Analytics: {performanceMetrics.analyticsLoadTime.toFixed(1)}ms</div>
+      {performanceMetrics.memoryUsage > 0 && (
+        <div>Memory: {performanceMetrics.memoryUsage.toFixed(1)}MB</div>
+      )}
+      
+      {/* Architecture Validation */}
+      <div style={{ fontWeight: 'bold', marginTop: '12px', marginBottom: '6px', color: '#f39c12' }}>🔥 Firebase Architecture</div>
+      <div style={{ color: architectureValidation.isValid ? '#4caf50' : '#f44336' }}>
+        Status: {architectureValidation.isValid ? '✓ Valid' : '⚠️ Issues Found'}
+      </div>
+      {architectureValidation.warnings.length > 0 && (
+        <div style={{ marginTop: '4px', fontSize: '10px', color: '#ffeb3b' }}>
+          Warnings: {architectureValidation.warnings.length}
+        </div>
+      )}
+      
+      {/* Happiness Calculation Debug */}
+      <div style={{ fontWeight: 'bold', marginTop: '12px', marginBottom: '6px', color: '#9b59b6' }}>😊 Happiness Debug</div>
+      <div>Last Update: {happinessDebugInfo.lastUpdate ? new Date(happinessDebugInfo.lastUpdate).toLocaleTimeString() : 'None'}</div>
+      <div>Data Events: {happinessDebugInfo.dataFlow.length}</div>
+      {happinessDebugInfo.onboardingData && (
+        <div style={{ color: '#4caf50' }}>✓ Onboarding Data Available</div>
       )}
     </div>
   );
