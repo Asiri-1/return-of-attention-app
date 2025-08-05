@@ -1,6 +1,6 @@
-// ✅ FIXED HomeDashboard.tsx - Now Uses useHappinessCalculation Hook Consistently
+// ✅ FIXED ModernUserProfile.tsx - Firebase-Only Architecture
 // File: src/components/ModernUserProfile.tsx
-// 🔧 FIXED: Removed local state, now uses centralized useHappinessCalculation hook
+// 🔧 FIXED: Proper import paths and Firebase-only data flow
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -32,7 +32,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
 }) => {
   const { currentUser } = useAuth();
   
-  // ✅ FIXED: Use Universal Architecture focused contexts
+  // ✅ FIXED: Use Firebase-only contexts with proper error handling
   const { userProfile, isLoading: userLoading } = useUser();
   const { sessions } = usePractice();
   const { emotionalNotes } = useWellness();
@@ -42,23 +42,20 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     getCompletionStatus 
   } = useOnboarding();
   
-  // 🎯 CRITICAL FIX: Use the centralized happiness calculation hook instead of local state
+  // 🎯 CRITICAL FIX: Use the centralized happiness calculation hook
   const {
     userProgress,
-    componentBreakdown,
     isCalculating,
-    practiceSessions,
-    // Remove the old local state management completely
   } = useHappinessCalculation();
   
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   
-  // 🎯 FIXED: Get happiness data from the hook instead of local state
+  // 🎯 FIXED: Get happiness data from the hook with proper fallbacks
   const happinessData = useMemo(() => ({
-    happiness_points: userProgress.happiness_points || 0,
-    user_level: userProgress.user_level || 'Beginning Seeker'
-  }), [userProgress.happiness_points, userProgress.user_level]);
+    happiness_points: userProgress?.happiness_points || 0,
+    user_level: userProgress?.user_level || 'Beginning Seeker'
+  }), [userProgress?.happiness_points, userProgress?.user_level]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -67,9 +64,6 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
 
     return () => clearTimeout(timer);
   }, []);
-
-  // ✅ REMOVED: All the old event listener code and local state management
-  // The hook handles all the state management and updates automatically
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
@@ -109,16 +103,24 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     }
   };
 
-  // ✅ FIXED: Using data from Universal Architecture focused contexts
-  const completionStatus = getCompletionStatus();
+  // ✅ FIXED: Safe completion status with fallbacks
+  const completionStatus = useMemo(() => {
+    try {
+      return getCompletionStatus();
+    } catch (error) {
+      console.error('Error getting completion status:', error);
+      return { questionnaire: false, assessment: false };
+    }
+  }, [getCompletionStatus]);
   
-  const userStats = {
+  // ✅ FIXED: Firebase-only user statistics with proper fallbacks
+  const userStats = useMemo(() => ({
     totalSessions: userProfile?.totalSessions || sessions?.length || 0,
     totalHours: Math.round(((userProfile?.totalMinutes || 0) / 60) * 10) / 10,
     currentStreak: userProfile?.currentStreak || 0,
     longestStreak: userProfile?.longestStreak || 0,
-    lastSessionDate: sessions && sessions.length > 0 ? sessions[sessions.length - 1].timestamp : null
-  };
+    lastSessionDate: sessions && sessions.length > 0 ? sessions[sessions.length - 1]?.timestamp : null
+  }), [userProfile, sessions]);
 
   // Enhanced questionnaire section with all 27 fields displayed
   const renderQuestionnaireSection = () => {
@@ -393,16 +395,16 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
           <h4 className="font-semibold text-gray-800 mb-3">📊 Questionnaire Summary</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{responses.totalQuestions || 27}</div>
+              <div className="text-2xl font-bold text-blue-600">27</div>
               <div className="text-sm text-gray-600">Total Questions</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{responses.answeredQuestions || Object.keys(responses).length}</div>
+              <div className="text-2xl font-bold text-green-600">{Object.keys(responses || {}).length}</div>
               <div className="text-sm text-gray-600">Answered</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {Math.round(((responses.answeredQuestions || Object.keys(responses).length) / (responses.totalQuestions || 27)) * 100)}%
+                {Math.round((Object.keys(responses || {}).length / 27) * 100)}%
               </div>
               <div className="text-sm text-gray-600">Completion</div>
             </div>
@@ -456,15 +458,15 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
           <h4 className="font-semibold mb-4 text-xl">Attachment Assessment Summary</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-3xl font-bold">{metrics.nonAttachmentCount}/6</div>
+              <div className="text-3xl font-bold">{metrics?.nonAttachmentCount || 0}/6</div>
               <div className="text-sm opacity-90">Non-Attachment Categories</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold">{metrics.attachmentScore}</div>
+              <div className="text-3xl font-bold">{metrics?.attachmentScore || 0}</div>
               <div className="text-sm opacity-90">Attachment Score</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold">{metrics.attachmentLevel}</div>
+              <div className="text-3xl font-bold">{metrics?.attachmentLevel || 'N/A'}</div>
               <div className="text-sm opacity-90">Level</div>
             </div>
           </div>
@@ -472,7 +474,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
           <div className="mt-4 bg-white bg-opacity-20 rounded-full h-3">
             <div 
               className="bg-white h-3 rounded-full transition-all duration-1000"
-              style={{ width: `${Math.min((metrics.nonAttachmentCount / 6) * 100, 100)}%` }}
+              style={{ width: `${Math.min(((metrics?.nonAttachmentCount || 0) / 6) * 100, 100)}%` }}
             ></div>
           </div>
           <div className="text-sm mt-2 opacity-90">
@@ -528,39 +530,6 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               </div>
             );
           })}
-        </div>
-
-        {/* Detailed Analysis */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 className="font-semibold text-gray-800 mb-3">🔍 Detailed Analysis</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h5 className="font-medium text-gray-700 mb-2">Attachment Distribution:</h5>
-              <div className="space-y-2">
-                {Object.entries(categories || {}).map(([category, data]) => {
-                  const level = (data as CategoryData)?.level || 'none';
-                  const pointValue = level === 'none' ? 12 : level === 'some' ? -7 : -15;
-                  return (
-                    <div key={category} className="flex justify-between text-sm">
-                      <span className="capitalize">{category}:</span>
-                      <span className={`font-medium ${pointValue === 12 ? 'text-green-600' : 'text-red-600'}`}>
-                        {pointValue} points
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <h5 className="font-medium text-gray-700 mb-2">Progress Indicators:</h5>
-              <div className="space-y-2 text-sm">
-                <div>Non-attachment ratio: {metrics.nonAttachmentCount}/6 ({Math.round((metrics.nonAttachmentCount/6)*100)}%)</div>
-                <div>Flexibility level: {metrics.attachmentLevel}</div>
-                <div>Total score: {metrics.attachmentScore} points</div>
-                <div>Assessment date: {completedAt ? new Date(completedAt).toLocaleDateString() : 'Recent'}</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     );
