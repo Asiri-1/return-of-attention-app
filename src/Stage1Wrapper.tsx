@@ -1,8 +1,10 @@
-// ✅ Stage1Wrapper.tsx - With Real T1 Components Restored
+// ✅ Firebase-Only Stage1Wrapper.tsx - No localStorage/sessionStorage conflicts
 // File: src/Stage1Wrapper.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ Firebase-only practice context
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import './Stage1Wrapper.css';
 
 // ✅ Import your existing T-components
@@ -35,12 +37,29 @@ const Stage1Wrapper: React.FC = () => {
   const navigate = useNavigate();
   const [tStages, setTStages] = useState<TStageInfo[]>([]);
 
-  // ✅ SIMPLE: Calculate T-stage status without complex dependencies
-  const calculateTStageStatus = (tStage: string): TStageInfo => {
+  // ✅ FIREBASE-ONLY: Use contexts for session management
+  const { sessions, addPracticeSession } = usePractice();
+  const { userProfile, updateProfile } = useUser();
+
+  // ✅ FIREBASE-ONLY: Calculate T-stage status from Firebase data
+  const calculateTStageStatus = useCallback((tStage: string): TStageInfo => {
     try {
-      const sessions = JSON.parse(localStorage.getItem(`${tStage}Sessions`) || '[]');
-      const completedSessions = sessions.filter((s: any) => s.isCompleted).length;
-      const isCompleted = localStorage.getItem(`${tStage}Complete`) === 'true';
+      // Get sessions from Firebase - use only existing properties
+      const tStageLevel = parseInt(tStage[1]);
+      const tStageSessions = sessions?.filter(s => 
+        s.stageLevel === tStageLevel && s.sessionType === 'meditation'
+      ) || [];
+      
+      // Consider sessions with duration >= 80% of expected duration as completed
+      const expectedDuration = 10 + (tStageLevel - 1) * 5; // T1=10, T2=15, etc.
+      const completedSessions = tStageSessions.filter(s => 
+        s.duration >= (expectedDuration * 0.8) // 80% completion threshold
+      ).length;
+      
+      // Check completion from Firebase user profile - use safe property access
+      const isCompleted = userProfile && 'completedStages' in userProfile && 
+        Array.isArray(userProfile.completedStages) && 
+        userProfile.completedStages.includes(tStageLevel);
       
       // Simple access logic
       let hasAccess = true;
@@ -50,8 +69,14 @@ const Stage1Wrapper: React.FC = () => {
         };
         const previousStage = previousStageMap[tStage];
         if (previousStage) {
-          const previousSessions = JSON.parse(localStorage.getItem(`${previousStage}Sessions`) || '[]');
-          const prevCompleted = previousSessions.filter((s: any) => s.isCompleted).length;
+          const prevStageLevel = parseInt(previousStage[1]);
+          const previousSessions = sessions?.filter(s => 
+            s.stageLevel === prevStageLevel && s.sessionType === 'meditation'
+          ) || [];
+          const prevExpectedDuration = 10 + (prevStageLevel - 1) * 5;
+          const prevCompleted = previousSessions.filter(s => 
+            s.duration >= (prevExpectedDuration * 0.8)
+          ).length;
           hasAccess = prevCompleted >= 3;
         }
       }
@@ -68,7 +93,7 @@ const Stage1Wrapper: React.FC = () => {
       return {
         id: tStage,
         title: `${tStage.toUpperCase()}: Physical Stillness`,
-        duration: `${10 + (parseInt(tStage[1]) - 1) * 5} min`,
+        duration: `${expectedDuration} min`,
         status,
         completedSessions,
         requiredSessions: 3
@@ -83,23 +108,52 @@ const Stage1Wrapper: React.FC = () => {
         requiredSessions: 3
       };
     }
-  };
+  }, [sessions, userProfile]);
 
-  // ✅ SIMPLE: Load stages on mount only
+  // ✅ FIREBASE-ONLY: Load stages from Firebase data
   useEffect(() => {
-    const stages = ['T1', 'T2', 'T3', 'T4', 'T5'].map(calculateTStageStatus);
-    setTStages(stages);
-  }, []); // Empty dependency array - only run once
-
-  // ✅ SIMPLE: Handle session recording 
-  const handleSessionRecord = (sessionData: any) => {
-    console.log('Session recorded:', sessionData);
-    
-    // Update stages after recording
-    setTimeout(() => {
+    if (sessions !== undefined && userProfile !== undefined) {
       const stages = ['T1', 'T2', 'T3', 'T4', 'T5'].map(calculateTStageStatus);
       setTStages(stages);
-    }, 100);
+    }
+  }, [sessions, userProfile, calculateTStageStatus]);
+
+  // ✅ FIREBASE-ONLY: Handle session recording 
+  const handleSessionRecord = async (sessionData: any) => {
+    try {
+      console.log('Recording session to Firebase:', sessionData);
+      
+      // Record session to Firebase using only existing properties
+      if (addPracticeSession) {
+        const tStageLevel = parseInt(sessionData.tStage?.[1]) || 1;
+        const expectedDuration = sessionData.duration || 10;
+        
+        await addPracticeSession({
+          stageLevel: tStageLevel,
+          sessionType: 'meditation' as const,
+          duration: expectedDuration,
+          timestamp: new Date().toISOString(),
+          environment: {
+            posture: sessionData.posture || 'seated',
+            location: 'indoor',
+            lighting: 'natural',
+            sounds: 'quiet'
+          },
+          rating: sessionData.completed ? 3 : 2, // T-levels get basic rating
+          notes: `${sessionData.tStage || `T${tStageLevel}`} practice session`
+        });
+      }
+      
+      // Update stages after recording
+      setTimeout(() => {
+        if (sessions !== undefined && userProfile !== undefined) {
+          const stages = ['T1', 'T2', 'T3', 'T4', 'T5'].map(calculateTStageStatus);
+          setTStages(stages);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Error recording session to Firebase:', error);
+    }
   };
 
   // ✅ SIMPLE: Handle T-stage selection
@@ -172,7 +226,7 @@ const Stage1Wrapper: React.FC = () => {
     </div>
   );
 
-  // ✅ RESTORED: T-Stage Component with Real Flow
+  // ✅ FIREBASE-ONLY: T-Stage Component with Firebase Flow
   const TStageComponent: React.FC<{ tStage: string }> = ({ tStage }) => {
     const [currentView, setCurrentView] = useState('introduction');
     const [practiceData, setPracticeData] = useState<any>(null);
@@ -218,11 +272,8 @@ const Stage1Wrapper: React.FC = () => {
       }
     };
 
-    // ✅ Handle posture selection
+    // ✅ FIREBASE-ONLY: Handle posture selection
     const handlePostureSelected = (selectedPosture: string) => {
-      sessionStorage.setItem('currentPosture', selectedPosture);
-      sessionStorage.setItem('currentTLevel', tStage.toLowerCase());
-      
       const duration = getDuration(tStage);
       const stageLevel = `${tStage}: Physical Stillness for ${duration} minutes`;
       
@@ -236,53 +287,60 @@ const Stage1Wrapper: React.FC = () => {
       setCurrentView('practice');
     };
 
-    // ✅ Handle practice completion
-    const handlePracticeComplete = () => {
-      console.log('🚀 Practice completed!');
-      
-      // Record session completion
-      handleSessionRecord({ 
-        tStage, 
-        completed: true,
-        duration: getDuration(tStage),
-        posture: practiceData?.posture || 'seated'
-      });
-      
-      // Navigate to practice reflection
-      const reflectionData = {
-        level: tStage.toLowerCase(),
-        targetDuration: getDuration(tStage),
-        timeSpent: getDuration(tStage),
-        isCompleted: true,
-        completedAt: new Date().toISOString(),
-        posture: practiceData?.posture || 'seated',
-        stageLevel: practiceData?.stageLevel || `${tStage}: Physical Stillness`,
-        fromStage1: true
-      };
-      
-      sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
-      
-      // Check for T5 completion
-      const isT5Completion = tStage === 'T5';
-      if (isT5Completion) {
-        localStorage.setItem('T5Complete', 'true');
-        localStorage.setItem('Stage1Complete', 'true');
-        localStorage.setItem('Stage2Unlocked', 'true');
-        console.log('🎉 T5 completed, Stage 1 complete!');
-      }
-
-      // Navigate to practice reflection
-      navigate('/practice-reflection', {
-        state: {
-          tLevel: tStage,
-          duration: getDuration(tStage),
-          posture: practiceData?.posture || 'seated',
-          stageLevel: practiceData?.stageLevel || `${tStage}: Physical Stillness`,
+    // ✅ FIREBASE-ONLY: Handle practice completion
+    const handlePracticeComplete = async () => {
+      try {
+        console.log('🚀 Practice completed!');
+        
+        // Record session completion to Firebase
+        await handleSessionRecord({ 
+          tStage, 
           completed: true,
-          fromStage1: true,
-          isT5Completion: isT5Completion
+          duration: getDuration(tStage),
+          posture: practiceData?.posture || 'seated'
+        });
+        
+        // Check for T5 completion and update Firebase
+        const isT5Completion = tStage === 'T5';
+        if (isT5Completion) {
+          // Use safe property access and updating
+          const currentCompletedStages = (userProfile && 'completedStages' in userProfile && 
+            Array.isArray(userProfile.completedStages)) ? userProfile.completedStages : [];
+          
+          await updateProfile({
+            completedStages: [...currentCompletedStages, 5],
+            currentStage: 2, // Unlock Stage 2
+            lastCompletedStage: 1
+          } as any);
+          
+          console.log('🎉 T5 completed, Stage 1 complete in Firebase!');
         }
-      });
+
+        // Navigate to practice reflection with Firebase data
+        navigate('/practice-reflection', {
+          state: {
+            tLevel: tStage,
+            duration: getDuration(tStage),
+            posture: practiceData?.posture || 'seated',
+            stageLevel: practiceData?.stageLevel || `${tStage}: Physical Stillness`,
+            completed: true,
+            fromStage1: true,
+            isT5Completion: isT5Completion
+          }
+        });
+      } catch (error) {
+        console.error('Error completing practice:', error);
+        // Still navigate to reflection
+        navigate('/practice-reflection', {
+          state: {
+            tLevel: tStage,
+            duration: getDuration(tStage),
+            posture: practiceData?.posture || 'seated',
+            completed: true,
+            fromStage1: true
+          }
+        });
+      }
     };
 
     return (

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ Firebase-only practice context
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import './Reflection.css';
 
 interface Stage1ReflectionProps {
   duration: number;
   stageLevel: string;
   posture: string;
+  tLevel?: string; // Added for T5 completion detection
   onComplete: () => void;
   onBack: () => void;
 }
@@ -13,9 +16,14 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
   duration,
   stageLevel,
   posture,
+  tLevel,
   onComplete,
   onBack
 }) => {
+  // ✅ FIREBASE-ONLY: Use contexts for data management
+  const { addPracticeSession } = usePractice();
+  const { userProfile, updateProfile } = useUser();
+  
   // State for star rating
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -34,6 +42,9 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
     anxiety: false,
     other: false
   });
+  
+  // State for submission
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
   // Format posture name for display
   const formatPostureName = (postureId: string): string => {
@@ -64,46 +75,94 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
     }));
   };
   
-  // Handle form submission
-  const handleSubmit = () => {
-    // Save reflection data to localStorage or sessionStorage if needed
-    const reflectionData = {
-      duration,
-      stageLevel,
-      posture,
-      rating,
-      feedback,
-      insights,
-      challenges,
-      timestamp: new Date().toISOString()
-    };
+  // ✅ FIREBASE-ONLY: Handle form submission
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     
-    // Store in localStorage for history
-    const previousReflections = JSON.parse(localStorage.getItem('reflectionHistory') || '[]');
-    localStorage.setItem('reflectionHistory', JSON.stringify([...previousReflections, reflectionData]));
+    setIsSubmitting(true);
     
-    // Check if this is a T5 completion and set the flag
-    if (stageLevel.startsWith('T5:')) {
-      console.log('T5 completed, setting completion flag');
-      sessionStorage.setItem('t5Completed', 'true');
-      localStorage.setItem('t5Completed', 'true');
+    try {
+      console.log('💾 Saving reflection to Firebase...');
       
-      // Set stage progress to allow Stage 2 access
-      sessionStorage.setItem('stageProgress', '2');
-      localStorage.setItem('devCurrentStage', '2');
+      // ✅ FIREBASE-ONLY: Save reflection as practice session
+      if (addPracticeSession) {
+        const tStageLevel = tLevel ? parseInt(tLevel[1]) : 1;
+        
+        await addPracticeSession({
+          stageLevel: tStageLevel,
+          sessionType: 'meditation' as const,
+          duration: duration,
+          timestamp: new Date().toISOString(),
+          environment: {
+            posture: posture,
+            location: 'indoor',
+            lighting: 'natural',
+            sounds: 'quiet'
+          },
+          rating: rating,
+          notes: `${stageLevel} - Feedback: ${feedback}${insights ? ` | Insights: ${insights}` : ''}`,
+          // Store challenges in metadata
+          metadata: {
+            challenges: challenges,
+            feedback: feedback,
+            insights: insights,
+            reflectionType: 'stage1'
+          }
+        });
+      }
       
-      // Force current T level to be beyond T5 to ensure unlock
-      sessionStorage.setItem('currentTLevel', 't6');
+      // ✅ FIREFOX-ONLY: Check for T5 completion and update Firebase
+      const isT5Completion = tLevel === 'T5' || stageLevel.includes('T5');
+      if (isT5Completion) {
+        console.log('🎉 T5 completed, updating Firebase profile...');
+        
+        // Use safe property access and updating
+        const currentCompletedStages = (userProfile && 'completedStages' in userProfile && 
+          Array.isArray(userProfile.completedStages)) ? userProfile.completedStages : [];
+        
+        // Only add if not already completed
+        if (!currentCompletedStages.includes(5)) {
+          await updateProfile({
+            completedStages: [...currentCompletedStages, 5],
+            currentStage: 2, // Unlock Stage 2
+            lastCompletedStage: 1,
+            t5CompletedAt: new Date().toISOString(),
+            totalSessions: (userProfile?.totalSessions || 0) + 1
+          } as any);
+          
+          console.log('✅ Stage 1 completed in Firebase, Stage 2 unlocked!');
+        }
+      } else {
+        // Update session count for non-T5 completions
+        await updateProfile({
+          totalSessions: (userProfile?.totalSessions || 0) + 1,
+          lastSessionDate: new Date().toISOString()
+        } as any);
+      }
+      
+      console.log('✅ Reflection saved to Firebase successfully!');
+      
+      // Complete the reflection
+      onComplete();
+      
+    } catch (error) {
+      console.error('❌ Error saving reflection to Firebase:', error);
+      
+      // Still complete the reflection even if save fails
+      alert('Reflection saved locally. Please check your internet connection.');
+      onComplete();
+      
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Complete the reflection
-    onComplete();
   };
 
   return (
     <div className="reflection-screen">
       <div className="reflection-header">
-        <button className="back-button" onClick={onBack}>Back</button>
+        <button className="back-button" onClick={onBack} disabled={isSubmitting}>
+          Back
+        </button>
         <h1>Practice Reflection</h1>
       </div>
       
@@ -133,6 +192,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
                 type="checkbox"
                 checked={challenges.discomfort}
                 onChange={() => handleChallengeChange('discomfort')}
+                disabled={isSubmitting}
               />
               Physical Discomfort
             </label>
@@ -141,6 +201,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
                 type="checkbox"
                 checked={challenges.sleepiness}
                 onChange={() => handleChallengeChange('sleepiness')}
+                disabled={isSubmitting}
               />
               Sleepiness
             </label>
@@ -149,6 +210,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
                 type="checkbox"
                 checked={challenges.restlessness}
                 onChange={() => handleChallengeChange('restlessness')}
+                disabled={isSubmitting}
               />
               Restlessness
             </label>
@@ -165,6 +227,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
                 type="checkbox"
                 checked={challenges.boredom}
                 onChange={() => handleChallengeChange('boredom')}
+                disabled={isSubmitting}
               />
               Boredom
             </label>
@@ -173,6 +236,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
                 type="checkbox"
                 checked={challenges.anxiety}
                 onChange={() => handleChallengeChange('anxiety')}
+                disabled={isSubmitting}
               />
               Anxiety
             </label>
@@ -181,6 +245,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
                 type="checkbox"
                 checked={challenges.other}
                 onChange={() => handleChallengeChange('other')}
+                disabled={isSubmitting}
               />
               Other
             </label>
@@ -197,6 +262,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="Describe your experience..."
               rows={4}
+              disabled={isSubmitting}
             />
           </div>
           
@@ -208,6 +274,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
               onChange={(e) => setInsights(e.target.value)}
               placeholder="Share your insights..."
               rows={4}
+              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -219,10 +286,10 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
             {[1, 2, 3, 4, 5].map((star) => (
               <span
                 key={star}
-                className={`star ${star <= (hoverRating || rating) ? 'filled' : ''}`}
-                onClick={() => handleRatingClick(star)}
-                onMouseEnter={() => setHoverRating(star)}
-                onMouseLeave={() => setHoverRating(0)}
+                className={`star ${star <= (hoverRating || rating) ? 'filled' : ''} ${isSubmitting ? 'disabled' : ''}`}
+                onClick={() => !isSubmitting && handleRatingClick(star)}
+                onMouseEnter={() => !isSubmitting && setHoverRating(star)}
+                onMouseLeave={() => !isSubmitting && setHoverRating(0)}
               >
                 ★
               </span>
@@ -244,8 +311,12 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
             Consider practicing at this level again, or move to the next level when you feel ready.
           </p>
           
-          <button className="complete-button" onClick={handleSubmit}>
-            Complete Reflection
+          <button 
+            className={`complete-button ${isSubmitting ? 'submitting' : ''}`}
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Saving to Firebase...' : 'Complete Reflection'}
           </button>
         </div>
       </div>

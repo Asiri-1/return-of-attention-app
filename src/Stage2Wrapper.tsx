@@ -1,9 +1,11 @@
-// ✅ COMPLETE FIXED Stage2Wrapper.js - Correct Navigation & Progression Logic
-// File: src/Stage2Wrapper.js
-// 🔄 REPLACE YOUR ENTIRE STAGE2WRAPPER.JS WITH THIS CODE
+// ✅ COMPLETE FIREBASE-ONLY Stage2Wrapper.tsx - No localStorage/sessionStorage conflicts
+// File: src/Stage2Wrapper.tsx
+// 🔄 FIREBASE-ONLY: All data flows through Firebase contexts
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ Firebase-only practice context
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import Stage2Introduction from './Stage2Introduction';
 import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
 import UniversalPAHMTimer from './components/shared/UniversalPAHMTimer';
@@ -15,6 +17,10 @@ type PhaseType = 'introduction' | 'posture' | 'timer' | 'reflection';
 const Stage2Wrapper: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // ✅ FIREBASE-ONLY: Use contexts for session management
+  const { addPracticeSession } = usePractice(); // Use existing method name
+  const { userProfile, updateProfile } = useUser();
   
   // ✅ PERFORMANCE: Type-safe state management
   const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
@@ -33,41 +39,86 @@ const Stage2Wrapper: React.FC = () => {
     }
   }, [currentPhase, navigate]);
 
-  const handleIntroductionComplete = useCallback(() => {
-    setCurrentPhase('posture');
-  }, []);
+  const handleIntroductionComplete = useCallback(async () => {
+    try {
+      // ✅ FIREBASE-ONLY: Mark Stage 2 introduction as completed
+      if (userProfile && 'completedStageIntros' in userProfile) {
+        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
+          ? userProfile.completedStageIntros as number[]
+          : [];
+        
+        if (!completedIntros.includes(2)) {
+          const updatedIntros = [...completedIntros, 2];
+          await updateProfile({
+            completedStageIntros: updatedIntros
+          } as any);
+        }
+      }
+      
+      setCurrentPhase('posture');
+    } catch (error) {
+      console.error('❌ Error marking Stage 2 intro as completed:', error);
+      // Continue anyway - don't block user flow
+      setCurrentPhase('posture');
+    }
+  }, [userProfile, updateProfile]);
 
   const handlePostureSelected = useCallback((posture: string) => {
     setSelectedPosture(posture);
     setCurrentPhase('timer');
   }, []);
 
-  const handleTimerComplete = useCallback(() => {
-    setCurrentPhase('reflection');
-  }, []);
-
-  const handleReflectionComplete = useCallback(() => {
-    // ✅ FIXED: Set Stage 2 completion and unlock Stage 3
+  const handleTimerComplete = useCallback(async () => {
     try {
-      console.log('🎯 Stage 2 completed, setting completion flags...');
+      // ✅ FIREBASE-ONLY: Record completed session to Firebase
+      if (addPracticeSession) {
+        const completedSessionData = {
+          level: 'stage2',
+          stageLevel: 2,
+          type: 'meditation',
+          sessionType: 'meditation' as const,
+          targetDuration: 30, // 30 minutes for Stage 2
+          timeSpent: 30, // Completed duration
+          duration: 30,
+          isCompleted: true,
+          timestamp: new Date().toISOString(),
+          environment: {
+            posture: selectedPosture,
+            location: 'indoor',
+            lighting: 'natural',
+            sounds: 'quiet'
+          },
+          quality: 4, // Stage 2 gets basic quality rating
+          notes: `Stage 2 completed session - ${selectedPosture} posture`
+        };
+        
+        await addPracticeSession(completedSessionData);
+        console.log('✅ Stage 2 session completed and saved to Firebase');
+      }
       
-      // Mark Stage 2 as completed
-      localStorage.setItem('stage2Complete', 'true');
-      sessionStorage.setItem('stage2Complete', 'true');
+      setCurrentPhase('reflection');
+    } catch (error) {
+      console.error('❌ Error completing Stage 2 session:', error);
+      // Continue anyway - don't block user flow
+      setCurrentPhase('reflection');
+    }
+  }, [selectedPosture, addPracticeSession]);
+
+  const handleReflectionComplete = useCallback(async () => {
+    try {
+      console.log('🎯 Stage 2 completed, updating Firebase...');
       
-      // Update stage progress to 3 (unlocks Stage 3)
-      localStorage.setItem('stageProgress', '3');
-      sessionStorage.setItem('stageProgress', '3');
-      localStorage.setItem('devCurrentStage', '3');
-      sessionStorage.setItem('devCurrentStage', '3');
+      // ✅ FIREBASE-ONLY: Set Stage 2 completion and unlock Stage 3
+      await updateProfile({
+        currentStage: 3, // Unlock Stage 3
+        lastCompletedStage: 2,
+        totalSessions: (userProfile?.totalSessions || 0) + 1,
+        lastSessionDate: new Date().toISOString(),
+        stage2Completed: true,
+        stage2CompletedAt: new Date().toISOString()
+      } as any);
       
-      // Update current stage for dashboard
-      localStorage.setItem('currentStage', '3');
-      
-      // Set completion timestamp
-      localStorage.setItem('stage2CompletedAt', new Date().toISOString());
-      
-      console.log('✅ Stage 2 completed, Stage 3 unlocked');
+      console.log('✅ Stage 2 completed, Stage 3 unlocked in Firebase');
       
       // Navigate back to home dashboard
       navigate('/home', {
@@ -79,10 +130,16 @@ const Stage2Wrapper: React.FC = () => {
       });
       
     } catch (error) {
-      console.error('Error saving Stage 2 completion:', error);
-      navigate('/home'); // Navigate anyway
+      console.error('❌ Error saving Stage 2 completion to Firebase:', error);
+      // Still navigate to show completion
+      navigate('/home', {
+        state: {
+          stage2Completed: true,
+          message: 'Stage 2 completed! (Sync pending)'
+        }
+      });
     }
-  }, [navigate]);
+  }, [userProfile, updateProfile, navigate]);
 
   // ✅ PERFORMANCE: Memoized phase renderer to prevent recreation on every render
   const renderCurrentPhase = useMemo(() => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import './StageLevelIntroduction.css';
 
 interface Stage2IntroductionProps {
@@ -14,6 +15,9 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
   const [currentSlide, setCurrentSlide] = React.useState(0);
   const stageNumber = 2; // Hardcoded to stage 2
   const navigate = useNavigate();
+  
+  // ✅ FIREBASE-ONLY: Use UserContext for completed stage introductions
+  const { userProfile, updateProfile } = useUser();
   
   // ✅ ENHANCED: iOS Safari viewport fix
   useEffect(() => {
@@ -32,14 +36,37 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     };
   }, []);
   
-  // ✅ ENHANCED: Memoized function to mark intro completed
-  const markIntroCompleted = useCallback(() => {
-    const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-    if (!completedIntros.includes(stageNumber)) {
-      completedIntros.push(stageNumber);
-      localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
+  // ✅ FIREBASE-ONLY: Memoized function to mark intro completed
+  const markIntroCompleted = useCallback(async () => {
+    try {
+      // ✅ Safe property access and update
+      if (userProfile && 'completedStageIntros' in userProfile) {
+        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
+          ? userProfile.completedStageIntros as number[]
+          : [];
+        
+        if (!completedIntros.includes(stageNumber)) {
+          // ✅ Add this stage to completed intros and save to Firebase
+          const updatedIntros = [...completedIntros, stageNumber];
+          await updateProfile({
+            completedStageIntros: updatedIntros
+          } as any); // Use type assertion to bypass TypeScript check
+          
+          console.log(`✅ Stage ${stageNumber} introduction marked as completed in Firebase`);
+        }
+      } else {
+        // ✅ Initialize completedStageIntros if it doesn't exist
+        await updateProfile({
+          completedStageIntros: [stageNumber]
+        } as any);
+        
+        console.log(`✅ Stage ${stageNumber} introduction completed - initialized completedStageIntros`);
+      }
+    } catch (error) {
+      console.error('❌ Error marking stage intro as completed:', error);
+      // Continue anyway - don't block the user flow
     }
-  }, [stageNumber]);
+  }, [stageNumber, userProfile, updateProfile]);
   
   // ✅ ENHANCED: Touch feedback for iPhone users
   const handleTouchStart = useCallback(() => {
@@ -56,9 +83,9 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     }
   }, []);
   
-  // ✅ ENHANCED: Memoized skip handler
-  const handleSkip = useCallback(() => {
-    markIntroCompleted();
+  // ✅ FIREBASE-ONLY: Memoized skip handler
+  const handleSkip = useCallback(async () => {
+    await markIntroCompleted();
     // Skip directly to posture selection, not to PAHM explanation
     onComplete();
   }, [markIntroCompleted, onComplete]);
@@ -86,13 +113,13 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     }
   ], []);
   
-  // ✅ ENHANCED: Memoized navigation functions
-  const nextSlide = useCallback(() => {
+  // ✅ FIREBASE-ONLY: Memoized navigation functions
+  const nextSlide = useCallback(async () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      // Mark this introduction as completed
-      markIntroCompleted();
+      // ✅ Mark this introduction as completed in Firebase
+      await markIntroCompleted();
       
       // Complete the introduction and move to the next step
       onComplete();
@@ -118,12 +145,12 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     return "Learn about PAHM";
   }, [currentSlide, slides.length]);
   
-  // ✅ ENHANCED: Optimized PAHM navigation handler
-  const handleLearnAboutPAHM = useCallback(() => {
+  // ✅ FIREBASE-ONLY: Optimized PAHM navigation handler
+  const handleLearnAboutPAHM = useCallback(async () => {
     if (currentSlide === slides.length - 1) {
       // If on the last slide and the button says "Learn about PAHM"
       // Mark as completed but go directly to PAHM learning page
-      markIntroCompleted();
+      await markIntroCompleted();
       
       // FIXED: Use React Router navigation instead of direct window.location.href
       // This ensures proper routing and state management
@@ -137,7 +164,7 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     }
     
     // Otherwise, proceed to next slide
-    nextSlide();
+    await nextSlide();
   }, [currentSlide, slides.length, markIntroCompleted, navigate, nextSlide]);
 
   // ✅ ENHANCED: Direct slide navigation

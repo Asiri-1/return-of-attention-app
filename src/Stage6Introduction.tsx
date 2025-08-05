@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import './StageLevelIntroduction.css';
 
 interface Stage6IntroductionProps {
@@ -14,6 +15,9 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
   const [currentSlide, setCurrentSlide] = React.useState(0);
   const stageNumber = 6; // Hardcoded to stage 6
   const navigate = useNavigate();
+  
+  // ✅ FIREBASE-ONLY: Use UserContext for completed stage introductions
+  const { userProfile, updateProfile } = useUser();
   
   // ✅ ENHANCED: iOS Safari viewport fix
   useEffect(() => {
@@ -32,14 +36,37 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
     };
   }, []);
   
-  // ✅ ENHANCED: Memoized function to mark intro completed
-  const markIntroCompleted = useCallback(() => {
-    const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-    if (!completedIntros.includes(stageNumber)) {
-      completedIntros.push(stageNumber);
-      localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
+  // ✅ FIREBASE-ONLY: Memoized function to mark intro completed
+  const markIntroCompleted = useCallback(async () => {
+    try {
+      // ✅ Safe property access and update
+      if (userProfile && 'completedStageIntros' in userProfile) {
+        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
+          ? userProfile.completedStageIntros as number[]
+          : [];
+        
+        if (!completedIntros.includes(stageNumber)) {
+          // ✅ Add this stage to completed intros and save to Firebase
+          const updatedIntros = [...completedIntros, stageNumber];
+          await updateProfile({
+            completedStageIntros: updatedIntros
+          } as any); // Use type assertion to bypass TypeScript check
+          
+          console.log(`✅ Stage ${stageNumber} introduction marked as completed in Firebase`);
+        }
+      } else {
+        // ✅ Initialize completedStageIntros if it doesn't exist
+        await updateProfile({
+          completedStageIntros: [stageNumber]
+        } as any);
+        
+        console.log(`✅ Stage ${stageNumber} introduction completed - initialized completedStageIntros`);
+      }
+    } catch (error) {
+      console.error('❌ Error marking stage intro as completed:', error);
+      // Continue anyway - don't block the user flow
     }
-  }, [stageNumber]);
+  }, [stageNumber, userProfile, updateProfile]);
   
   // ✅ ENHANCED: Touch feedback for iPhone users
   const handleTouchStart = useCallback(() => {
@@ -56,15 +83,15 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
     }
   }, []);
   
-  // ✅ ENHANCED: Memoized skip handler
-  const handleSkip = useCallback(() => {
-    markIntroCompleted();
+  // ✅ FIREBASE-ONLY: Memoized skip handler
+  const handleSkip = useCallback(async () => {
+    await markIntroCompleted();
     onComplete();
   }, [markIntroCompleted, onComplete]);
   
-  // ✅ ENHANCED: Optimized refresh PAHM handler
-  const handleRefreshPAHM = useCallback(() => {
-    markIntroCompleted();
+  // ✅ FIREBASE-ONLY: Optimized refresh PAHM handler
+  const handleRefreshPAHM = useCallback(async () => {
+    await markIntroCompleted();
     // Use React Router navigation instead of custom event
     navigate('/learning/pahm', {
       state: {
@@ -97,13 +124,13 @@ const Stage6Introduction: React.FC<Stage6IntroductionProps> = ({
     }
   ], []);
   
-  // ✅ ENHANCED: Memoized navigation functions
-  const nextSlide = useCallback(() => {
+  // ✅ FIREBASE-ONLY: Memoized navigation functions
+  const nextSlide = useCallback(async () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      // Mark this introduction as completed
-      markIntroCompleted();
+      // ✅ Mark this introduction as completed in Firebase
+      await markIntroCompleted();
       
       // Complete the introduction and move to the next step
       onComplete();

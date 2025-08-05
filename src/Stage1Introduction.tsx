@@ -1,9 +1,9 @@
-// ✅ FIXED Stage1Introduction.tsx - Navigate to Progressive T-Level Selection
+// ✅ FIREBASE-ONLY Stage1Introduction.tsx - Navigate to Progressive T-Level Selection
 // File: src/Stage1Introduction.tsx
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './contexts/auth/AuthContext';
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import './StageLevelIntroduction.css';
 
 interface Stage1IntroductionProps {
@@ -22,7 +22,8 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
   const stageNumber = 1;
   const navigate = useNavigate();
   
-  const { updateUserProfileInContext } = useAuth();
+  // ✅ FIREBASE-ONLY: Use Firebase user context
+  const { userProfile, updateProfile } = useUser();
   
   const slides = [
     {
@@ -42,32 +43,42 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   ];
   
-  // ✅ OPTIMIZED: Memoized completion handler
-  const markIntroCompleted = useCallback(() => {
+  // ✅ FIREBASE-ONLY: Memoized completion handler
+  const markIntroCompleted = useCallback(async () => {
     console.log('🔍 Stage 1 introduction completed');
     
     try {
-      // Update localStorage for intro tracking
-      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-      if (!completedIntros.includes(stageNumber)) {
-        completedIntros.push(stageNumber);
-        localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
+      // ✅ FIREBASE-ONLY: Update completed intros in Firebase
+      if (userProfile && 'completedStageIntros' in userProfile) {
+        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
+          ? userProfile.completedStageIntros as number[]
+          : [];
+        
+        if (!completedIntros.includes(stageNumber)) {
+          const updatedIntros = [...completedIntros, stageNumber];
+          await updateProfile({ 
+            completedStageIntros: updatedIntros,
+            currentStage: 1 // Ensure Stage 1 is current
+          } as any);
+          console.log('✅ Stage 1 intro completion saved to Firebase');
+        }
+      } else {
+        // First time - initialize completed intros
+        await updateProfile({ 
+          completedStageIntros: [stageNumber],
+          currentStage: 1
+        } as any);
+        console.log('✅ Stage 1 intro completion initialized in Firebase');
       }
-      
-      // Update current stage
-      updateUserProfileInContext({ 
-        currentStage: '1'
-      });
-      console.log('✅ Current stage updated to 1');
     } catch (error) {
-      console.warn('Could not update stage completion:', error);
+      console.warn('Could not update stage completion in Firebase:', error);
       // Continue anyway since this is not critical
     }
-  }, [stageNumber, updateUserProfileInContext]);
+  }, [stageNumber, userProfile, updateProfile]);
   
-  // ✅ FIXED: Skip handler now goes to PROGRESSIVE T-level selection
-  const handleSkip = useCallback(() => {
-    markIntroCompleted();
+  // ✅ FIREBASE-ONLY: Skip handler now goes to PROGRESSIVE T-level selection
+  const handleSkip = useCallback(async () => {
+    await markIntroCompleted();
     
     setTimeout(() => {
       console.log('🔍 Navigating to PROGRESSIVE T-level selection after skip');
@@ -75,12 +86,12 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }, 100);
   }, [markIntroCompleted, navigate]);
   
-  // ✅ FIXED: Next slide handler goes to PROGRESSIVE T-level selection after completion
-  const nextSlide = useCallback(() => {
+  // ✅ FIREBASE-ONLY: Next slide handler goes to PROGRESSIVE T-level selection after completion
+  const nextSlide = useCallback(async () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      markIntroCompleted();
+      await markIntroCompleted();
       
       setTimeout(() => {
         console.log('🔍 Navigating to PROGRESSIVE T-level selection after completion');

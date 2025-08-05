@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
+import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
 import './StageLevelIntroduction.css';
 
 interface StageLevelIntroductionProps {
@@ -14,18 +15,24 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
 }) => {
   const [currentSlide, setCurrentSlide] = React.useState(0);
   
-  // ✅ ENHANCED: Check if this stage's introduction has been completed before
+  // ✅ FIREBASE-ONLY: Use UserContext for completed stage introductions
+  const { userProfile, updateProfile } = useUser();
+  
+  // ✅ FIREBASE-ONLY: Check if this stage's introduction has been completed before
   useEffect(() => {
     // Only apply auto-skip for stages other than Stage Two (2)
-    if (stageNumber !== 2) {
-      const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-      if (completedIntros.includes(stageNumber)) {
-        // If this introduction was already completed, skip directly to practice
-        onComplete();
+    if (stageNumber !== 2 && userProfile) {
+      // ✅ Safe property access - check if completedStageIntros exists on userProfile
+      if ('completedStageIntros' in userProfile && Array.isArray(userProfile.completedStageIntros)) {
+        const completedIntros = userProfile.completedStageIntros as number[];
+        if (completedIntros.includes(stageNumber)) {
+          // If this introduction was already completed, skip directly to practice
+          onComplete();
+        }
       }
     }
     // Stage Two introduction will always be shown, never auto-skipped
-  }, [stageNumber, onComplete]);
+  }, [stageNumber, onComplete, userProfile]);
 
   // ✅ ENHANCED: iOS Safari viewport fix
   useEffect(() => {
@@ -44,14 +51,37 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
     };
   }, []);
   
-  // ✅ ENHANCED: Memoized function to mark intro completed
-  const markIntroCompleted = useCallback(() => {
-    const completedIntros = JSON.parse(localStorage.getItem('completedStageIntros') || '[]');
-    if (!completedIntros.includes(stageNumber)) {
-      completedIntros.push(stageNumber);
-      localStorage.setItem('completedStageIntros', JSON.stringify(completedIntros));
+  // ✅ FIREBASE-ONLY: Memoized function to mark intro completed
+  const markIntroCompleted = useCallback(async () => {
+    try {
+      // ✅ Safe property access and update
+      if (userProfile && 'completedStageIntros' in userProfile) {
+        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
+          ? userProfile.completedStageIntros as number[]
+          : [];
+        
+        if (!completedIntros.includes(stageNumber)) {
+          // ✅ Add this stage to completed intros and save to Firebase
+          const updatedIntros = [...completedIntros, stageNumber];
+          await updateProfile({
+            completedStageIntros: updatedIntros
+          } as any); // Use type assertion to bypass TypeScript check
+          
+          console.log(`✅ Stage ${stageNumber} introduction marked as completed in Firebase`);
+        }
+      } else {
+        // ✅ Initialize completedStageIntros if it doesn't exist
+        await updateProfile({
+          completedStageIntros: [stageNumber]
+        } as any);
+        
+        console.log(`✅ Stage ${stageNumber} introduction completed - initialized completedStageIntros`);
+      }
+    } catch (error) {
+      console.error('❌ Error marking stage intro as completed:', error);
+      // Continue anyway - don't block the user flow
     }
-  }, [stageNumber]);
+  }, [stageNumber, userProfile, updateProfile]);
   
   // ✅ ENHANCED: Touch feedback for iPhone users
   const handleTouchStart = useCallback(() => {
@@ -68,9 +98,9 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
     }
   }, []);
   
-  // ✅ ENHANCED: Memoized skip handler
-  const handleSkip = useCallback(() => {
-    markIntroCompleted();
+  // ✅ FIREBASE-ONLY: Memoized skip handler
+  const handleSkip = useCallback(async () => {
+    await markIntroCompleted();
     onComplete();
   }, [markIntroCompleted, onComplete]);
   
@@ -216,13 +246,13 @@ const StageLevelIntroduction: React.FC<StageLevelIntroductionProps> = ({
   
   const slides = getStageSlides();
   
-  // ✅ ENHANCED: Memoized navigation functions
-  const nextSlide = useCallback(() => {
+  // ✅ FIREBASE-ONLY: Memoized navigation functions
+  const nextSlide = useCallback(async () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      // Mark this introduction as completed
-      markIntroCompleted();
+      // ✅ Mark this introduction as completed in Firebase
+      await markIntroCompleted();
       
       // For PAHM Trainer stage, navigate to PAHM explanation
       if (stageNumber === 2) {
