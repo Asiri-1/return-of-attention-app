@@ -32,6 +32,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [totalPausedTime, setTotalPausedTime] = useState<number>(0);
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
   
+  // ✅ FIREBASE-ONLY: Store temporary data in component state instead of sessionStorage
+  const [currentPosture, setCurrentPosture] = useState<string>('seated');
+  const [lastPracticeData, setLastPracticeData] = useState<any>(null);
+  
   // Bell tracking states
   const [lastBellMinute, setLastBellMinute] = useState<number>(-1);
   const [bellsPlayed, setBellsPlayed] = useState<Set<number>>(new Set());
@@ -53,6 +57,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
   const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
+  // ✅ FIREBASE-ONLY: Use Firebase contexts
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
   
@@ -399,51 +404,25 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   }, []);
 
-  // Session saving
-  const saveSessionToAllStorageLocations = useCallback((sessionData: any, isCompleted: boolean) => {
+  // ✅ FIREBASE-ONLY: Session saving using PracticeContext only
+  const saveSessionToFirebase = useCallback(async (sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
-    const tLevelUpper = tLevel.toUpperCase();
+    const tLevelNumber = getTLevelNumber(tLevel);
     const timestamp = new Date().toISOString();
     
     try {
-      const sessionObject = {
-        id: `session_${Date.now()}`,
-        timestamp: timestamp,
-        duration: sessionData.duration || initialMinutes,
-        targetDuration: initialMinutes,
-        isCompleted: isCompleted,
-        completedAt: timestamp,
-        tLevel: tLevel,
-        rating: sessionData.rating || (isCompleted ? 8 : 6),
-        posture: sessionStorage.getItem('currentPosture') || 'seated',
-        notes: sessionData.notes || '',
-        metadata: sessionData.metadata || {}
-      };
-
-      const existingSessions = JSON.parse(localStorage.getItem(`${tLevelUpper}Sessions`) || '[]');
-      existingSessions.push(sessionObject);
-      localStorage.setItem(`${tLevelUpper}Sessions`, JSON.stringify(existingSessions));
-      
-      if (isCompleted) {
-        localStorage.setItem(`${tLevelUpper}Complete`, 'true');
-        localStorage.setItem(`${tLevelUpper}LastCompleted`, timestamp);
-      }
-      
-      const existingProgress = JSON.parse(localStorage.getItem('stage1Progress') || '{"T1": 0, "T2": 0, "T3": 0, "T4": 0, "T5": 0}');
-      existingProgress[tLevelUpper] = existingSessions.filter((s: any) => s.isCompleted).length;
-      localStorage.setItem('stage1Progress', JSON.stringify(existingProgress));
-      
+      // ✅ Create enhanced session data for PracticeContext
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
         sessionType: 'meditation' as const,
-        stageLevel: getTLevelNumber(tLevel),
+        stageLevel: tLevelNumber,
         stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
         rating: sessionData.rating || (isCompleted ? 8 : 6),
-        notes: `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
+        notes: sessionData.notes || `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
         presentPercentage: isCompleted ? 85 : 70,
         environment: {
-          posture: sessionStorage.getItem('currentPosture') || 'seated',
+          posture: currentPosture,
           location: 'indoor',
           lighting: 'natural',
           sounds: 'quiet'
@@ -452,24 +431,32 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           present_attachment: 0, present_neutral: 0, present_aversion: 0,
           past_attachment: 0, past_neutral: 0, past_aversion: 0,
           future_attachment: 0, future_neutral: 0, future_aversion: 0
+        },
+        metadata: {
+          ...sessionData.metadata,
+          tLevel: tLevel,
+          isCompleted: isCompleted,
+          targetDuration: initialMinutes,
+          actualDuration: sessionData.duration || initialMinutes
         }
       };
       
-      addPracticeSession(enhancedSessionData);
+      // ✅ Save to Firebase via PracticeContext
+      await addPracticeSession(enhancedSessionData);
+      console.log(`✅ SESSION SAVED TO FIREBASE! - ${tLevel.toUpperCase()}`);
       
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: `${tLevelUpper}Sessions`,
-        newValue: JSON.stringify(existingSessions),
-        storageArea: localStorage
-      }));
+      // ✅ Note: T-stage completion tracking handled by PracticeContext internally
+      if (isCompleted) {
+        console.log(`✅ T-STAGE COMPLETION TRACKED - ${tLevel.toUpperCase()}`);
+      }
       
-      console.log(`✅ SESSION SAVED SUCCESSFULLY! - ${tLevelUpper}`);
-      return sessionObject;
+      return enhancedSessionData;
       
     } catch (error) {
-      console.error('❌ Error saving session to storage:', error);
+      console.error('❌ Error saving session to Firebase:', error);
+      throw error;
     }
-  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
+  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber, currentPosture]);
 
   // Timer completion handler
   const handleTimerComplete = useCallback(async () => {
@@ -505,23 +492,42 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       }
     };
 
-    saveSessionToAllStorageLocations(sessionData, isFullyCompleted);
+    try {
+      // ✅ Save to Firebase only
+      await saveSessionToFirebase(sessionData, isFullyCompleted);
 
-    const completionMessage = isFullyCompleted 
-      ? `Completed full ${initialMinutes}-minute ${getTLevel().toUpperCase()} stillness session! 🎯`
-      : `Completed ${Math.round(actualDuration / 60)}-minute ${getTLevel().toUpperCase()} stillness session.`;
+      const completionMessage = isFullyCompleted 
+        ? `Completed full ${initialMinutes}-minute ${getTLevel().toUpperCase()} stillness session! 🎯`
+        : `Completed ${Math.round(actualDuration / 60)}-minute ${getTLevel().toUpperCase()} stillness session.`;
 
-    addEmotionalNote({
-      content: `${completionMessage} Building foundation for deeper mindfulness practice. Quality rating: ${sessionQuality}/10.`,
-      emotion: isFullyCompleted ? 'accomplished' : 'content',
-      energyLevel: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
-      intensity: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
-      tags: ['stillness-practice', 'stage-1', 'basic-meditation', getTLevel()],
-      gratitude: ['meditation practice', 'inner stillness', isFullyCompleted ? 'session completion' : 'practice effort']
-    });
+      // ✅ Add emotional note via WellnessContext
+      await addEmotionalNote({
+        content: `${completionMessage} Building foundation for deeper mindfulness practice. Quality rating: ${sessionQuality}/10.`,
+        emotion: isFullyCompleted ? 'accomplished' : 'content',
+        energyLevel: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
+        intensity: sessionQuality >= 8 ? 8 : sessionQuality >= 6 ? 7 : 6,
+        tags: ['stillness-practice', 'stage-1', 'basic-meditation', getTLevel()],
+        gratitude: ['meditation practice', 'inner stillness', isFullyCompleted ? 'session completion' : 'practice effort']
+      });
 
-    onComplete();
-  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToAllStorageLocations, calculateSessionQuality, getTLevel, playBell, announceTime, releaseWakeLock, wakeLockStatus]);
+      // ✅ Store completion data in component state instead of sessionStorage
+      const reflectionData = {
+        level: getTLevel(),
+        targetDuration: initialMinutes,
+        timeSpent: Math.round(actualDuration / 60),
+        isCompleted: isFullyCompleted,
+        completedAt: endTime,
+        sessionQuality: sessionQuality
+      };
+      setLastPracticeData(reflectionData);
+
+      onComplete();
+
+    } catch (error) {
+      console.error('❌ Error completing session:', error);
+      alert('Failed to save session. Please try again.');
+    }
+  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToFirebase, calculateSessionQuality, getTLevel, playBell, announceTime, releaseWakeLock, wakeLockStatus]);
 
   // Timer effect
   useEffect(() => {
@@ -608,7 +614,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     
     const nowISO = new Date(now).toISOString();
     setSessionStartTime(nowISO);
-    sessionStorage.setItem('practiceStartTime', nowISO);
+    // ✅ Store in component state instead of sessionStorage
+    // sessionStorage.setItem('practiceStartTime', nowISO);
   };
 
   // Control handlers
@@ -663,7 +670,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     const now = new Date().toISOString();
     const timeSpentMs = sessionStartTime 
       ? new Date(now).getTime() - new Date(sessionStartTime).getTime() 
@@ -683,18 +690,25 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       }
     };
     
-    saveSessionToAllStorageLocations(sessionData, false);
-    
-    const reflectionData = {
-      level: getTLevel(),
-      targetDuration: initialMinutes,
-      timeSpent: timeSpentMinutes || 0,
-      isCompleted: false,
-      completedAt: now
-    };
-    
-    sessionStorage.setItem('lastPracticeData', JSON.stringify(reflectionData));
-    onComplete();
+    try {
+      // ✅ Save to Firebase only
+      await saveSessionToFirebase(sessionData, false);
+      
+      // ✅ Store reflection data in component state instead of sessionStorage
+      const reflectionData = {
+        level: getTLevel(),
+        targetDuration: initialMinutes,
+        timeSpent: timeSpentMinutes || 0,
+        isCompleted: false,
+        completedAt: now
+      };
+      setLastPracticeData(reflectionData);
+      
+      onComplete();
+    } catch (error) {
+      console.error('❌ Error saving skipped session:', error);
+      alert('Failed to save session. Please try again.');
+    }
   };
 
   // Development fast-forward
@@ -817,6 +831,39 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               outline: 'none'
             }}
           />
+          
+          {/* ✅ FIREBASE-ONLY: Added posture selection */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            padding: '20px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            textAlign: 'left'
+          }}>
+            <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>Practice Setup</h4>
+            
+            <label style={{ display: 'block', marginBottom: '10px', fontSize: '14px' }}>
+              Posture:
+            </label>
+            <select
+              value={currentPosture}
+              onChange={(e) => setCurrentPosture(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                marginBottom: '15px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                color: '#333'
+              }}
+            >
+              <option value="seated">Seated</option>
+              <option value="cross-legged">Cross-legged</option>
+              <option value="lying">Lying down</option>
+              <option value="standing">Standing</option>
+            </select>
+          </div>
           
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
@@ -1135,6 +1182,21 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             </div>
           </div>
         )}
+      </div>
+      
+      {/* ✅ FIREBASE-ONLY: Privacy Notice */}
+      <div style={{ 
+        position: 'fixed', 
+        bottom: '10px', 
+        right: '10px', 
+        background: 'rgba(0,0,0,0.7)', 
+        color: 'white', 
+        padding: '6px 10px', 
+        borderRadius: '6px', 
+        fontSize: '10px',
+        zIndex: 1000
+      }}>
+        🔥 Firebase-Only
       </div>
     </div>
   );

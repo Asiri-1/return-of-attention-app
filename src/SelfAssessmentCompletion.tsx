@@ -1,7 +1,7 @@
+// ✅ Firebase-Only SelfAssessmentCompletion.tsx - No localStorage conflicts
+// File: src/SelfAssessmentCompletion.tsx
 import React, { useState, useEffect } from 'react';
-// ✅ FIXED: Import both contexts for proper separation
 import { useAuth } from './contexts/auth/AuthContext';
-import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
 interface SelfAssessmentCompletionProps {
   onGetStarted: (data?: any) => void;
@@ -12,92 +12,123 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
   onGetStarted,
   onBack
 }) => {
-  // ✅ FIXED: Split the hooks - Auth for user info, OnboardingContext for data operations
-  const { currentUser, userProfile } = useAuth();
-  const { getSelfAssessment } = useOnboarding();
+  // ✅ Firebase-only contexts - using AuthContext only
+  const { currentUser, userProfile, updateUserProfile, isLoading: authLoading } = useAuth();
   
   const [showContent, setShowContent] = useState(false);
   const [showStages, setShowStages] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Animate content entrance
     setTimeout(() => setShowContent(true), 300);
     setTimeout(() => setShowStages(true), 800);
 
-    // ✅ FIXED: Check existing data using OnboardingContext (backend logging only)
-    const checkAndPreserveData = async () => {
-      console.log('🔍 FIXED: Checking existing self-assessment data via OnboardingContext...');
+    // ✅ Firebase-only: Check existing data using AuthContext
+    const checkAssessmentData = async () => {
+      if (!currentUser || !userProfile) {
+        console.log('🔍 No user or profile data available yet');
+        return;
+      }
+
+      console.log('🔍 Checking existing self-assessment data in Firebase...');
       
       try {
-        // ✅ FIXED: Use OnboardingContext to get self-assessment data
-        const existingData = getSelfAssessment();
-        console.log('🔍 OnboardingContext self-assessment data:', existingData);
+        // ✅ Check AuthContext userProfile customFields for assessment data
+        const customFields = userProfile.customFields || {};
+        const hasAssessmentData = customFields.selfAssessment || customFields.assessmentCompleted;
         
-        if (existingData) {
-          console.log('✅ FIXED: Found existing self-assessment data:', existingData);
+        if (hasAssessmentData) {
+          console.log('✅ Found existing self-assessment data in Firebase:', customFields.selfAssessment);
           
           // Check if it has real assessment responses
-          const hasRealData = existingData.categories || 
-                             existingData.responses || 
-                             existingData.attachmentScore !== undefined ||
-                             existingData.format === 'standard' ||
-                             existingData.completed === true;
+          const assessmentData = customFields.selfAssessment;
+          const hasRealData = assessmentData && (
+            assessmentData.categories || 
+            assessmentData.responses || 
+            assessmentData.attachmentScore !== undefined ||
+            assessmentData.format === 'standard' ||
+            assessmentData.completed === true
+          );
           
           if (hasRealData) {
-            console.log('✅ FIXED: Existing data contains real assessment responses - preserving it!');
-            return;
+            console.log('✅ Assessment data contains real responses - preserving it!');
           } else {
-            console.log('⚠️ FIXED: Existing data is just completion flag - might need real assessment');
+            console.log('⚠️ Assessment marked complete but missing detailed data');
           }
         } else {
-          console.log('❌ FIXED: No existing self-assessment data found in OnboardingContext');
-        }
-
-        // ✅ FIXED: Handle completion status check using OnboardingContext
-        // Note: We can check if assessment exists instead of a separate completion method
-        const isAssessmentCompleted = !!existingData;
-
-        if (!isAssessmentCompleted && !existingData) {
-          console.log('🔧 FIXED: User reached completion screen without data - this might be an error in flow');
+          console.log('❌ No self-assessment data found in Firebase user profile');
         }
         
       } catch (error) {
-        console.error('❌ FIXED: Error checking existing data:', error);
+        console.error('❌ Error checking Firebase assessment data:', error);
       }
     };
 
-    checkAndPreserveData();
-  }, [getSelfAssessment]); // ✅ FIXED: Updated dependencies
+    checkAssessmentData();
+  }, [currentUser, userProfile]);
 
   const handleGetStarted = async () => {
+    if (!currentUser) {
+      console.error('❌ No authenticated user for completion');
+      return;
+    }
+
+    setLoading(true);
+    
     try {
-      // ✅ FIXED: Get assessment data from OnboardingContext
-      const existingData = getSelfAssessment();
+      // ✅ Firebase-only: Get assessment data from AuthContext userProfile
+      const customFields = userProfile?.customFields || {};
+      const assessmentData = customFields.selfAssessment;
       
-      if (existingData) {
-        console.log('✅ FIXED: Using existing self-assessment data for navigation');
+      if (assessmentData) {
+        console.log('✅ Using existing self-assessment data from Firebase');
+        
+        // ✅ Update user profile to mark onboarding complete using AuthContext
+        await updateUserProfile({
+          customFields: {
+            ...customFields,
+            onboardingCompleted: true,
+            onboardingCompletedAt: new Date().toISOString(),
+            currentStage: 1, // Start at Stage 1
+            readyForStageOne: true
+          }
+        });
         
         const completionData = {
-          completedAt: existingData.completedAt || new Date().toISOString(),
+          completedAt: assessmentData.completedAt || new Date().toISOString(),
           readyForStageOne: true,
           navigateTo: 'homepage',
           selfAssessmentCompleted: true,
-          preservedAssessmentData: existingData
+          preservedAssessmentData: assessmentData,
+          userId: currentUser.uid
         };
         
-        console.log('🚀 FIXED: Navigating with preserved data:', completionData);
+        console.log('🚀 Navigating with Firebase assessment data:', completionData);
         onGetStarted(completionData);
         
       } else {
-        console.log('⚠️ FIXED: No assessment data found in OnboardingContext');
+        console.log('⚠️ No assessment data found in Firebase profile');
         
-        // Continue without assessment data but mark as incomplete
+        // ✅ Still mark onboarding complete but note missing assessment
+        await updateUserProfile({
+          customFields: {
+            ...customFields,
+            onboardingCompleted: true,
+            onboardingCompletedAt: new Date().toISOString(),
+            currentStage: 1,
+            readyForStageOne: true,
+            assessmentSkipped: true
+          }
+        });
+        
         const completionData = {
           completedAt: new Date().toISOString(),
           readyForStageOne: true,
           navigateTo: 'homepage',
           selfAssessmentCompleted: false,
-          noAssessmentData: true
+          noAssessmentData: true,
+          userId: currentUser.uid
         };
         
         console.log('🚀 Continuing without assessment data:', completionData);
@@ -105,15 +136,18 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
       }
       
     } catch (error) {
-      console.error('❌ FIXED: Error in handleGetStarted:', error);
+      console.error('❌ Error in Firebase completion process:', error);
       
-      // Fallback navigation
+      // Fallback navigation without Firebase update
       onGetStarted({
         completedAt: new Date().toISOString(),
         readyForStageOne: true,
         navigateTo: 'homepage',
-        error: 'Failed to preserve assessment data'
+        error: 'Failed to save completion to Firebase',
+        userId: currentUser?.uid
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -181,7 +215,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="max-w-4xl w-full">
           
-          {/* ✅ CLEANED: Celebration Section - Removed verification and points display */}
+          {/* ✅ Celebration Section */}
           <div className={`text-center mb-12 transition-all duration-1000 ${showContent ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'}`}>
             <div className="text-6xl mb-6 animate-bounce">🎉</div>
             <h1 className="text-5xl font-bold text-gray-800 mb-4">
@@ -190,6 +224,14 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
               You've completed the self-assessment and taken the first step on your journey to greater presence and attention.
             </p>
+            
+            {/* ✅ Firebase loading indicator */}
+            {authLoading && (
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+                <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
+                <span>Syncing your progress...</span>
+              </div>
+            )}
           </div>
 
           {/* Journey Overview */}
@@ -248,7 +290,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
             ))}
           </div>
 
-          {/* ✅ CLEANED: Call to Action - Removed retake assessment option */}
+          {/* ✅ Call to Action with Firebase integration */}
           <div className={`text-center transition-all duration-1000 delay-700 ${showContent ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'}`}>
             <div className="bg-white rounded-2xl p-8 shadow-xl max-w-2xl mx-auto border border-gray-100">
               <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Begin?</h3>
@@ -257,17 +299,38 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
                 Each stage builds upon the previous one, creating a comprehensive path to mastery.
               </p>
               
+              {/* ✅ Show user-specific message if assessment data exists */}
+              {userProfile?.customFields?.selfAssessment && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-medium">Your assessment is saved and ready!</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button 
                   onClick={handleGetStarted}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  disabled={loading || authLoading}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  🚀 Start Your Journey
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving Progress...</span>
+                    </div>
+                  ) : (
+                    <>🚀 Start Your Journey</>
+                  )}
                 </button>
                 
                 <button 
                   onClick={onBack}
-                  className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
+                  disabled={loading}
+                  className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ← Back to Self-Assessment
                 </button>
@@ -279,7 +342,7 @@ const SelfAssessmentCompletion: React.FC<SelfAssessmentCompletionProps> = ({
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
               </svg>
-              <span>Your progress is automatically saved and secured</span>
+              <span>Your progress is automatically saved to Firebase and secured</span>
             </div>
           </div>
         </div>

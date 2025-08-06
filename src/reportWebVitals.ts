@@ -1,3 +1,6 @@
+// ✅ Standard Create React App reportWebVitals.ts file
+// File: src/reportWebVitals.ts
+
 import { ReportHandler } from 'web-vitals';
 
 const reportWebVitals = (onPerfEntry?: ReportHandler) => {

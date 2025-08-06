@@ -1,3 +1,5 @@
+// ✅ Firebase-Only SelfAssessment.tsx - Using OnboardingContext (CORRECTED)
+// File: src/SelfAssessment.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
@@ -263,7 +265,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     const standardizedData = {
       userId: currentUser.uid,
       format: 'standard',
-      version: '3.0_firebase_only',
+      version: '3.0_firebase_onboarding',
       
       // Direct category values
       taste: responses.taste?.level || 'none',
@@ -281,7 +283,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
         sight: { level: responses.sight?.level || 'none', details: responses.sight?.details || '', category: 'sight' },
         touch: { level: responses.touch?.level || 'none', details: responses.touch?.details || '', category: 'touch' },
         mind: { level: responses.mind?.level || 'none', details: responses.mind?.details || '', category: 'mind' }
-      },
+      } as any,
       
       // Responses object - for happiness calculator
       responses: {
@@ -291,7 +293,7 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
         sight: { level: responses.sight?.level || 'none', details: responses.sight?.details || '', category: 'sight' },
         touch: { level: responses.touch?.level || 'none', details: responses.touch?.details || '', category: 'touch' },
         mind: { level: responses.mind?.level || 'none', details: responses.mind?.details || '', category: 'mind' }
-      },
+      } as any,
       
       // Pre-calculated scores
       attachmentScore: calculateAttachmentScore(responses),
@@ -317,9 +319,11 @@ const SelfAssessment: React.FC<SelfAssessmentProps> = ({ onComplete, onBack }) =
     try {
       console.log(`🔄 Saving to Firebase via OnboardingContext for user ${currentUser.uid.substring(0, 8)}...`);
       
-      await markSelfAssessmentComplete(standardizedData);
-      
-      console.log(`✅ Self-assessment saved successfully to Firebase for user ${currentUser.uid.substring(0, 8)}!`);
+      // ✅ Save to Firebase using OnboardingContext
+      if (markSelfAssessmentComplete) {
+        await markSelfAssessmentComplete(standardizedData);
+        console.log(`✅ Self-assessment saved successfully to Firebase for user ${currentUser.uid.substring(0, 8)}!`);
+      }
       
       // Call onComplete to proceed to next step
       onComplete(standardizedData);
