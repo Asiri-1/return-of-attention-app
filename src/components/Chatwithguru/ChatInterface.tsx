@@ -1,9 +1,10 @@
-// Smart ChatInterface.tsx - Updated with SmartAI Integration
+// ✅ FIREBASE-ONLY ChatInterface.tsx - Updated with SmartAI Integration
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/auth/AuthContext';
-import { useLocalDataCompat } from '../../hooks/useLocalDataCompat';
-import { EnhancedLocalStorageManager } from '../../services/AdaptiveWisdomEngine';
-import { useSmartAI } from '../../services/SmartAIOrchestrator'; // 🚀 NEW IMPORT
+import { useUser } from '../../contexts/user/UserContext';
+import { usePractice } from '../../contexts/practice/PracticeContext';
+import { useWellness } from '../../contexts/wellness/WellnessContext';
+import { useSmartAI } from '../../services/SmartAIOrchestrator';
 import './ChatInterface.css';
 
 interface Message {
@@ -16,7 +17,7 @@ interface Message {
   practicalGuidance?: string[];
   source?: string;
   isSubstantive?: boolean;
-  // 🚀 NEW: Smart AI metadata
+  // 🚀 Smart AI metadata
   smartAIMetadata?: {
     type: 'casual' | 'clarification' | 'deep_guidance' | 'supportive';
     processingMethod: 'intent_only' | 'full_ai' | 'hybrid';
@@ -26,11 +27,13 @@ interface Message {
 }
 
 const ChatInterface: React.FC = () => {
-  // ✅ FIXED: Use both contexts properly - Auth for user info, LocalData for practice data
-  const { currentUser, userProfile } = useAuth();
-  const { getPAHMData, getEnvironmentData, getDailyEmotionalNotes } = useLocalDataCompat();
+  // ✅ FIREBASE-ONLY: Use Firebase contexts only
+  const { currentUser } = useAuth();
+  const { userProfile } = useUser();
+  const { sessions, stats } = usePractice();
+  const { emotionalNotes } = useWellness();
   
-  // 🚀 NEW: Smart AI integration
+  // 🚀 Smart AI integration
   const { sendMessage: sendSmartMessage, provideFeedback, isLoading: smartAILoading } = useSmartAI('main-chat');
   
   const [sessionId, setSessionId] = useState<string>('');
@@ -39,7 +42,7 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus] = useState<'ready'>('ready');
   const [initialized, setInitialized] = useState(false);
-  const [showFeedback, setShowFeedback] = useState<string | null>(null); // 🚀 NEW
+  const [showFeedback, setShowFeedback] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Enhanced function to determine substantive responses
@@ -88,43 +91,53 @@ const ChatInterface: React.FC = () => {
     return hasSubstantiveContent || isLongResponse;
   };
 
-  // ✅ FIXED: Memoize user context with proper fallbacks
+  // ✅ FIREBASE-ONLY: User context from Firebase data only
   const userContext = useCallback(() => {
-    // Get current stage from multiple sources with fallbacks
-    const currentStage = userProfile?.currentStage || 
-                        currentUser?.currentStage || 
-                        localStorage.getItem('currentStage') || 
-                        '1';
+    // Get current stage from Firebase userProfile
+    const currentStage = userProfile?.stageProgress?.currentStage || 1;
     
-    // Get goals from multiple sources with fallbacks  
-    const goals = userProfile?.goals || 
-                  currentUser?.goals || 
-                  JSON.parse(localStorage.getItem('userGoals') || '[]');
+    // Get goals from Firebase userProfile (using safe defaults since structure is unclear)
+    const goals: string[] = []; // Default empty array since goals structure is not defined in UserProfile type
+
+    // Get practice analytics from Firebase contexts
+    const pahmData = {
+      totalSessions: stats.totalSessions,
+      averageQuality: stats.averageQuality,
+      presentPercentage: stats.averagePresentPercentage || 0
+    };
+
+    const environmentData = {
+      favoritePosture: 'seated', // Default since favoritePosture doesn't exist in preferences
+      optimalTime: userProfile?.preferences?.optimalPracticeTime || 'morning'
+    };
 
     return {
       uid: currentUser?.uid || '',
-      currentStage: Number(currentStage),
+      currentStage,
       goals: Array.isArray(goals) ? goals : [],
       practiceAnalytics: {
-        pahmData: getPAHMData?.() || undefined,
-        environmentData: getEnvironmentData?.() || undefined,
-        emotionalNotes: getDailyEmotionalNotes?.() || []
+        pahmData,
+        environmentData,
+        emotionalNotes: emotionalNotes.slice(0, 5) // Recent emotional notes
       },
-      recentChallenges: ['restlessness'],
-      currentMood: 6,
-      timeOfDay: new Date().getHours() < 12 ? 'morning' : 'afternoon'
+      recentChallenges: ['restlessness'], // Default since challengeAreas doesn't exist
+      currentMood: 6, // Could be derived from recent emotional notes
+      timeOfDay: new Date().getHours() < 12 ? 'morning' : 'afternoon',
+      totalSessions: stats.totalSessions,
+      totalHours: Math.round(stats.totalMinutes / 60)
     };
-  }, [currentUser?.uid, currentUser?.currentStage, currentUser?.goals, userProfile?.currentStage, userProfile?.goals, getPAHMData, getEnvironmentData, getDailyEmotionalNotes]);
+  }, [currentUser?.uid, userProfile, stats, emotionalNotes]);
 
-  // Initialize once only
+  // ✅ FIREBASE-ONLY: Initialize without localStorage
   useEffect(() => {
     if (initialized) return;
     
     const initialize = async () => {
       try {
         setSessionId(`session-${Date.now()}`);
-        await EnhancedLocalStorageManager.initializeAdaptiveKnowledge();
-        console.log('✅ Local engine initialized');
+        
+        // No localStorage initialization needed for Firebase-only
+        console.log('✅ Firebase-only chat initialized');
         
         setMessages([{
           id: '1',
@@ -149,12 +162,130 @@ const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 🚀 NEW: Enhanced response generation with SmartAI
+  // ✅ FIREBASE-ONLY: Fallback response generator without localStorage
+  const generateFirebaseFallbackResponse = (userMessage: string): Message => {
+    const messageId = Date.now().toString();
+    const userLC = userMessage.toLowerCase().trim();
+    
+    // Simple greetings with simple responses
+    const greetingResponses: { [key: string]: string } = {
+      'hello': 'Hello! How can I help you with your mindfulness practice today?',
+      'hi': 'Hi there! What would you like to explore about meditation or mindfulness?',
+      'hey': 'Hey! Ready to dive into some mindfulness practice?',
+      'good morning': 'Good morning! A great time to start your mindfulness practice.',
+      'good afternoon': 'Good afternoon! How has your practice been today?',
+      'good evening': 'Good evening! Perfect time for some calming meditation.',
+      'how are you': 'I\'m here and ready to help with your mindfulness journey! How are you feeling?',
+      'thanks': 'You\'re welcome! Feel free to ask me anything about meditation or mindfulness.',
+      'thank you': 'My pleasure! I\'m here whenever you need guidance on your practice.',
+      'ok': 'Great! What would you like to explore next?',
+      'cool': 'Glad you find it interesting! Any other questions about mindfulness?'
+    };
+
+    if (greetingResponses[userLC]) {
+      return {
+        id: messageId,
+        text: greetingResponses[userLC],
+        sender: 'guru',
+        timestamp: new Date(),
+        source: 'conversational',
+        isSubstantive: false
+      };
+    }
+
+    // Context-aware responses based on Firebase data
+    const context = userContext();
+    const currentStage = context.currentStage;
+    
+    // Stage-specific guidance
+    const stageGuidance: { [key: number]: string } = {
+      1: "As you're in Stage 1, focus on building consistency with daily practice. Even 5-10 minutes of stillness meditation can create a strong foundation.",
+      2: "In Stage 2 (PAHM Trainee), you're learning to observe the 9-category matrix. Notice thoughts about past, present, and future with attachment, neutral, or aversion qualities.",
+      3: "Stage 3 (PAHM Apprentice) involves deeper awareness of mental patterns. You're developing the ability to see thoughts without being caught by them.",
+      4: "As a Stage 4 PAHM Practitioner, you're cultivating stable present-moment awareness. Your practice is becoming more refined and consistent.",
+      5: "Stage 5 (PAHM Adept) represents advanced practice. You're likely experiencing longer periods of clear awareness and fewer mental distractions.",
+      6: "Stage 6 (PAHM Master) is the culmination of the practice. You're integrating profound awareness into daily life with natural ease."
+    };
+
+    // PAHM-related responses
+    if (userMessage.toLowerCase().includes('pahm') || userMessage.toLowerCase().includes('matrix')) {
+      return {
+        id: messageId,
+        text: `The PAHM Matrix is a 9-category awareness practice. ${stageGuidance[currentStage] || stageGuidance[1]} Would you like me to explain any specific category?`,
+        sender: 'guru',
+        timestamp: new Date(),
+        source: 'firebase-fallback',
+        isSubstantive: true,
+        bookWisdom: ['Awareness of mental formations is the first step to freedom'],
+        practicalGuidance: [
+          'Observe thoughts without judgment',
+          'Notice the quality: attachment, neutral, or aversion',
+          'Return attention to present moment when mind wanders'
+        ]
+      };
+    }
+
+    // Anxiety/stress responses
+    if (/anxious|anxiety|stress|worry/.test(userLC)) {
+      return {
+        id: messageId,
+        text: `I understand you're experiencing some anxiety or stress. ${stageGuidance[currentStage] || stageGuidance[1]} Mindful breathing can be especially helpful right now.`,
+        sender: 'guru',
+        timestamp: new Date(),
+        source: 'firebase-fallback',
+        isSubstantive: true,
+        bookWisdom: ['This too shall pass - all mental states are impermanent'],
+        practicalGuidance: [
+          'Take three deep conscious breaths',
+          'Notice the anxiety without fighting it',
+          'Return attention to your breath anchor',
+          'Remember: you are the awareness observing the anxiety'
+        ]
+      };
+    }
+
+    // Meditation guidance
+    if (/meditat|practice|breath/.test(userLC)) {
+      return {
+        id: messageId,
+        text: `Great question about meditation practice! ${stageGuidance[currentStage] || stageGuidance[1]} Your current practice statistics show ${context.totalSessions} sessions and ${context.totalHours} hours - excellent consistency!`,
+        sender: 'guru',
+        timestamp: new Date(),
+        source: 'firebase-fallback',
+        isSubstantive: true,
+        bookWisdom: ['The path of meditation is walked step by step, breath by breath'],
+        practicalGuidance: [
+          'Maintain regular daily practice',
+          'Focus on quality over quantity',
+          'Use PAHM awareness during sessions',
+          'Notice progress over weeks, not days'
+        ]
+      };
+    }
+
+    // Default response
+    return {
+      id: messageId,
+      text: `I'm here to help with your mindfulness practice. ${stageGuidance[currentStage] || stageGuidance[1]} What specific aspect would you like to explore - breathing techniques, PAHM awareness, dealing with distractions, or something else?`,
+      sender: 'guru',
+      timestamp: new Date(),
+      source: 'firebase-fallback',
+      isSubstantive: true,
+      practicalGuidance: [
+        'Ask about specific meditation challenges',
+        'Explore PAHM matrix categories',
+        'Discuss daily practice integration',
+        'Learn about your current stage techniques'
+      ]
+    };
+  };
+
+  // 🚀 FIREBASE-ONLY: Enhanced response generation with SmartAI
   const generateResponse = async (userMessage: string): Promise<Message> => {
     const messageId = Date.now().toString();
     
     try {
-      // Step 1: Try SmartAI first (this handles intent detection + your existing AI)
+      // Step 1: Try SmartAI first
       console.log('🚀 Using SmartAI for:', userMessage);
       const smartResponse = await sendSmartMessage(userMessage);
       
@@ -173,7 +304,7 @@ const ChatInterface: React.FC = () => {
         source: smartResponse.metadata.processingMethod === 'intent_only' ? 'smart-intent' : 
                 smartResponse.metadata.processingMethod === 'full_ai' ? 'smart-full' : 'smart-hybrid',
         isSubstantive: isSubstantiveResponse(userMessage, smartResponse.response, smartResponse.type),
-        // Map SmartAI response to your existing format
+        // Map SmartAI response to existing format
         bookWisdom: smartResponse.shouldShowWisdom ? ['Every moment of recognition is a moment of awakening'] : undefined,
         practicalGuidance: smartResponse.shouldShowActions ? [
           'Return to present-moment awareness',
@@ -188,38 +319,9 @@ const ChatInterface: React.FC = () => {
       };
 
     } catch (smartAIError) {
-      console.log('SmartAI failed, falling back to your original system:', smartAIError);
+      console.log('SmartAI failed, using Firebase fallback:', smartAIError);
       
-      // Step 2: Fallback to your original Firebase + Local system
-      const userLC = userMessage.toLowerCase().trim();
-      
-      // Handle simple greetings with simple responses (your original logic)
-      const greetingResponses: { [key: string]: string } = {
-        'hello': 'Hello! How can I help you with your mindfulness practice today?',
-        'hi': 'Hi there! What would you like to explore about meditation or mindfulness?',
-        'hey': 'Hey! Ready to dive into some mindfulness practice?',
-        'good morning': 'Good morning! A great time to start your mindfulness practice.',
-        'good afternoon': 'Good afternoon! How has your practice been today?',
-        'good evening': 'Good evening! Perfect time for some calming meditation.',
-        'how are you': 'I\'m here and ready to help with your mindfulness journey! How are you feeling?',
-        'thanks': 'You\'re welcome! Feel free to ask me anything about meditation or mindfulness.',
-        'thank you': 'My pleasure! I\'m here whenever you need guidance on your practice.',
-        'ok': 'Great! What would you like to explore next?',
-        'cool': 'Glad you find it interesting! Any other questions about mindfulness?'
-      };
-
-      if (greetingResponses[userLC]) {
-        return {
-          id: messageId,
-          text: greetingResponses[userLC],
-          sender: 'guru',
-          timestamp: new Date(),
-          source: 'conversational',
-          isSubstantive: false
-        };
-      }
-
-      // Try Firebase with timeout (your original logic)
+      // Step 2: Try Firebase Functions
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -241,7 +343,7 @@ const ChatInterface: React.FC = () => {
         
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Firebase fallback response received');
+          console.log('✅ Firebase Functions response received');
           
           return {
             id: messageId,
@@ -251,55 +353,16 @@ const ChatInterface: React.FC = () => {
             confidence: data.confidence,
             bookWisdom: [data.ancientWisdom],
             practicalGuidance: data.practicalActions,
-            source: 'firebase-fallback',
+            source: 'firebase-functions',
             isSubstantive: isSubstantiveResponse(userMessage, data.response)
           };
         }
       } catch (firebaseError) {
-        console.log('Firebase fallback failed, using local fallback:', firebaseError);
+        console.log('Firebase Functions failed, using local fallback:', firebaseError);
       }
       
-      // Local fallback (your original logic)
-      try {
-        // ✅ FIXED: Get current stage with proper fallback
-        const currentStage = userProfile?.currentStage || 
-                            currentUser?.currentStage || 
-                            localStorage.getItem('currentStage') || 
-                            '1';
-
-        const localResponse = EnhancedLocalStorageManager.getEnhancedPAHMResponse(
-          userMessage,
-          {
-            currentStage: Number(currentStage),
-            recentChallenges: ['restlessness'],
-            moodLevel: 6,
-            practiceHours: 25
-          }
-        );
-
-        return {
-          id: messageId,
-          text: localResponse.response,
-          sender: 'guru',
-          timestamp: new Date(),
-          confidence: localResponse.confidence,
-          bookWisdom: localResponse.bookWisdom,
-          practicalGuidance: localResponse.practicalGuidance,
-          source: 'local-fallback',
-          isSubstantive: isSubstantiveResponse(userMessage, localResponse.response)
-        };
-      } catch (localError) {
-        console.error('All systems failed:', localError);
-        
-        return {
-          id: messageId,
-          text: `I'm having some technical difficulties, but I'm here to help with your mindfulness practice. What specific aspect would you like to explore?`,
-          sender: 'guru',
-          timestamp: new Date(),
-          source: 'final-fallback',
-          isSubstantive: false
-        };
-      }
+      // Step 3: Firebase-only local fallback (no localStorage)
+      return generateFirebaseFallbackResponse(userMessage);
     }
   };
 
@@ -337,7 +400,7 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  // 🚀 NEW: Feedback handling
+  // 🚀 Feedback handling
   const handleFeedback = (
     feedbackId: string, 
     feedback: 'helpful' | 'irrelevant' | 'too_complex' | 'too_simple'
@@ -360,12 +423,26 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  // ✅ FIXED: Get current stage with proper fallbacks for display
+  // ✅ FIREBASE-ONLY: Get current stage from Firebase only
   const getCurrentStage = () => {
-    return userProfile?.currentStage || 
-           currentUser?.currentStage || 
-           localStorage.getItem('currentStage') || 
-           '1';
+    return userProfile?.stageProgress?.currentStage || 1;
+  };
+
+  // ✅ FIREBASE-ONLY: Get practice hours from Firebase only
+  const getPracticeHours = () => {
+    return Math.round((stats.totalMinutes || 0) / 60);
+  };
+
+  // ✅ FIREBASE-ONLY: Get mood from recent emotional notes
+  const getCurrentMood = () => {
+    const recentNote = emotionalNotes[0];
+    // Use actual EmotionalNoteData properties
+    return recentNote?.emotion === 'joy' ? 8 :
+           recentNote?.emotion === 'peaceful' ? 7 :
+           recentNote?.emotion === 'neutral' ? 6 :
+           recentNote?.emotion === 'sadness' ? 4 :
+           recentNote?.emotion === 'anger' ? 3 :
+           6; // Default mood
   };
 
   if (!initialized) {
@@ -375,9 +452,9 @@ const ChatInterface: React.FC = () => {
           <div className="text-center animate-fadeIn">
             <div className="loading-spinner animate-glow" style={{ width: '48px', height: '48px', margin: '0 auto 24px' }}></div>
             <h2 style={{ background: 'linear-gradient(45deg, #667eea, #764ba2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.5rem', fontWeight: '700' }}>
-              Initializing Smart PAHM Guru...
+              Initializing Firebase PAHM Guru...
             </h2>
-            <p style={{ color: '#6b7280', marginTop: '8px' }}>Preparing your intelligent mindfulness experience</p>
+            <p style={{ color: '#6b7280', marginTop: '8px' }}>Preparing your Firebase-powered mindfulness experience</p>
           </div>
         </div>
       </div>
@@ -391,21 +468,21 @@ const ChatInterface: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div className="animate-fadeIn">
-              <h2>Smart PAHM Guru</h2>
+              <h2>Firebase PAHM Guru</h2>
               <div style={{ fontSize: '0.875rem', opacity: 0.9, marginTop: '8px' }}>
-                🚀 Enhanced with intelligent intent detection
+                🔥 Firebase-only with intelligent intent detection
               </div>
             </div>
             
             <div className="user-stats">
               <div className="stat-pill">
-                <span>Stage: {Number(getCurrentStage())}</span>
+                <span>Stage: {getCurrentStage()}</span>
               </div>
               <div className="stat-pill">
-                <span>Hours: 25</span>
+                <span>Hours: {getPracticeHours()}</span>
               </div>
               <div className="stat-pill">
-                <span>Mood: 6/10</span>
+                <span>Mood: {getCurrentMood()}/10</span>
               </div>
             </div>
           </div>
@@ -426,7 +503,7 @@ const ChatInterface: React.FC = () => {
               <div className={`message-bubble ${message.sender}`}>
                 <p className="message-text">{message.text}</p>
                 
-                {/* 🚀 NEW: Smart AI Processing Indicator */}
+                {/* 🚀 Smart AI Processing Indicator */}
                 {message.sender === 'guru' && message.smartAIMetadata && (
                   <div style={{ 
                     fontSize: '0.75rem', 
@@ -460,7 +537,7 @@ const ChatInterface: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Your existing conditional display logic */}
+                {/* Existing conditional display logic */}
                 {message.sender === 'guru' && message.isSubstantive && (
                   <>
                     {/* Confidence Indicator */}
@@ -512,7 +589,7 @@ const ChatInterface: React.FC = () => {
                   </>
                 )}
 
-                {/* 🚀 NEW: Feedback buttons for SmartAI responses */}
+                {/* 🚀 Feedback buttons for SmartAI responses */}
                 {message.sender === 'guru' && message.smartAIMetadata && (
                   <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button
@@ -531,7 +608,7 @@ const ChatInterface: React.FC = () => {
                   </div>
                 )}
 
-                {/* 🚀 NEW: Feedback options */}
+                {/* 🚀 Feedback options */}
                 {showFeedback === message.id && message.smartAIMetadata && (
                   <div style={{
                     marginTop: '8px',
@@ -575,11 +652,11 @@ const ChatInterface: React.FC = () => {
                       {message.source === 'smart-intent' && '⚡'}
                       {message.source === 'smart-full' && '🧠'}
                       {message.source === 'smart-hybrid' && '🔄'}
-                      {message.source === 'firebase-fallback' && '☁️'}
-                      {message.source === 'local-fallback' && '💾'}
+                      {message.source === 'firebase-functions' && '☁️'}
+                      {message.source === 'firebase-fallback' && '🔥'}
                       {message.source === 'conversational' && '💬'}
                       {message.source === 'ready' && '✅'}
-                      {message.source === 'final-fallback' && '⚠️'}
+                      {message.source === 'error' && '⚠️'}
                     </span>
                   )}
                 </p>
@@ -594,7 +671,7 @@ const ChatInterface: React.FC = () => {
               <div className="loading-bubble">
                 <div className="loading-content">
                   <div className="loading-spinner"></div>
-                  <span className="loading-text">Smart PAHM Guru is thinking...</span>
+                  <span className="loading-text">Firebase PAHM Guru is thinking...</span>
                 </div>
                 <div className="loading-dots">
                   <div className="loading-dot"></div>
@@ -670,7 +747,7 @@ const ChatInterface: React.FC = () => {
           <div className={`knowledge-status ${connectionStatus === 'ready' ? 'ready' : 'loading'}`}>
             <div className={`status-indicator ${connectionStatus === 'ready' ? 'ready' : 'loading'}`}></div>
             <span>
-              {connectionStatus === 'ready' && '🚀 Smart PAHM Guru active with intelligent routing, Firebase Functions, and local intelligence backup'}
+              {connectionStatus === 'ready' && '🔥 Firebase PAHM Guru active with SmartAI routing, Firebase Functions, and Firebase-only intelligence'}
             </span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-// 🚀 UPDATED: Use Universal Architecture focused contexts
+// ✅ FIREBASE-ONLY: Use Firebase contexts only
 import { usePractice } from '../../contexts/practice/PracticeContext';
 import { useUser } from '../../contexts/user/UserContext';
 import { useWellness } from '../../contexts/wellness/WellnessContext';
@@ -522,7 +522,7 @@ const getPAHMStats = (pahmCounts: PAHMCounts) => {
   };
 };
 
-// 📱 SESSION RECOVERY DATA INTERFACE
+// ✅ FIREBASE-ONLY: In-memory session recovery (no localStorage)
 interface SessionRecoveryData {
   timeRemaining: number;
   pahmCounts: PAHMCounts;
@@ -542,7 +542,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
   const config = getStageConfig(stageLevel);
   const navigate = useNavigate();
   
-  // 🎯 UNIVERSAL ARCHITECTURE: Use focused contexts
+  // ✅ FIREBASE-ONLY: Use Firebase contexts only
   const { addPracticeSession, isLoading: practiceLoading } = usePractice();
   const { userProfile, isLoading: userLoading } = useUser();
   const { addEmotionalNote } = useWellness();
@@ -573,21 +573,22 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     worry: 0           // Future + Aversion
   });
 
-  // 🔋 NEW: Screen lock and audio management
+  // 🔋 Screen lock and audio management
   const [wakeLockManager] = useState(() => new WakeLockManager());
   const [audioManager] = useState(() => new AudioManager());
   const [robustTimer, setRobustTimer] = useState<RobustTimer | null>(null);
   const [isWakeLockActive, setIsWakeLockActive] = useState(false);
   const [hasAudioPermission, setHasAudioPermission] = useState(false);
   
-  // 📱 Background/foreground detection
+  // ✅ FIREBASE-ONLY: In-memory recovery (no localStorage)
   const [isInBackground, setIsInBackground] = useState(false);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
   const [recoveryData, setRecoveryData] = useState<SessionRecoveryData | null>(null);
+  const [inMemoryRecoveryData, setInMemoryRecoveryData] = useState<SessionRecoveryData | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🎯 SETUP BACKGROUND/FOREGROUND DETECTION
+  // ✅ FIREBASE-ONLY: Background/foreground detection without localStorage
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isHidden = document.hidden;
@@ -595,7 +596,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       
       if (isHidden && isRunning && robustTimer) {
         console.log('📱 App went to background');
-        // Save current session state
+        // ✅ FIREBASE-ONLY: Store in memory instead of localStorage
         const sessionRecoveryData: SessionRecoveryData = {
           timeRemaining: robustTimer.getRemainingSeconds(),
           pahmCounts: { ...pahmCounts },
@@ -604,17 +605,17 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           stageLevel,
           initialMinutes
         };
-        setRecoveryData(sessionRecoveryData);
-        localStorage.setItem('pahmSessionRecovery', JSON.stringify(sessionRecoveryData));
+        setInMemoryRecoveryData(sessionRecoveryData);
       } else if (!isHidden) {
         console.log('📱 App returned to foreground');
-        // Check if we need to recover session
+        // Check if we need to recover session from memory
         setTimeout(() => handleSessionRecovery(), 500);
       }
     };
 
     const handleBeforeUnload = () => {
       if (isRunning && robustTimer) {
+        // ✅ FIREBASE-ONLY: Just store in memory (data will be lost on refresh, which is acceptable)
         const sessionRecoveryData: SessionRecoveryData = {
           timeRemaining: robustTimer.getRemainingSeconds(),
           pahmCounts: { ...pahmCounts },
@@ -623,7 +624,8 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           stageLevel,
           initialMinutes
         };
-        localStorage.setItem('pahmSessionRecovery', JSON.stringify(sessionRecoveryData));
+        setInMemoryRecoveryData(sessionRecoveryData);
+        console.log('📱 Session data stored in memory before unload');
       }
     };
 
@@ -636,41 +638,39 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     };
   }, [isRunning, pahmCounts, robustTimer, stageLevel, initialMinutes]);
 
-  // 🔄 SESSION RECOVERY
+  // ✅ FIREBASE-ONLY: Session recovery from memory only
   const handleSessionRecovery = useCallback(() => {
     try {
-      const savedData = localStorage.getItem('pahmSessionRecovery');
-      if (savedData && isRunning && robustTimer) {
-        const recoveryData: SessionRecoveryData = JSON.parse(savedData);
-        const timeSinceBackground = Date.now() - recoveryData.timestamp;
+      if (inMemoryRecoveryData && isRunning && robustTimer) {
+        const timeSinceBackground = Date.now() - inMemoryRecoveryData.timestamp;
         
         // If app was in background for more than 30 seconds, offer recovery
         if (timeSinceBackground > 30000) {
-          setRecoveryData(recoveryData);
+          setRecoveryData(inMemoryRecoveryData);
           setShowRecoveryPrompt(true);
         }
       }
     } catch (error) {
       console.error('❌ Session recovery failed:', error);
     }
-  }, [isRunning, robustTimer]);
+  }, [isRunning, robustTimer, inMemoryRecoveryData]);
 
-  // 🔄 RECOVERY PROMPT HANDLERS
+  // ✅ FIREBASE-ONLY: Recovery prompt handlers
   const acceptRecovery = () => {
     if (recoveryData) {
-      console.log('🔄 Recovering session from background');
+      console.log('🔄 Recovering session from memory');
       setPahmCounts(recoveryData.pahmCounts);
       // The robust timer automatically handles time synchronization
     }
     setShowRecoveryPrompt(false);
     setRecoveryData(null);
-    localStorage.removeItem('pahmSessionRecovery');
+    setInMemoryRecoveryData(null);
   };
 
   const declineRecovery = () => {
     setShowRecoveryPrompt(false);
     setRecoveryData(null);
-    localStorage.removeItem('pahmSessionRecovery');
+    setInMemoryRecoveryData(null);
   };
 
   // Auto-start if initialMinutes provided
@@ -682,13 +682,13 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     }
   }, [propInitialMinutes, config.minDuration]);
 
-  // 🎯 ENHANCED TIMER COMPLETION HANDLER
+  // ✅ FIREBASE-ONLY: Enhanced timer completion handler
   const handleTimerComplete = useCallback(async () => {
     const endTime = new Date().toISOString();
     const actualDuration = robustTimer ? robustTimer.getElapsedSeconds() : Math.round((initialMinutes * 60) - timeRemaining);
     const isFullyCompleted = timeRemaining === 0;
     
-    console.log('🎯 TIMER COMPLETION STARTED');
+    console.log('🎯 FIREBASE-ONLY: Timer completion started');
     
     // 🔊 Play completion sound
     if (hasAudioPermission) {
@@ -704,19 +704,19 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       robustTimer.stop();
     }
 
-    // Clear recovery data
-    localStorage.removeItem('pahmSessionRecovery');
+    // ✅ FIREBASE-ONLY: Clear in-memory recovery data
+    setInMemoryRecoveryData(null);
     
-    // 📊 ANALYTICS CALCULATIONS
+    // 📊 Analytics calculations
     const totalInteractions = (Object.values(pahmCounts) as number[]).reduce((sum, count) => sum + count, 0);
     const presentPercentage = calculatePresentPercentage(pahmCounts);
     const sessionQuality = calculateSessionQuality(pahmCounts, actualDuration, isFullyCompleted, stageLevel);
     const pahmStats = getPAHMStats(pahmCounts);
     
-    // 🎯 SINGLE STANDARD FORMAT - Universal Architecture underscore format
+    // 🎯 Convert to standard format for Firebase storage
     const convertedPAHMCounts = convertToStandardFormat(pahmCounts);
 
-    // 💾 SESSION DATA OBJECT - VERIFIED FORMAT
+    // 💾 SESSION DATA OBJECT for Firebase
     const sessionData = {
       timestamp: endTime,
       duration: Math.round(actualDuration / 60),
@@ -735,41 +735,41 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       pahmCounts: convertedPAHMCounts
     };
 
-    // 🔥 ENHANCED PRACTICE SESSION SAVING WITH RETRY LOGIC
-    const savePracticeSession = () => {
-      console.log('🚨 ATTEMPTING TO SAVE PRACTICE SESSION');
+    // ✅ FIREBASE-ONLY: Enhanced practice session saving with retry logic
+    const savePracticeSession = async () => {
+      console.log('🔥 FIREBASE-ONLY: Attempting to save practice session');
       
       if (!userProfile) {
         console.error('❌ CRITICAL: userProfile is null - retrying in 1 second...');
         
-        setTimeout(() => {
+        setTimeout(async () => {
           if (userProfile) {
             console.log('✅ UserProfile now available - proceeding with save');
             try {
-              addPracticeSession(sessionData);
-              console.log('✅✅ PRACTICE SESSION SAVED SUCCESSFULLY ON RETRY');
+              await addPracticeSession(sessionData);
+              console.log('✅✅ FIREBASE: Practice session saved successfully on retry');
             } catch (error) {
-              console.error('❌❌ PRACTICE SESSION SAVE FAILED ON RETRY:', error);
+              console.error('❌❌ FIREBASE: Practice session save failed on retry:', error);
             }
           } else {
-            console.error('❌❌ UserProfile still null after retry - practice session not saved');
+            console.error('❌❌ FIREBASE: UserProfile still null after retry - practice session not saved');
           }
         }, 1000);
         return;
       }
 
       try {
-        addPracticeSession(sessionData);
-        console.log('✅✅ PRACTICE SESSION SAVED SUCCESSFULLY');
+        await addPracticeSession(sessionData);
+        console.log('✅✅ FIREBASE: Practice session saved successfully');
       } catch (error) {
-        console.error('❌❌ ERROR SAVING PRACTICE SESSION:', error);
+        console.error('❌❌ FIREBASE: Error saving practice session:', error);
       }
     };
 
-    // Save practice session
-    savePracticeSession();
+    // Save practice session to Firebase
+    await savePracticeSession();
 
-    // 🎯 FIXED: Convert to camelCase for navigation
+    // 🎯 Convert to camelCase for navigation
     const pahmDataForReflection = {
       presentAttachment: convertedPAHMCounts.present_attachment,
       presentNeutral: convertedPAHMCounts.present_neutral,
@@ -782,8 +782,8 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       futureAversion: convertedPAHMCounts.future_aversion
     };
 
-    // 🎯 DIRECT NAVIGATION
-    console.log('🧭 NAVIGATING TO REFLECTION');
+    // 🧭 Navigate to reflection
+    console.log('🧭 FIREBASE-ONLY: Navigating to reflection');
     navigate('/immediate-reflection', {
       state: {
         stageLevel: `Stage ${stageLevel}`,
@@ -795,7 +795,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       replace: true
     });
 
-    console.log('🎯 TIMER COMPLETION FINISHED');
+    console.log('🎯 FIREBASE-ONLY: Timer completion finished');
     
   }, [stageLevel, initialMinutes, timeRemaining, pahmCounts, config, posture, addPracticeSession, navigate, userProfile, robustTimer, hasAudioPermission, audioManager, wakeLockManager]);
 
@@ -815,7 +815,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // 🎯 ENHANCED START HANDLER WITH WAKE LOCK
+  // 🎯 Enhanced start handler with wake lock
   const handleStart = async () => {
     if (initialMinutes < config.minDuration) {
       alert(`Stage ${stageLevel} PAHM practice requires a minimum of ${config.minDuration} minutes to be effective.`);
@@ -856,10 +856,10 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       regret: 0, dislikes: 0, worry: 0
     } as PAHMCounts);
 
-    console.log('✅ Practice started with wake lock:', wakeLockSuccess, 'audio:', audioSuccess);
+    console.log('✅ FIREBASE-ONLY: Practice started with wake lock:', wakeLockSuccess, 'audio:', audioSuccess);
   };
 
-  // 🎯 ENHANCED PAUSE HANDLER
+  // 🎯 Enhanced pause handler
   const handlePause = () => {
     if (robustTimer) {
       if (isPaused) {
@@ -871,7 +871,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     setIsPaused(!isPaused);
   };
 
-  // 🎯 ENHANCED QUADRANT CLICK WITH AUDIO
+  // 🎯 Enhanced quadrant click with audio
   const handleQuadrantClick = async (quadrant: keyof PAHMCounts) => {
     setPahmCounts(prev => {
       const newCounts = { ...prev };
@@ -900,7 +900,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     }
   };
 
-  // 🎯 CLEANUP ON UNMOUNT
+  // 🎯 Cleanup on unmount
   useEffect(() => {
     return () => {
       wakeLockManager.releaseWakeLock();
@@ -916,7 +916,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 🔄 RECOVERY PROMPT MODAL
+  // ✅ FIREBASE-ONLY: Recovery prompt modal
   const RecoveryPrompt = () => {
     if (!showRecoveryPrompt || !recoveryData) return null;
 
@@ -951,6 +951,9 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           </p>
           <p style={{ fontSize: '14px', opacity: 0.7, marginBottom: '20px' }}>
             PAHM Count: {Object.values(recoveryData.pahmCounts).reduce((a, b) => a + b, 0)} observations
+          </p>
+          <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '20px' }}>
+            🔥 Firebase-Only: Recovery data stored in memory
           </p>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
             <button
@@ -1005,7 +1008,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           <h3 style={{ marginBottom: '15px', fontSize: 'clamp(16px, 4vw, 18px)' }}>
             Duration (minimum {config.minDuration} minutes)
           </h3>
-          {/* 🔧 FIXED: Visible input field */}
+          {/* 🔧 Visible input field */}
           <input
             type="number"
             min={config.minDuration}
@@ -1020,7 +1023,6 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
               borderRadius: '10px',
               border: '2px solid #667eea',
               marginBottom: '20px',
-              // 🔧 FIXED: Visible text color and background
               backgroundColor: 'white',
               color: '#2C3E50',
               fontWeight: 'bold',
@@ -1031,7 +1033,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
             Posture: {posture} | Stage: {stageLevel}
           </div>
           
-          {/* 📱 MOBILE RESPONSIVE BUTTONS */}
+          {/* 📱 Mobile responsive buttons */}
           <div style={{ 
             display: 'flex', 
             flexDirection: window.innerWidth < 480 ? 'column' : 'row', 
@@ -1041,21 +1043,25 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           }}>
             <button
               onClick={handleStart}
+              disabled={isLoading}
               style={{
-                background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                background: isLoading 
+                  ? 'rgba(76, 175, 80, 0.6)' 
+                  : 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
                 color: 'white',
                 padding: 'clamp(12px, 3vw, 15px) clamp(20px, 5vw, 30px)',
                 border: 'none',
                 borderRadius: '25px',
                 fontSize: 'clamp(14px, 3.5vw, 18px)',
                 fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                boxShadow: isLoading ? 'none' : '0 4px 15px rgba(76, 175, 80, 0.3)',
                 minWidth: 'clamp(180px, 45vw, 220px)',
-                whiteSpace: 'nowrap' as const
+                whiteSpace: 'nowrap' as const,
+                opacity: isLoading ? 0.6 : 1
               }}
             >
-              Start Stage {stageLevel} Practice
+              {isLoading ? 'Loading Firebase...' : `Start Stage ${stageLevel} Practice`}
             </button>
             <button
               onClick={onBack}
@@ -1077,7 +1083,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           </div>
         </div>
         
-        {/* 🔋 WAKE LOCK STATUS */}
+        {/* 🔥 Firebase-Only Status */}
         <div style={{
           marginTop: '20px',
           background: 'rgba(255, 255, 255, 0.1)',
@@ -1087,16 +1093,17 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           textAlign: 'center',
           maxWidth: '400px'
         }}>
-          <h4 style={{ marginBottom: '10px', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>📱 Screen Lock Prevention</h4>
+          <h4 style={{ marginBottom: '10px', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>🔥 Firebase-Only Features</h4>
           <p style={{ marginBottom: '10px', lineHeight: '1.4' }}>
             {wakeLockManager.isSupported() ? 
-              '✅ Screen will stay on during practice (like YouTube)' : 
+              '✅ Screen will stay on during practice' : 
               '⚠️ Screen may lock during practice (timer will continue)'}
           </p>
           <p style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', opacity: 0.8, lineHeight: '1.3' }}>
+            • All data saved to Firebase cloud<br/>
             • Audio feedback for button taps<br/>
-            • Auto-recovery if interrupted<br/>
-            • Continues accurately in background
+            • Cross-device session sync<br/>
+            • No localStorage conflicts
           </p>
         </div>
         
@@ -1125,13 +1132,20 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     );
   }
 
-  // 🎯 PRACTICE SCREEN - Complete PAHM Matrix with Mobile Responsiveness & Screen Lock Features
+  // 🎯 PRACTICE SCREEN - Complete PAHM Matrix with Firebase-Only Features
   return (
     <div style={styles.container}>
       <RecoveryPrompt />
       
-      {/* 🔋 STATUS BAR */}
+      {/* 🔋 Status bar */}
       <div style={styles.statusBar}>
+        <div style={{
+          ...styles.statusBadge,
+          background: 'rgba(255, 87, 34, 0.8)'
+        }}>
+          🔥 Firebase-Only
+        </div>
+        
         {isWakeLockActive && (
           <div style={{
             ...styles.statusBadge,
@@ -1198,7 +1212,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
         </div>
       </div>
 
-      {/* 📱 MOBILE RESPONSIVE 3×3 PAHM MATRIX */}
+      {/* 📱 Mobile responsive 3×3 PAHM Matrix */}
       <div style={styles.matrix}>
         {/* Row 1: ATTACHMENT */}
         <button
@@ -1315,7 +1329,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
         </button>
       </div>
 
-      {/* 📱 MOBILE RESPONSIVE CONTROL BUTTONS */}
+      {/* 📱 Mobile responsive control buttons */}
       <div style={{ 
         display: 'flex', 
         gap: 'clamp(10px, 2.5vw, 15px)', 
@@ -1367,6 +1381,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
         {robustTimer && (
           <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', opacity: 0.8, marginTop: '5px' }}>
             Elapsed: {Math.floor(robustTimer.getElapsedSeconds() / 60)}:{(robustTimer.getElapsedSeconds() % 60).toString().padStart(2, '0')}
+            <span style={{ marginLeft: '10px', color: '#ff6b35' }}>🔥 Firebase</span>
           </div>
         )}
       </div>

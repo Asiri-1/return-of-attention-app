@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-// 🚀 UPDATED: Use focused contexts instead of LocalDataCompat
+// ✅ FIREBASE-ONLY: Use Firebase contexts only
 import { usePractice } from '../../contexts/practice/PracticeContext';
 import { useWellness } from '../../contexts/wellness/WellnessContext';
+import { useUser } from '../../contexts/user/UserContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PAHMReflectionShared from '../../PAHMReflectionShared';
 
@@ -66,9 +67,10 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
   onComplete, 
   onBack 
 }) => {
-  // 🚀 UPDATED: Use focused contexts for practice and wellness data
+  // ✅ FIREBASE-ONLY: Use Firebase contexts only
   const { sessions } = usePractice();
   const { addEmotionalNote } = useWellness();
+  const { updateStageProgress } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const stageConfig = STAGE_CONFIGS[stageLevel as keyof typeof STAGE_CONFIGS];
@@ -77,6 +79,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
   const [showEmotionSelection, setShowEmotionSelection] = useState(false);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('');
   const [emotionNote, setEmotionNote] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // 🎯 Get data from navigation state (same pattern as PAHMTimer3)
   const navigationState = location.state as {
@@ -107,7 +110,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     practiceDuration = navigationState.duration || 0;
     posture = navigationState.posture || 'seated';
   } else {
-    // Fallback: Get the most recent session from practice context
+    // Fallback: Get the most recent session from Firebase practice context
     const allSessions = sessions || [];
     const mostRecentSession = allSessions.length > 0 
       ? allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
@@ -131,25 +134,10 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
       practiceDuration = mostRecentSession.duration || 0;
       posture = mostRecentSession.environment?.posture || 'seated';
     } else {
-      // Final fallback: sessionStorage
-      const rawPahmData = JSON.parse(sessionStorage.getItem('pahmTracking') || '{}');
-      
-      pahmTrackingData = {
-        presentAttachment: rawPahmData.likes || 0,
-        presentNeutral: rawPahmData.present || 0,
-        presentAversion: rawPahmData.dislikes || 0,
-        pastAttachment: rawPahmData.nostalgia || 0,
-        pastNeutral: rawPahmData.past || 0,
-        pastAversion: rawPahmData.regret || 0,
-        futureAttachment: rawPahmData.anticipation || 0,
-        futureNeutral: rawPahmData.future || 0,
-        futureAversion: rawPahmData.worry || 0
-      };
-
-      const startTime = new Date(sessionStorage.getItem('practiceStartTime') || new Date().toISOString());
-      const endTime = new Date(sessionStorage.getItem('practiceEndTime') || new Date().toISOString());
-      practiceDuration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
-      posture = sessionStorage.getItem('currentPosture') || 'seated';
+      // ✅ FIREBASE-ONLY: No sessionStorage fallback - use defaults
+      console.log('No recent session found in Firebase, using default values');
+      practiceDuration = stageConfig.minDuration;
+      posture = 'seated';
     }
   }
 
@@ -160,32 +148,63 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     setShowEmotionSelection(true);
   };
 
-  const handleSkipEmotionalNote = () => {
-    // Skip emotional note, just complete
-    sessionStorage.setItem('stageProgress', stageLevel.toString());
-    onComplete();
+  const handleSkipEmotionalNote = async () => {
+    try {
+      setIsSaving(true);
+      // ✅ FIREBASE-ONLY: Update stage progress via UserContext
+      await updateStageProgress({
+        currentStage: Math.max(stageLevel, stageLevel + 1),
+        stageCompletionFlags: {
+          [`stage${stageLevel}Complete`]: true
+        }
+      });
+      onComplete();
+    } catch (error) {
+      console.error('Error updating stage progress:', error);
+      // Still complete even if stage progress update fails
+      onComplete();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveEmotionalNote = () => {
+  const handleSaveEmotionalNote = async () => {
     if (!selectedEmotion) return;
 
-    const presentPercentage = totalPahmCount > 0 ? 
-      Math.round(((pahmTrackingData.presentAttachment + pahmTrackingData.presentNeutral + pahmTrackingData.presentAversion) / totalPahmCount) * 100) : 0;
+    try {
+      setIsSaving(true);
+      
+      const presentPercentage = totalPahmCount > 0 ? 
+        Math.round(((pahmTrackingData.presentAttachment + pahmTrackingData.presentNeutral + pahmTrackingData.presentAversion) / totalPahmCount) * 100) : 0;
 
-    // Create a natural emotional note (not a data dump)
-    const baseContent = emotionNote.trim() || 
-      `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
-    
-    addEmotionalNote({
-      content: baseContent,
-      emotion: selectedEmotion,
-      energyLevel: 7, // Default moderate-high energy after meditation
-      intensity: 7,
-      tags: ['meditation', `stage-${stageLevel}`]
-    });
+      // Create a natural emotional note (not a data dump)
+      const baseContent = emotionNote.trim() || 
+        `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
+      
+      // ✅ FIREBASE-ONLY: Save emotional note via WellnessContext
+      await addEmotionalNote({
+        content: baseContent,
+        emotion: selectedEmotion,
+        energyLevel: 7, // Default moderate-high energy after meditation
+        intensity: 7,
+        tags: ['meditation', `stage-${stageLevel}`]
+      });
 
-    sessionStorage.setItem('stageProgress', stageLevel.toString());
-    onComplete();
+      // ✅ FIREBASE-ONLY: Update stage progress via UserContext
+      await updateStageProgress({
+        currentStage: Math.max(stageLevel, stageLevel + 1),
+        stageCompletionFlags: {
+          [`stage${stageLevel}Complete`]: true
+        }
+      });
+
+      onComplete();
+    } catch (error) {
+      console.error('Error saving emotional note or stage progress:', error);
+      alert('Failed to save data. Please check your connection and try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSkipFromSelection = () => {
@@ -231,6 +250,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
               <button
                 key={emotion.key}
                 onClick={() => setSelectedEmotion(emotion.key)}
+                disabled={isSaving}
                 style={{
                   background: selectedEmotion === emotion.key 
                     ? `linear-gradient(135deg, ${emotion.color} 0%, ${emotion.color}dd 100%)`
@@ -239,11 +259,12 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
                   border: selectedEmotion === emotion.key ? `2px solid ${emotion.color}` : '2px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: '15px',
                   padding: '20px 15px',
-                  cursor: 'pointer',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
                   textAlign: 'center',
                   transition: 'all 0.3s ease',
                   transform: selectedEmotion === emotion.key ? 'scale(1.05)' : 'scale(1)',
-                  boxShadow: selectedEmotion === emotion.key ? `0 4px 15px ${emotion.color}40` : 'none'
+                  boxShadow: selectedEmotion === emotion.key ? `0 4px 15px ${emotion.color}40` : 'none',
+                  opacity: isSaving ? 0.6 : 1
                 }}
               >
                 <div style={{ fontSize: '32px', marginBottom: '8px' }}>{emotion.icon}</div>
@@ -266,6 +287,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
               <textarea
                 value={emotionNote}
                 onChange={(e) => setEmotionNote(e.target.value)}
+                disabled={isSaving}
                 placeholder="How was your meditation? Any insights or reflections..."
                 style={{
                   width: '100%',
@@ -278,9 +300,33 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
                   fontSize: '14px',
                   resize: 'vertical',
                   outline: 'none',
-                  fontFamily: 'inherit'
+                  fontFamily: 'inherit',
+                  opacity: isSaving ? 0.6 : 1
                 }}
               />
+            </div>
+          )}
+
+          {/* Loading Indicator */}
+          {isSaving && (
+            <div style={{
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              fontSize: '16px',
+              color: 'white'
+            }}>
+              <div style={{
+                width: '20px',
+                height: '20px',
+                border: '3px solid rgba(255,255,255,0.3)',
+                borderTop: '3px solid white',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              Saving to Firebase...
             </div>
           )}
 
@@ -288,6 +334,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
           <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
             <button
               onClick={handleSkipFromSelection}
+              disabled={isSaving}
               style={{
                 background: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
@@ -296,8 +343,9 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
                 padding: '12px 24px',
                 fontSize: '16px',
                 fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                opacity: isSaving ? 0.6 : 1
               }}
             >
               Skip Note
@@ -306,24 +354,35 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
             {selectedEmotion && (
               <button
                 onClick={handleSaveEmotionalNote}
+                disabled={isSaving}
                 style={{
-                  background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                  background: isSaving 
+                    ? 'rgba(76, 175, 80, 0.6)' 
+                    : 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '25px',
                   padding: '12px 24px',
                   fontSize: '16px',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  boxShadow: isSaving ? 'none' : '0 4px 15px rgba(76, 175, 80, 0.3)',
                   transition: 'all 0.3s ease'
                 }}
               >
-                Save Emotional Note
+                {isSaving ? 'Saving...' : 'Save Emotional Note'}
               </button>
             )}
           </div>
         </div>
+
+        {/* CSS for loading spinner */}
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -343,29 +402,46 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     if (shouldAddNote) {
       setShowEmotionSelection(true);
     } else {
-      sessionStorage.setItem('stageProgress', stageLevel.toString());
-      onComplete();
+      handleSkipEmotionalNote();
     }
   };
 
-  // 🎭 HANDLE EMOTION SELECTION FROM SHARED COMPONENT
-  const handleEmotionFromShared = (emotion: string, note: string) => {
-    const presentPercentage = totalPahmCount > 0 ? 
-      Math.round(((pahmTrackingData.presentAttachment + pahmTrackingData.presentNeutral + pahmTrackingData.presentAversion) / totalPahmCount) * 100) : 0;
+  // 🎭 FIREBASE-ONLY: Handle emotion selection from shared component
+  const handleEmotionFromShared = async (emotion: string, note: string) => {
+    try {
+      setIsSaving(true);
+      
+      const presentPercentage = totalPahmCount > 0 ? 
+        Math.round(((pahmTrackingData.presentAttachment + pahmTrackingData.presentNeutral + pahmTrackingData.presentAversion) / totalPahmCount) * 100) : 0;
 
-    // Create a natural emotional note
-    const finalNote = note.trim() || 
-      `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
-    
-    addEmotionalNote({
-      content: finalNote,
-      emotion: emotion,
-      energyLevel: 7, // Default moderate-high energy after meditation
-      intensity: 7, 
-      tags: ['meditation', `stage-${stageLevel}`]
-    });
+      // Create a natural emotional note
+      const finalNote = note.trim() || 
+        `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
+      
+      // ✅ FIREBASE-ONLY: Save emotional note via WellnessContext
+      await addEmotionalNote({
+        content: finalNote,
+        emotion: emotion,
+        energyLevel: 7, // Default moderate-high energy after meditation
+        intensity: 7, 
+        tags: ['meditation', `stage-${stageLevel}`]
+      });
 
-    sessionStorage.setItem('stageProgress', stageLevel.toString());
+      // ✅ FIREBASE-ONLY: Update stage progress via UserContext
+      await updateStageProgress({
+        currentStage: Math.max(stageLevel, stageLevel + 1),
+        stageCompletionFlags: {
+          [`stage${stageLevel}Complete`]: true
+        }
+      });
+
+      onComplete();
+    } catch (error) {
+      console.error('Error saving emotion from shared component:', error);
+      alert('Failed to save data. Please check your connection and try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
