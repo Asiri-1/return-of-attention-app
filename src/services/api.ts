@@ -1,13 +1,19 @@
+// ============================================================================
+// src/services/apiService.ts
+// ✅ FIREBASE-ONLY: API Service - No localStorage fallbacks
+// 🔥 REMOVED: All localStorage dependencies - Firebase Functions only
+// ============================================================================
+
 import axios from "axios";
 import app from "../utils/firebase-config";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 
-// Get the auth and functions instances from the app
+// ✅ FIREBASE-ONLY: Get Firebase instances
 const auth = getAuth(app);
 const functions = getFunctions(app);
 
-// Use your deployed Firebase Functions API
+// ✅ FIREBASE-ONLY: Firebase Functions API endpoints
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
   'https://us-central1-return-of-attention-app.cloudfunctions.net/api';
 
@@ -18,267 +24,460 @@ const api = axios.create({
   },
 });
 
-// Add Firebase auth token to requests
+// ✅ FIREBASE-ONLY: Add Firebase auth token to requests
 api.interceptors.request.use(async (config) => {
   try {
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(`🔥 Firebase auth token added for user: ${user.uid.substring(0, 8)}...`);
+    } else {
+      console.warn('🚨 No authenticated Firebase user for API request');
     }
   } catch (error) {
-    console.log('No auth token available');
+    console.error('❌ Error getting Firebase auth token:', error);
+    throw new Error('Firebase authentication required');
   }
   return config;
 });
 
+// ✅ FIREBASE-ONLY: Enhanced error handling without localStorage fallbacks
+const handleFirebaseError = (error: any, operation: string) => {
+  console.error(`❌ Firebase ${operation} failed:`, error);
+  
+  if (error.code === 'functions/unauthenticated') {
+    throw new Error('Firebase authentication required. Please sign in.');
+  }
+  
+  if (error.code === 'functions/unavailable') {
+    throw new Error('Firebase Functions temporarily unavailable. Please try again.');
+  }
+  
+  if (error.code === 'functions/deadline-exceeded') {
+    throw new Error('Request timeout. Please try again.');
+  }
+  
+  throw error;
+};
+
+// ✅ FIREBASE-ONLY: Core API methods with Firebase-only error handling
 export const get = async (path: string, params?: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required');
+  }
+
   try {
+    console.log(`🔥 Firebase GET request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
     const response = await api.get(path, { params });
+    console.log(`✅ Firebase GET success: ${path}`);
     return response.data;
   } catch (error) {
-    console.error(`Error fetching data from ${path}:`, error);
-    throw error;
+    handleFirebaseError(error, `GET ${path}`);
   }
 };
 
 export const post = async (path: string, data?: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required');
+  }
+
   try {
+    console.log(`🔥 Firebase POST request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
     const response = await api.post(path, data);
+    console.log(`✅ Firebase POST success: ${path}`);
     return response.data;
   } catch (error) {
-    console.error(`Error posting data to ${path}:`, error);
-    throw error;
+    handleFirebaseError(error, `POST ${path}`);
   }
 };
 
 export const put = async (path: string, data?: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required');
+  }
+
   try {
+    console.log(`🔥 Firebase PUT request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
     const response = await api.put(path, data);
+    console.log(`✅ Firebase PUT success: ${path}`);
     return response.data;
   } catch (error) {
-    console.error(`Error updating data at ${path}:`, error);
-    throw error;
+    handleFirebaseError(error, `PUT ${path}`);
   }
 };
 
 export const del = async (path: string) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required');
+  }
+
   try {
+    console.log(`🔥 Firebase DELETE request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
     const response = await api.delete(path);
+    console.log(`✅ Firebase DELETE success: ${path}`);
     return response.data;
   } catch (error) {
-    console.error(`Error deleting data at ${path}:`, error);
-    throw error;
+    handleFirebaseError(error, `DELETE ${path}`);
   }
 };
 
-// 🚀 NEW: PAHM Guru Chat using Firebase Functions
+// ✅ FIREBASE-ONLY: Enhanced PAHM Guru Chat with Firebase Functions
 export const pahmGuruChat = async (message: string, userContext: any, sessionId: string) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required for PAHM Guru Chat');
+  }
+
   try {
-    // Try using httpsCallable first (direct Firebase Functions call)
+    console.log(`🔥 PAHM Guru Chat request for user: ${auth.currentUser.uid.substring(0, 8)}...`);
+    
+    // Primary: Direct Firebase Functions call
     const pahmChatCallable = httpsCallable(functions, 'pahmGuruChat');
     const result = await pahmChatCallable({
       message,
-      userContext,
-      sessionId
+      userContext: {
+        ...userContext,
+        uid: auth.currentUser.uid,
+        firebaseSource: true,
+        lastSyncAt: new Date().toISOString()
+      },
+      sessionId,
+      firebaseMetadata: {
+        requestedAt: new Date().toISOString(),
+        userId: auth.currentUser.uid,
+        source: 'firebase-functions'
+      }
     });
+    
+    console.log('✅ PAHM Guru Chat success via Firebase Functions');
     return result.data;
   } catch (error) {
-    console.warn('Direct Firebase call failed, trying HTTP endpoint:', error);
+    console.warn('🚨 Firebase Functions call failed, trying HTTP endpoint:', error);
     
-    // Fallback to HTTP endpoint
+    // Fallback: HTTP endpoint with Firebase auth
     try {
+      const token = await auth.currentUser.getIdToken();
       const response = await axios.post(
         'https://us-central1-return-of-attention-app.cloudfunctions.net/pahmGuruChat',
         {
           message,
-          userContext,
-          sessionId
+          userContext: {
+            ...userContext,
+            uid: auth.currentUser.uid,
+            firebaseSource: true,
+            lastSyncAt: new Date().toISOString()
+          },
+          sessionId,
+          firebaseMetadata: {
+            requestedAt: new Date().toISOString(),
+            userId: auth.currentUser.uid,
+            source: 'firebase-http'
+          }
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': auth.currentUser ? `Bearer ${await auth.currentUser.getIdToken()}` : ''
+            'Authorization': `Bearer ${token}`
           }
         }
       );
+      
+      console.log('✅ PAHM Guru Chat success via HTTP endpoint');
       return response.data;
     } catch (httpError) {
-      console.error('HTTP endpoint also failed:', httpError);
-      throw httpError;
+      console.error('❌ Both Firebase Functions and HTTP endpoint failed:', httpError);
+      handleFirebaseError(httpError, 'PAHM Guru Chat');
     }
   }
 };
 
-// Example function to call your deployed helloWorld Firebase Function
+// ✅ FIREBASE-ONLY: Firebase Functions utilities
 export const getHelloWorld = async () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required');
+  }
+
   try {
+    console.log(`🔥 HelloWorld request for user: ${auth.currentUser.uid.substring(0, 8)}...`);
     const helloWorldCallable = httpsCallable(functions, 'helloWorld');
-    const result = await helloWorldCallable();
+    const result = await helloWorldCallable({
+      uid: auth.currentUser.uid,
+      timestamp: new Date().toISOString()
+    });
+    console.log('✅ HelloWorld success');
     return result.data;
   } catch (error) {
-    console.warn('Direct helloWorld call failed, trying HTTP:', error);
-    // Fallback to HTTP
-    const response = await axios.get('https://us-central1-return-of-attention-app.cloudfunctions.net/helloWorld');
+    console.warn('🚨 Direct helloWorld call failed, trying HTTP:', error);
+    // Fallback to HTTP with Firebase auth
+    const token = await auth.currentUser.getIdToken();
+    const response = await axios.get(
+      'https://us-central1-return-of-attention-app.cloudfunctions.net/helloWorld',
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    console.log('✅ HelloWorld success via HTTP');
     return response.data;
   }
 };
 
-// User profile functions - keep your existing code
+// ✅ FIREBASE-ONLY: User profile functions without localStorage fallbacks
 export const getUserProfile = async () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to get user profile');
+  }
+
   try {
-    return await get('/users/profile');
+    console.log(`🔥 Getting Firebase user profile for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const profile = await get('/users/profile');
+    console.log('✅ Firebase user profile retrieved successfully');
+    return profile;
   } catch (error) {
-    console.error('Error getting user profile:', error);
-    return {
-      data: {
-        uid: "mock-uid",
-        email: "user@example.com",
-        displayName: "Mock User",
-        experienceLevel: "beginner",
-        goals: [],
-        practiceTime: 10,
-        frequency: "daily",
-        assessmentCompleted: false,
-        currentStage: "Seeker",
-        questionnaireCompleted: false,
-      }
-    };
+    console.error('❌ Error getting Firebase user profile:', error);
+    handleFirebaseError(error, 'get user profile');
   }
 };
 
 export const createUserProfile = async (profileData: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to create user profile');
+  }
+
   try {
-    return await post('/users/profile', profileData);
+    console.log(`🔥 Creating Firebase user profile for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const firebaseProfileData = {
+      ...profileData,
+      uid: auth.currentUser.uid,
+      firebaseCreatedAt: new Date().toISOString(),
+      firebaseSource: true
+    };
+    
+    const result = await post('/users/profile', firebaseProfileData);
+    console.log('✅ Firebase user profile created successfully');
+    return result;
   } catch (error) {
-    console.error('Error creating user profile:', error);
-    const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-    const updatedProfile = { ...existingProfile, ...profileData };
-    localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-    return { success: true, data: updatedProfile };
+    console.error('❌ Error creating Firebase user profile:', error);
+    handleFirebaseError(error, 'create user profile');
   }
 };
 
 export const updateUserProfile = async (profileData: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to update user profile');
+  }
+
   try {
-    return await put('/users/profile', profileData);
+    console.log(`🔥 Updating Firebase user profile for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const firebaseProfileData = {
+      ...profileData,
+      uid: auth.currentUser.uid,
+      firebaseUpdatedAt: new Date().toISOString(),
+      firebaseSource: true
+    };
+    
+    const result = await put('/users/profile', firebaseProfileData);
+    console.log('✅ Firebase user profile updated successfully');
+    return result;
   } catch (error) {
-    console.error('Error updating user profile:', error);
-    const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-    const updatedProfile = { ...existingProfile, ...profileData };
-    localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-    console.log('✅ Profile updated successfully in localStorage');
-    return { success: true, data: updatedProfile };
+    console.error('❌ Error updating Firebase user profile:', error);
+    handleFirebaseError(error, 'update user profile');
   }
 };
 
-// Practice session functions - keep your existing code
+// ✅ FIREBASE-ONLY: Practice session functions without localStorage fallbacks
 export const createPracticeSession = async (sessionData: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to create practice session');
+  }
+
   try {
-    return await post('/practice/sessions', sessionData);
-  } catch (error) {
-    console.error('Error creating practice session:', error);
-    const sessions = JSON.parse(localStorage.getItem('practiceSessions') || '[]');
-    const newSession = { 
-      id: `session-${Date.now()}`, 
-      ...sessionData, 
-      createdAt: new Date().toISOString() 
+    console.log(`🔥 Creating Firebase practice session for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const firebaseSessionData = {
+      ...sessionData,
+      uid: auth.currentUser.uid,
+      firebaseCreatedAt: new Date().toISOString(),
+      firebaseSource: true,
+      deviceInfo: {
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      }
     };
-    sessions.push(newSession);
-    localStorage.setItem('practiceSessions', JSON.stringify(sessions));
-    return { success: true, data: newSession };
+    
+    const result = await post('/practice/sessions', firebaseSessionData);
+    console.log('✅ Firebase practice session created successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Error creating Firebase practice session:', error);
+    handleFirebaseError(error, 'create practice session');
   }
 };
 
 export const getPracticeSessions = async () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to get practice sessions');
+  }
+
   try {
-    return await get('/practice/sessions');
+    console.log(`🔥 Getting Firebase practice sessions for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const sessions = await get('/practice/sessions');
+    console.log(`✅ Retrieved ${sessions.data?.length || 0} Firebase practice sessions`);
+    return sessions;
   } catch (error) {
-    console.error('Error getting practice sessions:', error);
-    const sessions = JSON.parse(localStorage.getItem('practiceSessions') || '[]');
-    return { data: sessions };
+    console.error('❌ Error getting Firebase practice sessions:', error);
+    handleFirebaseError(error, 'get practice sessions');
   }
 };
 
-// Emotional notes functions - keep your existing code
+// ✅ FIREBASE-ONLY: Emotional notes functions without localStorage fallbacks
 export const createEmotionalNote = async (noteData: any) => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to create emotional note');
+  }
+
   try {
-    return await post('/emotional-notes', noteData);
-  } catch (error) {
-    console.error('Error creating emotional note:', error);
-    const notes = JSON.parse(localStorage.getItem('emotionalNotes') || '[]');
-    const newNote = { 
-      id: `note-${Date.now()}`, 
-      ...noteData, 
-      createdAt: new Date().toISOString() 
+    console.log(`🔥 Creating Firebase emotional note for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const firebaseNoteData = {
+      ...noteData,
+      uid: auth.currentUser.uid,
+      firebaseCreatedAt: new Date().toISOString(),
+      firebaseSource: true
     };
-    notes.push(newNote);
-    localStorage.setItem('emotionalNotes', JSON.stringify(notes));
-    return { success: true, data: newNote };
+    
+    const result = await post('/emotional-notes', firebaseNoteData);
+    console.log('✅ Firebase emotional note created successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Error creating Firebase emotional note:', error);
+    handleFirebaseError(error, 'create emotional note');
   }
 };
 
 export const getEmotionalNotes = async () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to get emotional notes');
+  }
+
   try {
-    return await get('/emotional-notes');
+    console.log(`🔥 Getting Firebase emotional notes for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const notes = await get('/emotional-notes');
+    console.log(`✅ Retrieved ${notes.data?.length || 0} Firebase emotional notes`);
+    return notes;
   } catch (error) {
-    console.error('Error getting emotional notes:', error);
-    const notes = JSON.parse(localStorage.getItem('emotionalNotes') || '[]');
-    return { data: notes };
+    console.error('❌ Error getting Firebase emotional notes:', error);
+    handleFirebaseError(error, 'get emotional notes');
   }
 };
 
-// Analytics functions - keep your existing code
+// ✅ FIREBASE-ONLY: Analytics functions without localStorage fallbacks
 export const getAnalytics = async () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required to get analytics');
+  }
+
   try {
-    return await get('/analytics');
+    console.log(`🔥 Getting Firebase analytics for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const analytics = await get('/analytics');
+    console.log('✅ Firebase analytics retrieved successfully');
+    return analytics;
   } catch (error) {
-    console.error('Error getting analytics:', error);
-    const sessions = JSON.parse(localStorage.getItem('practiceSessions') || '[]');
-    const notes = JSON.parse(localStorage.getItem('emotionalNotes') || '[]');
-    
-    return {
-      data: {
-        totalSessions: sessions.length,
-        totalPracticeTime: sessions.reduce((sum: number, session: any) => sum + (session.duration || 0), 0),
-        averageSessionLength: sessions.length > 0 ? 
-          sessions.reduce((sum: number, session: any) => sum + (session.duration || 0), 0) / sessions.length : 0,
-        currentStreak: 0,
-        totalNotes: notes.length,
-        sessionsThisWeek: sessions.filter((session: any) => {
-          const sessionDate = new Date(session.createdAt || session.date);
-          const weekAgo = new Date();
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          return sessionDate > weekAgo;
-        }).length
-      }
-    };
+    console.error('❌ Error getting Firebase analytics:', error);
+    handleFirebaseError(error, 'get analytics');
   }
 };
 
-// Enhanced apiService object with new methods
+// ✅ FIREBASE-ONLY: Enhanced Firebase Functions utilities
+export const healthCheck = async () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required for health check');
+  }
+
+  try {
+    console.log(`🔥 Firebase health check for: ${auth.currentUser.uid.substring(0, 8)}...`);
+    const healthCallable = httpsCallable(functions, 'healthCheck');
+    const result = await healthCallable({
+      uid: auth.currentUser.uid,
+      timestamp: new Date().toISOString()
+    });
+    console.log('✅ Firebase health check passed');
+    return result.data;
+  } catch (error) {
+    console.error('❌ Firebase health check failed:', error);
+    handleFirebaseError(error, 'health check');
+  }
+};
+
+// ✅ FIREBASE-ONLY: Additional Firebase utility functions
+export const getFirebaseConnectionStatus = () => ({
+  isConnected: !!auth.currentUser,
+  userId: auth.currentUser?.uid,
+  email: auth.currentUser?.email,
+  lastSignIn: auth.currentUser?.metadata?.lastSignInTime,
+  firebaseIntegrated: true,
+  apiBaseUrl: API_BASE_URL
+});
+
+export const validateFirebaseAuth = () => {
+  if (!auth.currentUser) {
+    throw new Error('Firebase authentication required. Please sign in to continue.');
+  }
+  return true;
+};
+
+export const getFirebaseAuthToken = async () => {
+  if (!auth.currentUser) {
+    throw new Error('No authenticated Firebase user');
+  }
+  
+  try {
+    const token = await auth.currentUser.getIdToken();
+    return token;
+  } catch (error) {
+    console.error('❌ Error getting Firebase auth token:', error);
+    throw error;
+  }
+};
+
+// ✅ FIREBASE-ONLY: Enhanced apiService object
 export const apiService = {
+  // Core API methods
+  get,
+  post,
+  put,
+  delete: del,
+  
+  // User management
   getUserProfile,
   createUserProfile,
   updateUserProfile,
+  
+  // Practice sessions
   createPracticeSession,
   getPracticeSessions,
+  
+  // Emotional notes
   createEmotionalNote,
   getEmotionalNotes,
+  
+  // Analytics
   getAnalytics,
-  // NEW methods
+  
+  // Firebase Functions
   pahmGuruChat,
   helloWorld: getHelloWorld,
-  healthCheck: async () => {
-    try {
-      const healthCallable = httpsCallable(functions, 'healthCheck');
-      const result = await healthCallable();
-      return result.data;
-    } catch (error) {
-      console.warn('Health check failed:', error);
-      throw error;
-    }
-  }
+  healthCheck,
+  
+  // Firebase utilities
+  getConnectionStatus: getFirebaseConnectionStatus,
+  validateAuth: validateFirebaseAuth,
+  getAuthToken: getFirebaseAuthToken,
+  
+  // Firebase metadata
+  firebaseIntegrated: true,
+  dataSource: 'Firebase Functions',
+  authRequired: true,
+  crossDeviceSync: true
 };
 
 export default api;

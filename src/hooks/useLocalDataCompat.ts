@@ -1,6 +1,8 @@
+// ============================================================================
 // src/hooks/useLocalDataCompat.ts
-// ✅ ENHANCED: Compatibility layer for Universal Architecture contexts
-// This hook provides backward compatibility while using the new Universal Architecture
+// ✅ FIREBASE-ONLY: Compatibility layer for Universal Architecture contexts
+// 🔥 REMOVED: All localStorage dependencies - Firebase contexts only
+// ============================================================================
 
 import { useAuth } from '../contexts/auth/AuthContext';
 import { usePractice } from '../contexts/practice/PracticeContext';
@@ -11,9 +13,9 @@ import { useOnboarding } from '../contexts/onboarding/OnboardingContext';
 import { useContent } from '../contexts/content/ContentContext';
 
 // ================================
-// COMPATIBILITY INTERFACES
+// FIREBASE-ONLY INTERFACES
 // ================================
-interface LegacySessionData {
+interface FirebaseSessionData {
   sessionId: string;
   timestamp: string;
   duration: number;
@@ -22,10 +24,12 @@ interface LegacySessionData {
   rating?: number;
   notes?: string;
   presentPercentage?: number;
+  firebaseId?: string;
+  userId: string;
   [key: string]: any;
 }
 
-interface LegacyAnalyticsData {
+interface FirebaseAnalyticsData {
   totalSessions: number;
   totalMindRecoverySessions: number;
   totalPracticeTime: number;
@@ -37,22 +41,25 @@ interface LegacyAnalyticsData {
   consistencyScore: number;
   progressTrend: 'improving' | 'stable' | 'declining';
   lastUpdated: string;
+  firebaseSource: boolean;
+  syncedAt: string;
 }
 
 // ================================
-// ENHANCED COMPATIBILITY HOOK
+// FIREBASE-ONLY COMPATIBILITY HOOK
 // ================================
 export const useLocalDataCompat = () => {
-  const { currentUser } = useAuth();
+  // ✅ FIREBASE-ONLY: All data from Firebase contexts
+  const { currentUser, isLoading: authLoading } = useAuth();
   const { 
     addPracticeSession, 
     addMindRecoverySession,
     sessions, 
-    stats,
     getPracticeSessions,
     getMindRecoverySessions,
     getMeditationSessions,
-    getProgressTrend
+    getProgressTrend,
+    isLoading: practiceLoading
   } = usePractice();
   
   const { 
@@ -60,7 +67,8 @@ export const useLocalDataCompat = () => {
     emotionalNotes,
     reflections,
     getDailyEmotionalNotes,
-    getReflections 
+    getReflections,
+    isLoading: wellnessLoading 
   } = useWellness();
   
   const { 
@@ -69,10 +77,11 @@ export const useLocalDataCompat = () => {
     getMindRecoveryAnalytics,
     getFilteredData,
     getPracticeDurationData,
-    getEmotionDistribution 
+    getEmotionDistribution,
+    isLoading: analyticsLoading 
   } = useAnalytics();
   
-  const { userProfile } = useUser();
+  const { userProfile, isLoading: userLoading } = useUser();
   
   const { 
     questionnaire, 
@@ -80,183 +89,473 @@ export const useLocalDataCompat = () => {
     isQuestionnaireCompleted,
     isSelfAssessmentCompleted,
     getQuestionnaire,
-    getSelfAssessment
+    getSelfAssessment,
+    isLoading: onboardingLoading
   } = useOnboarding();
 
   const { 
     achievements,
     getAchievements,
-    addAchievement 
+    addAchievement,
+    isLoading: contentLoading 
   } = useContent();
 
   // ================================
-  // COMPUTED VALUES
+  // FIREBASE-ONLY COMPUTED VALUES
   // ================================
-  const isLoading = false; // Contexts handle their own loading states
+  const isLoading = authLoading || practiceLoading || wellnessLoading || 
+                    analyticsLoading || userLoading || onboardingLoading || contentLoading;
 
-  // Enhanced analytics data with all required fields
-  const getAnalyticsData = (): LegacyAnalyticsData => ({
-    totalSessions: stats.totalSessions || 0,
-    totalMindRecoverySessions: stats.totalMindRecoverySessions || 0,
-    totalPracticeTime: stats.totalMinutes || 0,
-    averageSessionLength: stats.totalSessions > 0 ? 
-      Math.round(stats.totalMinutes / stats.totalSessions) : 0,
-    averageQuality: stats.averageQuality || 0,
-    currentStreak: stats.currentStreak || 0,
-    longestStreak: stats.longestStreak || 0,
-    emotionalNotesCount: emotionalNotes.length || 0,
-    consistencyScore: calculateConsistencyScore(),
-    progressTrend: getProgressTrend() || 'stable',
-    lastUpdated: new Date().toISOString()
-  });
+  // ✅ FIREBASE-ONLY: Enhanced analytics data with Firebase session stats
+  const getAnalyticsData = (): FirebaseAnalyticsData => {
+    if (!currentUser?.uid) {
+      return {
+        totalSessions: 0,
+        totalMindRecoverySessions: 0,
+        totalPracticeTime: 0,
+        averageSessionLength: 0,
+        averageQuality: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        emotionalNotesCount: 0,
+        consistencyScore: 0,
+        progressTrend: 'stable',
+        lastUpdated: new Date().toISOString(),
+        firebaseSource: true,
+        syncedAt: new Date().toISOString()
+      };
+    }
 
-  // Calculate consistency score based on recent activity
-  const calculateConsistencyScore = (): number => {
-    const recentSessions = sessions.filter(s => {
-      const sessionDate = new Date(s.timestamp);
-      const daysDiff = (Date.now() - sessionDate.getTime()) / (1000 * 60 * 60 * 24);
-      return daysDiff <= 7;
+    // Manual calculation since getSessionStats doesn't exist
+    const totalSessions = sessions?.length || 0;
+    const totalMinutes = sessions?.reduce((sum, session) => sum + (session.duration || 0), 0) || 0;
+    const totalRating = sessions?.reduce((sum, session) => sum + (session.rating || 0), 0) || 0;
+    const averageQuality = totalSessions > 0 ? totalRating / totalSessions : 0;
+    const totalMindRecoverySessions = sessions?.filter(s => s.sessionType === 'mind_recovery').length || 0;
+    
+    return {
+      totalSessions,
+      totalMindRecoverySessions,
+      totalPracticeTime: totalMinutes,
+      averageSessionLength: totalSessions > 0 ? Math.round(totalMinutes / totalSessions) : 0,
+      averageQuality,
+      currentStreak: calculateCurrentStreak(),
+      longestStreak: calculateLongestStreak(),
+      emotionalNotesCount: emotionalNotes?.length || 0,
+      consistencyScore: calculateFirebaseConsistencyScore(),
+      progressTrend: getProgressTrend() || 'stable',
+      lastUpdated: new Date().toISOString(),
+      firebaseSource: true,
+      syncedAt: new Date().toISOString()
+    };
+  };
+
+  // ✅ FIREBASE-ONLY: Manual streak calculations since getSessionStats doesn't exist
+  const calculateCurrentStreak = (): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    
+    const sortedSessions = [...sessions].sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.() || new Date(a.timestamp || 0);
+      const bTime = b.createdAt?.toDate?.() || new Date(b.timestamp || 0);
+      return bTime.getTime() - aTime.getTime();
     });
     
-    const recentNotes = emotionalNotes.filter(note => {
-      const noteDate = new Date(note.timestamp);
-      const daysDiff = (Date.now() - noteDate.getTime()) / (1000 * 60 * 60 * 24);
-      return daysDiff <= 7;
-    });
+    let streak = 0;
+    const today = new Date();
+    
+    for (let i = 0; i < sortedSessions.length; i++) {
+      const sessionDate = sortedSessions[i].createdAt?.toDate?.() || new Date(sortedSessions[i].timestamp || 0);
+      const daysDiff = Math.floor((today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff === i) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    
+    return streak;
+  };
 
-    // Score based on activity in last 7 days
+  const calculateLongestStreak = (): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    
+    // Simple implementation - can be enhanced
+    return Math.max(calculateCurrentStreak(), 0);
+  };
+  // ✅ FIREBASE-ONLY: Calculate consistency score based on Firebase data
+  const calculateFirebaseConsistencyScore = (): number => {
+    if (!currentUser?.uid || !sessions) {
+      return 0;
+    }
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    // Filter recent sessions using Firebase Timestamp conversion
+    const recentSessions = sessions.filter(s => {
+      const sessionDate = s.createdAt?.toDate?.() || new Date(s.timestamp || 0);
+      return sessionDate >= sevenDaysAgo;
+    });
+    
+    const recentNotes = emotionalNotes?.filter(note => {
+      const noteDate = note.timestamp ? new Date(note.timestamp) : new Date(0);
+      return noteDate >= sevenDaysAgo;
+    }) || [];
+
+    // Firebase-based scoring
     const sessionScore = Math.min(recentSessions.length * 15, 60);
     const noteScore = Math.min(recentNotes.length * 5, 25);
-    const streakBonus = Math.min(stats.currentStreak * 2, 15);
+    const streakBonus = Math.min(calculateCurrentStreak() * 2, 15);
+    
+    console.log('🔥 Firebase Consistency Score:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      recentSessions: recentSessions.length,
+      recentNotes: recentNotes.length,
+      currentStreak: calculateCurrentStreak(),
+      totalScore: Math.min(sessionScore + noteScore + streakBonus, 100)
+    });
     
     return Math.min(sessionScore + noteScore + streakBonus, 100);
   };
 
   // ================================
-  // ENHANCED SESSION MANAGEMENT
+  // FIREBASE-ONLY SESSION MANAGEMENT
   // ================================
-  const addSession = (sessionData: Omit<LegacySessionData, 'sessionId'>) => {
+  const addSession = async (sessionData: any) => {
+    if (!currentUser?.uid) {
+      console.warn('🚨 Cannot add session - no authenticated user');
+      return null;
+    }
+
+    // Create session data matching your Firebase context requirements
+    const firebaseSessionData = {
+      duration: sessionData.duration || 0,
+      sessionType: sessionData.sessionType,
+      timestamp: sessionData.timestamp || new Date().toISOString(),
+      rating: sessionData.rating || 0,
+      notes: sessionData.notes || '',
+      stageLevel: sessionData.stageLevel,
+      presentPercentage: sessionData.presentPercentage,
+      // Remove properties that cause TypeScript errors
+      // Firebase context will handle userId, createdAt, etc.
+    };
+
+    console.log('🔥 Adding Firebase session:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      sessionType: sessionData.sessionType,
+      duration: sessionData.duration
+    });
+
     if (sessionData.sessionType === 'mind_recovery') {
-      return addMindRecoverySession(sessionData);
+      return await addMindRecoverySession(firebaseSessionData);
     } else {
-      return addPracticeSession(sessionData);
+      return await addPracticeSession(firebaseSessionData);
     }
   };
 
-  // Legacy method for adding mind recovery sessions
-  const addMindRecoverySessionLegacy = (sessionData: any) => {
-    const mindRecoverySession = {
-      ...sessionData,
+  // ✅ FIREBASE-ONLY: Enhanced mind recovery session with Firebase metadata
+  const addFirebaseMindRecoverySession = async (sessionData: any) => {
+    if (!currentUser?.uid) {
+      console.warn('🚨 Cannot add mind recovery session - no authenticated user');
+      return null;
+    }
+
+    // Create session data matching your Firebase context requirements
+    const firebaseMindRecoverySession = {
+      duration: sessionData.duration || 0,
       sessionType: 'mind_recovery' as const,
       timestamp: sessionData.timestamp || new Date().toISOString(),
-      duration: sessionData.duration || 0
+      rating: sessionData.rating || 0,
+      notes: sessionData.notes || '',
+      stageLevel: sessionData.stageLevel,
+      presentPercentage: sessionData.presentPercentage,
+      // Remove properties that cause TypeScript errors
+      // userId, createdAt, firebaseSource will be added by the context
     };
-    return addMindRecoverySession(mindRecoverySession);
+
+    console.log('🔥 Adding Firebase mind recovery session:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      duration: firebaseMindRecoverySession.duration
+    });
+
+    return await addMindRecoverySession(firebaseMindRecoverySession);
   };
 
   // ================================
-  // COMPREHENSIVE USER DATA
+  // FIREBASE-ONLY USER DATA
   // ================================
-  const comprehensiveUserData = {
-    profile: userProfile,
-    practiceSessions: sessions,
-    emotionalNotes: emotionalNotes,
-    reflections: reflections,
-    questionnaire: questionnaire,
-    selfAssessment: selfAssessment,
-    achievements: achievements,
-    analytics: getAnalyticsData(),
-    lastUpdated: new Date().toISOString()
+  const getFirebaseUserData = () => {
+    if (!currentUser?.uid) {
+      return {
+        profile: null,
+        practiceSessions: [],
+        emotionalNotes: [],
+        reflections: [],
+        questionnaire: null,
+        selfAssessment: null,
+        achievements: [],
+        analytics: getAnalyticsData(),
+        lastUpdated: new Date().toISOString(),
+        firebaseSource: true,
+        userId: null,
+        isAuthenticated: false
+      };
+    }
+
+    return {
+      profile: userProfile,
+      practiceSessions: sessions || [],
+      emotionalNotes: emotionalNotes || [],
+      reflections: reflections || [],
+      questionnaire: questionnaire,
+      selfAssessment: selfAssessment,
+      achievements: achievements || [],
+      analytics: getAnalyticsData(),
+      lastUpdated: new Date().toISOString(),
+      firebaseSource: true,
+      userId: currentUser.uid,
+      isAuthenticated: true,
+      syncedAt: new Date().toISOString()
+    };
   };
 
   // ================================
-  // STAGE MANAGEMENT (Legacy Support)
+  // FIREBASE-ONLY STAGE MANAGEMENT
   // ================================
   const getStageProgress = () => {
-    return userProfile?.currentProgress?.currentStage || 1;
+    if (!currentUser?.uid) {
+      return 1;
+    }
+    
+    // Get stage from Firebase user profile or calculate from sessions
+    const profileStage = userProfile?.currentProgress?.currentStage || 1;
+    
+    console.log('🔥 Firebase Stage Progress:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      profileStage,
+      totalSessions: sessions?.length || 0
+    });
+    
+    return profileStage;
   };
 
   const getTCompleted = () => {
-    // Check if T5 completion is recorded in questionnaire or user profile
-    return questionnaire?.completed || false;
+    if (!currentUser?.uid) {
+      return false;
+    }
+    
+    // Check Firebase questionnaire completion
+    const completed = questionnaire?.completed || 
+                     questionnaire?.responses !== null || false;
+    
+    console.log('🔥 Firebase T-Completion Status:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      questionnaireCompleted: !!questionnaire?.completed,
+      hasResponses: !!questionnaire?.responses,
+      overallCompleted: completed
+    });
+    
+    return completed;
   };
 
   const getStageXComplete = (stage: number) => {
-    // Check if specific stage is completed based on sessions or user profile
+    if (!currentUser?.uid || !sessions) {
+      return false;
+    }
+    
+    // Check Firebase session data for stage completion
     const stageSessions = sessions.filter(s => s.stageLevel === stage);
-    return stageSessions.length >= 5; // Example completion criteria
+    const completed = stageSessions.length >= 5; // Example completion criteria
+    
+    console.log('🔥 Firebase Stage Completion Check:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      stage,
+      stageSessions: stageSessions.length,
+      completed
+    });
+    
+    return completed;
   };
 
   // ================================
-  // PAHM DATA (Legacy Support)
+  // FIREBASE-ONLY PAHM DATA
   // ================================
-  const getPAHMSessions = () => {
-    return sessions.filter(s => s.sessionType === 'meditation' && s.stageLevel);
+  const getFirebasePAHMSessions = () => {
+    if (!currentUser?.uid || !sessions) {
+      return [];
+    }
+    
+    const pahmSessions = sessions.filter(s => 
+      s.sessionType === 'meditation' && s.stageLevel
+    );
+    
+    console.log('🔥 Firebase PAHM Sessions:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      totalPAHMSessions: pahmSessions.length,
+      totalSessions: sessions.length
+    });
+    
+    return pahmSessions;
   };
 
   const getStageHours = (stage: number) => {
+    if (!currentUser?.uid || !sessions) {
+      return 0;
+    }
+    
     const stageSessions = sessions.filter(s => s.stageLevel === stage);
-    return stageSessions.reduce((total, session) => total + (session.duration || 0), 0) / 60;
+    const totalMinutes = stageSessions.reduce((total, session) => 
+      total + (session.duration || 0), 0
+    );
+    const hours = totalMinutes / 60;
+    
+    console.log('🔥 Firebase Stage Hours:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      stage,
+      sessions: stageSessions.length,
+      totalMinutes,
+      hours: hours.toFixed(1)
+    });
+    
+    return hours;
   };
 
   // ================================
-  // NOTES AND REFLECTIONS
+  // FIREBASE-ONLY NOTES AND REFLECTIONS
   // ================================
-  const getNotes = () => {
-    // Combine emotional notes and reflections for legacy compatibility
-    return [
-      ...emotionalNotes.map(note => ({ ...note, type: 'emotional' })),
-      ...reflections.map(ref => ({ ...ref, type: 'reflection' }))
+  const getFirebaseNotes = () => {
+    if (!currentUser?.uid) {
+      return [];
+    }
+    
+    // Combine Firebase emotional notes and reflections
+    const combinedNotes = [
+      ...(emotionalNotes || []).map(note => ({ 
+        ...note, 
+        type: 'emotional',
+        firebaseSource: true,
+        userId: currentUser.uid
+      })),
+      ...(reflections || []).map(ref => ({ 
+        ...ref, 
+        type: 'reflection',
+        firebaseSource: true,
+        userId: currentUser.uid
+      }))
     ];
+    
+    console.log('🔥 Firebase Combined Notes:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      emotionalNotes: emotionalNotes?.length || 0,
+      reflections: reflections?.length || 0,
+      total: combinedNotes.length
+    });
+    
+    return combinedNotes;
   };
 
   // ================================
-  // CLEAR DATA (Safe Implementation)
+  // FIREBASE-ONLY CLEAR DATA (Safe)
   // ================================
-  const clearAllData = () => {
-    console.warn('🚨 clearAllData called - This should be implemented carefully');
-    console.log('📍 To implement: Call clear methods from each context');
-    // Implementation should call:
-    // - clearPracticeData() from usePractice
-    // - clearWellnessData() from useWellness  
-    // - clearUserData() from useUser
-    // - clearOnboardingData() from useOnboarding
-    // - clearContentData() from useContent
+  const clearFirebaseData = async () => {
+    if (!currentUser?.uid) {
+      console.warn('🚨 Cannot clear data - no authenticated user');
+      return;
+    }
+    
+    console.warn('🔥 Firebase clearAllData called for user:', currentUser.uid.substring(0, 8) + '...');
+    console.log('📍 This should implement Firebase context clear methods:');
+    console.log('  - Practice Context: Clear sessions and stats');
+    console.log('  - Wellness Context: Clear emotional notes and reflections');  
+    console.log('  - User Context: Reset user profile data');
+    console.log('  - Onboarding Context: Clear questionnaire and assessment');
+    console.log('  - Content Context: Clear achievements and progress');
+    console.log('  - Analytics Context: Clear cached analytics data');
+    
+    // TODO: Implement actual Firebase clearing methods
+    // await clearPracticeData();
+    // await clearWellnessData();
+    // await clearUserData();
+    // await clearOnboardingData();
+    // await clearContentData();
+    // await clearAnalyticsCache();
   };
 
   // ================================
-  // RETURN COMPATIBILITY INTERFACE
+  // FIREBASE-ONLY ENHANCED METHODS
+  // ================================
+  const getFirebaseStatus = () => ({
+    isConnected: !!currentUser,
+    userId: currentUser?.uid,
+    isLoading,
+    hasProfile: !!userProfile,
+    hasSessions: (sessions?.length || 0) > 0,
+    hasEmotionalNotes: (emotionalNotes?.length || 0) > 0,
+    hasQuestionnaire: !!questionnaire,
+    hasSelfAssessment: !!selfAssessment,
+    hasAchievements: (achievements?.length || 0) > 0,
+    firebaseIntegrated: true,
+    lastSyncAt: new Date().toISOString()
+  });
+
+  // Add emotional note with Firebase metadata
+  const addFirebaseEmotionalNote = async (noteData: any) => {
+    if (!currentUser?.uid) {
+      console.warn('🚨 Cannot add emotional note - no authenticated user');
+      return null;
+    }
+
+    const firebaseNoteData = {
+      ...noteData,
+      userId: currentUser.uid,
+      createdAt: new Date(),
+      firebaseSource: true,
+      syncedAt: new Date().toISOString()
+    };
+
+    console.log('🔥 Adding Firebase emotional note:', {
+      userId: currentUser.uid.substring(0, 8) + '...',
+      emotion: noteData.emotion || 'unspecified'
+    });
+
+    return await addEmotionalNote(firebaseNoteData);
+  };
+
+  // ================================
+  // FIREBASE-ONLY RETURN INTERFACE
   // ================================
   return {
-    // ✅ CORE DATA (Universal Architecture)
-    userData: comprehensiveUserData,
-    comprehensiveUserData,
+    // ✅ FIREBASE-ONLY CORE DATA
+    userData: getFirebaseUserData(),
+    comprehensiveUserData: getFirebaseUserData(),
     isLoading,
+    firebaseStatus: getFirebaseStatus(),
     
-    // ✅ DIRECT DATA ACCESS
-    practiceSessions: sessions,
-    emotionalNotes: emotionalNotes,
-    reflections: reflections,
+    // ✅ DIRECT FIREBASE DATA ACCESS
+    practiceSessions: sessions || [],
+    emotionalNotes: emotionalNotes || [],
+    reflections: reflections || [],
     questionnaire: questionnaire,
     selfAssessment: selfAssessment,
     profile: userProfile,
-    achievements: achievements,
+    achievements: achievements || [],
     
-    // ✅ PRACTICE SESSION METHODS
+    // ✅ FIREBASE PRACTICE SESSION METHODS
     getPracticeSessions,
     getMeditationSessions,
     getMindRecoverySessions,
     addPracticeSession,
     addSession,
-    addMindRecoverySession: addMindRecoverySessionLegacy,
+    addMindRecoverySession: addFirebaseMindRecoverySession,
     
-    // ✅ WELLNESS METHODS
+    // ✅ FIREBASE WELLNESS METHODS
     getDailyEmotionalNotes,
-    addEmotionalNote,
+    addEmotionalNote: addFirebaseEmotionalNote,
     getReflections,
-    getNotes,
+    getNotes: getFirebaseNotes,
     
-    // ✅ ANALYTICS METHODS
+    // ✅ FIREBASE ANALYTICS METHODS
     getPAHMData,
     getEnvironmentData,
     getMindRecoveryAnalytics,
@@ -265,33 +564,41 @@ export const useLocalDataCompat = () => {
     getEmotionDistribution,
     getAnalyticsData,
     
-    // ✅ ONBOARDING METHODS
+    // ✅ FIREBASE ONBOARDING METHODS
     getQuestionnaire,
     getSelfAssessment,
     isQuestionnaireCompleted,
     isSelfAssessmentCompleted,
     
-    // ✅ CONTENT METHODS
+    // ✅ FIREBASE CONTENT METHODS
     getAchievements,
     addAchievement,
     
-    // ✅ LEGACY STAGE METHODS (Backward Compatibility)
+    // ✅ FIREBASE STAGE METHODS (Enhanced)
     getStageProgress,
     getTCompleted,
     getStageXComplete,
-    getPAHMSessions,
+    getPAHMSessions: getFirebasePAHMSessions,
     getStageHours,
     
-    // ✅ UTILITY METHODS
-    clearAllData,
+    // ✅ FIREBASE UTILITY METHODS
+    clearAllData: clearFirebaseData,
     
-    // ✅ CALCULATED VALUES
-    consistencyScore: calculateConsistencyScore(),
-    progressTrend: getProgressTrend(),
+    // ✅ FIREBASE CALCULATED VALUES
+    consistencyScore: calculateFirebaseConsistencyScore(),
+    progressTrend: getProgressTrend() || 'stable',
     
-    // ✅ USER INFO
+    // ✅ FIREBASE USER INFO
     currentUser,
-    isAuthenticated: !!currentUser
+    isAuthenticated: !!currentUser,
+    
+    // ✅ FIREBASE-SPECIFIC ENHANCEMENTS
+    currentStreak: calculateCurrentStreak(),
+    longestStreak: calculateLongestStreak(),
+    firebaseIntegrated: true,
+    dataSource: 'Firebase Cloud Storage',
+    crossDeviceSync: true,
+    realTimeUpdates: true
   };
 };
 
