@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './Reflection.css';
 import './PAHMReflection.css';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 
 interface PAHMReflectionProps {
   stageLevel: string;
@@ -20,7 +22,6 @@ interface PAHMReflectionProps {
   };
   onComplete: () => void;
   onBack: () => void;
-  // NEW: Optional props for emotion selection
   onEmotionSelected?: (emotion: string, note: string) => void;
   allowEmotionSelection?: boolean;
 }
@@ -66,6 +67,10 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
   const [showEmotionSelection, setShowEmotionSelection] = useState(false);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('');
   const [emotionNote, setEmotionNote] = useState<string>('');
+  
+  // ✅ FIREBASE-ONLY: Use Firebase contexts
+  const { addPracticeSession } = usePractice();
+  const { addEmotionalNote } = useWellness();
   
   const formatPostureName = (postureId: string): string => {
     switch(postureId) {
@@ -142,36 +147,82 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
     setShowEmotionSelection(true);
   };
 
-  const handleSaveEmotionalNote = () => {
+  const handleSaveEmotionalNote = async () => {
     if (selectedEmotion && onEmotionSelected) {
       onEmotionSelected(selectedEmotion, emotionNote);
     }
-    handleSubmit();
+    await handleSubmit();
   };
 
-  const handleSkipEmotionalNote = () => {
-    handleSubmit();
+  const handleSkipEmotionalNote = async () => {
+    await handleSubmit();
   };
   
-  const handleSubmit = () => {
-    const reflectionData = {
-      stageLevel,
-      stageName,
-      duration,
-      posture,
-      rating,
-      feedback,
-      insights,
-      challenges,
-      pahmData,
-      pahmTotals,
-      timestamp: new Date().toISOString()
-    };
+  // ✅ FIREBASE-ONLY: Save to Firebase contexts instead of localStorage
+  const handleSubmit = async () => {
+    const timestamp = new Date().toISOString();
     
-    const previousReflections = JSON.parse(localStorage.getItem('reflectionHistory') || '[]');
-    localStorage.setItem('reflectionHistory', JSON.stringify([...previousReflections, reflectionData]));
-    
-    onComplete();
+    try {
+      // ✅ Save practice session to Firebase via PracticeContext
+      const sessionData = {
+        timestamp: timestamp,
+        duration: duration,
+        sessionType: 'meditation' as const,
+        stageLevel: parseInt(stageLevel.match(/\d+/)?.[0] || '1'),
+        stageLabel: `${stageName}: PAHM Practice`,
+        rating: rating || 7,
+        notes: `${stageName} PAHM practice session. ${feedback || insights || 'Practice completed successfully.'}`,
+        presentPercentage: pahmTotals.grandTotal > 0 ? getPercentage(pahmTotals.presentTotal) : 85,
+        environment: {
+          posture: posture,
+          location: 'indoor',
+          lighting: 'natural',
+          sounds: 'quiet'
+        },
+        pahmCounts: {
+          present_attachment: pahmTotals.data.presentAttachment,
+          present_neutral: pahmTotals.data.presentNeutral,
+          present_aversion: pahmTotals.data.presentAversion,
+          past_attachment: pahmTotals.data.pastAttachment,
+          past_neutral: pahmTotals.data.pastNeutral,
+          past_aversion: pahmTotals.data.pastAversion,
+          future_attachment: pahmTotals.data.futureAttachment,
+          future_neutral: pahmTotals.data.futureNeutral,
+          future_aversion: pahmTotals.data.futureAversion
+        },
+        metadata: {
+          stageLevel: stageLevel,
+          stageName: stageName,
+          challenges: challenges,
+          feedback: feedback,
+          insights: insights,
+          pahmTotals: pahmTotals,
+          wasReflectionCompleted: true
+        }
+      };
+
+      await addPracticeSession(sessionData);
+      console.log('✅ PAHM session saved to Firebase');
+
+      // ✅ Add emotional note if emotion was selected
+      if (selectedEmotion && addEmotionalNote) {
+        await addEmotionalNote({
+          content: emotionNote || `Completed ${stageName} PAHM practice session. ${feedback || insights || 'Great meditation practice!'}`,
+          emotion: selectedEmotion,
+          energyLevel: rating >= 4 ? 8 : rating >= 3 ? 7 : 6,
+          intensity: rating >= 4 ? 8 : rating >= 3 ? 7 : 6,
+          tags: ['pahm-practice', stageName.toLowerCase().replace(/\s+/g, '-'), 'meditation'],
+          gratitude: ['meditation practice', 'mindfulness training', 'inner awareness']
+        });
+        console.log('✅ Emotional note saved to Firebase');
+      }
+
+      onComplete();
+      
+    } catch (error) {
+      console.error('❌ Error saving PAHM reflection:', error);
+      alert('Failed to save reflection. Please try again.');
+    }
   };
 
   // 🎭 EMOTION SELECTION UI
@@ -892,7 +943,7 @@ const PAHMReflectionShared: React.FC<PAHMReflectionProps> = ({
             Consider practicing at this level again, or move to the next level when you feel ready.
           </p>
           
-          {/* 🎭 NEW: Emotion Selection Buttons */}
+          {/* 🎭 Emotion Selection Buttons */}
           {allowEmotionSelection && (
             <div style={{ 
               display: 'flex', 

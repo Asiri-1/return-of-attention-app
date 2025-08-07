@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
 import { useNavigate } from 'react-router-dom';
 
 interface MindRecoveryReflectionProps {
@@ -20,7 +22,11 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
   const [reflectionText, setReflectionText] = useState<string>('');
   const [mentalState, setMentalState] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  
+  // ✅ FIREBASE-ONLY: Use contexts instead of localStorage
   const { currentUser } = useAuth();
+  const { addPracticeSession } = usePractice();
+  const { addEmotionalNote } = useWellness();
 
   const mentalStateOptions = [
     { value: 'much-better', label: 'Much Better', emoji: '😊', color: '#4caf50' },
@@ -30,36 +36,99 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
     { value: 'worse', label: 'Worse', emoji: '😞', color: '#f44336' }
   ];
 
+  // ✅ FIREBASE-ONLY: Enhanced submission handler
   const handleSubmit = async () => {
     if (!mentalState) {
       alert('Please select how you feel after the practice.');
       return;
     }
 
+    if (!currentUser) {
+      alert('Please sign in to save your reflection.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Get existing Mind Recovery history
-      const existingHistory = JSON.parse(localStorage.getItem('mindRecoveryHistory') || '[]');
+      // Get practice title for context
+      const practiceTitle = getPracticeTitle();
+      const pahmStats = calculatePAHMStats();
       
-      // Find the most recent session and add reflection data
-      if (existingHistory.length > 0) {
-        const lastSession = existingHistory[existingHistory.length - 1];
-        lastSession.reflection = {
-          text: reflectionText,
-          mentalState,
-          submittedAt: new Date().toISOString()
-        };
-        
-        // Ensure pahmCounts are saved
-        if (pahmCounts) {
-          lastSession.pahmCounts = pahmCounts;
+      // Convert mental state to rating
+      const getRatingFromMentalState = (state: string): number => {
+        switch (state) {
+          case 'much-better': return 9;
+          case 'better': return 8;
+          case 'neutral': return 6;
+          case 'same': return 5;
+          case 'worse': return 3;
+          default: return 6;
         }
-        
-        // Save updated history
-        localStorage.setItem('mindRecoveryHistory', JSON.stringify(existingHistory));
-      }
+      };
 
+      const rating = getRatingFromMentalState(mentalState);
+
+      // Convert PAHM counts to Universal Architecture format
+      const formattedPahmCounts = pahmCounts ? {
+        present_attachment: pahmCounts.likes || 0,
+        present_neutral: pahmCounts.present || 0,
+        present_aversion: pahmCounts.dislikes || 0,
+        past_attachment: pahmCounts.nostalgia || 0,
+        past_neutral: pahmCounts.past || 0,
+        past_aversion: pahmCounts.regret || 0,
+        future_attachment: pahmCounts.anticipation || 0,
+        future_neutral: pahmCounts.future || 0,
+        future_aversion: pahmCounts.worry || 0
+      } : undefined;
+
+      // ✅ FIREBASE-ONLY: Save reflection as a practice session (without reflection property)
+      await addPracticeSession({
+        timestamp: new Date().toISOString(),
+        duration: 5, // Mind Recovery is always 5 minutes
+        sessionType: 'mind_recovery' as const,
+        mindRecoveryContext: practiceType as any,
+        mindRecoveryPurpose: 'stress-relief' as any,
+        rating: rating,
+        notes: reflectionText 
+          ? `${practiceTitle} session completed with ${mentalState} outcome. Reflection: ${reflectionText}`
+          : `${practiceTitle} session completed with ${mentalState} outcome`,
+        presentPercentage: pahmStats?.presentPercentage || 95,
+        environment: {
+          posture: posture,
+          location: 'unknown',
+          lighting: 'unknown',
+          sounds: 'unknown'
+        },
+        pahmCounts: formattedPahmCounts
+      });
+
+      // ✅ FIREBASE-ONLY: Add emotional note for wellness tracking
+      const getEmotionFromMentalState = (state: string): string => {
+        switch (state) {
+          case 'much-better': return 'refreshed';
+          case 'better': return 'improved';
+          case 'neutral': return 'calm';
+          case 'same': return 'stable';
+          case 'worse': return 'concerned';
+          default: return 'calm';
+        }
+      };
+
+      const emotion = getEmotionFromMentalState(mentalState);
+      const energyLevel = rating;
+      const intensity = Math.max(rating - 2, 3); // Intensity slightly lower than energy
+
+      await addEmotionalNote({
+        content: `Completed ${practiceTitle} Mind Recovery session. Feeling ${mentalState} after practice. ${reflectionText ? `Reflection: ${reflectionText}` : 'Quick mindfulness reset successful!'}`,
+        emotion: emotion,
+        energyLevel: energyLevel,
+        intensity: intensity,
+        tags: ['mind-recovery', practiceType, posture, mentalState, 'reflection']
+      });
+
+      console.log('✅ Mind Recovery reflection saved to Firebase');
+      
       // Brief delay for user feedback
       setTimeout(() => {
         setIsSubmitting(false);
@@ -67,9 +136,9 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
       }, 1000);
 
     } catch (error) {
-      console.error('Error saving reflection:', error);
+      console.error('❌ Error saving Mind Recovery reflection:', error);
       setIsSubmitting(false);
-      alert('Error saving reflection. Please try again.');
+      alert('Failed to save reflection. Please check your connection and try again.');
     }
   };
 
@@ -83,6 +152,8 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
         return 'Work-Home Transition';
       case 'evening-wind-down':
         return 'Evening Wind-Down';
+      case 'bedtime-winddown':
+        return 'Bedtime Wind Down';
       case 'mid-day-reset':
         return 'Mid-Day Reset';
       default:

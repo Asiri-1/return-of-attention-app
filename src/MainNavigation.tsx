@@ -1,8 +1,8 @@
-// src/MainNavigation.tsx - Universal Architecture Compatible
+// src/MainNavigation.tsx - Firebase-Only Universal Architecture Compatible
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainNavigation.css';
-// ✅ ALREADY CORRECT: Using Universal Architecture compatible imports
+// ✅ FIREBASE-ONLY: Using Universal Architecture compatible imports
 import { useAuth } from './contexts/auth/AuthContext';
 import { useAdmin } from './contexts/auth/AdminContext';
 
@@ -26,6 +26,8 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
   
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  // ✅ FIREBASE-ONLY: Use React state instead of sessionStorage for admin context
+  const [isInAdminMode, setIsInAdminMode] = useState<boolean>(false);
 
   // Enhanced active tab calculation with admin context
   const activeTab = useMemo((): string => {
@@ -41,10 +43,15 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
     return 'home';
   }, [location.pathname]);
 
-  // Check if currently in admin context
+  // ✅ FIREBASE-ONLY: Check admin context from path instead of sessionStorage
   const isInAdminContext = useMemo(() => {
-    return location.pathname.includes('/admin');
-  }, [location.pathname]);
+    const inAdminPath = location.pathname.includes('/admin');
+    // Update local state when path changes
+    if (inAdminPath !== isInAdminMode) {
+      setIsInAdminMode(inAdminPath);
+    }
+    return inAdminPath;
+  }, [location.pathname, isInAdminMode]);
 
   const profileInitial = useMemo(() => {
     return currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U';
@@ -65,6 +72,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
       case 'admin':
         if (isAdmin) {
           console.log('🛡️ Navigating to admin panel...');
+          setIsInAdminMode(true);
           navigate('/admin');
         } else {
           console.warn('❌ Access denied: Admin privileges required');
@@ -72,6 +80,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
         }
         break;
       default:
+        setIsInAdminMode(false);
         navigate('/home');
     }
     setIsMobileMenuOpen(false);
@@ -80,25 +89,27 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
 
   const handleNavigation = useCallback((path: string) => {
     console.log(`🔄 Navigating to: ${path}`);
+    // ✅ FIREBASE-ONLY: Update admin mode based on path
+    setIsInAdminMode(path.includes('/admin'));
     navigate(path);
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
   }, [navigate]);
 
-  // Enhanced home navigation - ensures normal user context
+  // ✅ FIREBASE-ONLY: Enhanced home navigation without sessionStorage
   const handleHomeNavigation = useCallback(() => {
     console.log('🏠 Navigating to home (normal user context)');
-    sessionStorage.removeItem('adminContext');
+    setIsInAdminMode(false);
     navigate('/home');
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
   }, [navigate]);
 
-  // Dedicated admin navigation with proper context setting
+  // ✅ FIREBASE-ONLY: Admin navigation with React state
   const handleAdminNavigation = useCallback(() => {
     if (isAdmin) {
       console.log(`🛡️ Accessing admin panel as ${adminRole} (Level ${adminLevel})`);
-      sessionStorage.setItem('adminContext', 'true');
+      setIsInAdminMode(true);
       navigate('/admin');
       setIsMobileMenuOpen(false);
       setShowProfileDropdown(false);
@@ -108,24 +119,28 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
   }, [navigate, isAdmin, adminRole, adminLevel]);
 
   const handleMindRecoveryNavigation = useCallback(() => {
+    setIsInAdminMode(false);
     navigate('/mind-recovery');
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
   }, [navigate]);
 
   const handleNotesNavigation = useCallback(() => {
+    setIsInAdminMode(false);
     navigate('/notes');
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
   }, [navigate]);
 
   const handleAnalyticsNavigation = useCallback(() => {
+    setIsInAdminMode(false);
     navigate('/analytics');
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
   }, [navigate]);
 
   const handleChatNavigation = useCallback(() => {
+    setIsInAdminMode(false);
     navigate('/chatwithguru');
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
@@ -144,9 +159,10 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
     setShowProfileDropdown(false);
   }, []);
 
+  // ✅ FIREBASE-ONLY: Logout without sessionStorage
   const handleLogout = useCallback(() => {
     console.log('🚪 Logging out...');
-    sessionStorage.removeItem('adminContext');
+    setIsInAdminMode(false);
     logout();
     setIsMobileMenuOpen(false);
     setShowProfileDropdown(false);
@@ -156,27 +172,51 @@ const MainNavigation: React.FC<MainNavigationProps> = ({
   const handleMyDetailsClick = useCallback(() => {
     setShowProfileDropdown(false);
     setIsMobileMenuOpen(false);
+    setIsInAdminMode(false);
     navigate('/profile');
   }, [navigate]);
 
-  // Mobile navigation handlers with enhanced context awareness
+  // ✅ FIREBASE-ONLY: Mobile navigation handlers without sessionStorage
   const handleMobileHomeNav = useCallback(() => {
     console.log('📱🏠 Mobile home navigation');
-    sessionStorage.removeItem('adminContext');
+    setIsInAdminMode(false);
     handleNavigation('/home');
   }, [handleNavigation]);
   
-  const handleMobileMindRecoveryNav = useCallback(() => handleNavigation('/mind-recovery'), [handleNavigation]);
-  const handleMobileNotesNav = useCallback(() => handleNavigation('/notes'), [handleNavigation]);
-  const handleMobileAnalyticsNav = useCallback(() => handleNavigation('/analytics'), [handleNavigation]);
-  const handleMobileLearnNav = useCallback(() => handleNavigation('/learn'), [handleNavigation]);
-  const handleMobileChatNav = useCallback(() => handleNavigation('/chatwithguru'), [handleNavigation]);
-  const handleMobileProfileNav = useCallback(() => handleNavigation('/profile'), [handleNavigation]);
+  const handleMobileMindRecoveryNav = useCallback(() => {
+    setIsInAdminMode(false);
+    handleNavigation('/mind-recovery');
+  }, [handleNavigation]);
+  
+  const handleMobileNotesNav = useCallback(() => {
+    setIsInAdminMode(false);
+    handleNavigation('/notes');
+  }, [handleNavigation]);
+  
+  const handleMobileAnalyticsNav = useCallback(() => {
+    setIsInAdminMode(false);
+    handleNavigation('/analytics');
+  }, [handleNavigation]);
+  
+  const handleMobileLearnNav = useCallback(() => {
+    setIsInAdminMode(false);
+    handleNavigation('/learn');
+  }, [handleNavigation]);
+  
+  const handleMobileChatNav = useCallback(() => {
+    setIsInAdminMode(false);
+    handleNavigation('/chatwithguru');
+  }, [handleNavigation]);
+  
+  const handleMobileProfileNav = useCallback(() => {
+    setIsInAdminMode(false);
+    handleNavigation('/profile');
+  }, [handleNavigation]);
   
   const handleMobileAdminNav = useCallback(() => {
     if (isAdmin) {
       console.log('📱🛡️ Mobile admin navigation');
-      sessionStorage.setItem('adminContext', 'true');
+      setIsInAdminMode(true);
       handleNavigation('/admin');
     } else {
       alert('🔒 Admin access required');

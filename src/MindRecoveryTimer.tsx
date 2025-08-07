@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// 🚀 FIXED: Use Universal Architecture contexts directly instead of compatibility hook
 import { useAuth } from './contexts/auth/AuthContext';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
-import { useNavigate } from 'react-router-dom';
 
 interface MindRecoveryTimerProps {
   practiceType: string;
@@ -279,16 +277,6 @@ class RobustTimer {
   }
 }
 
-// 📱 SESSION RECOVERY DATA INTERFACE
-interface SessionRecoveryData {
-  timeRemaining: number;
-  pahmCounts: any;
-  elapsedSeconds: number;
-  timestamp: number;
-  practiceType: string;
-  duration: number;
-}
-
 const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   practiceType,
   posture,
@@ -315,23 +303,20 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     worry: 0           // Row 3, Col 3: Aversion + Future
   });
 
-  // 🔋 NEW: Screen lock and audio management
+  // 🔋 Screen lock and audio management
   const [wakeLockManager] = useState(() => new WakeLockManager());
   const [audioManager] = useState(() => new AudioManager());
   const [robustTimer, setRobustTimer] = useState<RobustTimer | null>(null);
   const [isWakeLockActive, setIsWakeLockActive] = useState(false);
   const [hasAudioPermission, setHasAudioPermission] = useState(false);
   
-  // 📱 Background/foreground detection - SIMPLIFIED (no recovery prompt)
-  const [isInBackground, setIsInBackground] = useState(false);
-
+  // ✅ FIREBASE-ONLY: Remove background/foreground detection and localStorage recovery
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { currentUser } = useAuth();
-  // 🚀 FIXED: Use Universal Architecture contexts directly
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
 
-  // ✅ WORKS: Ultra-compact responsive styles for perfect one-screen fit
+  // ✅ Ultra-compact responsive styles for perfect one-screen fit
   const styles = {
     container: {
       display: 'flex',
@@ -474,58 +459,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     }
   };
 
-  // 🎯 SIMPLIFIED BACKGROUND/FOREGROUND DETECTION
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const isHidden = document.hidden;
-      setIsInBackground(isHidden);
-      
-      if (isHidden && isRunning && robustTimer) {
-        console.log('📱 App went to background - session continues');
-        const sessionRecoveryData: SessionRecoveryData = {
-          timeRemaining: robustTimer.getElapsedSeconds(),
-          pahmCounts: { ...pahmCounts },
-          elapsedSeconds: robustTimer.getElapsedSeconds(),
-          timestamp: Date.now(),
-          practiceType,
-          duration
-        };
-        localStorage.setItem('mindRecoverySessionRecovery', JSON.stringify(sessionRecoveryData));
-      } else if (!isHidden) {
-        console.log('📱 App returned to foreground');
-        handleSessionRecovery();
-      }
-    };
-
-    const handleBeforeUnload = () => {
-      if (isRunning && robustTimer) {
-        const sessionRecoveryData: SessionRecoveryData = {
-          timeRemaining: robustTimer.getElapsedSeconds(),
-          pahmCounts: { ...pahmCounts },
-          elapsedSeconds: robustTimer.getElapsedSeconds(),
-          timestamp: Date.now(),
-          practiceType,
-          duration
-        };
-        localStorage.setItem('mindRecoverySessionRecovery', JSON.stringify(sessionRecoveryData));
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [isRunning, pahmCounts, robustTimer, practiceType, duration]);
-
-  // 🔄 SESSION RECOVERY - SIMPLIFIED (just cleanup, no prompts)
-  const handleSessionRecovery = useCallback(() => {
-    localStorage.removeItem('mindRecoverySessionRecovery');
-  }, []);
-
-  // Enhanced timer completion handler
+  // ✅ FIREBASE-ONLY: Enhanced timer completion handler without localStorage
   const handleTimerComplete = useCallback(async () => {
     const endTime = new Date().toISOString();
     const actualDuration = duration;
@@ -543,9 +477,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     if (robustTimer) {
       robustTimer.stop();
     }
-
-    // Clear recovery data
-    localStorage.removeItem('mindRecoverySessionRecovery');
     
     // Calculate present percentage
     const calculatePresentPercentage = (counts: typeof pahmCounts) => {
@@ -595,37 +526,43 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
       }
     };
 
-    // 🚀 FIXED: Use Universal Architecture contexts directly
-    // Add Mind Recovery session as a practice session
-    addPracticeSession({
-      timestamp: endTime,
-      duration: actualDuration,
-      sessionType: 'mind_recovery' as const,
-      mindRecoveryContext: practiceType as any,
-      mindRecoveryPurpose: 'stress-relief' as any,
-      rating: rating,
-      notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments`,
-      presentPercentage: presentPercentage,
-      environment: {
-        posture: posture,
-        location: 'unknown',
-        lighting: 'unknown',
-        sounds: 'unknown'
-      },
-      pahmCounts: formattedPahmCounts
-    });
+    try {
+      // ✅ FIREBASE-ONLY: Save to Firebase via contexts
+      await addPracticeSession({
+        timestamp: endTime,
+        duration: actualDuration,
+        sessionType: 'mind_recovery' as const,
+        mindRecoveryContext: practiceType as any,
+        mindRecoveryPurpose: 'stress-relief' as any,
+        rating: rating,
+        notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments`,
+        presentPercentage: presentPercentage,
+        environment: {
+          posture: posture,
+          location: 'unknown',
+          lighting: 'unknown',
+          sounds: 'unknown'
+        },
+        pahmCounts: formattedPahmCounts
+      });
 
-    // ✅ FIXED: Add emotional note with intensity property
-    addEmotionalNote({
-      content: `Completed ${actualDuration}-minute ${getPracticeTitle()} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness. Quick mindfulness reset successful!`,
-      emotion: 'accomplished',
-      energyLevel: rating >= 8 ? 9 : rating >= 6 ? 7 : 6,
-      intensity: rating >= 8 ? 9 : rating >= 6 ? 7 : 6, // ✅ FIXED: Added missing intensity property
-      tags: ['mind-recovery', practiceType, posture, 'quick-session']
-    });
+      await addEmotionalNote({
+        content: `Completed ${actualDuration}-minute ${getPracticeTitle()} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness. Quick mindfulness reset successful!`,
+        emotion: 'accomplished',
+        energyLevel: rating >= 8 ? 9 : rating >= 6 ? 7 : 6,
+        intensity: rating >= 8 ? 9 : rating >= 6 ? 7 : 6,
+        tags: ['mind-recovery', practiceType, posture, 'quick-session']
+      });
 
-    // Complete with PAHM counts
-    onComplete(pahmCounts);
+      console.log('✅ Mind Recovery session saved to Firebase');
+      
+      // Complete with PAHM counts
+      onComplete(pahmCounts);
+      
+    } catch (error) {
+      console.error('❌ Error saving Mind Recovery session:', error);
+      alert('Failed to save session. Please check your connection and try again.');
+    }
   }, [duration, practiceType, posture, pahmCounts, currentUser, onComplete, addPracticeSession, addEmotionalNote, hasAudioPermission, audioManager, wakeLockManager, robustTimer]);
 
   // Remove old timer logic

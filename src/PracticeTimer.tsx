@@ -32,7 +32,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [totalPausedTime, setTotalPausedTime] = useState<number>(0);
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
   
-  // ✅ FIREBASE-ONLY: Store temporary data in component state instead of sessionStorage
+  // Store temporary data in component state instead of sessionStorage
   const [currentPosture, setCurrentPosture] = useState<string>('seated');
   const [lastPracticeData, setLastPracticeData] = useState<any>(null);
   
@@ -57,7 +57,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
   const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
-  // ✅ FIREBASE-ONLY: Use Firebase contexts
+  // Use Firebase contexts
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
   
@@ -404,14 +404,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   }, []);
 
-  // ✅ FIREBASE-ONLY: Session saving using PracticeContext only
+  // Session saving using PracticeContext only
   const saveSessionToFirebase = useCallback(async (sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
     const tLevelNumber = getTLevelNumber(tLevel);
     const timestamp = new Date().toISOString();
     
     try {
-      // ✅ Create enhanced session data for PracticeContext
+      // Create enhanced session data for PracticeContext
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
@@ -441,11 +441,11 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         }
       };
       
-      // ✅ Save to Firebase via PracticeContext
+      // Save to Firebase via PracticeContext
       await addPracticeSession(enhancedSessionData);
       console.log(`✅ SESSION SAVED TO FIREBASE! - ${tLevel.toUpperCase()}`);
       
-      // ✅ Note: T-stage completion tracking handled by PracticeContext internally
+      // Note: T-stage completion tracking handled by PracticeContext internally
       if (isCompleted) {
         console.log(`✅ T-STAGE COMPLETION TRACKED - ${tLevel.toUpperCase()}`);
       }
@@ -493,14 +493,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
 
     try {
-      // ✅ Save to Firebase only
+      // Save to Firebase only
       await saveSessionToFirebase(sessionData, isFullyCompleted);
 
       const completionMessage = isFullyCompleted 
         ? `Completed full ${initialMinutes}-minute ${getTLevel().toUpperCase()} stillness session! 🎯`
         : `Completed ${Math.round(actualDuration / 60)}-minute ${getTLevel().toUpperCase()} stillness session.`;
 
-      // ✅ Add emotional note via WellnessContext
+      // Add emotional note via WellnessContext
       await addEmotionalNote({
         content: `${completionMessage} Building foundation for deeper mindfulness practice. Quality rating: ${sessionQuality}/10.`,
         emotion: isFullyCompleted ? 'accomplished' : 'content',
@@ -510,7 +510,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         gratitude: ['meditation practice', 'inner stillness', isFullyCompleted ? 'session completion' : 'practice effort']
       });
 
-      // ✅ Store completion data in component state instead of sessionStorage
+      // Store completion data in component state instead of sessionStorage
       const reflectionData = {
         level: getTLevel(),
         targetDuration: initialMinutes,
@@ -614,8 +614,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     
     const nowISO = new Date(now).toISOString();
     setSessionStartTime(nowISO);
-    // ✅ Store in component state instead of sessionStorage
-    // sessionStorage.setItem('practiceStartTime', nowISO);
   };
 
   // Control handlers
@@ -691,10 +689,10 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
     
     try {
-      // ✅ Save to Firebase only
+      // Save to Firebase only
       await saveSessionToFirebase(sessionData, false);
       
-      // ✅ Store reflection data in component state instead of sessionStorage
+      // Store reflection data in component state instead of sessionStorage
       const reflectionData = {
         level: getTLevel(),
         targetDuration: initialMinutes,
@@ -832,7 +830,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             }}
           />
           
-          {/* ✅ FIREBASE-ONLY: Added posture selection */}
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             padding: '20px',
@@ -1182,21 +1179,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
             </div>
           </div>
         )}
-      </div>
-      
-      {/* ✅ FIREBASE-ONLY: Privacy Notice */}
-      <div style={{ 
-        position: 'fixed', 
-        bottom: '10px', 
-        right: '10px', 
-        background: 'rgba(0,0,0,0.7)', 
-        color: 'white', 
-        padding: '6px 10px', 
-        borderRadius: '6px', 
-        fontSize: '10px',
-        zIndex: 1000
-      }}>
-        🔥 Firebase-Only
       </div>
     </div>
   );
