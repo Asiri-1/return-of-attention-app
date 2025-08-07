@@ -140,6 +140,47 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
   );
 });
 
+// ✅ DEBUG COMPONENT: Add this temporarily to see what's happening
+const LoadingDebugger: React.FC = () => {
+  const { currentUser, isLoading } = useAuth();
+  const location = useLocation();
+  
+  // Only show in development
+  if (process.env.NODE_ENV !== 'development') return null;
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      top: '10px',
+      right: '10px',
+      background: 'rgba(0,0,0,0.8)',
+      color: 'white',
+      padding: '10px',
+      borderRadius: '5px',
+      fontSize: '12px',
+      zIndex: 9999,
+      maxWidth: '300px'
+    }}>
+      <div>Auth Loading: {isLoading ? 'TRUE' : 'FALSE'}</div>
+      <div>User: {currentUser ? 'EXISTS' : 'NULL'}</div>
+      <div>Path: {location.pathname}</div>
+      <div>Time: {new Date().toLocaleTimeString()}</div>
+      <button 
+        onClick={() => window.location.href = '/home'}
+        style={{ marginTop: '5px', padding: '2px 5px', cursor: 'pointer' }}
+      >
+        Force Home
+      </button>
+      <button 
+        onClick={() => window.location.href = '/'}
+        style={{ marginTop: '5px', padding: '2px 5px', cursor: 'pointer', marginLeft: '5px' }}
+      >
+        Force Landing
+      </button>
+    </div>
+  );
+};
+
 // ✅ FIREBASE-ONLY: Practice Reflection Wrapper using Firebase contexts only
 const PracticeReflectionWrapper: React.FC = () => {
   const navigate = useNavigate();
@@ -431,6 +472,36 @@ const AppContent: React.FC = React.memo(() => {
     };
   }, []);
 
+  // ✅ EMERGENCY: Force loading to complete after maximum timeout
+  useEffect(() => {
+    const emergencyTimeout = setTimeout(() => {
+      if (isLoading && !currentUser) {
+        console.warn('🚨 EMERGENCY: Forcing app to show landing page after timeout');
+        // Force the auth context to recognize no user
+        setAuthStateStable(true);
+        setAppInitialized(true);
+      } else if (isLoading && currentUser) {
+        console.warn('🚨 EMERGENCY: User exists but still loading - forcing completion');
+        setAuthStateStable(true);
+        setAppInitialized(true);
+      }
+    }, 8000); // 8 seconds maximum
+
+    return () => clearTimeout(emergencyTimeout);
+  }, [isLoading, currentUser]);
+
+  // ✅ DEBUGGING: Add console logs to better understand loading state
+  useEffect(() => {
+    console.log('🔍 Loading State Debug:', {
+      isLoading,
+      currentUser: !!currentUser,
+      userProfile: !!userProfile,
+      appInitialized,
+      authStateStable,
+      location: location.pathname
+    });
+  }, [isLoading, currentUser, userProfile, appInitialized, authStateStable, location.pathname]);
+
   // ✅ Initialize knowledge base
   useEffect(() => {
     setKnowledgeBaseReady(true);
@@ -618,30 +689,40 @@ const AppContent: React.FC = React.memo(() => {
     userProfile
   ]);
 
-  // ✅ Better loading logic to prevent homepage flash
+  // ✅ SIMPLIFIED: Better loading logic to prevent homepage flash
   const shouldShowLoader = useMemo(() => {
-    console.log('🔍 Loading check:', {
-      isLoading,
-      currentUser: !!currentUser,
-      appInitialized,
-      isSigningIn,
-      authStateStable
-    });
-
-    const shouldLoad = (isLoading && !authStateStable) || 
-                      (!appInitialized && !currentUser) ||
-                      isSigningIn ||
-                      (!authStateStable && isLoading);
+    // ✅ SIMPLE RULE: Only show loader if:
+    // 1. Auth is actively loading AND we don't have a user yet
+    // 2. OR we're in the process of signing in
     
-    console.log('🔍 Should show loader:', shouldLoad);
+    const authLoading = isLoading && !authStateStable;
+    const activeSignIn = isSigningIn;
+    const initializing = !appInitialized && !currentUser;
+    
+    const shouldLoad = authLoading || activeSignIn || initializing;
+    
+    console.log('🔍 Loading Decision:', {
+      isLoading,
+      authStateStable,
+      isSigningIn,
+      appInitialized,
+      hasUser: !!currentUser,
+      decision: shouldLoad ? 'SHOW_LOADER' : 'SHOW_CONTENT'
+    });
+    
     return shouldLoad;
-  }, [isLoading, currentUser, appInitialized, isSigningIn, authStateStable]);
+  }, [isLoading, authStateStable, isSigningIn, appInitialized, currentUser]);
   
   // ✅ Show loader first to prevent any route flashing
   if (shouldShowLoader) {
     const message = isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays...";
     console.log('🔄 Showing loader:', message);
-    return <FastLoader message={message} timeout={4000} />;
+    return (
+      <>
+        <div style={{display: "none"}} />
+        <FastLoader message={message} timeout={10000} />
+      </>
+    );
   }
 
   // ✅ Only show unauthenticated routes when we're absolutely certain
@@ -659,6 +740,7 @@ const AppContent: React.FC = React.memo(() => {
     console.log('🌟 Showing unauthenticated routes (landing page)');
     return (
       <div className="app-container">
+        <div style={{display: "none"}} />
         <PageViewTracker />
         <Routes>
           <Route path="/" element={<PublicLandingHero />} />
@@ -701,7 +783,12 @@ const AppContent: React.FC = React.memo(() => {
   // ✅ Only show authenticated routes when user is actually authenticated
   if (!isAuthenticated) {
     console.log('🔄 Auth state not ready, showing loader');
-    return <FastLoader message="Preparing your practice space..." timeout={4000} />;
+    return (
+      <>
+        <div style={{display: "none"}} />
+        <FastLoader message="Preparing your practice space..." timeout={10000} />
+      </>
+    );
   }
 
   console.log('🏠 Showing authenticated routes (home dashboard)');
@@ -709,6 +796,7 @@ const AppContent: React.FC = React.memo(() => {
   // ✅ FIREBASE-ONLY: Authenticated routes with Firebase integration
   return (
     <div className="app-container">
+      <div style={{display: "none"}} />
       <PageViewTracker />
       <LogoutWarning />
       

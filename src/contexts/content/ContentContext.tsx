@@ -359,10 +359,10 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.uid, saveToFirebase]);
+  }, [currentUser?.uid]);
 
   // ================================
-  // LOAD DATA ON USER CHANGE
+  // 🔧 FIXED: LOAD DATA ON USER CHANGE (NO INFINITE LOOP)
   // ================================
   useEffect(() => {
     if (currentUser?.uid) {
@@ -381,16 +381,26 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         favoriteContent: []
       });
     }
-  }, [currentUser?.uid, loadFromFirebase]);
+  }, [currentUser?.uid]); // ✅ FIXED: Only depend on currentUser?.uid
 
   // ================================
-  // AUTO-SAVE TO FIREBASE
+  // 🔧 FIXED: AUTO-SAVE TO FIREBASE (DEBOUNCED, NO INFINITE LOOP)
   // ================================
   useEffect(() => {
-    if (currentUser?.uid) {
-      saveToFirebase();
-    }
-  }, [achievements, guidedContent, courses, contentProgress, saveToFirebase]);
+    if (!currentUser?.uid) return;
+    
+    // ✅ DEBOUNCE: Only save after changes stop for 2 seconds
+    const saveTimer = setTimeout(() => {
+      console.log('💾 Auto-saving content data to Firebase...');
+      saveToFirebase().catch(error => {
+        console.error('❌ Auto-save failed:', error);
+      });
+    }, 2000);
+    
+    return () => {
+      clearTimeout(saveTimer);
+    };
+  }, [achievements, guidedContent, courses, contentProgress]); // ✅ FIXED: Removed saveToFirebase from dependencies
 
   // ================================
   // ACHIEVEMENT MANAGEMENT
@@ -703,7 +713,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.error('❌ Failed to clear content data in Firebase:', error);
       }
     }
-  }, [currentUser?.uid, saveToFirebase]);
+  }, [currentUser?.uid]);
 
   const exportContentData = useCallback(() => {
     return {

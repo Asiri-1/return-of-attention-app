@@ -4,14 +4,9 @@
 // 🔥 REMOVED: All localStorage dependencies - Firebase Functions only
 // ============================================================================
 
-import axios from "axios";
-import app from "../utils/firebase-config";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getAuth } from "firebase/auth";
-
-// ✅ FIREBASE-ONLY: Get Firebase instances
-const auth = getAuth(app);
-const functions = getFunctions(app);
+import axios, { AxiosResponse } from "axios";
+import { auth, functions } from "../firebase";
+import { httpsCallable, HttpsCallable } from "firebase/functions";
 
 // ✅ FIREBASE-ONLY: Firebase Functions API endpoints
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
@@ -43,7 +38,7 @@ api.interceptors.request.use(async (config) => {
 });
 
 // ✅ FIREBASE-ONLY: Enhanced error handling without localStorage fallbacks
-const handleFirebaseError = (error: any, operation: string) => {
+const handleFirebaseError = (error: any, operation: string): never => {
   console.error(`❌ Firebase ${operation} failed:`, error);
   
   if (error.code === 'functions/unauthenticated') {
@@ -62,14 +57,14 @@ const handleFirebaseError = (error: any, operation: string) => {
 };
 
 // ✅ FIREBASE-ONLY: Core API methods with Firebase-only error handling
-export const get = async (path: string, params?: any) => {
+export const get = async (path: string, params?: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required');
   }
 
   try {
     console.log(`🔥 Firebase GET request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
-    const response = await api.get(path, { params });
+    const response: AxiosResponse = await api.get(path, { params });
     console.log(`✅ Firebase GET success: ${path}`);
     return response.data;
   } catch (error) {
@@ -77,14 +72,14 @@ export const get = async (path: string, params?: any) => {
   }
 };
 
-export const post = async (path: string, data?: any) => {
+export const post = async (path: string, data?: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required');
   }
 
   try {
     console.log(`🔥 Firebase POST request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
-    const response = await api.post(path, data);
+    const response: AxiosResponse = await api.post(path, data);
     console.log(`✅ Firebase POST success: ${path}`);
     return response.data;
   } catch (error) {
@@ -92,14 +87,14 @@ export const post = async (path: string, data?: any) => {
   }
 };
 
-export const put = async (path: string, data?: any) => {
+export const put = async (path: string, data?: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required');
   }
 
   try {
     console.log(`🔥 Firebase PUT request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
-    const response = await api.put(path, data);
+    const response: AxiosResponse = await api.put(path, data);
     console.log(`✅ Firebase PUT success: ${path}`);
     return response.data;
   } catch (error) {
@@ -107,14 +102,14 @@ export const put = async (path: string, data?: any) => {
   }
 };
 
-export const del = async (path: string) => {
+export const del = async (path: string): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required');
   }
 
   try {
     console.log(`🔥 Firebase DELETE request: ${path} for user: ${auth.currentUser.uid.substring(0, 8)}...`);
-    const response = await api.delete(path);
+    const response: AxiosResponse = await api.delete(path);
     console.log(`✅ Firebase DELETE success: ${path}`);
     return response.data;
   } catch (error) {
@@ -123,7 +118,7 @@ export const del = async (path: string) => {
 };
 
 // ✅ FIREBASE-ONLY: Enhanced PAHM Guru Chat with Firebase Functions
-export const pahmGuruChat = async (message: string, userContext: any, sessionId: string) => {
+export const pahmGuruChat = async (message: string, userContext: any, sessionId: string): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required for PAHM Guru Chat');
   }
@@ -132,7 +127,7 @@ export const pahmGuruChat = async (message: string, userContext: any, sessionId:
     console.log(`🔥 PAHM Guru Chat request for user: ${auth.currentUser.uid.substring(0, 8)}...`);
     
     // Primary: Direct Firebase Functions call
-    const pahmChatCallable = httpsCallable(functions, 'pahmGuruChat');
+    const pahmChatCallable: HttpsCallable = httpsCallable(functions, 'pahmGuruChat');
     const result = await pahmChatCallable({
       message,
       userContext: {
@@ -192,14 +187,14 @@ export const pahmGuruChat = async (message: string, userContext: any, sessionId:
 };
 
 // ✅ FIREBASE-ONLY: Firebase Functions utilities
-export const getHelloWorld = async () => {
+export const getHelloWorld = async (): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required');
   }
 
   try {
     console.log(`🔥 HelloWorld request for user: ${auth.currentUser.uid.substring(0, 8)}...`);
-    const helloWorldCallable = httpsCallable(functions, 'helloWorld');
+    const helloWorldCallable: HttpsCallable = httpsCallable(functions, 'helloWorld');
     const result = await helloWorldCallable({
       uid: auth.currentUser.uid,
       timestamp: new Date().toISOString()
@@ -224,7 +219,7 @@ export const getHelloWorld = async () => {
 };
 
 // ✅ FIREBASE-ONLY: User profile functions without localStorage fallbacks
-export const getUserProfile = async () => {
+export const getUserProfile = async (): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to get user profile');
   }
@@ -240,7 +235,7 @@ export const getUserProfile = async () => {
   }
 };
 
-export const createUserProfile = async (profileData: any) => {
+export const createUserProfile = async (profileData: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to create user profile');
   }
@@ -263,7 +258,7 @@ export const createUserProfile = async (profileData: any) => {
   }
 };
 
-export const updateUserProfile = async (profileData: any) => {
+export const updateUserProfile = async (profileData: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to update user profile');
   }
@@ -287,7 +282,7 @@ export const updateUserProfile = async (profileData: any) => {
 };
 
 // ✅ FIREBASE-ONLY: Practice session functions without localStorage fallbacks
-export const createPracticeSession = async (sessionData: any) => {
+export const createPracticeSession = async (sessionData: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to create practice session');
   }
@@ -314,7 +309,7 @@ export const createPracticeSession = async (sessionData: any) => {
   }
 };
 
-export const getPracticeSessions = async () => {
+export const getPracticeSessions = async (): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to get practice sessions');
   }
@@ -331,7 +326,7 @@ export const getPracticeSessions = async () => {
 };
 
 // ✅ FIREBASE-ONLY: Emotional notes functions without localStorage fallbacks
-export const createEmotionalNote = async (noteData: any) => {
+export const createEmotionalNote = async (noteData: any): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to create emotional note');
   }
@@ -354,7 +349,7 @@ export const createEmotionalNote = async (noteData: any) => {
   }
 };
 
-export const getEmotionalNotes = async () => {
+export const getEmotionalNotes = async (): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to get emotional notes');
   }
@@ -371,7 +366,7 @@ export const getEmotionalNotes = async () => {
 };
 
 // ✅ FIREBASE-ONLY: Analytics functions without localStorage fallbacks
-export const getAnalytics = async () => {
+export const getAnalytics = async (): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required to get analytics');
   }
@@ -388,14 +383,14 @@ export const getAnalytics = async () => {
 };
 
 // ✅ FIREBASE-ONLY: Enhanced Firebase Functions utilities
-export const healthCheck = async () => {
+export const healthCheck = async (): Promise<any> => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required for health check');
   }
 
   try {
     console.log(`🔥 Firebase health check for: ${auth.currentUser.uid.substring(0, 8)}...`);
-    const healthCallable = httpsCallable(functions, 'healthCheck');
+    const healthCallable: HttpsCallable = httpsCallable(functions, 'healthCheck');
     const result = await healthCallable({
       uid: auth.currentUser.uid,
       timestamp: new Date().toISOString()
@@ -418,14 +413,14 @@ export const getFirebaseConnectionStatus = () => ({
   apiBaseUrl: API_BASE_URL
 });
 
-export const validateFirebaseAuth = () => {
+export const validateFirebaseAuth = (): boolean => {
   if (!auth.currentUser) {
     throw new Error('Firebase authentication required. Please sign in to continue.');
   }
   return true;
 };
 
-export const getFirebaseAuthToken = async () => {
+export const getFirebaseAuthToken = async (): Promise<string> => {
   if (!auth.currentUser) {
     throw new Error('No authenticated Firebase user');
   }

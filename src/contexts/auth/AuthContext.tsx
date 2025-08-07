@@ -30,7 +30,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
-import app, { auth as firebaseAuth, db as firebaseDb } from '../../firebase';
+import { auth as firebaseAuth, db as firebaseDb } from '../../firebase';
 
 // ✅ UNIVERSAL: Import environment configuration with error handling
 let getAdminServerUrl: () => string;
@@ -394,9 +394,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser, userProfile?.membershipType, checkAdvancedTokenValidity]);
 
-  // ✅ FIREBASE-ONLY: Auth state change listener with user isolation
+  // ✅ FIREBASE-ONLY: Auth state change listener with GUARANTEED loading resolution
   useEffect(() => {
     let mounted = true;
+    
+    // ✅ CRITICAL: Set a maximum timeout to prevent infinite loading
+    const maxLoadingTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn('🚨 Auth loading timeout - forcing loading to false');
+        setIsLoading(false);
+      }
+    }, 5000); // 5 second maximum loading time
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (isFeatureEnabled('debugging')) {
@@ -405,8 +413,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (!mounted) return;
       
-      if (user) {
-        try {
+      try {
+        if (user) {
           // ✅ FIREBASE-ONLY: Clean cache but preserve essential app settings
           cleanupUserCache();
           
@@ -439,34 +447,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }
             }
           }
-        } catch (error) {
-          console.error('❌ Error in auth state change:', error);
+        } else {
           if (mounted) {
+            // ✅ FIREBASE-ONLY: Clean up cache on logout
+            cleanupUserCache();
+            
             setCurrentUser(null);
             setUserProfile(null);
+            if (isFeatureEnabled('debugging')) {
+              console.log('✅ User cleared and cache cleaned');
+            }
           }
         }
-      } else {
+      } catch (error) {
+        console.error('❌ Error in auth state change:', error);
         if (mounted) {
-          // ✅ FIREBASE-ONLY: Clean up cache on logout
-          cleanupUserCache();
-          
           setCurrentUser(null);
           setUserProfile(null);
-          if (isFeatureEnabled('debugging')) {
-            console.log('✅ User cleared and cache cleaned');
-          }
         }
-      }
-      
-      // ✅ CRITICAL: Set loading to false AFTER state is fully updated
-      if (mounted) {
-        setIsLoading(false);
+      } finally {
+        // ✅ CRITICAL: ALWAYS set loading to false, regardless of success or failure
+        if (mounted) {
+          clearTimeout(maxLoadingTimeout);
+          setIsLoading(false);
+          console.log('✅ Loading state set to false');
+        }
       }
     });
 
     return () => {
       mounted = false;
+      clearTimeout(maxLoadingTimeout);
       unsubscribe();
     };
   }, [auth, db, loadUserProfile, cleanupUserCache]);
