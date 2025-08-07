@@ -1,4 +1,4 @@
-// ✅ SINGLE FIREBASE CONFIG - Use this in ALL your files
+// ✅ SINGLE FIREBASE CONFIG - Use this in ALL your files 
 // File: src/firebase.ts (renamed from .js to .ts for proper TypeScript support)
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
