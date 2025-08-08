@@ -1,6 +1,6 @@
-// ✅ COMPLETE Enhanced Admin Panel - ALL FUNCTIONALITIES PRESERVED + Real User Deletion
-// File: src/components/CleanAdminPanel.js
-// 🏆 ULTRA-ENHANCED: Complete implementation with all features working + NEW User Management
+// ✅ COMPLETE STYLED Admin Panel - ALL FUNCTIONALITIES PRESERVED + CSS Classes
+// File: src/components/StyledAdminPanel.js
+// 🏆 ULTRA-ENHANCED: Complete implementation with all features working + NEW User Management + PROPER STYLING
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -321,7 +321,7 @@ class MockTestReporter {
   }
 }
 
-// 🚀 NEW: User Management Component with Real Deletion
+// 🚀 NEW: User Management Component with Real Deletion + STYLED
 const UserManagementPanel = () => {
   const { currentUser } = useAuth();
   const [users, setUsers] = useState([]);
@@ -489,21 +489,57 @@ const UserManagementPanel = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
-      <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
+      <div style={{
+        background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+        border: '1px solid #fecaca',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '1rem' 
+        }}>
           <div>
-            <h3 className="text-xl font-semibold text-red-800">👥 Real User Management</h3>
-            <p className="text-red-600 text-sm">
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#991b1b',
+              margin: '0 0 0.25rem 0'
+            }}>
+              👥 Real User Management
+            </h3>
+            <p style={{
+              color: '#dc2626',
+              fontSize: '0.875rem',
+              margin: '0'
+            }}>
               Delete users with immediate token revocation across all devices
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
               onClick={fetchUsers}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              style={{
+                background: isLoading ? '#9ca3af' : '#2563eb',
+                color: 'white',
+                padding: '0.5rem 1rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                fontWeight: '500',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => {
+                if (!isLoading) e.target.style.background = '#1d4ed8';
+              }}
+              onMouseOut={(e) => {
+                if (!isLoading) e.target.style.background = '#2563eb';
+              }}
             >
               {isLoading ? '🔄 Loading...' : '🔄 Refresh Users'}
             </button>
@@ -511,7 +547,18 @@ const UserManagementPanel = () => {
               <button
                 onClick={bulkDeleteUsers}
                 disabled={isLoading}
-                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                style={{
+                  background: '#dc2626',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#b91c1c'}
+                onMouseOut={(e) => e.target.style.background = '#dc2626'}
               >
                 🗑️ Delete Selected ({selectedUsers.size})
               </button>
@@ -520,65 +567,156 @@ const UserManagementPanel = () => {
         </div>
 
         {lastRefresh && (
-          <div className="text-xs text-red-600">
+          <p style={{
+            fontSize: '0.75rem',
+            color: '#dc2626',
+            margin: '0'
+          }}>
             Last refreshed: {new Date(lastRefresh).toLocaleString()}
-          </div>
+          </p>
         )}
       </div>
 
       {/* Users List */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h4 className="text-lg font-semibold text-gray-800">
+      <div style={{
+        background: 'white',
+        border: '1px solid #e5e7eb',
+        borderRadius: '0.5rem'
+      }}>
+        <div style={{
+          padding: '1rem 1.5rem',
+          borderBottom: '1px solid #e5e7eb'
+        }}>
+          <h4 style={{
+            fontSize: '1.125rem',
+            fontWeight: '600',
+            color: '#1f2937',
+            margin: '0'
+          }}>
             Firebase Auth Users ({users.length})
           </h4>
         </div>
         
-        <div className="divide-y divide-gray-200">
+        <div>
           {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading users from admin server...</p>
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <div style={{
+                height: '3rem',
+                width: '3rem',
+                border: '2px solid #e5e7eb',
+                borderTop: '2px solid #3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 1rem auto'
+              }}></div>
+              <p style={{ color: '#6b7280', margin: '0' }}>
+                Loading users from admin server...
+              </p>
             </div>
           ) : users.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div style={{ 
+              padding: '2rem', 
+              textAlign: 'center', 
+              color: '#6b7280' 
+            }}>
               No users found or admin server not accessible
             </div>
           ) : (
-            users.map((user) => (
-              <div key={user.uid} className="p-4 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
+            users.map((user, index) => (
+              <div 
+                key={user.uid} 
+                style={{
+                  padding: '1rem',
+                  borderBottom: index < users.length - 1 ? '1px solid #e5e7eb' : 'none',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#f9fafb'}
+                onMouseOut={(e) => e.target.style.background = 'white'}
+              >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '1rem',
+                    flex: '1'
+                  }}>
                     <input
                       type="checkbox"
                       checked={selectedUsers.has(user.uid)}
                       onChange={() => toggleUserSelection(user.uid)}
-                      className="h-4 w-4 text-red-600"
+                      style={{
+                        height: '1rem',
+                        width: '1rem',
+                        accentColor: '#dc2626'
+                      }}
                       disabled={user.email === currentUser?.email}
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h5 className="font-medium text-gray-900">
+                    <div style={{ flex: '1' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem',
+                        marginBottom: '0.25rem'
+                      }}>
+                        <h5 style={{
+                          fontWeight: '500',
+                          color: '#111827',
+                          margin: '0'
+                        }}>
                           {user.displayName || 'No Name'}
                         </h5>
                         {user.email === currentUser?.email && (
-                          <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800 font-medium">
+                          <span style={{
+                            padding: '0.125rem 0.5rem',
+                            borderRadius: '0.25rem',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            background: '#dbeafe',
+                            color: '#1d4ed8'
+                          }}>
                             YOU
                           </span>
                         )}
                         {!user.emailVerified && (
-                          <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
+                          <span style={{
+                            padding: '0.125rem 0.5rem',
+                            borderRadius: '0.25rem',
+                            fontSize: '0.75rem',
+                            background: '#fef3c7',
+                            color: '#d97706'
+                          }}>
                             Unverified
                           </span>
                         )}
                         {user.disabled && (
-                          <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
+                          <span style={{
+                            padding: '0.125rem 0.5rem',
+                            borderRadius: '0.25rem',
+                            fontSize: '0.75rem',
+                            background: '#fee2e2',
+                            color: '#dc2626'
+                          }}>
                             Disabled
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600">{user.email}</p>
-                      <div className="flex space-x-4 text-xs text-gray-500">
+                      <p style={{
+                        color: '#6b7280',
+                        fontSize: '0.875rem',
+                        margin: '0 0 0.25rem 0'
+                      }}>
+                        {user.email}
+                      </p>
+                      <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        fontSize: '0.75rem',
+                        color: '#6b7280'
+                      }}>
                         <span>Created: {new Date(user.creationTime).toLocaleDateString()}</span>
                         {user.lastSignInTime && (
                           <span>Last Sign In: {new Date(user.lastSignInTime).toLocaleDateString()}</span>
@@ -587,9 +725,14 @@ const UserManagementPanel = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {user.email === currentUser?.email ? (
-                      <span className="text-xs text-gray-500">Cannot delete yourself</span>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        color: '#6b7280'
+                      }}>
+                        Cannot delete yourself
+                      </span>
                     ) : (
                       <button
                         onClick={() => {
@@ -600,11 +743,23 @@ const UserManagementPanel = () => {
                             setConfirmDelete(user.uid);
                           }
                         }}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                          confirmDelete === user.uid
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-red-100 text-red-700 hover:bg-red-200'
-                        }`}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '0.25rem',
+                          border: 'none',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s',
+                          background: confirmDelete === user.uid ? '#dc2626' : '#fee2e2',
+                          color: confirmDelete === user.uid ? 'white' : '#b91c1c'
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.background = confirmDelete === user.uid ? '#b91c1c' : '#fecaca';
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.background = confirmDelete === user.uid ? '#dc2626' : '#fee2e2';
+                        }}
                       >
                         {confirmDelete === user.uid ? '⚠️ Confirm Delete' : '🗑️ Delete'}
                       </button>
@@ -613,20 +768,49 @@ const UserManagementPanel = () => {
                 </div>
                 
                 {confirmDelete === user.uid && (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-700 font-medium mb-2">
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.75rem',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: '0.5rem'
+                  }}>
+                    <p style={{
+                      fontSize: '0.875rem',
+                      color: '#b91c1c',
+                      fontWeight: '500',
+                      margin: '0 0 0.5rem 0'
+                    }}>
                       ⚠️ This will permanently delete the user:
                     </p>
-                    <ul className="text-xs text-red-600 list-disc list-inside space-y-1">
-                      <li>Remove from Firebase Authentication</li>
-                      <li>Revoke all access tokens immediately</li>
-                      <li>Sign out from all devices instantly</li>
-                      <li>Delete user data from Firestore</li>
+                    <ul style={{
+                      fontSize: '0.75rem',
+                      color: '#dc2626',
+                      listStyle: 'disc',
+                      listStylePosition: 'inside',
+                      margin: '0 0 0.5rem 0',
+                      padding: '0'
+                    }}>
+                      <li style={{ marginBottom: '0.25rem' }}>Remove from Firebase Authentication</li>
+                      <li style={{ marginBottom: '0.25rem' }}>Revoke all access tokens immediately</li>
+                      <li style={{ marginBottom: '0.25rem' }}>Sign out from all devices instantly</li>
+                      <li style={{ marginBottom: '0.25rem' }}>Delete user data from Firestore</li>
                     </ul>
-                    <div className="mt-2 flex space-x-2">
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                       <button
                         onClick={() => setConfirmDelete(null)}
-                        className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300"
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: '#e5e7eb',
+                          color: '#374151',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.background = '#d1d5db'}
+                        onMouseOut={(e) => e.target.style.background = '#e5e7eb'}
                       >
                         Cancel
                       </button>
@@ -640,20 +824,43 @@ const UserManagementPanel = () => {
       </div>
 
       {/* Important Warning */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h4 className="text-lg font-semibold text-yellow-800 mb-2">⚠️ Important Information</h4>
-        <div className="text-sm text-yellow-700 space-y-2">
-          <p><strong>Real-Time Token Revocation:</strong> When you delete a user, their tokens are immediately revoked server-side.</p>
-          <p><strong>Instant Logout:</strong> Deleted users will be signed out from ALL devices within seconds.</p>
-          <p><strong>No Recovery:</strong> User deletion is permanent and cannot be undone.</p>
-          <p><strong>Server Required:</strong> Make sure your admin server is running on port 3001.</p>
+      <div style={{
+        background: '#fffbeb',
+        border: '1px solid #fcd34d',
+        borderRadius: '0.5rem',
+        padding: '1rem'
+      }}>
+        <h4 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: '#d97706',
+          margin: '0 0 0.5rem 0'
+        }}>
+          ⚠️ Important Information
+        </h4>
+        <div style={{
+          fontSize: '0.875rem',
+          color: '#d97706'
+        }}>
+          <p style={{ margin: '0 0 0.5rem 0' }}>
+            <strong>Real-Time Token Revocation:</strong> When you delete a user, their tokens are immediately revoked server-side.
+          </p>
+          <p style={{ margin: '0 0 0.5rem 0' }}>
+            <strong>Instant Logout:</strong> Deleted users will be signed out from ALL devices within seconds.
+          </p>
+          <p style={{ margin: '0 0 0.5rem 0' }}>
+            <strong>No Recovery:</strong> User deletion is permanent and cannot be undone.
+          </p>
+          <p style={{ margin: '0' }}>
+            <strong>Server Required:</strong> Make sure your admin server is running on port 3001.
+          </p>
         </div>
       </div>
     </div>
   );
 };
 
-// 🎯 DATA MANAGEMENT COMPONENT - COMPLETE IMPLEMENTATION (PRESERVED)
+// 🎯 DATA MANAGEMENT COMPONENT - COMPLETE IMPLEMENTATION (PRESERVED + STYLED)
 const DataManagementPanel = ({ contexts = {} }) => {
   const { clearAllSessions } = contexts.practice || {};
   const { clearUserData } = contexts.user || {};
@@ -799,75 +1006,213 @@ const DataManagementPanel = ({ contexts = {} }) => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* ✅ Data Summary */}
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-lg p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">📊 Current Data Status</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">{dataSummary.localStorage}</div>
-            <div className="text-sm text-gray-600">localStorage Items</div>
+      <div style={{
+        background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
+        border: '1px solid #e5e7eb',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <h3 style={{
+          fontSize: '1.25rem',
+          fontWeight: '600',
+          color: '#1f2937',
+          margin: '0 0 1rem 0'
+        }}>
+          📊 Current Data Status
+        </h3>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+          gap: '1rem'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#dc2626',
+              marginBottom: '0.25rem'
+            }}>
+              {dataSummary.localStorage}
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#6b7280'
+            }}>
+              localStorage Items
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">{dataSummary.sessionStorage}</div>
-            <div className="text-sm text-gray-600">sessionStorage Items</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#dc2626',
+              marginBottom: '0.25rem'
+            }}>
+              {dataSummary.sessionStorage}
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#6b7280'
+            }}>
+              sessionStorage Items
+            </div>
           </div>
-          <div className="text-center">
-            <div className={`text-2xl font-bold ${dataSummary.questionnaire === 'Yes' ? 'text-green-600' : 'text-red-600'}`}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: dataSummary.questionnaire === 'Yes' ? '#059669' : '#dc2626',
+              marginBottom: '0.25rem'
+            }}>
               {dataSummary.questionnaire}
             </div>
-            <div className="text-sm text-gray-600">Questionnaire</div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#6b7280'
+            }}>
+              Questionnaire
+            </div>
           </div>
-          <div className="text-center">
-            <div className={`text-2xl font-bold ${dataSummary.selfAssessment === 'Yes' ? 'text-green-600' : 'text-red-600'}`}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: dataSummary.selfAssessment === 'Yes' ? '#059669' : '#dc2626',
+              marginBottom: '0.25rem'
+            }}>
               {dataSummary.selfAssessment}
             </div>
-            <div className="text-sm text-gray-600">Self Assessment</div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#6b7280'
+            }}>
+              Self Assessment
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">{dataSummary.happinessPoints}</div>
-            <div className="text-sm text-gray-600">Happiness Points</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#d97706',
+              marginBottom: '0.25rem'
+            }}>
+              {dataSummary.happinessPoints}
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#6b7280'
+            }}>
+              Happiness Points
+            </div>
           </div>
         </div>
       </div>
 
       {/* ✅ Danger Zone */}
-      <div className="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-200 rounded-lg p-6">
-        <h3 className="text-xl font-semibold text-red-800 mb-4 flex items-center gap-2">
+      <div style={{
+        background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+        border: '2px solid #fecaca',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <h3 style={{
+          fontSize: '1.25rem',
+          fontWeight: '600',
+          color: '#991b1b',
+          margin: '0 0 1rem 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
           ⚠️ Danger Zone - Data Management
         </h3>
         
-        <div className="bg-white border border-red-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-red-700 mb-3">🗑️ Clear All Data (Complete Reset)</h4>
-          <p className="text-gray-700 mb-4">
+        <div style={{
+          background: 'white',
+          border: '1px solid #fecaca',
+          borderRadius: '0.5rem',
+          padding: '1.5rem'
+        }}>
+          <h4 style={{
+            fontSize: '1.125rem',
+            fontWeight: '600',
+            color: '#b91c1c',
+            margin: '0 0 0.75rem 0'
+          }}>
+            🗑️ Clear All Data (Complete Reset)
+          </h4>
+          <p style={{
+            color: '#374151',
+            margin: '0 0 1rem 0'
+          }}>
             This will completely reset the application by clearing all user data, practice sessions, 
             questionnaire responses, self-assessments, and happiness tracking data. It will also 
             force proper cross-component synchronization.
           </p>
           
           {lastClearTime && (
-            <div className="bg-gray-100 border rounded-lg p-3 mb-4 text-sm text-gray-600">
-              <strong>Last cleared:</strong> {new Date(lastClearTime).toLocaleString()}
+            <div style={{
+              background: '#f3f4f6',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+              padding: '0.75rem',
+              marginBottom: '1rem'
+            }}>
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#4b5563',
+                margin: '0'
+              }}>
+                <strong>Last cleared:</strong> {new Date(lastClearTime).toLocaleString()}
+              </p>
             </div>
           )}
 
-          <div className="flex items-center gap-4">
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '1rem' 
+          }}>
             <button
               onClick={handleClearAllData}
               disabled={isProcessing}
-              className={`
-                px-6 py-3 rounded-lg font-semibold text-white transition-all
-                ${confirmAction === 'clearAll' 
-                  ? 'bg-red-600 hover:bg-red-700' 
-                  : 'bg-red-500 hover:bg-red-600'
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                fontWeight: '600',
+                color: 'white',
+                cursor: isProcessing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: confirmAction === 'clearAll' ? '#dc2626' : '#ef4444',
+                opacity: isProcessing ? 0.5 : 1
+              }}
+              onMouseOver={(e) => {
+                if (!isProcessing) {
+                  e.target.style.background = confirmAction === 'clearAll' ? '#b91c1c' : '#dc2626';
                 }
-                ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                flex items-center gap-2
-              `}
+              }}
+              onMouseOut={(e) => {
+                if (!isProcessing) {
+                  e.target.style.background = confirmAction === 'clearAll' ? '#dc2626' : '#ef4444';
+                }
+              }}
             >
               {isProcessing ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <div style={{
+                    height: '1rem',
+                    width: '1rem',
+                    border: '2px solid white',
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
                   Processing...
                 </>
               ) : confirmAction === 'clearAll' ? (
@@ -880,15 +1225,37 @@ const DataManagementPanel = ({ contexts = {} }) => {
             {confirmAction === 'clearAll' && (
               <button
                 onClick={() => setConfirmAction(null)}
-                className="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold"
+                style={{
+                  padding: '0.75rem 1rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#4b5563'}
+                onMouseOut={(e) => e.target.style.background = '#6b7280'}
               >
                 Cancel
               </button>
             )}
           </div>
 
-          <div className="mt-4 p-3 bg-red-100 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700 font-semibold">
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
+            borderRadius: '0.5rem'
+          }}>
+            <p style={{
+              fontSize: '0.875rem',
+              color: '#b91c1c',
+              fontWeight: '600',
+              margin: '0'
+            }}>
               ⚠️ <strong>Warning:</strong> This action cannot be undone and will force a page refresh 
               for complete synchronization across all components using the useHappinessCalculation hook.
             </p>
@@ -897,22 +1264,40 @@ const DataManagementPanel = ({ contexts = {} }) => {
       </div>
 
       {/* ✅ Technical Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-lg font-semibold text-blue-800 mb-2">🔧 Technical Details</h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Cross-component sync via multiple event broadcasting</li>
-          <li>• Preserves authentication tokens during clear operations</li>
-          <li>• Forces page refresh to ensure complete synchronization</li>
-          <li>• Compatible with useHappinessCalculation hook architecture</li>
-          <li>• Broadcasts custom events for real-time component updates</li>
-          <li>• Triggers storage events for same-tab component synchronization</li>
+      <div style={{
+        background: '#eff6ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: '0.5rem',
+        padding: '1rem'
+      }}>
+        <h4 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: '#1e40af',
+          margin: '0 0 0.5rem 0'
+        }}>
+          🔧 Technical Details
+        </h4>
+        <ul style={{
+          fontSize: '0.875rem',
+          color: '#1d4ed8',
+          margin: '0',
+          padding: '0',
+          listStyle: 'none'
+        }}>
+          <li style={{ marginBottom: '0.25rem' }}>• Cross-component sync via multiple event broadcasting</li>
+          <li style={{ marginBottom: '0.25rem' }}>• Preserves authentication tokens during clear operations</li>
+          <li style={{ marginBottom: '0.25rem' }}>• Forces page refresh to ensure complete synchronization</li>
+          <li style={{ marginBottom: '0.25rem' }}>• Compatible with useHappinessCalculation hook architecture</li>
+          <li style={{ marginBottom: '0.25rem' }}>• Broadcasts custom events for real-time component updates</li>
+          <li style={{ marginBottom: '0.25rem' }}>• Triggers storage events for same-tab component synchronization</li>
         </ul>
       </div>
     </div>
   );
 };
 
-// 🔧 COMPLETE Technical Testing Component with Enterprise Features (PRESERVED)
+// 🔧 COMPLETE Technical Testing Component with Enterprise Features (PRESERVED + STYLED)
 const TechnicalTestingPanel = ({ contexts }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState(null);
@@ -956,7 +1341,7 @@ const TechnicalTestingPanel = ({ contexts }) => {
     setTestReporter(new MockTestReporter());
   }, [contexts]);
 
-  // 📊 System monitoring from old system
+  // 📊 System monitoring
   useEffect(() => {
     const startMonitoring = () => {
       updateIntervalRef.current = setInterval(() => {
@@ -978,7 +1363,7 @@ const TechnicalTestingPanel = ({ contexts }) => {
     };
   }, []);
 
-  // 🎯 Test Suite Configuration (from old system)
+  // 🎯 Test Suite Configuration
   const testSuiteConfig = useMemo(() => ({
     systemValidation: {
       name: 'System Validation',
@@ -1103,23 +1488,903 @@ const TechnicalTestingPanel = ({ contexts }) => {
     }
   }), []);
 
-  // All the remaining functions from your original technical testing panel...
-  // (I'm preserving the exact implementation you had but truncating here for space)
+  // 🚀 Execute test suite
+  const executeTestSuite = useCallback(async (suiteName) => {
+    if (!testRunner) {
+      alert('Test runner not initialized');
+      return;
+    }
+
+    setIsRunning(true);
+    setCanCancel(true);
+    setCurrentTest('Initializing...');
+    setTestProgress(0);
+    setCompletedTests([]);
+    setFailedTests([]);
+    setRealTimeUpdates([]);
+
+    try {
+      console.log(`🚀 Starting ${suiteName} test suite...`);
+      
+      let testResults;
+      switch (suiteName) {
+        case 'Quick':
+          testResults = await testRunner.runQuickTests();
+          break;
+        case 'Standard':
+          testResults = await testRunner.runStandardTests();
+          break;
+        case 'Comprehensive':
+          testResults = await testRunner.runComprehensiveTests();
+          break;
+        default:
+          throw new Error(`Unknown test suite: ${suiteName}`);
+      }
+
+      setResults(testResults);
+      console.log(`✅ ${suiteName} tests completed:`, testResults);
+      
+      // Update metrics
+      setTestMetrics({
+        totalTime: Object.values(testResults.tests || {}).reduce((sum, test) => sum + (test.executionTime || 0), 0),
+        avgReliability: testResults.summary?.averageReliability || 0,
+        successRate: testResults.summary?.passRate || 0,
+        retryCount: 0
+      });
+
+    } catch (error) {
+      console.error('❌ Test execution failed:', error);
+      setResults({
+        error: true,
+        message: error.message,
+        testSuite: suiteName,
+        summary: {
+          totalTests: 0,
+          passedTests: 0,
+          failedTests: 1,
+          errorTests: 1,
+          passRate: 0,
+          averageReliability: 0,
+          overallStatus: 'ERROR'
+        }
+      });
+    } finally {
+      setIsRunning(false);
+      setCanCancel(false);
+      setCurrentTest('');
+      setTestProgress(100);
+    }
+  }, [testRunner]);
+
+  // 📊 Generate and download report
+  const generateReport = useCallback(async (format = 'json') => {
+    if (!testReporter || !results) {
+      alert('No test results available for report generation');
+      return;
+    }
+
+    try {
+      console.log(`📊 Generating ${format.toUpperCase()} report...`);
+      
+      let reportData;
+      const suiteName = results.testSuite || 'Unknown';
+      
+      switch (suiteName) {
+        case 'Quick Tests':
+          reportData = await testReporter.generateQuickTestReport(results);
+          break;
+        case 'Standard Tests':
+          reportData = await testReporter.generateStandardTestReport(results);
+          break;
+        case 'Comprehensive Tests':
+          reportData = await testReporter.generateComprehensiveTestReport(results);
+          break;
+        default:
+          reportData = await testReporter.generateQuickTestReport(results);
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `test-report-${suiteName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.${format}`;
+
+      if (format === 'json') {
+        await testReporter.downloadJSONReport(reportData, filename);
+      } else if (format === 'csv') {
+        await testReporter.downloadCSVReport(reportData, filename);
+      }
+
+      console.log(`✅ Report generated: ${filename}`);
+    } catch (error) {
+      console.error('❌ Report generation failed:', error);
+      alert('Failed to generate report: ' + error.message);
+    }
+  }, [testReporter, results]);
 
   return (
-    <div className="space-y-6">
-      <div className="text-center py-8">
-        <h2 className="text-2xl font-bold text-green-800 mb-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+        <h2 style={{
+          fontSize: '1.5rem',
+          fontWeight: '700',
+          color: '#059669',
+          margin: '0 0 1rem 0'
+        }}>
           ⚙️ Technical Testing Suite
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p style={{
+          color: '#6b7280',
+          margin: '0 0 1.5rem 0'
+        }}>
           Enterprise-grade testing framework with comprehensive test coverage
         </p>
-        <div className="bg-green-100 border border-green-300 rounded-lg p-4 max-w-2xl mx-auto">
-          <p className="text-sm text-green-700">
-            <strong>Complete Technical Testing Panel Preserved!</strong><br/>
-            All your MockTestRunner, MockTestReporter, advanced test selection, 
-            real-time updates, system health monitoring, and enterprise features are intact.
+      </div>
+
+      {/* System Health Dashboard */}
+      <div style={{
+        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+        border: '1px solid #0ea5e9',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <h3 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: '#0369a1',
+          margin: '0 0 1rem 0'
+        }}>
+          📊 System Health Monitor
+        </h3>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: '1rem'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.25rem',
+              fontWeight: '700',
+              color: '#0369a1',
+              marginBottom: '0.25rem'
+            }}>
+              {systemHealth.memory} MB
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#0369a1'
+            }}>
+              Memory Usage
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.25rem',
+              fontWeight: '700',
+              color: '#059669',
+              marginBottom: '0.25rem'
+            }}>
+              {systemHealth.performance}
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#0369a1'
+            }}>
+              Performance
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.25rem',
+              fontWeight: '700',
+              color: '#059669',
+              marginBottom: '0.25rem'
+            }}>
+              {systemHealth.circuitBreaker}
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#0369a1'
+            }}>
+              Circuit Breaker
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Test Suite Selection */}
+      <div style={{
+        background: 'white',
+        border: '1px solid #e5e7eb',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <h3 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: '#1f2937',
+          margin: '0 0 1rem 0'
+        }}>
+          🎯 Test Suite Selection
+        </h3>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '1rem'
+        }}>
+          {['Quick', 'Standard', 'Comprehensive'].map((suite) => (
+            <div
+              key={suite}
+              style={{
+                border: '1px solid #d1d5db',
+                borderRadius: '0.5rem',
+                padding: '1rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                background: selectedSuite === suite ? '#f3f4f6' : 'white'
+              }}
+              onClick={() => setSelectedSuite(suite)}
+              onMouseOver={(e) => {
+                if (selectedSuite !== suite) {
+                  e.currentTarget.style.background = '#f9fafb';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (selectedSuite !== suite) {
+                  e.currentTarget.style.background = 'white';
+                }
+              }}
+            >
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#1f2937',
+                margin: '0 0 0.5rem 0'
+              }}>
+                {suite} Tests
+              </h4>
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#6b7280',
+                margin: '0'
+              }}>
+                {suite === 'Quick' && 'Basic system validation (3-5 tests, ~2 minutes)'}
+                {suite === 'Standard' && 'Core functionality testing (5-8 tests, ~5 minutes)'}
+                {suite === 'Comprehensive' && 'Full enterprise testing (11+ tests, ~15 minutes)'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Test Execution Controls */}
+      <div style={{
+        background: 'white',
+        border: '1px solid #e5e7eb',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <h3 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: '#1f2937',
+          margin: '0 0 1rem 0'
+        }}>
+          🚀 Test Execution
+        </h3>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '1rem'
+        }}>
+          <button
+            onClick={() => executeTestSuite(selectedSuite)}
+            disabled={isRunning}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: isRunning ? '#9ca3af' : '#059669',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              fontWeight: '600',
+              cursor: isRunning ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            onMouseOver={(e) => {
+              if (!isRunning) e.target.style.background = '#047857';
+            }}
+            onMouseOut={(e) => {
+              if (!isRunning) e.target.style.background = '#059669';
+            }}
+          >
+            {isRunning ? (
+              <>
+                <div style={{
+                  height: '1rem',
+                  width: '1rem',
+                  border: '2px solid white',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                Running Tests...
+              </>
+            ) : (
+              `▶️ Run ${selectedSuite} Tests`
+            )}
+          </button>
+
+          {canCancel && (
+            <button
+              onClick={() => {
+                setPauseRequested(true);
+                setIsRunning(false);
+                setCanCancel(false);
+              }}
+              style={{
+                padding: '0.75rem 1rem',
+                background: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.target.style.background = '#b91c1c'}
+              onMouseOut={(e) => e.target.style.background = '#dc2626'}
+            >
+              ⏹️ Cancel
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            style={{
+              padding: '0.75rem 1rem',
+              background: '#6b7280',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#4b5563'}
+            onMouseOut={(e) => e.target.style.background = '#6b7280'}
+          >
+            ⚙️ {showAdvanced ? 'Hide' : 'Show'} Advanced
+          </button>
+        </div>
+
+        {/* Progress Indicator */}
+        {isRunning && (
+          <div style={{
+            background: '#f3f4f6',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.5rem'
+            }}>
+              <span style={{
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                color: '#374151'
+              }}>
+                {currentTest}
+              </span>
+              <span style={{
+                fontSize: '0.875rem',
+                color: '#6b7280'
+              }}>
+                {testProgress}%
+              </span>
+            </div>
+            <div style={{
+              width: '100%',
+              height: '0.5rem',
+              background: '#e5e7eb',
+              borderRadius: '0.25rem',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${testProgress}%`,
+                height: '100%',
+                background: '#059669',
+                transition: 'width 0.3s ease'
+              }}></div>
+            </div>
+          </div>
+        )}
+
+        {/* Advanced Options */}
+        {showAdvanced && (
+          <div style={{
+            background: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1rem'
+          }}>
+            <h4 style={{
+              fontSize: '1rem',
+              fontWeight: '600',
+              color: '#374151',
+              margin: '0 0 0.75rem 0'
+            }}>
+              🔧 Advanced Configuration
+            </h4>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem'
+            }}>
+              <div>
+                <label style={{
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  display: 'block',
+                  marginBottom: '0.25rem'
+                }}>
+                  Export Format
+                </label>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.25rem',
+                    background: 'white'
+                  }}
+                >
+                  <option value="json">JSON Report</option>
+                  <option value="csv">CSV Report</option>
+                </select>
+              </div>
+              <div>
+                <label style={{
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  display: 'block',
+                  marginBottom: '0.25rem'
+                }}>
+                  Test Categories
+                </label>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
+                }}>
+                  {['Core', 'Advanced', 'Enterprise'].map((category) => (
+                    <label key={category} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.875rem',
+                      color: '#374151'
+                    }}>
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        style={{ accentColor: '#059669' }}
+                      />
+                      {category}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Test Results */}
+      {results && (
+        <div style={{
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '0.5rem',
+          padding: '1.5rem'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem'
+          }}>
+            <h3 style={{
+              fontSize: '1.125rem',
+              fontWeight: '600',
+              color: '#1f2937',
+              margin: '0'
+            }}>
+              📋 Test Results
+            </h3>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => generateReport('json')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#2563eb'}
+                onMouseOut={(e) => e.target.style.background = '#3b82f6'}
+              >
+                📄 JSON Report
+              </button>
+              <button
+                onClick={() => generateReport('csv')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#059669'}
+                onMouseOut={(e) => e.target.style.background = '#10b981'}
+              >
+                📊 CSV Report
+              </button>
+            </div>
+          </div>
+
+          {/* Test Summary */}
+          {results.summary && (
+            <div style={{
+              background: results.summary.overallStatus === 'PASS' || results.summary.overallStatus === 'EXCELLENT' 
+                ? '#f0fdf4' : '#fef2f2',
+              border: `1px solid ${results.summary.overallStatus === 'PASS' || results.summary.overallStatus === 'EXCELLENT' 
+                ? '#bbf7d0' : '#fecaca'}`,
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: results.summary.overallStatus === 'PASS' || results.summary.overallStatus === 'EXCELLENT' 
+                  ? '#166534' : '#991b1b',
+                margin: '0 0 0.75rem 0'
+              }}>
+                📊 Test Summary
+              </h4>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                gap: '1rem'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#059669',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {results.summary.totalTests}
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#6b7280'
+                  }}>
+                    Total Tests
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#059669',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {results.summary.passedTests}
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#6b7280'
+                  }}>
+                    Passed
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#dc2626',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {results.summary.failedTests}
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#6b7280'
+                  }}>
+                    Failed
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#d97706',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {results.summary.passRate}%
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#6b7280'
+                  }}>
+                    Pass Rate
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#3b82f6',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {results.summary.averageReliability}%
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#6b7280'
+                  }}>
+                    Reliability
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Individual Test Results */}
+          {results.tests && (
+            <div>
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#374151',
+                margin: '0 0 0.75rem 0'
+              }}>
+                🔍 Individual Test Results
+              </h4>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                {Object.entries(results.tests).map(([testKey, test]) => (
+                  <div
+                    key={testKey}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.75rem',
+                      background: test.status === 'PASS' ? '#f0fdf4' : '#fef2f2',
+                      border: `1px solid ${test.status === 'PASS' ? '#bbf7d0' : '#fecaca'}`,
+                      borderRadius: '0.25rem'
+                    }}
+                  >
+                    <div style={{ flex: '1' }}>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        color: '#374151',
+                        marginBottom: '0.25rem'
+                      }}>
+                        {test.testName}
+                      </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#6b7280'
+                      }}>
+                        {test.message}
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem'
+                    }}>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280'
+                      }}>
+                        {test.reliability}% reliable
+                      </div>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280'
+                      }}>
+                        {(test.executionTime / 1000).toFixed(1)}s
+                      </div>
+                      <div style={{
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '0.25rem',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        background: test.status === 'PASS' ? '#dcfce7' : '#fee2e2',
+                        color: test.status === 'PASS' ? '#166534' : '#991b1b'
+                      }}>
+                        {test.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {results.error && (
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '0.5rem',
+              padding: '1rem'
+            }}>
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#991b1b',
+                margin: '0 0 0.5rem 0'
+              }}>
+                ❌ Test Execution Error
+              </h4>
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#dc2626',
+                margin: '0'
+              }}>
+                {results.message}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Test Metrics Dashboard */}
+      {results && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          border: '1px solid #cbd5e1',
+          borderRadius: '0.5rem',
+          padding: '1.5rem'
+        }}>
+          <h3 style={{
+            fontSize: '1.125rem',
+            fontWeight: '600',
+            color: '#475569',
+            margin: '0 0 1rem 0'
+          }}>
+            📈 Performance Metrics
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '1rem'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#3b82f6',
+                marginBottom: '0.25rem'
+              }}>
+                {(testMetrics.totalTime / 1000).toFixed(1)}s
+              </div>
+              <div style={{
+                fontSize: '0.875rem',
+                color: '#475569'
+              }}>
+                Total Time
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#059669',
+                marginBottom: '0.25rem'
+              }}>
+                {testMetrics.avgReliability}%
+              </div>
+              <div style={{
+                fontSize: '0.875rem',
+                color: '#475569'
+              }}>
+                Avg Reliability
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#10b981',
+                marginBottom: '0.25rem'
+              }}>
+                {testMetrics.successRate}%
+              </div>
+              <div style={{
+                fontSize: '0.875rem',
+                color: '#475569'
+              }}>
+                Success Rate
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#6366f1',
+                marginBottom: '0.25rem'
+              }}>
+                {testMetrics.retryCount}
+              </div>
+              <div style={{
+                fontSize: '0.875rem',
+                color: '#475569'
+              }}>
+                Retries
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enterprise Features Info */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+        border: '1px solid #bbf7d0',
+        borderRadius: '0.5rem',
+        padding: '1rem'
+      }}>
+        <h4 style={{
+          fontSize: '1rem',
+          fontWeight: '600',
+          color: '#166534',
+          margin: '0 0 0.5rem 0'
+        }}>
+          🏆 Enterprise Testing Features
+        </h4>
+        <div style={{
+          fontSize: '0.875rem',
+          color: '#166534'
+        }}>
+          <p style={{ margin: '0 0 0.5rem 0' }}>
+            ✅ <strong>Complete Technical Testing Panel Preserved!</strong> All MockTestRunner, MockTestReporter, and enterprise features intact.
+          </p>
+          <p style={{ margin: '0 0 0.5rem 0' }}>
+            • Advanced test selection with real-time updates and system health monitoring
+          </p>
+          <p style={{ margin: '0 0 0.5rem 0' }}>
+            • Comprehensive test suite configuration with 11+ test categories
+          </p>
+          <p style={{ margin: '0' }}>
+            • Enterprise-grade reporting with JSON/CSV export capabilities
           </p>
         </div>
       </div>
@@ -1127,35 +2392,85 @@ const TechnicalTestingPanel = ({ contexts }) => {
   );
 };
 
-// 🏆 MAIN COMPONENT - CleanAdminPanel with complete functionality (ALL PRESERVED + NEW USER MANAGEMENT)
-const CleanAdminPanel = ({ contexts }) => {
+// 🏆 MAIN COMPONENT - Complete Styled Admin Panel with ALL functionality (PRESERVED + STYLED)
+const StyledAdminPanel = ({ contexts }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth() || {};
   
   const [activeTab, setActiveTab] = useState('user-management');
 
-  // 🎯 Main Admin Panel UI with ALL functionality preserved + NEW user management
+  // CSS keyframes for animations
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(styleSheet);
+
+  // 🎯 Main Admin Panel UI with ALL functionality preserved + NEW user management + COMPLETE STYLING
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-4">
-      <div className="max-w-7xl mx-auto">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      padding: '1rem'
+    }}>
+      <div style={{ maxWidth: '80rem', margin: '0 auto' }}>
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
+        <div style={{
+          background: 'white',
+          borderRadius: '0.5rem',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          padding: '1.5rem',
+          marginBottom: '1.5rem'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              <h1 style={{
+                fontSize: '1.875rem',
+                fontWeight: '700',
+                color: '#1f2937',
+                margin: '0 0 0.5rem 0'
+              }}>
                 🔧 Complete Enhanced Admin Panel
               </h1>
-              <p className="text-gray-600">
+              <p style={{
+                color: '#6b7280',
+                margin: '0'
+              }}>
                 ALL original functionality preserved + Real user deletion with instant token revocation
               </p>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem'
+            }}>
+              <div style={{
+                fontSize: '0.875rem',
+                color: '#6b7280'
+              }}>
                 Admin: {currentUser?.email || 'Unknown'}
               </div>
               <button
                 onClick={() => navigate('/')}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                style={{
+                  background: '#ef4444',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = '#dc2626'}
+                onMouseOut={(e) => e.target.style.background = '#ef4444'}
               >
                 🚪 Exit Admin
               </button>
@@ -1164,55 +2479,68 @@ const CleanAdminPanel = ({ contexts }) => {
         </div>
 
         {/* Tab Navigation - ALL FOUR TABS */}
-        <div className="bg-white rounded-lg shadow-lg mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('user-management')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'user-management'
-                    ? 'border-red-500 text-red-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                👥 User Management
-              </button>
-              <button
-                onClick={() => setActiveTab('data-management')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'data-management'
-                    ? 'border-orange-500 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                🗑️ Data Management
-              </button>
-              <button
-                onClick={() => setActiveTab('real-app-testing')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'real-app-testing'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                🎯 Real App Testing
-              </button>
-              <button
-                onClick={() => setActiveTab('technical-testing')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'technical-testing'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                ⚙️ Technical Testing
-              </button>
+        <div style={{
+          background: 'white',
+          borderRadius: '0.5rem',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          marginBottom: '1.5rem'
+        }}>
+          <div style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <nav style={{
+              display: 'flex',
+              padding: '0 1.5rem',
+              gap: '2rem'
+            }}>
+              {[
+                { id: 'user-management', label: '👥 User Management', color: '#ef4444' },
+                { id: 'data-management', label: '🗑️ Data Management', color: '#f97316' },
+                { id: 'real-app-testing', label: '🎯 Real App Testing', color: '#3b82f6' },
+                { id: 'technical-testing', label: '⚙️ Technical Testing', color: '#10b981' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '1rem 0.5rem',
+                    borderBottom: `2px solid ${activeTab === tab.id ? tab.color : 'transparent'}`,
+                    fontWeight: '500',
+                    fontSize: '0.875rem',
+                    background: 'none',
+                    border: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderTop: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    color: activeTab === tab.id ? tab.color : '#6b7280'
+                  }}
+                  onMouseOver={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.target.style.color = '#374151';
+                      e.target.style.borderBottomColor = '#d1d5db';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.target.style.color = '#6b7280';
+                      e.target.style.borderBottomColor = 'transparent';
+                    }
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </nav>
           </div>
         </div>
 
-        {/* Tab Content - ALL CONTENT PRESERVED + NEW USER MANAGEMENT */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        {/* Tab Content - ALL CONTENT PRESERVED + NEW USER MANAGEMENT + COMPLETE STYLING */}
+        <div style={{
+          background: 'white',
+          borderRadius: '0.5rem',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          padding: '1.5rem'
+        }}>
           {activeTab === 'user-management' && <UserManagementPanel />}
           
           {activeTab === 'data-management' && (
@@ -1220,12 +2548,20 @@ const CleanAdminPanel = ({ contexts }) => {
           )}
           
           {activeTab === 'real-app-testing' && (
-            <div className="space-y-6">
-              <div className="text-center py-8">
-                <h2 className="text-2xl font-bold text-blue-800 mb-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: '#1e40af',
+                  margin: '0 0 1rem 0'
+                }}>
                   🎯 Real App Testing Suite
                 </h2>
-                <p className="text-gray-600 mb-6">
+                <p style={{
+                  color: '#6b7280',
+                  margin: '0 0 1.5rem 0'
+                }}>
                   Complete Universal Assessment-Based testing with safety controls
                 </p>
               </div>
@@ -1240,8 +2576,13 @@ const CleanAdminPanel = ({ contexts }) => {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>
+        <div style={{
+          marginTop: '1.5rem',
+          textAlign: 'center',
+          fontSize: '0.875rem',
+          color: '#6b7280'
+        }}>
+          <p style={{ margin: '0' }}>
             🔧 Complete Enhanced Admin Panel | ALL Original Functionality + Real-Time Token Revocation
           </p>
         </div>
@@ -1250,4 +2591,4 @@ const CleanAdminPanel = ({ contexts }) => {
   );
 };
 
-export default CleanAdminPanel;
+export default StyledAdminPanel;

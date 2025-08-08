@@ -30,3 +30,12 @@ serviceAccountKey.json
 test-admin.js
 *.json
 node_modules/
+
+# Admin Server
+server/serviceAccountKey.json
+server/firebase-adminsdk-*.json
+server/node_modules/
+server/.env
+server/serviceAccountKey.json
+server/firebase-adminsdk-*.json
+server/.env
