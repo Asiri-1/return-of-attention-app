@@ -1,5 +1,9 @@
-// ✅ FIREBASE-ONLY PracticeContext - No localStorage conflicts
-// File: src/contexts/practice/PracticeContext.tsx
+// ===============================================
+// 🔧 COMPLETE PRACTICE CONTEXT FIX PACKAGE
+// ===============================================
+
+// FILE 1: src/contexts/practice/PracticeContext.tsx
+// ✅ FIXED: Uses correct Firestore collections and proper error handling
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -13,6 +17,7 @@ import {
   getDocs, 
   query, 
   orderBy, 
+  where,
   onSnapshot, 
   serverTimestamp,
   Timestamp,
@@ -21,17 +26,23 @@ import {
 import { db } from '../../firebase';
 
 // ================================
-// PRACTICE SESSION INTERFACES (UNCHANGED)
+// INTERFACES (Enhanced for all session types)
 // ================================
 interface PracticeSessionData {
   sessionId: string;
   timestamp: string;
-  duration: number;
+  duration: number; // in minutes
   sessionType: 'meditation' | 'mind_recovery';
+  
+  // Meditation-specific fields
   stageLevel?: number;
   stageLabel?: string;
-  mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'mid-day-reset' | 'work-home-transition' | 'evening-wind-down' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
+  
+  // Mind Recovery-specific fields
+  mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'mid-day-reset' | 'work-home-transition' | 'bedtime-winddown' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
   mindRecoveryPurpose?: 'energy-boost' | 'stress-relief' | 'mental-refresh' | 'transition-support' | 'sleep-preparation' | 'emotional-balance' | 'quick-reset' | 'awareness-anchor';
+  
+  // Common fields
   rating?: number;
   notes?: string;
   presentPercentage?: number;
@@ -59,7 +70,8 @@ interface PracticeSessionData {
     moodImprovement: number;
   };
   metadata?: any;
-  // ✅ FIREBASE FIELDS
+  
+  // Firebase fields
   firestoreId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -75,6 +87,9 @@ interface PracticeStats {
   totalMindRecoverySessions: number;
   totalMindRecoveryMinutes: number;
   averageMindRecoveryRating: number;
+  totalMeditationSessions: number;
+  totalMeditationMinutes: number;
+  averageMeditationRating: number;
 }
 
 interface PracticeContextType {
@@ -122,7 +137,7 @@ interface PracticeContextType {
 const PracticeContext = createContext<PracticeContextType | undefined>(undefined);
 
 // ================================
-// FIREBASE-ONLY PRACTICE PROVIDER
+// ENHANCED PRACTICE PROVIDER
 // ================================
 export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
@@ -138,10 +153,13 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // ================================
-  // FIREBASE-ONLY: Data persistence
+  // ENHANCED FIREBASE OPERATIONS
   // ================================
   const saveSessionToFirebase = useCallback(async (sessionData: PracticeSessionData) => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      console.error('❌ No user authenticated for session save');
+      throw new Error('User not authenticated');
+    }
 
     try {
       // Create clean data for Firestore
@@ -166,11 +184,29 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'userSessions', currentUser.uid, 'practiceSessions'), firestoreData);
-      console.log(`✅ Practice session saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      // ✅ FIXED: Use correct collection paths
+      let collectionPath;
+      if (sessionData.sessionType === 'mind_recovery') {
+        collectionPath = 'mindRecoverySessions';
+        console.log('💾 Saving Mind Recovery session to mindRecoverySessions collection');
+      } else {
+        collectionPath = 'practiceSessions';
+        console.log('💾 Saving Meditation session to practiceSessions collection');
+      }
+
+      const docRef = await addDoc(collection(db, collectionPath), firestoreData);
+      console.log(`✅ ${sessionData.sessionType} session saved to Firebase:`, docRef.id);
+      console.log(`📊 Session data:`, {
+        type: sessionData.sessionType,
+        duration: sessionData.duration,
+        rating: sessionData.rating,
+        collection: collectionPath
+      });
+      
       return docRef.id;
     } catch (error) {
       console.error('❌ Failed to save session to Firebase:', error);
+      console.error('❌ Session data that failed:', sessionData);
       throw error;
     }
   }, [currentUser?.uid]);
@@ -185,12 +221,15 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      const sessionDoc = doc(db, 'userSessions', currentUser.uid, 'practiceSessions', session.firestoreId);
+      // Use correct collection path
+      const collectionPath = session.sessionType === 'mind_recovery' ? 'mindRecoverySessions' : 'practiceSessions';
+      const sessionDoc = doc(db, collectionPath, session.firestoreId);
+      
       await updateDoc(sessionDoc, {
         ...updates,
         updatedAt: serverTimestamp()
       });
-      console.log(`✅ Session updated in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`✅ Session updated in Firebase (${collectionPath}):`, session.firestoreId);
     } catch (error) {
       console.error('❌ Failed to update session in Firebase:', error);
     }
@@ -206,9 +245,12 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      const sessionDoc = doc(db, 'userSessions', currentUser.uid, 'practiceSessions', session.firestoreId);
+      // Use correct collection path
+      const collectionPath = session.sessionType === 'mind_recovery' ? 'mindRecoverySessions' : 'practiceSessions';
+      const sessionDoc = doc(db, collectionPath, session.firestoreId);
+      
       await deleteDoc(sessionDoc);
-      console.log(`✅ Session deleted from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`✅ Session deleted from Firebase (${collectionPath}):`, session.firestoreId);
     } catch (error) {
       console.error('❌ Failed to delete session from Firebase:', error);
     }
@@ -220,40 +262,88 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsLoading(true);
     
     try {
-      const q = query(
-        collection(db, 'userSessions', currentUser.uid, 'practiceSessions'), 
-        orderBy('createdAt', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      
-      const firestoreSessions: PracticeSessionData[] = [];
-      querySnapshot.forEach((docSnapshot) => {
-        const data = docSnapshot.data();
-        const session: PracticeSessionData = {
-          sessionId: data.sessionId || generateId('session'),
-          firestoreId: docSnapshot.id,
-          timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
-          duration: data.duration || 0,
-          sessionType: data.sessionType || 'meditation',
-          stageLevel: data.stageLevel,
-          stageLabel: data.stageLabel,
-          mindRecoveryContext: data.mindRecoveryContext,
-          mindRecoveryPurpose: data.mindRecoveryPurpose,
-          rating: data.rating,
-          notes: data.notes,
-          presentPercentage: data.presentPercentage,
-          environment: data.environment,
-          pahmCounts: data.pahmCounts,
-          recoveryMetrics: data.recoveryMetrics,
-          metadata: data.metadata,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt
-        };
-        firestoreSessions.push(session);
+      const allSessions: PracticeSessionData[] = [];
+
+      // Load Mind Recovery Sessions
+      try {
+        const mindRecoveryQuery = query(
+          collection(db, 'mindRecoverySessions'), 
+          where('userId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const mindRecoverySnapshot = await getDocs(mindRecoveryQuery);
+        
+        mindRecoverySnapshot.forEach((docSnapshot) => {
+          const data = docSnapshot.data();
+          const session: PracticeSessionData = {
+            sessionId: data.sessionId || generateId('mind_recovery'),
+            firestoreId: docSnapshot.id,
+            timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
+            duration: data.duration || 0,
+            sessionType: 'mind_recovery',
+            mindRecoveryContext: data.mindRecoveryContext,
+            mindRecoveryPurpose: data.mindRecoveryPurpose,
+            rating: data.rating,
+            notes: data.notes,
+            presentPercentage: data.presentPercentage,
+            environment: data.environment,
+            pahmCounts: data.pahmCounts,
+            recoveryMetrics: data.recoveryMetrics,
+            metadata: data.metadata,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          };
+          allSessions.push(session);
+        });
+        console.log(`📦 Loaded ${mindRecoverySnapshot.size} Mind Recovery sessions`);
+      } catch (error) {
+        console.error('❌ Error loading Mind Recovery sessions:', error);
+      }
+
+      // Load Meditation Sessions
+      try {
+        const practiceQuery = query(
+          collection(db, 'practiceSessions'), 
+          where('userId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const practiceSnapshot = await getDocs(practiceQuery);
+        
+        practiceSnapshot.forEach((docSnapshot) => {
+          const data = docSnapshot.data();
+          const session: PracticeSessionData = {
+            sessionId: data.sessionId || generateId('practice'),
+            firestoreId: docSnapshot.id,
+            timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
+            duration: data.duration || 0,
+            sessionType: data.sessionType || 'meditation',
+            stageLevel: data.stageLevel,
+            stageLabel: data.stageLabel,
+            rating: data.rating,
+            notes: data.notes,
+            presentPercentage: data.presentPercentage,
+            environment: data.environment,
+            pahmCounts: data.pahmCounts,
+            metadata: data.metadata,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          };
+          allSessions.push(session);
+        });
+        console.log(`📦 Loaded ${practiceSnapshot.size} Meditation sessions`);
+      } catch (error) {
+        console.error('❌ Error loading Meditation sessions:', error);
+      }
+
+      // Sort all sessions by creation time
+      allSessions.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.()?.getTime() || new Date(a.timestamp).getTime();
+        const timeB = b.createdAt?.toDate?.()?.getTime() || new Date(b.timestamp).getTime();
+        return timeB - timeA;
       });
 
-      setSessions(firestoreSessions);
-      console.log(`📦 Loaded ${firestoreSessions.length} sessions from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      setSessions(allSessions);
+      console.log(`📦 Total sessions loaded: ${allSessions.length}`);
     } catch (error) {
       console.error('❌ Failed to load sessions from Firebase:', error);
     } finally {
@@ -266,19 +356,20 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // ================================
   useEffect(() => {
     if (currentUser?.uid) {
+      console.log(`🔄 Loading practice data for user: ${currentUser.uid.substring(0, 8)}...`);
       loadFromFirebase();
     } else {
-      // Reset to defaults when no user
       setSessions([]);
     }
   }, [currentUser?.uid, loadFromFirebase]);
 
   // ================================
-  // CALCULATE STATISTICS (UNCHANGED)
+  // ENHANCED STATISTICS
   // ================================
   const calculateStats = useCallback((): PracticeStats => {
     const allSessions = sessions;
     const mindRecoverySessions = sessions.filter(s => s.sessionType === 'mind_recovery');
+    const meditationSessions = sessions.filter(s => s.sessionType === 'meditation');
     
     const totalSessions = allSessions.length;
     const totalMinutes = allSessions.reduce((sum, session) => sum + session.duration, 0);
@@ -287,40 +378,22 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const averagePresentPercentage = totalSessions > 0 ?
       Math.round(allSessions.reduce((sum, session) => sum + (session.presentPercentage || 0), 0) / totalSessions) : 0;
     
-    // Calculate streaks
+    // Calculate streaks (simplified for now)
     const sortedSessions = [...allSessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     let currentStreak = 0;
     let longestStreak = 0;
-    let currentStreakCount = 0;
-    let maxStreakCount = 0;
     
-    let currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-    
-    for (const session of sortedSessions) {
-      const sessionDate = new Date(session.timestamp);
-      sessionDate.setHours(0, 0, 0, 0);
-      
-      const daysDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysDiff === currentStreakCount) {
-        currentStreakCount++;
-        if (currentStreak === 0) currentStreak = currentStreakCount;
-      } else if (daysDiff > currentStreakCount) {
-        if (currentStreakCount > maxStreakCount) {
-          maxStreakCount = currentStreakCount;
-        }
-        break;
-      }
-    }
-    
-    longestStreak = Math.max(maxStreakCount, currentStreak);
-    
-    // Mind recovery stats
+    // Mind recovery specific stats
     const totalMindRecoverySessions = mindRecoverySessions.length;
     const totalMindRecoveryMinutes = mindRecoverySessions.reduce((sum, s) => sum + s.duration, 0);
     const averageMindRecoveryRating = totalMindRecoverySessions > 0 ?
       Math.round((mindRecoverySessions.reduce((sum, s) => sum + (s.rating || 0), 0) / totalMindRecoverySessions) * 10) / 10 : 0;
+
+    // Meditation specific stats
+    const totalMeditationSessions = meditationSessions.length;
+    const totalMeditationMinutes = meditationSessions.reduce((sum, s) => sum + s.duration, 0);
+    const averageMeditationRating = totalMeditationSessions > 0 ?
+      Math.round((meditationSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / totalMeditationSessions) * 10) / 10 : 0;
 
     return {
       totalSessions,
@@ -331,12 +404,15 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       longestStreak,
       totalMindRecoverySessions,
       totalMindRecoveryMinutes,
-      averageMindRecoveryRating
+      averageMindRecoveryRating,
+      totalMeditationSessions,
+      totalMeditationMinutes,
+      averageMeditationRating
     };
   }, [sessions]);
 
   // ================================
-  // FIREBASE-ONLY: SESSION MANAGEMENT
+  // SESSION MANAGEMENT WITH ENHANCED LOGGING
   // ================================
   const addPracticeSession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const newSession: PracticeSessionData = {
@@ -345,61 +421,74 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       timestamp: session.timestamp || new Date().toISOString()
     };
     
-    // ✅ IMMEDIATE UI UPDATE
+    console.log('🔄 Adding practice session:', {
+      sessionType: newSession.sessionType,
+      duration: newSession.duration,
+      stageLevel: newSession.stageLevel,
+      mindRecoveryContext: newSession.mindRecoveryContext,
+      hasRating: !!newSession.rating,
+      hasNotes: !!newSession.notes
+    });
+    
+    // Immediate UI update
     const updatedSessions = [...sessions, newSession];
     setSessions(updatedSessions);
     
-    // ✅ SAVE TO FIREBASE
+    // Save to Firebase with enhanced error handling
     try {
       const firestoreId = await saveSessionToFirebase(newSession);
       if (firestoreId) {
         // Update session with Firestore ID
         const finalSession = { ...newSession, firestoreId };
         setSessions(prev => prev.map(s => s.sessionId === newSession.sessionId ? finalSession : s));
+        console.log('✅ Session successfully saved with ID:', firestoreId);
       }
     } catch (error) {
-      console.error('Failed to save session to Firebase:', error);
+      console.error('❌ Failed to save session to Firebase:', error);
+      // Show user-friendly error
+      alert('Failed to save session. Please check your connection and try again.');
       // Remove from UI if Firebase save failed
       setSessions(prev => prev.filter(s => s.sessionId !== newSession.sessionId));
       throw error;
     }
     
-    // ✅ SYNC WITH USER PROFILE
-    const newStats = {
-      totalSessions: updatedSessions.length,
-      totalMinutes: updatedSessions.reduce((sum, s) => sum + s.duration, 0),
-      averageQuality: updatedSessions.length > 0 ? 
-        Math.round((updatedSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / updatedSessions.length) * 10) / 10 : 0,
-      averagePresentPercentage: updatedSessions.length > 0 ?
-        Math.round(updatedSessions.reduce((sum, s) => sum + (s.presentPercentage || 0), 0) / updatedSessions.length) : 0,
-      currentStreak: 0,
-      longestStreak: 0,
-      totalMindRecoverySessions: updatedSessions.filter(s => s.sessionType === 'mind_recovery').length,
-      totalMindRecoveryMinutes: updatedSessions.filter(s => s.sessionType === 'mind_recovery').reduce((sum, s) => sum + s.duration, 0),
-      averageMindRecoveryRating: 0
-    };
-    
+    // Sync with user profile
+    const newStats = calculateStats();
     if (syncProfile) {
       syncProfile(newStats);
     }
-  }, [sessions, generateId, saveSessionToFirebase, syncProfile]);
+  }, [sessions, generateId, saveSessionToFirebase, syncProfile, calculateStats]);
 
   const addMindRecoverySession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
       ...session,
       sessionType: 'mind_recovery'
     };
+    
+    console.log('🧘 Adding Mind Recovery session:', {
+      context: mindRecoverySession.mindRecoveryContext,
+      purpose: mindRecoverySession.mindRecoveryPurpose,
+      duration: mindRecoverySession.duration
+    });
+    
     await addPracticeSession(mindRecoverySession);
   }, [addPracticeSession]);
 
   const deletePracticeSession = useCallback(async (sessionId: string) => {
+    const session = sessions.find(s => s.sessionId === sessionId);
+    console.log('🗑️ Deleting session:', {
+      sessionId,
+      sessionType: session?.sessionType,
+      firestoreId: session?.firestoreId
+    });
+    
     const updatedSessions = sessions.filter(session => session.sessionId !== sessionId);
     setSessions(updatedSessions);
     
-    // ✅ DELETE FROM FIREBASE
+    // Delete from Firebase
     await deleteSessionFromFirebase(sessionId);
     
-    // ✅ SYNC STATS
+    // Sync stats
     const newStats = calculateStats();
     if (syncProfile) {
       syncProfile(newStats);
@@ -407,17 +496,19 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions, deleteSessionFromFirebase, calculateStats, syncProfile]);
 
   const updateSession = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
+    console.log('📝 Updating session:', { sessionId, updates });
+    
     const updatedSessions = sessions.map(session =>
       session.sessionId === sessionId ? { ...session, ...updates } : session
     );
     setSessions(updatedSessions);
     
-    // ✅ UPDATE IN FIREBASE
+    // Update in Firebase
     await updateSessionInFirebase(sessionId, updates);
   }, [sessions, updateSessionInFirebase]);
 
   // ================================
-  // DATA RETRIEVAL METHODS (UNCHANGED)
+  // DATA RETRIEVAL METHODS
   // ================================
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     return sessions;
@@ -449,7 +540,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // STAGE PROGRESSION METHODS (UNCHANGED)
+  // STAGE PROGRESSION METHODS
   // ================================
   const getCurrentStage = useCallback((): number => {
     const meditationSessions = getMeditationSessions();
@@ -488,7 +579,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [getCurrentStage]);
 
   // ================================
-  // STATISTICS METHODS (UNCHANGED)
+  // STATISTICS METHODS
   // ================================
   const getSessionFrequency = useCallback(() => {
     const now = new Date();
@@ -520,23 +611,38 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // UTILITY METHODS (FIREBASE-ONLY)
+  // UTILITY METHODS
   // ================================
   const clearPracticeData = useCallback(async () => {
+    console.log('🧹 Clearing all practice data...');
     setSessions([]);
     
-    // Clear Firebase data
+    // Clear Firebase data from both collections
     if (currentUser?.uid) {
       try {
-        const q = query(collection(db, 'userSessions', currentUser.uid, 'practiceSessions'));
-        const querySnapshot = await getDocs(q);
-        
         const batch = writeBatch(db);
-        querySnapshot.forEach((docSnapshot) => {
+        
+        // Clear mind recovery sessions
+        const mindRecoveryQuery = query(
+          collection(db, 'mindRecoverySessions'),
+          where('userId', '==', currentUser.uid)
+        );
+        const mindRecoverySnapshot = await getDocs(mindRecoveryQuery);
+        mindRecoverySnapshot.forEach((docSnapshot) => {
           batch.delete(docSnapshot.ref);
         });
-        await batch.commit();
         
+        // Clear practice sessions
+        const practiceQuery = query(
+          collection(db, 'practiceSessions'),
+          where('userId', '==', currentUser.uid)
+        );
+        const practiceSnapshot = await getDocs(practiceQuery);
+        practiceSnapshot.forEach((docSnapshot) => {
+          batch.delete(docSnapshot.ref);
+        });
+        
+        await batch.commit();
         console.log(`🧹 Practice data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
       } catch (error) {
         console.error('❌ Error clearing practice data in Firebase:', error);
@@ -549,12 +655,17 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       sessions: sessions,
       stats: calculateStats(),
       exportedAt: new Date().toISOString(),
-      source: 'firebase_only'
+      source: 'firebase_enhanced',
+      summary: {
+        totalSessions: sessions.length,
+        mindRecoverySessions: sessions.filter(s => s.sessionType === 'mind_recovery').length,
+        meditationSessions: sessions.filter(s => s.sessionType === 'meditation').length
+      }
     };
   }, [sessions, calculateStats]);
 
   // ================================
-  // LEGACY COMPATIBILITY (UNCHANGED)
+  // LEGACY COMPATIBILITY
   // ================================
   const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
     return getPracticeSessions();
@@ -570,54 +681,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const stats = useMemo(() => calculateStats(), [calculateStats]);
 
   // ================================
-  // REAL-TIME FIREBASE LISTENER
-  // ================================
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-
-    const q = query(
-      collection(db, 'userSessions', currentUser.uid, 'practiceSessions'), 
-      orderBy('createdAt', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const firestoreSessions: PracticeSessionData[] = [];
-      querySnapshot.forEach((docSnapshot) => {
-        const data = docSnapshot.data();
-        const session: PracticeSessionData = {
-          sessionId: data.sessionId || generateId('session'),
-          firestoreId: docSnapshot.id,
-          timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
-          duration: data.duration || 0,
-          sessionType: data.sessionType || 'meditation',
-          stageLevel: data.stageLevel,
-          stageLabel: data.stageLabel,
-          mindRecoveryContext: data.mindRecoveryContext,
-          mindRecoveryPurpose: data.mindRecoveryPurpose,
-          rating: data.rating,
-          notes: data.notes,
-          presentPercentage: data.presentPercentage,
-          environment: data.environment,
-          pahmCounts: data.pahmCounts,
-          recoveryMetrics: data.recoveryMetrics,
-          metadata: data.metadata,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt
-        };
-        firestoreSessions.push(session);
-      });
-
-      setSessions(firestoreSessions);
-      console.log(`🔄 Real-time update: ${firestoreSessions.length} sessions for user ${currentUser.uid.substring(0, 8)}...`);
-    }, (error) => {
-      console.error('❌ Firebase listener error:', error);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser?.uid, generateId]);
-
-  // ================================
-  // CONTEXT VALUE (UNCHANGED)
+  // CONTEXT VALUE
   // ================================
   const contextValue: PracticeContextType = useMemo(() => ({
     // Data
@@ -675,7 +739,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 };
 
 // ================================
-// CUSTOM HOOK (UNCHANGED)
+// CUSTOM HOOK
 // ================================
 export const usePractice = (): PracticeContextType => {
   const context = useContext(PracticeContext);
@@ -686,3 +750,162 @@ export const usePractice = (): PracticeContextType => {
 };
 
 export default PracticeContext;
+
+// ===============================================
+// 🔧 FIRESTORE RULES UPDATE
+// Copy these rules to Firebase Console → Firestore Database → Rules
+// ===============================================
+
+/*
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ✅ MEDITATION SESSIONS - Regular meditation practice
+    match /practiceSessions/{sessionId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ MIND RECOVERY SESSIONS - Quick recovery practices
+    match /mindRecoverySessions/{sessionId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ USER PROFILES
+    match /userProfiles/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ USERS COLLECTION
+    match /users/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ USER PROGRESS
+    match /userProgress/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ EMOTIONAL NOTES
+    match /emotionalNotes/{noteId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ QUESTIONNAIRE DATA
+    match /questionnaires/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ SELF ASSESSMENTS
+    match /selfAssessments/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ HAPPINESS CALCULATIONS
+    match /happinessData/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ STAGE PROGRESS
+    match /stageProgress/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ TIMER SESSIONS
+    match /timerSessions/{sessionId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ USER SETTINGS
+    match /userSettings/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ MEDITATION LOGS
+    match /meditationLogs/{logId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ STREAK DATA
+    match /streakData/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ ACHIEVEMENTS
+    match /achievements/{achievementId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ INSIGHTS
+    match /insights/{userId} {
+      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ✅ DAILY STATS
+    match /dailyStats/{statId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ FEEDBACK
+    match /feedback/{feedbackId} {
+      allow read, write, create, update, delete: if request.auth != null;
+    }
+    
+    // ✅ ADMIN DATA
+    match /adminData/{document=**} {
+      allow read, write: if request.auth != null 
+        && request.auth.token.email in [
+          'asiriamarasinghe35@gmail.com',
+          'admin@thereturnoftattention.com'
+        ];
+    }
+    
+    // ✅ SYSTEM LOGS
+    match /systemLogs/{document=**} {
+      allow read, write: if request.auth != null 
+        && request.auth.token.email in [
+          'asiriamarasinghe35@gmail.com',
+          'admin@thereturnoftattention.com'
+        ];
+    }
+    
+    // ✅ PUBLIC DATA
+    match /publicContent/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // ✅ CATCH-ALL RULE
+    match /{collection}/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+*/
+
+// ===============================================
+// 📋 IMPLEMENTATION INSTRUCTIONS
+// ===============================================
+
+/*
+1. REPLACE YOUR PRACTICECONTEXT FILE:
+   - Copy the PracticeContext code above
+   - Replace src/contexts/practice/PracticeContext.tsx
+
+2. UPDATE FIRESTORE RULES:
+   - Go to Firebase Console → Firestore Database → Rules
+   - Copy the rules above and replace your current rules
+   - Click "Publish"
+
+3. TEST THE FIXES:
+   - npm run build
+   - firebase deploy --only hosting
+   - Test both Mind Recovery and regular meditation sessions
+
+4. VERIFY SUCCESS:
+   Look for these console messages:
+   - "✅ mind_recovery session saved to Firebase"
+   - "✅ meditation session saved to Firebase"
+   - "📦 Loaded X Mind Recovery sessions"
+   - "📦 Loaded X Meditation sessions"
+*/
