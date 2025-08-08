@@ -1,9 +1,9 @@
 // ===============================================
-// 🔧 COMPLETE PRACTICE CONTEXT FIX PACKAGE
+// 🔧 FINAL FIXED PRACTICE CONTEXT - NO UNDEFINED FIELDS
 // ===============================================
 
-// FILE 1: src/contexts/practice/PracticeContext.tsx
-// ✅ FIXED: Uses correct Firestore collections and proper error handling
+// FILE: src/contexts/practice/PracticeContext.tsx
+// ✅ FIXED: Uses correct Firestore collections + filters undefined values
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -153,7 +153,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // ================================
-  // ENHANCED FIREBASE OPERATIONS
+  // ✅ FIXED: ENHANCED FIREBASE OPERATIONS - NO UNDEFINED VALUES
   // ================================
   const saveSessionToFirebase = useCallback(async (sessionData: PracticeSessionData) => {
     if (!currentUser?.uid) {
@@ -162,27 +162,29 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      // Create clean data for Firestore
-      const firestoreData = {
+      // ✅ FIXED: Create clean data for Firestore - filter out undefined values
+      const firestoreData: any = {
         sessionId: sessionData.sessionId,
         timestamp: sessionData.timestamp,
         duration: sessionData.duration,
         sessionType: sessionData.sessionType,
-        stageLevel: sessionData.stageLevel,
-        stageLabel: sessionData.stageLabel,
-        mindRecoveryContext: sessionData.mindRecoveryContext,
-        mindRecoveryPurpose: sessionData.mindRecoveryPurpose,
-        rating: sessionData.rating,
-        notes: sessionData.notes,
-        presentPercentage: sessionData.presentPercentage,
-        environment: sessionData.environment,
-        pahmCounts: sessionData.pahmCounts,
-        recoveryMetrics: sessionData.recoveryMetrics,
-        metadata: sessionData.metadata,
         userId: currentUser.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
+
+      // ✅ FIXED: Only add defined fields to prevent "undefined" errors
+      if (sessionData.stageLevel !== undefined) firestoreData.stageLevel = sessionData.stageLevel;
+      if (sessionData.stageLabel !== undefined) firestoreData.stageLabel = sessionData.stageLabel;
+      if (sessionData.mindRecoveryContext !== undefined) firestoreData.mindRecoveryContext = sessionData.mindRecoveryContext;
+      if (sessionData.mindRecoveryPurpose !== undefined) firestoreData.mindRecoveryPurpose = sessionData.mindRecoveryPurpose;
+      if (sessionData.rating !== undefined) firestoreData.rating = sessionData.rating;
+      if (sessionData.notes !== undefined) firestoreData.notes = sessionData.notes;
+      if (sessionData.presentPercentage !== undefined) firestoreData.presentPercentage = sessionData.presentPercentage;
+      if (sessionData.environment !== undefined) firestoreData.environment = sessionData.environment;
+      if (sessionData.pahmCounts !== undefined) firestoreData.pahmCounts = sessionData.pahmCounts;
+      if (sessionData.recoveryMetrics !== undefined) firestoreData.recoveryMetrics = sessionData.recoveryMetrics;
+      if (sessionData.metadata !== undefined) firestoreData.metadata = sessionData.metadata;
 
       // ✅ FIXED: Use correct collection paths
       let collectionPath;
@@ -193,6 +195,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         collectionPath = 'practiceSessions';
         console.log('💾 Saving Meditation session to practiceSessions collection');
       }
+
+      console.log('🔍 Clean Firestore data (no undefined values):', firestoreData);
 
       const docRef = await addDoc(collection(db, collectionPath), firestoreData);
       console.log(`✅ ${sessionData.sessionType} session saved to Firebase:`, docRef.id);
@@ -225,10 +229,16 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const collectionPath = session.sessionType === 'mind_recovery' ? 'mindRecoverySessions' : 'practiceSessions';
       const sessionDoc = doc(db, collectionPath, session.firestoreId);
       
-      await updateDoc(sessionDoc, {
-        ...updates,
-        updatedAt: serverTimestamp()
+      // ✅ FIXED: Filter out undefined values in updates too
+      const cleanUpdates: any = { updatedAt: serverTimestamp() };
+      Object.keys(updates).forEach(key => {
+        const value = (updates as any)[key];
+        if (value !== undefined) {
+          cleanUpdates[key] = value;
+        }
       });
+      
+      await updateDoc(sessionDoc, cleanUpdates);
       console.log(`✅ Session updated in Firebase (${collectionPath}):`, session.firestoreId);
     } catch (error) {
       console.error('❌ Failed to update session in Firebase:', error);
@@ -655,7 +665,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       sessions: sessions,
       stats: calculateStats(),
       exportedAt: new Date().toISOString(),
-      source: 'firebase_enhanced',
+      source: 'firebase_enhanced_no_undefined',
       summary: {
         totalSessions: sessions.length,
         mindRecoverySessions: sessions.filter(s => s.sessionType === 'mind_recovery').length,
@@ -750,162 +760,3 @@ export const usePractice = (): PracticeContextType => {
 };
 
 export default PracticeContext;
-
-// ===============================================
-// 🔧 FIRESTORE RULES UPDATE
-// Copy these rules to Firebase Console → Firestore Database → Rules
-// ===============================================
-
-/*
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // ✅ MEDITATION SESSIONS - Regular meditation practice
-    match /practiceSessions/{sessionId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ MIND RECOVERY SESSIONS - Quick recovery practices
-    match /mindRecoverySessions/{sessionId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ USER PROFILES
-    match /userProfiles/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ USERS COLLECTION
-    match /users/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ USER PROGRESS
-    match /userProgress/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ EMOTIONAL NOTES
-    match /emotionalNotes/{noteId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ QUESTIONNAIRE DATA
-    match /questionnaires/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ SELF ASSESSMENTS
-    match /selfAssessments/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ HAPPINESS CALCULATIONS
-    match /happinessData/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ STAGE PROGRESS
-    match /stageProgress/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ TIMER SESSIONS
-    match /timerSessions/{sessionId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ USER SETTINGS
-    match /userSettings/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ MEDITATION LOGS
-    match /meditationLogs/{logId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ STREAK DATA
-    match /streakData/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ ACHIEVEMENTS
-    match /achievements/{achievementId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ INSIGHTS
-    match /insights/{userId} {
-      allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // ✅ DAILY STATS
-    match /dailyStats/{statId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ FEEDBACK
-    match /feedback/{feedbackId} {
-      allow read, write, create, update, delete: if request.auth != null;
-    }
-    
-    // ✅ ADMIN DATA
-    match /adminData/{document=**} {
-      allow read, write: if request.auth != null 
-        && request.auth.token.email in [
-          'asiriamarasinghe35@gmail.com',
-          'admin@thereturnoftattention.com'
-        ];
-    }
-    
-    // ✅ SYSTEM LOGS
-    match /systemLogs/{document=**} {
-      allow read, write: if request.auth != null 
-        && request.auth.token.email in [
-          'asiriamarasinghe35@gmail.com',
-          'admin@thereturnoftattention.com'
-        ];
-    }
-    
-    // ✅ PUBLIC DATA
-    match /publicContent/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    // ✅ CATCH-ALL RULE
-    match /{collection}/{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-*/
-
-// ===============================================
-// 📋 IMPLEMENTATION INSTRUCTIONS
-// ===============================================
-
-/*
-1. REPLACE YOUR PRACTICECONTEXT FILE:
-   - Copy the PracticeContext code above
-   - Replace src/contexts/practice/PracticeContext.tsx
-
-2. UPDATE FIRESTORE RULES:
-   - Go to Firebase Console → Firestore Database → Rules
-   - Copy the rules above and replace your current rules
-   - Click "Publish"
-
-3. TEST THE FIXES:
-   - npm run build
-   - firebase deploy --only hosting
-   - Test both Mind Recovery and regular meditation sessions
-
-4. VERIFY SUCCESS:
-   Look for these console messages:
-   - "✅ mind_recovery session saved to Firebase"
-   - "✅ meditation session saved to Firebase"
-   - "📦 Loaded X Mind Recovery sessions"
-   - "📦 Loaded X Meditation sessions"
-*/
