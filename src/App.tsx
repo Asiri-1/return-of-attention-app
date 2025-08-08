@@ -1,6 +1,6 @@
-// ✅ FIREBASE-ONLY App.tsx - Complete Firebase Integration
+// ✅ FIREBASE-ONLY App.tsx - FIXED: Loading Logic & Authentication Flow
 // File: src/App.tsx
-// 🔧 ENHANCED: Firebase-only architecture with NO localStorage/sessionStorage usage
+// 🔧 FIXED: Proper loading resolution and authentication state management
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -410,10 +410,8 @@ const AppContent: React.FC = React.memo(() => {
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
   const { userProfile, markStageIntroComplete } = useUser();
   
-  // ✅ State management to prevent homepage flash
+  // ✅ FIXED: Simplified state management to prevent loading loops
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [appInitialized, setAppInitialized] = useState(false);
-  const [authStateStable, setAuthStateStable] = useState(false);
   
   // ✅ Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
@@ -452,55 +450,35 @@ const AppContent: React.FC = React.memo(() => {
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
 
-  // ✅ App initialization timing
-  useEffect(() => {
-    console.log('🚀 App initialization starting...');
-    
-    const initTimer = setTimeout(() => {
-      setAppInitialized(true);
-      console.log('✅ App initialized');
-    }, 300);
-    
-    const authStableTimer = setTimeout(() => {
-      setAuthStateStable(true);
-      console.log('✅ Auth state stable');
-    }, 800);
-    
-    return () => {
-      clearTimeout(initTimer);
-      clearTimeout(authStableTimer);
-    };
-  }, []);
-
-  // ✅ EMERGENCY: Force loading to complete after maximum timeout
+  // ✅ FIXED: Emergency timeout to prevent infinite loading
   useEffect(() => {
     const emergencyTimeout = setTimeout(() => {
-      if (isLoading && !currentUser) {
-        console.warn('🚨 EMERGENCY: Forcing app to show landing page after timeout');
-        // Force the auth context to recognize no user
-        setAuthStateStable(true);
-        setAppInitialized(true);
-      } else if (isLoading && currentUser) {
-        console.warn('🚨 EMERGENCY: User exists but still loading - forcing completion');
-        setAuthStateStable(true);
-        setAppInitialized(true);
+      if (isLoading) {
+        console.warn('🚨 EMERGENCY: Forcing loading to complete after 10 seconds');
+        // Force navigation based on current state
+        if (currentUser) {
+          console.log('🏠 User exists, forcing navigation to home');
+          window.location.href = '/home';
+        } else {
+          console.log('🌟 No user, forcing navigation to landing');
+          window.location.href = '/';
+        }
       }
-    }, 8000); // 8 seconds maximum
+    }, 10000); // 10 seconds maximum
 
     return () => clearTimeout(emergencyTimeout);
   }, [isLoading, currentUser]);
 
   // ✅ DEBUGGING: Add console logs to better understand loading state
   useEffect(() => {
-    console.log('🔍 Loading State Debug:', {
+    console.log('🔍 App State Debug:', {
       isLoading,
       currentUser: !!currentUser,
       userProfile: !!userProfile,
-      appInitialized,
-      authStateStable,
+      isSigningIn,
       location: location.pathname
     });
-  }, [isLoading, currentUser, userProfile, appInitialized, authStateStable, location.pathname]);
+  }, [isLoading, currentUser, userProfile, isSigningIn, location.pathname]);
 
   // ✅ Initialize knowledge base
   useEffect(() => {
@@ -660,7 +638,6 @@ const AppContent: React.FC = React.memo(() => {
         
         if (response.ok) {
           const data = await response.json();
-          // Note: No localStorage usage here
           navigate('/home');
         }
       } catch (error: any) {
@@ -689,29 +666,20 @@ const AppContent: React.FC = React.memo(() => {
     userProfile
   ]);
 
-  // ✅ SIMPLIFIED: Better loading logic to prevent homepage flash
+  // ✅ FIXED: Much simpler and more reliable loading logic
   const shouldShowLoader = useMemo(() => {
-    // ✅ SIMPLE RULE: Only show loader if:
-    // 1. Auth is actively loading AND we don't have a user yet
-    // 2. OR we're in the process of signing in
-    
-    const authLoading = isLoading && !authStateStable;
-    const activeSignIn = isSigningIn;
-    const initializing = !appInitialized && !currentUser;
-    
-    const shouldLoad = authLoading || activeSignIn || initializing;
+    // Simple rule: Only show loader if actively loading AND no user yet
+    const showLoader = isLoading && !currentUser && !isSigningIn;
     
     console.log('🔍 Loading Decision:', {
       isLoading,
-      authStateStable,
-      isSigningIn,
-      appInitialized,
       hasUser: !!currentUser,
-      decision: shouldLoad ? 'SHOW_LOADER' : 'SHOW_CONTENT'
+      isSigningIn,
+      decision: showLoader ? 'SHOW_LOADER' : 'SHOW_CONTENT'
     });
     
-    return shouldLoad;
-  }, [isLoading, authStateStable, isSigningIn, appInitialized, currentUser]);
+    return showLoader;
+  }, [isLoading, currentUser, isSigningIn]);
   
   // ✅ Show loader first to prevent any route flashing
   if (shouldShowLoader) {
@@ -719,20 +687,18 @@ const AppContent: React.FC = React.memo(() => {
     console.log('🔄 Showing loader:', message);
     return (
       <>
-        <div style={{display: "none"}} />
         <FastLoader message={message} timeout={10000} />
       </>
     );
   }
 
   // ✅ Only show unauthenticated routes when we're absolutely certain
-  const shouldShowUnauthenticatedRoutes = !isAuthenticated && authStateStable && !isSigningIn && appInitialized;
+  const shouldShowUnauthenticatedRoutes = !isAuthenticated && !isLoading && !isSigningIn;
   
   console.log('🔍 Route decision:', {
     isAuthenticated,
-    authStateStable,
+    isLoading,
     isSigningIn,
-    appInitialized,
     shouldShowUnauthenticatedRoutes
   });
 
@@ -740,7 +706,6 @@ const AppContent: React.FC = React.memo(() => {
     console.log('🌟 Showing unauthenticated routes (landing page)');
     return (
       <div className="app-container">
-        <div style={{display: "none"}} />
         <PageViewTracker />
         <Routes>
           <Route path="/" element={<PublicLandingHero />} />
@@ -785,7 +750,6 @@ const AppContent: React.FC = React.memo(() => {
     console.log('🔄 Auth state not ready, showing loader');
     return (
       <>
-        <div style={{display: "none"}} />
         <FastLoader message="Preparing your practice space..." timeout={10000} />
       </>
     );
@@ -796,7 +760,6 @@ const AppContent: React.FC = React.memo(() => {
   // ✅ FIREBASE-ONLY: Authenticated routes with Firebase integration
   return (
     <div className="app-container">
-      <div style={{display: "none"}} />
       <PageViewTracker />
       <LogoutWarning />
       

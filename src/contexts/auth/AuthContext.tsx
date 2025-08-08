@@ -1,4 +1,4 @@
-// ✅ FIREBASE-ONLY AuthContext - No localStorage conflicts
+// ✅ FIREBASE-ONLY AuthContext - FIXED: Proper error handling & loading resolution
 // File: src/contexts/auth/AuthContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -108,6 +108,7 @@ interface UserProfile {
   customFields?: Record<string, any>;
   currentStage?: string;
   goals?: string[];
+  stageProgress?: any; // Added for compatibility
 }
 
 // FirestoreUserProfile interface for Firestore operations
@@ -260,7 +261,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, checkTokenValidity, auth]);
 
-  // Create missing user document helper function
+  // ✅ FIXED: Create missing user document helper function with better error handling
   const createUserDocument = useCallback(async (user: FirebaseUser): Promise<UserProfile> => {
     const membershipId = `SP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
@@ -285,29 +286,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       goals: []
     };
     
-    // ✅ FIREBASE-ONLY: Save to Firestore only
+    // ✅ FIXED: Try multiple collection paths for backward compatibility
     try {
-      await setDoc(doc(db, 'users', user.uid), {
+      // Try userProfiles first (new structure)
+      await setDoc(doc(db, 'userProfiles', user.uid), {
         ...newUserProfile,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
         memberSince: serverTimestamp()
       } as FirestoreUserProfile);
       
-      console.log(`✅ User profile created in Firebase for ${user.uid.substring(0, 8)}...`);
-    } catch (firestoreError) {
-      console.error('Failed to save user profile to Firestore:', firestoreError);
-      throw firestoreError; // Don't proceed if Firebase fails
+      console.log(`✅ User profile created in userProfiles for ${user.uid.substring(0, 8)}...`);
+    } catch (userProfilesError) {
+      console.warn('Failed to save to userProfiles, trying users collection:', userProfilesError);
+      
+      try {
+        // Fallback to users collection (legacy structure)
+        await setDoc(doc(db, 'users', user.uid), {
+          ...newUserProfile,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          memberSince: serverTimestamp()
+        } as FirestoreUserProfile);
+        
+        console.log(`✅ User profile created in users for ${user.uid.substring(0, 8)}...`);
+      } catch (usersError) {
+        console.error('Failed to save user profile to both collections:', usersError);
+        throw usersError;
+      }
     }
     
     return newUserProfile;
   }, [db]);
 
-  // Load user profile with enhanced error handling
+  // ✅ FIXED: Load user profile with enhanced error handling and collection fallback
   const loadUserProfile = useCallback(async (user: FirebaseUser): Promise<UserProfile | null> => {
     try {
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
+      // Try userProfiles first (new structure)
+      let userDocRef = doc(db, 'userProfiles', user.uid);
+      let userDoc = await getDoc(userDocRef);
+      
+      // If not found, try users collection (legacy)
+      if (!userDoc.exists()) {
+        console.log('Profile not found in userProfiles, trying users collection...');
+        userDocRef = doc(db, 'users', user.uid);
+        userDoc = await getDoc(userDocRef);
+      }
       
       if (userDoc.exists()) {
         const data = userDoc.data();
@@ -331,7 +355,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
-      throw error; // Don't fallback, ensure Firebase works
+      throw error;
     }
   }, [db, createUserDocument]);
 
@@ -394,7 +418,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser, userProfile?.membershipType, checkAdvancedTokenValidity]);
 
-  // ✅ FIREBASE-ONLY: Auth state change listener with GUARANTEED loading resolution
+  // ✅ FIXED: Auth state change listener with GUARANTEED loading resolution
   useEffect(() => {
     let mounted = true;
     
@@ -404,7 +428,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn('🚨 Auth loading timeout - forcing loading to false');
         setIsLoading(false);
       }
-    }, 5000); // 5 second maximum loading time
+    }, 8000); // 8 second maximum loading time
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (isFeatureEnabled('debugging')) {
@@ -418,33 +442,62 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // ✅ FIREBASE-ONLY: Clean cache but preserve essential app settings
           cleanupUserCache();
           
-          // ✅ CRITICAL: Wait for profile to load before setting user
-          const profile = await loadUserProfile(user);
-          
-          if (mounted) {
-            // Set additional properties on currentUser
-            const enhancedUser = user as User;
-            enhancedUser.currentStage = profile?.currentStage || '0';
-            enhancedUser.goals = profile?.goals || [];
-            enhancedUser.assessmentCompleted = false;
+          // ✅ FIXED: Better error handling for profile loading
+          try {
+            const profile = await loadUserProfile(user);
             
-            setUserProfile(profile);
-            setCurrentUser(enhancedUser);
-            
-            if (isFeatureEnabled('debugging')) {
-              console.log(`✅ User profile loaded and set for ${user.uid.substring(0, 8)}...`);
+            if (mounted) {
+              // Set additional properties on currentUser
+              const enhancedUser = user as User;
+              enhancedUser.currentStage = profile?.currentStage || '0';
+              enhancedUser.goals = profile?.goals || [];
+              enhancedUser.assessmentCompleted = false;
+              
+              setUserProfile(profile);
+              setCurrentUser(enhancedUser);
+              
+              console.log(`✅ User profile loaded for ${user.uid.substring(0, 8)}...`);
             }
+          } catch (profileError) {
+            console.error('❌ Profile loading failed, but continuing with basic auth:', profileError);
             
-            // Update last login time in Firebase only
-            try {
-              await updateDoc(doc(db, 'users', user.uid), {
+            // ✅ FIXED: Continue with basic user even if profile fails
+            if (mounted) {
+              const basicUser = user as User;
+              basicUser.currentStage = '0';
+              basicUser.goals = [];
+              basicUser.assessmentCompleted = false;
+              
+              setCurrentUser(basicUser);
+              setUserProfile(null); // Will be created later
+              
+              console.log('✅ Continuing with basic auth, profile will be created later');
+            }
+          }
+          
+          // ✅ FIXED: Update last login time (with error handling)
+          try {
+            const profileRef = doc(db, 'userProfiles', user.uid);
+            const profileDoc = await getDoc(profileRef);
+            
+            if (profileDoc.exists()) {
+              await updateDoc(profileRef, {
                 lastLoginAt: serverTimestamp()
               });
-            } catch (error) {
-              // Silent error handling
-              if (isFeatureEnabled('debugging')) {
-                console.warn('Failed to update last login time:', error);
+            } else {
+              // Try legacy users collection
+              const userRef = doc(db, 'users', user.uid);
+              const userDoc = await getDoc(userRef);
+              if (userDoc.exists()) {
+                await updateDoc(userRef, {
+                  lastLoginAt: serverTimestamp()
+                });
               }
+            }
+          } catch (error) {
+            // Silent error handling for login time update
+            if (isFeatureEnabled('debugging')) {
+              console.warn('Failed to update last login time:', error);
             }
           }
         } else {
@@ -454,23 +507,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             
             setCurrentUser(null);
             setUserProfile(null);
-            if (isFeatureEnabled('debugging')) {
-              console.log('✅ User cleared and cache cleaned');
-            }
+            console.log('✅ User cleared and cache cleaned');
           }
         }
       } catch (error) {
-        console.error('❌ Error in auth state change:', error);
+        console.error('❌ Critical auth error:', error);
         if (mounted) {
           setCurrentUser(null);
           setUserProfile(null);
         }
       } finally {
-        // ✅ CRITICAL: ALWAYS set loading to false, regardless of success or failure
+        // ✅ CRITICAL: ALWAYS set loading to false
         if (mounted) {
           clearTimeout(maxLoadingTimeout);
           setIsLoading(false);
-          console.log('✅ Loading state set to false');
+          console.log('✅ Auth loading completed');
         }
       }
     });
@@ -561,12 +612,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentUser(updatedUser);
       }
       
-      // ✅ FIREBASE-ONLY: Update Firestore only
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, data);
-      
-      if (isFeatureEnabled('debugging')) {
-        console.log(`✅ Profile updated in Firebase for ${currentUser.uid.substring(0, 8)}...`);
+      // ✅ FIXED: Try both collection paths
+      try {
+        const userDocRef = doc(db, 'userProfiles', currentUser.uid);
+        await updateDoc(userDocRef, data);
+        console.log(`✅ Profile updated in userProfiles for ${currentUser.uid.substring(0, 8)}...`);
+      } catch (error) {
+        console.warn('Failed to update userProfiles, trying users collection...');
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userDocRef, data);
+        console.log(`✅ Profile updated in users for ${currentUser.uid.substring(0, 8)}...`);
       }
       
     } catch (err: any) {
