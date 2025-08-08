@@ -43,12 +43,12 @@ export const getAdminServerUrl = () => {
   
   switch (environment) {
     case 'development':
-      return 'http://localhost:3001';
+      return 'https://us-central1-return-of-attention-app.cloudfunctions.net/adminApi';
     case 'cloudshell':
       return 'https://3001-cs-8012bd28-386d-4208-9c50-72554d95a20c.cs-asia-southeast1-palm.cloudshell.dev';
     case 'production':
       return 'https://thereturnofattention.com';
     default:
-      return 'http://localhost:3001';
+      return 'https://us-central1-return-of-attention-app.cloudfunctions.net/adminApi';
   }
 };

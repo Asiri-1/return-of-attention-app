@@ -338,7 +338,7 @@ const UserManagementPanel = () => {
     try {
       const idToken = await currentUser.getIdToken();
       
-      const response = await fetch('http://localhost:3001/api/admin/users', {
+      const response = await fetch('https://us-central1-return-of-attention-app.cloudfunctions.net/adminApi/api/admin/users', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${idToken}`,
@@ -372,7 +372,7 @@ const UserManagementPanel = () => {
       
       console.log(`🗑️ Deleting user: ${email} (${userId})`);
       
-      const response = await fetch('http://localhost:3001/api/admin/delete-user', {
+      const response = await fetch('https://us-central1-return-of-attention-app.cloudfunctions.net/adminApi/api/admin/delete-user', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${idToken}`,
@@ -436,7 +436,7 @@ const UserManagementPanel = () => {
     try {
       const idToken = await currentUser.getIdToken();
       
-      const response = await fetch('http://localhost:3001/api/admin/delete-users-bulk', {
+      const response = await fetch('https://us-central1-return-of-attention-app.cloudfunctions.net/adminApi/api/admin/delete-users-bulk', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${idToken}`,

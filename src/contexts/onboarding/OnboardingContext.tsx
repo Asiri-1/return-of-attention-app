@@ -1,5 +1,6 @@
-// ✅ FIREBASE-ONLY OnboardingContext - No localStorage conflicts
+// ✅ COMPLETE FIREBASE-ONLY OnboardingContext - Ready to use!
 // File: src/contexts/onboarding/OnboardingContext.tsx
+// Simply copy and paste this entire file to replace your existing OnboardingContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -15,7 +16,7 @@ import {
 import { db } from '../../firebase';
 
 // ================================
-// ONBOARDING DATA INTERFACES (UNCHANGED)
+// ONBOARDING DATA INTERFACES
 // ================================
 interface QuestionnaireData {
   completed: boolean;
@@ -182,19 +183,21 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireData | null>(null);
   const [selfAssessment, setSelfAssessment] = useState<SelfAssessmentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // ================================
-  // FIREBASE-ONLY: Data persistence
+  // FIREBASE SAVE OPERATIONS
   // ================================
   const saveQuestionnaireToFirebase = useCallback(async (questionnaireData: QuestionnaireData) => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      throw new Error('User not authenticated');
+    }
     
     try {
       const questionnaireDoc = {
         ...questionnaireData,
         userId: currentUser.uid,
-        lastUpdated: serverTimestamp()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
       await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), questionnaireDoc);
@@ -207,13 +210,16 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [currentUser?.uid]);
 
   const saveSelfAssessmentToFirebase = useCallback(async (assessmentData: SelfAssessmentData) => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      throw new Error('User not authenticated');
+    }
     
     try {
       const assessmentDoc = {
         ...assessmentData,
         userId: currentUser.uid,
-        lastUpdated: serverTimestamp()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
       await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), assessmentDoc);
@@ -284,7 +290,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [currentUser?.uid, loadFromFirebase]);
 
   // ================================
-  // EMIT COMPLETION EVENTS (UNCHANGED)
+  // EVENT EMISSION
   // ================================
   const emitOnboardingEvent = useCallback((eventType: 'questionnaire' | 'selfAssessment', data: any) => {
     const event = new CustomEvent('onboardingUpdated', {
@@ -311,7 +317,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [currentUser?.uid]);
 
   // ================================
-  // QUESTIONNAIRE MANAGEMENT (FIREBASE-ONLY)
+  // QUESTIONNAIRE MANAGEMENT
   // ================================
   const updateQuestionnaire = useCallback(async (questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
     const updatedQuestionnaire: QuestionnaireData = {
@@ -321,11 +327,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedAt: new Date().toISOString()
     };
     
-    // Save to Firebase
-    await saveQuestionnaireToFirebase(updatedQuestionnaire);
-    
+    // Optimistic UI update
     setQuestionnaire(updatedQuestionnaire);
-    emitOnboardingEvent('questionnaire', updatedQuestionnaire);
+    
+    try {
+      // Save to Firebase
+      await saveQuestionnaireToFirebase(updatedQuestionnaire);
+      emitOnboardingEvent('questionnaire', updatedQuestionnaire);
+    } catch (error) {
+      // Rollback on failure
+      setQuestionnaire(null);
+      throw error;
+    }
   }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
 
   const markQuestionnaireComplete = useCallback(async (responses: any) => {
@@ -376,11 +389,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
     
-    // Save to Firebase
-    await saveQuestionnaireToFirebase(questionnaireData);
-    
+    // Optimistic UI update
     setQuestionnaire(questionnaireData);
-    emitOnboardingEvent('questionnaire', questionnaireData);
+    
+    try {
+      // Save to Firebase
+      await saveQuestionnaireToFirebase(questionnaireData);
+      emitOnboardingEvent('questionnaire', questionnaireData);
+    } catch (error) {
+      // Rollback on failure
+      setQuestionnaire(null);
+      throw error;
+    }
   }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
 
   const saveQuestionnaireProgress = useCallback(async (responses: any, currentQuestion?: number) => {
@@ -414,7 +434,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [questionnaire?.completed]);
 
   // ================================
-  // SELF-ASSESSMENT MANAGEMENT (FIREBASE-ONLY)
+  // SELF-ASSESSMENT MANAGEMENT
   // ================================
   const updateSelfAssessment = useCallback(async (selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
     const updatedAssessment: SelfAssessmentData = {
@@ -424,11 +444,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedAt: new Date().toISOString()
     } as SelfAssessmentData;
     
-    // Save to Firebase
-    await saveSelfAssessmentToFirebase(updatedAssessment);
-    
+    // Optimistic UI update
     setSelfAssessment(updatedAssessment);
-    emitOnboardingEvent('selfAssessment', updatedAssessment);
+    
+    try {
+      // Save to Firebase
+      await saveSelfAssessmentToFirebase(updatedAssessment);
+      emitOnboardingEvent('selfAssessment', updatedAssessment);
+    } catch (error) {
+      // Rollback on failure
+      setSelfAssessment(null);
+      throw error;
+    }
   }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
 
   const markSelfAssessmentComplete = useCallback(async (responses: any) => {
@@ -437,138 +464,96 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     let selfAssessmentData: SelfAssessmentData;
     
     // Handle multiple input formats
-    if (responses.categories || responses.responses) {
-      // Enhanced format from SelfAssessment component
-      const categories = responses.categories || responses.responses || {};
-      
-      selfAssessmentData = {
-        completed: true,
-        completedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        format: responses.format || 'standard',
-        version: responses.version || '2.0',
-        type: responses.type || 'selfAssessment',
-        
-        // Direct category values
-        taste: responses.taste || categories.taste?.level || 'none',
-        smell: responses.smell || categories.smell?.level || 'none',
-        sound: responses.sound || categories.sound?.level || 'none',
-        sight: responses.sight || categories.sight?.level || 'none',
-        touch: responses.touch || categories.touch?.level || 'none',
-        mind: responses.mind || categories.mind?.level || 'none',
-        
-        // Categories object format
-        categories: responses.categories || {
-          taste: { level: responses.taste || categories.taste?.level || 'none', category: 'taste', details: categories.taste?.details || '' },
-          smell: { level: responses.smell || categories.smell?.level || 'none', category: 'smell', details: categories.smell?.details || '' },
-          sound: { level: responses.sound || categories.sound?.level || 'none', category: 'sound', details: categories.sound?.details || '' },
-          sight: { level: responses.sight || categories.sight?.level || 'none', category: 'sight', details: categories.sight?.details || '' },
-          touch: { level: responses.touch || categories.touch?.level || 'none', category: 'touch', details: categories.touch?.details || '' },
-          mind: { level: responses.mind || categories.mind?.level || 'none', category: 'mind', details: categories.mind?.details || '' }
-        },
-        
-        // CRITICAL: Responses object (for happiness calculator compatibility)
-        responses: responses.responses || responses.categories || {
-          taste: { level: responses.taste || categories.taste?.level || 'none', category: 'taste', details: categories.taste?.details || '' },
-          smell: { level: responses.smell || categories.smell?.level || 'none', category: 'smell', details: categories.smell?.details || '' },
-          sound: { level: responses.sound || categories.sound?.level || 'none', category: 'sound', details: categories.sound?.details || '' },
-          sight: { level: responses.sight || categories.sight?.level || 'none', category: 'sight', details: categories.sight?.details || '' },
-          touch: { level: responses.touch || categories.touch?.level || 'none', category: 'touch', details: categories.touch?.details || '' },
-          mind: { level: responses.mind || categories.mind?.level || 'none', category: 'mind', details: categories.mind?.details || '' }
-        },
-        
-        // Pre-calculated scores
-        attachmentScore: responses.attachmentScore || 0,
-        nonAttachmentCount: responses.nonAttachmentCount || 0,
-        
-        // Metrics object
-        metrics: responses.metrics || {
-          nonAttachmentCount: responses.nonAttachmentCount || 0,
-          attachmentScore: responses.attachmentScore || 0,
-          attachmentLevel: responses.attachmentLevel || 'Unknown'
-        }
-      };
-    } else {
-      // Legacy format handling
+    if (responses.categories && responses.responses) {
+      // Already structured format
       selfAssessmentData = {
         completed: true,
         completedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         format: 'standard',
-        version: '2.0',
+        version: '1.0',
+        type: 'selfAssessment',
+        ...responses
+      } as SelfAssessmentData;
+    } else {
+      // Raw responses format - need to structure
+      const categories = {
+        taste: responses.taste || { level: 'none', category: 'taste' },
+        smell: responses.smell || { level: 'none', category: 'smell' },
+        sound: responses.sound || { level: 'none', category: 'sound' },
+        sight: responses.sight || { level: 'none', category: 'sight' },
+        touch: responses.touch || { level: 'none', category: 'touch' },
+        mind: responses.mind || { level: 'none', category: 'mind' }
+      };
+      
+      // Calculate scores
+      const attachmentScore = Object.values(categories).reduce((score, cat: any) => {
+        if (cat.level === 'some') return score + 1;
+        if (cat.level === 'strong') return score + 2;
+        return score;
+      }, 0);
+      
+      const nonAttachmentCount = Object.values(categories).filter((cat: any) => cat.level === 'none').length;
+      
+      selfAssessmentData = {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        format: 'standard',
+        version: '1.0',
         type: 'selfAssessment',
         
         // Direct category values
-        taste: responses.taste || 'none',
-        smell: responses.smell || 'none',
-        sound: responses.sound || 'none',
-        sight: responses.sight || 'none',
-        touch: responses.touch || 'none',
-        mind: responses.mind || 'none',
+        taste: categories.taste.level,
+        smell: categories.smell.level,
+        sound: categories.sound.level,
+        sight: categories.sight.level,
+        touch: categories.touch.level,
+        mind: categories.mind.level,
         
-        // Categories object
-        categories: {
-          taste: { level: responses.taste || 'none', category: 'taste' },
-          smell: { level: responses.smell || 'none', category: 'smell' },
-          sound: { level: responses.sound || 'none', category: 'sound' },
-          sight: { level: responses.sight || 'none', category: 'sight' },
-          touch: { level: responses.touch || 'none', category: 'touch' },
-          mind: { level: responses.mind || 'none', category: 'mind' }
-        },
+        // Structured formats
+        categories,
+        responses: categories,
         
-        // CRITICAL: Responses object (duplicate of categories for compatibility)
-        responses: {
-          taste: { level: responses.taste || 'none', category: 'taste' },
-          smell: { level: responses.smell || 'none', category: 'smell' },
-          sound: { level: responses.sound || 'none', category: 'sound' },
-          sight: { level: responses.sight || 'none', category: 'sight' },
-          touch: { level: responses.touch || 'none', category: 'touch' },
-          mind: { level: responses.mind || 'none', category: 'mind' }
-        },
-        
-        // Pre-calculated scores
-        attachmentScore: responses.attachmentScore || 0,
-        nonAttachmentCount: responses.nonAttachmentCount || 0,
+        // Calculated scores
+        attachmentScore,
+        nonAttachmentCount,
         
         // Metrics object
         metrics: {
-          nonAttachmentCount: responses.nonAttachmentCount || 0,
-          attachmentScore: responses.attachmentScore || 0,
-          attachmentLevel: responses.attachmentLevel || 'Unknown'
+          nonAttachmentCount,
+          attachmentScore,
+          attachmentLevel: attachmentScore <= 2 ? 'low' : attachmentScore <= 6 ? 'medium' : 'high'
         }
       };
     }
     
-    console.log('🎯 Created self-assessment data:', selfAssessmentData);
-    
-    // Save to Firebase
-    await saveSelfAssessmentToFirebase(selfAssessmentData);
-    
+    // Optimistic UI update
     setSelfAssessment(selfAssessmentData);
-    emitOnboardingEvent('selfAssessment', selfAssessmentData);
     
-    // Trigger happiness recalculation
-    setTimeout(() => {
-      const happinessEvent = new CustomEvent('triggerHappinessRecalculation', {
-        detail: {
-          source: 'selfAssessmentComplete',
-          data: selfAssessmentData,
-          timestamp: new Date().toISOString()
-        }
-      });
-      window.dispatchEvent(happinessEvent);
-      console.log('🚀 Triggered happiness recalculation from self-assessment completion');
-    }, 100);
+    try {
+      // Save to Firebase
+      await saveSelfAssessmentToFirebase(selfAssessmentData);
+      emitOnboardingEvent('selfAssessment', selfAssessmentData);
+      console.log('✅ Self-assessment completed and saved successfully');
+    } catch (error) {
+      // Rollback on failure
+      setSelfAssessment(null);
+      console.error('❌ Failed to save self-assessment:', error);
+      throw error;
+    }
   }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
 
   const saveSelfAssessmentProgress = useCallback(async (responses: any) => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      throw new Error('User not authenticated');
+    }
 
     try {
       const progressData = {
-        type: 'self_assessment_progress',
+        type: 'selfAssessment_progress',
         responses,
         userId: currentUser.uid,
         updatedAt: serverTimestamp()
@@ -581,6 +566,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.log('💾 Saved self-assessment progress to Firebase');
     } catch (error) {
       console.error('❌ Error saving self-assessment progress:', error);
+      throw error;
     }
   }, [currentUser?.uid]);
 
@@ -593,47 +579,39 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [selfAssessment?.completed]);
 
   // ================================
-  // PROGRESS TRACKING (UNCHANGED)
+  // PROGRESS TRACKING
   // ================================
   const getOnboardingProgress = useCallback(() => {
-    const questionnaireProgress = questionnaire?.completed ? 100 : 
-      questionnaire?.responses?.answeredQuestions ? 
-      Math.round((questionnaire.responses.answeredQuestions / (questionnaire.responses.totalQuestions || 27)) * 100) : 0;
-    
+    const questionnaireProgress = questionnaire?.completed ? 100 : 0;
     const assessmentProgress = selfAssessment?.completed ? 100 : 0;
-    
-    const overall = Math.round((questionnaireProgress + assessmentProgress) / 2);
+    const overallProgress = (questionnaireProgress + assessmentProgress) / 2;
     
     return {
       questionnaire: questionnaireProgress,
       assessment: assessmentProgress,
-      overall
+      overall: overallProgress
     };
-  }, [questionnaire, selfAssessment]);
+  }, [questionnaire?.completed, selfAssessment?.completed]);
 
   const getCompletionStatus = useCallback(() => {
-    const questionnaireCompleted = questionnaire?.completed || false;
-    const assessmentCompleted = selfAssessment?.completed || false;
-    const overallCompleted = questionnaireCompleted && assessmentCompleted;
-    
     return {
-      questionnaire: questionnaireCompleted,
-      assessment: assessmentCompleted,
-      overall: overallCompleted
+      questionnaire: questionnaire?.completed || false,
+      assessment: selfAssessment?.completed || false,
+      overall: (questionnaire?.completed || false) && (selfAssessment?.completed || false)
     };
   }, [questionnaire?.completed, selfAssessment?.completed]);
 
   // ================================
-  // INSIGHTS & ANALYSIS (UNCHANGED)
+  // INSIGHTS & ANALYSIS
   // ================================
   const getOnboardingInsights = useCallback((): OnboardingInsights | null => {
     if (!questionnaire?.completed || !selfAssessment?.completed) {
       return null;
     }
-    
+
     const responses = questionnaire.responses;
     const assessment = selfAssessment;
-    
+
     // Determine user type
     let userType: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
     if (responses.experience_level >= 7 && responses.mindfulness_experience >= 7) {
@@ -641,113 +619,77 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } else if (responses.experience_level >= 4 || responses.mindfulness_experience >= 4) {
       userType = 'intermediate';
     }
-    
-    // Recommended start stage
-    const recommendedStartStage = userType === 'beginner' ? 1 : userType === 'intermediate' ? 2 : 3;
-    
-    // Primary goals
-    const primaryGoals = Array.isArray(responses.goals) ? responses.goals : [];
-    
-    // Stress triggers
-    const stressTriggers = Array.isArray(responses.stress_triggers) ? responses.stress_triggers : [];
-    
-    // Optimal practice time (infer from responses)
-    const optimalPracticeTime = responses.daily_routine || 'morning';
-    
-    // Recommended duration
-    const recommendedDuration = responses.preferred_duration || (userType === 'beginner' ? 10 : userType === 'intermediate' ? 15 : 20);
-    
-    // Attachment level
-    const attachmentLevel = assessment.metrics?.attachmentLevel || 'Unknown';
-    
-    // Personalized tips
-    const personalizedTips: string[] = [];
-    
-    if (userType === 'beginner') {
-      personalizedTips.push("Start with short, guided sessions to build consistency");
-      personalizedTips.push("Focus on breath awareness and body sensations");
+
+    // Recommended start stage based on experience and attachment
+    let recommendedStartStage = 1;
+    if (userType === 'intermediate' && assessment.attachmentScore <= 4) {
+      recommendedStartStage = 2;
+    } else if (userType === 'advanced' && assessment.attachmentScore <= 2) {
+      recommendedStartStage = 3;
     }
-    
-    if (stressTriggers.length > 0) {
-      personalizedTips.push(`Consider practicing before ${stressTriggers[0]} situations`);
-    }
-    
-    if (responses.sleep_pattern < 5) {
-      personalizedTips.push("Evening meditation sessions might help improve sleep quality");
-    }
-    
-    if (assessment.nonAttachmentCount < 3) {
-      personalizedTips.push("Practice mindful observation without judgment");
-    }
-    
+
     return {
       userType,
       recommendedStartStage,
-      primaryGoals,
-      stressTriggers,
-      optimalPracticeTime,
-      recommendedDuration,
-      attachmentLevel,
-      personalizedTips
+      primaryGoals: responses.goals || [],
+      stressTriggers: responses.stress_triggers || [],
+      optimalPracticeTime: responses.preferred_duration ? `${responses.preferred_duration} minutes` : '10 minutes',
+      recommendedDuration: responses.preferred_duration || 10,
+      attachmentLevel: assessment.metrics?.attachmentLevel || 'low',
+      personalizedTips: [
+        `Start with ${responses.preferred_duration || 10}-minute sessions`,
+        `Focus on ${responses.goals?.[0] || 'mindfulness development'}`,
+        `Practice during your optimal time based on your ${responses.daily_routine || 'schedule'}`
+      ]
     };
   }, [questionnaire, selfAssessment]);
 
   const getPersonalizedRecommendations = useCallback((): string[] => {
     const insights = getOnboardingInsights();
     if (!insights) return [];
-    
+
     return insights.personalizedTips;
   }, [getOnboardingInsights]);
 
   const calculateAttachmentScore = useCallback((): number => {
-    if (!selfAssessment?.completed) return 0;
-    return selfAssessment.attachmentScore || 0;
-  }, [selfAssessment]);
+    return selfAssessment?.attachmentScore || 0;
+  }, [selfAssessment?.attachmentScore]);
 
   const getUserProfile = useCallback(() => {
-    if (!questionnaire?.completed || !selfAssessment?.completed) return null;
-    
     return {
-      questionnaire: questionnaire.responses,
-      selfAssessment: selfAssessment,
+      questionnaire,
+      selfAssessment,
       insights: getOnboardingInsights(),
-      profileCreatedAt: new Date().toISOString()
+      progress: getOnboardingProgress(),
+      completionStatus: getCompletionStatus()
     };
-  }, [questionnaire, selfAssessment, getOnboardingInsights]);
+  }, [questionnaire, selfAssessment, getOnboardingInsights, getOnboardingProgress, getCompletionStatus]);
 
   // ================================
-  // UTILITY METHODS (FIREBASE-ONLY)
+  // UTILITY FUNCTIONS
   // ================================
   const clearOnboardingData = useCallback(async () => {
-    setQuestionnaire(null);
-    setSelfAssessment(null);
-    
-    // Clear Firebase data
-    if (currentUser?.uid) {
-      try {
-        // Clear questionnaire
-        await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), {
-          cleared: true,
-          clearedAt: serverTimestamp()
-        });
-        
-        // Clear self-assessment
-        await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), {
-          cleared: true,
-          clearedAt: serverTimestamp()
-        });
-        
-        console.log(`🧹 Onboarding data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
-      } catch (error) {
-        console.error('❌ Error clearing onboarding data in Firebase:', error);
-      }
+    if (!currentUser?.uid) return;
+
+    try {
+      // Clear from Firebase
+      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), {});
+      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), {});
+      
+      // Clear local state
+      setQuestionnaire(null);
+      setSelfAssessment(null);
+      
+      console.log('🗑️ Cleared all onboarding data');
+    } catch (error) {
+      console.error('❌ Error clearing onboarding data:', error);
     }
   }, [currentUser?.uid]);
 
   const exportOnboardingData = useCallback(() => {
     return {
-      questionnaire: questionnaire,
-      selfAssessment: selfAssessment,
+      questionnaire,
+      selfAssessment,
       insights: getOnboardingInsights(),
       progress: getOnboardingProgress(),
       exportedAt: new Date().toISOString()
@@ -759,17 +701,17 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [clearOnboardingData]);
 
   // ================================
-  // LEGACY COMPATIBILITY (UNCHANGED)
+  // LEGACY COMPATIBILITY
   // ================================
   const getOnboardingStatusFromAuth = useCallback(() => {
     return {
-      questionnaire: isQuestionnaireCompleted(),
-      assessment: isSelfAssessmentCompleted()
+      questionnaire: questionnaire?.completed || false,
+      assessment: selfAssessment?.completed || false
     };
-  }, [isQuestionnaireCompleted, isSelfAssessmentCompleted]);
+  }, [questionnaire?.completed, selfAssessment?.completed]);
 
   // ================================
-  // CONTEXT VALUE (UNCHANGED)
+  // CONTEXT VALUE
   // ================================
   const contextValue: OnboardingContextType = useMemo(() => ({
     // Data
@@ -809,12 +751,28 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Legacy Compatibility
     getOnboardingStatusFromAuth
   }), [
-    questionnaire, selfAssessment, isLoading,
-    updateQuestionnaire, markQuestionnaireComplete, saveQuestionnaireProgress, getQuestionnaire, isQuestionnaireCompleted,
-    updateSelfAssessment, markSelfAssessmentComplete, saveSelfAssessmentProgress, getSelfAssessment, isSelfAssessmentCompleted,
-    getOnboardingProgress, getCompletionStatus,
-    getOnboardingInsights, getPersonalizedRecommendations, calculateAttachmentScore, getUserProfile,
-    clearOnboardingData, exportOnboardingData, resetProgress,
+    questionnaire,
+    selfAssessment,
+    isLoading,
+    updateQuestionnaire,
+    markQuestionnaireComplete,
+    saveQuestionnaireProgress,
+    getQuestionnaire,
+    isQuestionnaireCompleted,
+    updateSelfAssessment,
+    markSelfAssessmentComplete,
+    saveSelfAssessmentProgress,
+    getSelfAssessment,
+    isSelfAssessmentCompleted,
+    getOnboardingProgress,
+    getCompletionStatus,
+    getOnboardingInsights,
+    getPersonalizedRecommendations,
+    calculateAttachmentScore,
+    getUserProfile,
+    clearOnboardingData,
+    exportOnboardingData,
+    resetProgress,
     getOnboardingStatusFromAuth
   ]);
 
@@ -826,11 +784,11 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 };
 
 // ================================
-// CUSTOM HOOK (UNCHANGED)
+// HOOK TO USE CONTEXT
 // ================================
 export const useOnboarding = (): OnboardingContextType => {
   const context = useContext(OnboardingContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useOnboarding must be used within an OnboardingProvider');
   }
   return context;
