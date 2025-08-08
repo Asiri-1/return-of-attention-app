@@ -33,7 +33,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
   
   // Store temporary data in component state instead of sessionStorage
-  const [currentPosture, setCurrentPosture] = useState<string>('seated');
   const [lastPracticeData, setLastPracticeData] = useState<any>(null);
   
   // Bell tracking states
@@ -422,7 +421,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         notes: sessionData.notes || `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
         presentPercentage: isCompleted ? 85 : 70,
         environment: {
-          posture: currentPosture,
+          posture: 'selected',
           location: 'indoor',
           lighting: 'natural',
           sounds: 'quiet'
@@ -456,7 +455,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       console.error('❌ Error saving session to Firebase:', error);
       throw error;
     }
-  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber, currentPosture]);
+  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
 
   // Timer completion handler
   const handleTimerComplete = useCallback(async () => {
@@ -829,38 +828,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               outline: 'none'
             }}
           />
-          
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '20px',
-            borderRadius: '10px',
-            marginBottom: '20px',
-            textAlign: 'left'
-          }}>
-            <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>Practice Setup</h4>
-            
-            <label style={{ display: 'block', marginBottom: '10px', fontSize: '14px' }}>
-              Posture:
-            </label>
-            <select
-              value={currentPosture}
-              onChange={(e) => setCurrentPosture(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '8px',
-                border: 'none',
-                marginBottom: '15px',
-                background: 'rgba(255, 255, 255, 0.9)',
-                color: '#333'
-              }}
-            >
-              <option value="seated">Seated</option>
-              <option value="cross-legged">Cross-legged</option>
-              <option value="lying">Lying down</option>
-              <option value="standing">Standing</option>
-            </select>
-          </div>
           
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
