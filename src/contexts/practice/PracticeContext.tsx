@@ -465,7 +465,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // Sync with user profile
     const newStats = calculateStats();
     if (syncProfile) {
-      syncProfile(newStats);
+      syncProfile();
     }
   }, [sessions, generateId, saveSessionToFirebase, syncProfile, calculateStats]);
 
@@ -501,7 +501,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // Sync stats
     const newStats = calculateStats();
     if (syncProfile) {
-      syncProfile(newStats);
+      syncProfile();
     }
   }, [sessions, deleteSessionFromFirebase, calculateStats, syncProfile]);
 

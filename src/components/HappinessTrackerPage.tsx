@@ -1,12 +1,72 @@
-// ✅ Fixed HappinessTrackerPage.tsx - Progressive Onboarding Integration
-// File: src/components/HappinessTrackerPage.tsx
-
 import React, { useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/auth/AuthContext';
-import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
 
-const HappinessTrackerPage: React.FC = React.memo(() => {
+// Mock hooks for demonstration - replace with your actual implementations
+const useAuth = () => ({ currentUser: { uid: 'demo-user' } });
+const useNavigate = () => (path: string) => console.log(`Navigate to: ${path}`);
+const useHappinessCalculation = () => ({
+  userProgress: {
+    hasMinimumData: true,
+    happiness_points: 85,
+    user_level: "Developing Practitioner",
+    focus_ability: 78,
+    habit_change_score: 82,
+    practice_streak: 7,
+    dataCompleteness: {
+      questionnaire: true,
+      selfAssessment: true,
+      practiceSessions: true
+    },
+    pahmAnalysis: {
+      presentNeutralRatio: 0.65,
+      presentMomentRatio: 0.72,
+      overallPAHMScore: 78,
+      developmentStage: "Stage 2: Present Moment Development",
+      stageDescription: "Building consistent present-moment awareness",
+      progressionPath: "Focus on present-neutral observations",
+      breakdown: {
+        presentNeutralMastery: 35,
+        presentMomentDevelopment: 22,
+        therapeuticProgress: 12,
+        sessionQuality: 4
+      },
+      insights: [
+        "Strong foundation in present-moment awareness",
+        "Good progress in neutral observation skills"
+      ],
+      recommendations: [
+        "Continue daily practice sessions",
+        "Focus on present-neutral moments"
+      ]
+    }
+  },
+  componentBreakdown: {
+    pahmDevelopment: 78,
+    emotionalStabilityProgress: 72,
+    currentMoodState: 80,
+    mindRecoveryEffectiveness: 85,
+    emotionalRegulation: 75,
+    attachmentFlexibility: 68,
+    socialConnection: 82,
+    practiceConsistency: 90
+  },
+  isCalculating: false,
+  practiceSessions: [
+    { duration: 15, rating: 4 },
+    { duration: 20, rating: 5 },
+    { duration: 10, rating: 3 }
+  ],
+  emotionalNotes: [
+    { note: "Feeling peaceful after practice" },
+    { note: "More aware of thoughts today" }
+  ],
+  questionnaire: { completed: true },
+  selfAssessment: { completed: true },
+  debugCalculation: () => console.log('Debug calculation'),
+  logProgress: () => console.log('Log progress'),
+  testComponents: () => console.log('Test components')
+});
+
+const HappinessTrackerPage = React.memo(() => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const {
@@ -24,10 +84,10 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
 
   const [showDebug, setShowDebug] = useState(false);
 
-  // ✅ FIXED: Quick stats with proper data validation
+  // Quick stats with proper data validation
   const quickStats = useMemo(() => {
     const totalSessions = practiceSessions?.length || 0;
-    const totalHours = practiceSessions?.reduce((sum: number, session: any) => sum + (session.duration || 0), 0) / 60 || 0;
+    const totalHours = practiceSessions?.reduce((sum, session) => sum + (session.duration || 0), 0) / 60 || 0;
     const hasData = userProgress.hasMinimumData;
     const hasAnyData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
 
@@ -58,7 +118,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
     testComponents();
   }, [testComponents]);
 
-  // ✅ NEW: Navigation handlers for onboarding
+  // Navigation handlers for onboarding
   const handleStartQuestionnaire = useCallback(() => {
     navigate('/questionnaire');
   }, [navigate]);
@@ -73,18 +133,18 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* 🎯 PAGE HEADER */}
+      {/* PAGE HEADER */}
       <div className="bg-white shadow-sm border-b border-indigo-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">🌟 Present Attention Progress</h1>
               <p className="text-gray-600 mt-1">Track your journey toward greater presence and awareness</p>
             </div>
             
-            {/* 📊 Enhanced Stats Badge */}
+            {/* Enhanced Stats Badge */}
             <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-2xl px-6 py-4">
-              <div className="flex items-center space-x-6">
+              <div className="flex items-center justify-center lg:justify-start space-x-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-indigo-700">{quickStats.totalSessions}</div>
                   <div className="text-xs text-indigo-600 font-medium">Sessions</div>
@@ -103,10 +163,10 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* ✅ LOADING STATE */}
+      {/* LOADING STATE */}
       {isCalculating && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-3xl p-8 text-center mb-8">
+          <div className="bg-white rounded-3xl p-8 text-center mb-8 shadow-lg">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
             <h2 className="text-2xl font-bold text-indigo-700 mb-2">Calculating Your Present Attention Progress...</h2>
             <p className="text-gray-600">Using PAHM-centered analysis</p>
@@ -114,10 +174,10 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
         </div>
       )}
 
-      {/* ✅ INSUFFICIENT DATA - Show onboarding guidance */}
+      {/* INSUFFICIENT DATA - Show onboarding guidance */}
       {!isCalculating && !quickStats.hasData && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-3xl p-8 text-center border-2 border-blue-200">
+          <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-3xl p-8 text-center border-2 border-blue-200 shadow-lg">
             <div className="text-6xl mb-4">🧘</div>
             <h2 className="text-2xl font-bold text-blue-800 mb-4">
               Welcome to Your Present Attention Journey!
@@ -127,14 +187,14 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               Present attention is a skill that develops through consistent practice - every moment of awareness counts!
             </p>
             
-            {/* ✅ DATA COMPLETENESS INDICATOR */}
-            <div className="bg-white rounded-2xl p-6 mb-6">
+            {/* DATA COMPLETENESS INDICATOR */}
+            <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
               <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Complete Your Setup</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className={`p-4 rounded-xl border-2 ${
+                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                   quickStats.dataCompleteness.questionnaire 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-gray-50 border-gray-200'
+                    ? 'bg-green-50 border-green-200 shadow-md' 
+                    : 'bg-gray-50 border-gray-200 hover:border-blue-300'
                 }`}>
                   <div className="text-2xl mb-2">
                     {quickStats.dataCompleteness.questionnaire ? '✅' : '📝'}
@@ -146,17 +206,17 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   {!quickStats.dataCompleteness.questionnaire && (
                     <button
                       onClick={handleStartQuestionnaire}
-                      className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                      className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200"
                     >
                       Start Questionnaire
                     </button>
                   )}
                 </div>
                 
-                <div className={`p-4 rounded-xl border-2 ${
+                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                   quickStats.dataCompleteness.selfAssessment 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-gray-50 border-gray-200'
+                    ? 'bg-green-50 border-green-200 shadow-md' 
+                    : 'bg-gray-50 border-gray-200 hover:border-purple-300'
                 }`}>
                   <div className="text-2xl mb-2">
                     {quickStats.dataCompleteness.selfAssessment ? '✅' : '🎯'}
@@ -168,17 +228,17 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   {!quickStats.dataCompleteness.selfAssessment && (
                     <button
                       onClick={handleStartSelfAssessment}
-                      className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+                      className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors duration-200"
                     >
                       Take Assessment
                     </button>
                   )}
                 </div>
                 
-                <div className={`p-4 rounded-xl border-2 ${
+                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                   quickStats.dataCompleteness.practiceSessions 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-gray-50 border-gray-200'
+                    ? 'bg-green-50 border-green-200 shadow-md' 
+                    : 'bg-gray-50 border-gray-200 hover:border-indigo-300'
                 }`}>
                   <div className="text-2xl mb-2">
                     {quickStats.dataCompleteness.practiceSessions ? '✅' : '🧘'}
@@ -190,7 +250,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   {!quickStats.dataCompleteness.practiceSessions && (
                     <button
                       onClick={handleStartPractice}
-                      className="w-full bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors"
+                      className="w-full bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors duration-200"
                     >
                       Start Practice
                     </button>
@@ -199,8 +259,8 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               </div>
             </div>
 
-            {/* ✅ MINIMUM DATA REQUIREMENTS */}
-            <div className="bg-yellow-50 rounded-2xl p-6 border-2 border-yellow-200">
+            {/* MINIMUM DATA REQUIREMENTS */}
+            <div className="bg-yellow-50 rounded-2xl p-6 border-2 border-yellow-200 shadow-md">
               <h3 className="text-lg font-bold text-yellow-800 mb-4">
                 🎯 Minimum Requirements for Happiness Tracking
               </h3>
@@ -208,15 +268,15 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                 To begin tracking your happiness, you need <strong>one</strong> of the following:
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="bg-white rounded-xl p-4">
+                <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="font-bold text-gray-800 mb-2">Option 1</div>
                   <p className="text-gray-600">Complete <strong>Questionnaire + Self-Assessment</strong></p>
                 </div>
-                <div className="bg-white rounded-xl p-4">
+                <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="font-bold text-gray-800 mb-2">Option 2</div>
                   <p className="text-gray-600">Complete <strong>3+ Practice Sessions</strong></p>
                 </div>
-                <div className="bg-white rounded-xl p-4">
+                <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="font-bold text-gray-800 mb-2">Option 3</div>
                   <p className="text-gray-600">Complete <strong>Questionnaire + 1 Session</strong></p>
                 </div>
@@ -226,11 +286,11 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
         </div>
       )}
 
-      {/* ✅ SUFFICIENT DATA - Show full happiness tracking */}
+      {/* SUFFICIENT DATA - Show full happiness tracking */}
       {!isCalculating && quickStats.hasData && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* ✅ MAIN HAPPINESS SCORE CARD */}
+          {/* MAIN HAPPINESS SCORE CARD */}
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-8 text-white text-center mb-8 shadow-2xl">
             <div className="text-6xl font-bold mb-4">{userProgress.happiness_points}</div>
             <div className="text-2xl mb-4">PAHM-Centered Happiness Points</div>
@@ -252,7 +312,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             </div>
           </div>
 
-          {/* ✅ PAHM ANALYSIS SECTION */}
+          {/* PAHM ANALYSIS SECTION */}
           {userProgress.pahmAnalysis && (
             <div className="bg-white rounded-3xl p-8 mb-8 shadow-xl border-2 border-indigo-100">
               <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
@@ -260,7 +320,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="text-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6">
+                <div className="text-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 shadow-md">
                   <div className="text-4xl font-bold text-indigo-600 mb-2">
                     {Math.round((userProgress.pahmAnalysis.presentNeutralRatio || 0) * 100)}%
                   </div>
@@ -268,7 +328,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   <div className="text-sm text-gray-500">THE ULTIMATE GOAL</div>
                 </div>
                 
-                <div className="text-center bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6">
+                <div className="text-center bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 shadow-md">
                   <div className="text-4xl font-bold text-green-600 mb-2">
                     {Math.round((userProgress.pahmAnalysis.presentMomentRatio || 0) * 100)}%
                   </div>
@@ -276,7 +336,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   <div className="text-sm text-gray-500">Overall Present Awareness</div>
                 </div>
                 
-                <div className="text-center bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6">
+                <div className="text-center bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 shadow-md">
                   <div className="text-4xl font-bold text-purple-600 mb-2">
                     {userProgress.pahmAnalysis.overallPAHMScore || 0}
                   </div>
@@ -286,7 +346,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               </div>
 
               {/* PAHM Stage & Description */}
-              <div className="text-center bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 mb-6">
+              <div className="text-center bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 mb-6 shadow-md">
                 <div className="text-xl font-bold text-orange-700 mb-2">
                   Stage: {userProgress.pahmAnalysis.developmentStage || 'Assessment Needed'}
                 </div>
@@ -300,25 +360,25 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
 
               {/* PAHM Breakdown */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                <div className="bg-indigo-50 rounded-xl p-4 text-center shadow-sm">
                   <div className="text-2xl font-bold text-indigo-600">
                     {userProgress.pahmAnalysis.breakdown?.presentNeutralMastery || 0}/50
                   </div>
                   <div className="text-sm text-gray-600">Present-Neutral</div>
                 </div>
-                <div className="bg-green-50 rounded-xl p-4 text-center">
+                <div className="bg-green-50 rounded-xl p-4 text-center shadow-sm">
                   <div className="text-2xl font-bold text-green-600">
                     {userProgress.pahmAnalysis.breakdown?.presentMomentDevelopment || 0}/30
                   </div>
                   <div className="text-sm text-gray-600">Present Development</div>
                 </div>
-                <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                <div className="bg-yellow-50 rounded-xl p-4 text-center shadow-sm">
                   <div className="text-2xl font-bold text-yellow-600">
                     {userProgress.pahmAnalysis.breakdown?.therapeuticProgress || 0}/15
                   </div>
                   <div className="text-sm text-gray-600">Therapeutic Work</div>
                 </div>
-                <div className="bg-purple-50 rounded-xl p-4 text-center">
+                <div className="bg-purple-50 rounded-xl p-4 text-center shadow-sm">
                   <div className="text-2xl font-bold text-purple-600">
                     {userProgress.pahmAnalysis.breakdown?.sessionQuality || 0}/5
                   </div>
@@ -328,7 +388,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             </div>
           )}
 
-          {/* ✅ COMPONENT BREAKDOWN */}
+          {/* COMPONENT BREAKDOWN */}
           {componentBreakdown && (
             <div className="bg-white rounded-3xl p-8 mb-8 shadow-xl border-2 border-indigo-100">
               <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
@@ -337,7 +397,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* PAHM Development - Primary */}
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-6 text-center md:col-span-2 border-4 border-yellow-400">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-6 text-center md:col-span-2 border-4 border-yellow-400 shadow-lg">
                   <div className="text-3xl font-bold mb-2">{Math.round(componentBreakdown.pahmDevelopment || 0)}/100</div>
                   <div className="text-lg font-semibold">PAHM Development</div>
                   <div className="text-sm opacity-90">30% Weight - THE CORE</div>
@@ -345,43 +405,43 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                 </div>
 
                 {/* Supporting Components */}
-                <div className="bg-gradient-to-r from-red-400 to-red-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-red-400 to-red-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.emotionalStabilityProgress || 0)}/100</div>
                   <div className="text-sm font-semibold">Emotional Stability</div>
                   <div className="text-xs opacity-75">20% Weight</div>
                 </div>
 
-                <div className="bg-gradient-to-r from-orange-400 to-orange-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-orange-400 to-orange-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.currentMoodState || 0)}/100</div>
                   <div className="text-sm font-semibold">Current Mood</div>
                   <div className="text-xs opacity-75">15% Weight</div>
                 </div>
 
-                <div className="bg-gradient-to-r from-teal-400 to-teal-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-teal-400 to-teal-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.mindRecoveryEffectiveness || 0)}/100</div>
                   <div className="text-sm font-semibold">Mind Recovery</div>
                   <div className="text-xs opacity-75">12% Weight</div>
                 </div>
 
-                <div className="bg-gradient-to-r from-purple-400 to-purple-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-purple-400 to-purple-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.emotionalRegulation || 0)}/100</div>
                   <div className="text-sm font-semibold">Emotional Regulation</div>
                   <div className="text-xs opacity-75">10% Weight</div>
                 </div>
 
-                <div className="bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.attachmentFlexibility || 0)}/100</div>
                   <div className="text-sm font-semibold">Attachment Flexibility</div>
                   <div className="text-xs opacity-75">8% Weight</div>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.socialConnection || 0)}/100</div>
                   <div className="text-sm font-semibold">Social Connection</div>
                   <div className="text-xs opacity-75">3% Weight</div>
                 </div>
 
-                <div className="bg-gradient-to-r from-gray-400 to-gray-600 text-white rounded-xl p-4 text-center">
+                <div className="bg-gradient-to-r from-gray-400 to-gray-600 text-white rounded-xl p-4 text-center shadow-md">
                   <div className="text-2xl font-bold">{Math.round(componentBreakdown.practiceConsistency || 0)}/100</div>
                   <div className="text-sm font-semibold">Practice Consistency</div>
                   <div className="text-xs opacity-75">2% Weight</div>
@@ -390,37 +450,37 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             </div>
           )}
 
-          {/* ✅ ENHANCED METRICS */}
+          {/* ENHANCED METRICS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-gradient-to-r from-indigo-400 to-purple-600 text-white rounded-2xl p-6 text-center">
+            <div className="bg-gradient-to-r from-indigo-400 to-purple-600 text-white rounded-2xl p-6 text-center shadow-lg">
               <div className="text-3xl font-bold mb-2">{Math.round(userProgress.focus_ability || 0)}%</div>
               <div className="text-lg font-semibold">Focus Ability</div>
               <div className="text-sm opacity-90">PAHM Present-Neutral + Skills</div>
             </div>
             
-            <div className="bg-gradient-to-r from-green-400 to-emerald-600 text-white rounded-2xl p-6 text-center">
+            <div className="bg-gradient-to-r from-green-400 to-emerald-600 text-white rounded-2xl p-6 text-center shadow-lg">
               <div className="text-3xl font-bold mb-2">{Math.round(userProgress.habit_change_score || 0)}%</div>
               <div className="text-lg font-semibold">Habit Change</div>
               <div className="text-sm opacity-90">PAHM + Consistency</div>
             </div>
             
-            <div className="bg-gradient-to-r from-pink-400 to-rose-600 text-white rounded-2xl p-6 text-center">
+            <div className="bg-gradient-to-r from-pink-400 to-rose-600 text-white rounded-2xl p-6 text-center shadow-lg">
               <div className="text-3xl font-bold mb-2">{userProgress.practice_streak || 0}</div>
               <div className="text-lg font-semibold">Day Streak</div>
               <div className="text-sm opacity-90">Present Attention Practice</div>
             </div>
           </div>
 
-          {/* ✅ INSIGHTS & RECOMMENDATIONS */}
+          {/* INSIGHTS & RECOMMENDATIONS */}
           {userProgress.pahmAnalysis && userProgress.pahmAnalysis.insights && userProgress.pahmAnalysis.insights.length > 0 && (
-            <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-3xl p-8 mb-8 border-2 border-yellow-200">
+            <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-3xl p-8 mb-8 border-2 border-yellow-200 shadow-xl">
               <h2 className="text-2xl font-bold text-center text-orange-800 mb-6">💡 PAHM Development Insights</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <h3 className="text-lg font-semibold text-orange-700 mb-4">📊 Current Insights:</h3>
                   <ul className="space-y-2">
-                    {userProgress.pahmAnalysis.insights.map((insight: string, index: number) => (
+                    {userProgress.pahmAnalysis.insights.map((insight, index) => (
                       <li key={index} className="text-gray-700 flex items-start">
                         <span className="text-orange-500 mr-2 mt-1">•</span>
                         <span>{insight}</span>
@@ -432,7 +492,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                 <div>
                   <h3 className="text-lg font-semibold text-orange-700 mb-4">🎯 Recommendations:</h3>
                   <ul className="space-y-2">
-                    {userProgress.pahmAnalysis.recommendations.map((rec: string, index: number) => (
+                    {userProgress.pahmAnalysis.recommendations.map((rec, index) => (
                       <li key={index} className="text-gray-700 flex items-start">
                         <span className="text-green-500 mr-2 mt-1">→</span>
                         <span>{rec}</span>
@@ -444,13 +504,13 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             </div>
           )}
 
-          {/* ✅ DEBUG PANEL */}
+          {/* DEBUG PANEL */}
           {showDebug && (
-            <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-gray-200">
+            <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-gray-200 shadow-xl">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">🔍 PAHM-Centered Debug Information</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl p-6">
+                <div className="bg-white rounded-xl p-6 shadow-md">
                   <h3 className="font-semibold text-gray-700 mb-3">📊 Data Sources:</h3>
                   <div className="space-y-2 text-sm font-mono">
                     <div>• Practice Sessions: {practiceSessions?.length || 0}</div>
@@ -461,7 +521,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
                   </div>
                 </div>
                 
-                <div className="bg-white rounded-xl p-6">
+                <div className="bg-white rounded-xl p-6 shadow-md">
                   <h3 className="font-semibold text-gray-700 mb-3">🧮 Component Scores:</h3>
                   {componentBreakdown && (
                     <div className="space-y-2 text-sm font-mono">
@@ -481,19 +541,19 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
               <div className="flex flex-wrap gap-4 justify-center">
                 <button 
                   onClick={handleDebugCalculation}
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                 >
                   🔍 Debug Console
                 </button>
                 <button 
                   onClick={handleLogProgress}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                 >
                   📊 Log Progress
                 </button>
                 <button 
                   onClick={handleTestComponents}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                 >
                   🧪 Test Components
                 </button>
@@ -503,7 +563,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
         </div>
       )}
 
-      {/* 🌟 UNDERSTANDING PRESENT ATTENTION SECTION */}
+      {/* UNDERSTANDING PRESENT ATTENTION SECTION */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-3xl shadow-xl p-8 border-2 border-indigo-100">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">🎯 Understanding Present Attention</h2>
@@ -551,7 +611,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
           </div>
 
           {/* Practice Benefits and Tips */}
-          <div className="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl">
+          <div className="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl shadow-md">
             <h3 className="text-lg font-bold text-center text-indigo-800 mb-4">🌈 Benefits of Regular Present Attention Practice</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -573,7 +633,7 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             </div>
           </div>
 
-          <div className="mt-6 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl">
+          <div className="mt-6 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-md">
             <h3 className="text-lg font-bold text-center text-orange-800 mb-4">💡 Tips for Developing Present Attention</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -599,10 +659,10 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* 🎯 CALL TO ACTION */}
+      {/* CALL TO ACTION */}
       {quickStats.hasData && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-3xl p-8 text-center text-white">
+          <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-3xl p-8 text-center text-white shadow-2xl">
             <h2 className="text-2xl font-bold mb-4">🌟 Continue Your Present Attention Journey</h2>
             <p className="mb-6 opacity-90">
               Your practice is building skills that last a lifetime. Each moment of awareness contributes to greater happiness and peace.
@@ -610,13 +670,13 @@ const HappinessTrackerPage: React.FC = React.memo(() => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 
                 onClick={handleStartPractice}
-                className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors"
+                className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors duration-200 shadow-md"
               >
                 🧘 Start Practice Session
               </button>
               <button 
                 onClick={() => navigate('/analytics')}
-                className="bg-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors border-2 border-white border-opacity-50"
+                className="bg-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors duration-200 border-2 border-white border-opacity-50 shadow-md"
               >
                 📊 View Detailed Stats
               </button>

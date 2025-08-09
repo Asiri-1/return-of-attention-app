@@ -1,6 +1,6 @@
-// ✅ FIREBASE-ONLY App.tsx - FIXED: Loading Logic & Authentication Flow
+// 🔧 COMPLETE FIXED App.tsx - Uses UserContext Progress Methods
 // File: src/App.tsx
-// 🔧 FIXED: Proper loading resolution and authentication state management
+// This ensures proper progress data flow to HomeDashboard
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -408,7 +408,19 @@ const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
-  const { userProfile, markStageIntroComplete } = useUser();
+  
+  // 🔧 FIXED: Use UserContext methods for progress calculation
+  const { 
+    userProfile, 
+    markStageIntroComplete,
+    // ✅ Progress calculation methods
+    isT5Complete,
+    isStage2CompleteByHours,
+    isStage3CompleteByHours,
+    isStage4CompleteByHours,
+    isStage5CompleteByHours,
+    isStage6CompleteByHours
+  } = useUser();
   
   // ✅ FIXED: Simplified state management to prevent loading loops
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -419,34 +431,55 @@ const AppContent: React.FC = React.memo(() => {
   // ✅ FIREBASE-ONLY: Use Firebase-enabled contexts
   const { recheckStatus } = useCompletionStatus();
   
-  // ✅ FIREBASE-ONLY: Get current stage from UserContext (Firebase-backed)
+  // 🔧 FIXED: Calculate current stage using UserContext methods (same as HomeDashboard)
   const currentStage = useMemo(() => {
     if (!isAuthenticated) return 1;
     
     try {
-      // ✅ FIREBASE-ONLY: Get from Firebase data
-      if (userProfile?.stageProgress) {
-        const stageProgress = userProfile.stageProgress;
-        
-        // Check T5 completion from Firebase
-        if (!stageProgress.t5Completed) return 1;
-        
-        // Check PAHM stages from Firebase
-        for (let stage = 2; stage <= 6; stage++) {
-          const stageKey = `stage${stage}Complete`;
-          if (!stageProgress.stageCompletionFlags?.[stageKey]) {
-            return stage;
-          }
-        }
-        return 6; // All completed
+      // ✅ Use same logic as HomeDashboard
+      if (!isT5Complete()) {
+        return 1;
       }
       
-      return 1; // Default if no Firebase data
+      if (!isStage2CompleteByHours()) {
+        return 2;
+      }
+      
+      if (!isStage3CompleteByHours()) {
+        return 3;
+      }
+      
+      if (!isStage4CompleteByHours()) {
+        return 4;
+      }
+      
+      if (!isStage5CompleteByHours()) {
+        return 5;
+      }
+      
+      if (!isStage6CompleteByHours()) {
+        return 6;
+      }
+      
+      return 6; // All completed
     } catch (error) {
       console.warn('Error calculating current stage:', error);
       return 1;
     }
-  }, [isAuthenticated, userProfile]);
+  }, [isAuthenticated, isT5Complete, isStage2CompleteByHours, isStage3CompleteByHours, 
+      isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours]);
+
+  // 🔧 FIXED: Calculate T5 completion status using UserContext
+  const t5Completed = useMemo(() => {
+    if (!isAuthenticated) return false;
+    
+    try {
+      return isT5Complete();
+    } catch (error) {
+      console.warn('Error calculating T5 completion:', error);
+      return false;
+    }
+  }, [isAuthenticated, isT5Complete]);
   
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
 
@@ -476,9 +509,11 @@ const AppContent: React.FC = React.memo(() => {
       currentUser: !!currentUser,
       userProfile: !!userProfile,
       isSigningIn,
-      location: location.pathname
+      location: location.pathname,
+      currentStage,
+      t5Completed
     });
-  }, [isLoading, currentUser, userProfile, isSigningIn, location.pathname]);
+  }, [isLoading, currentUser, userProfile, isSigningIn, location.pathname, currentStage, t5Completed]);
 
   // ✅ Initialize knowledge base
   useEffect(() => {
@@ -688,6 +723,7 @@ const AppContent: React.FC = React.memo(() => {
     return (
       <>
         <FastLoader message={message} timeout={10000} />
+        <LoadingDebugger />
       </>
     );
   }
@@ -707,6 +743,7 @@ const AppContent: React.FC = React.memo(() => {
     return (
       <div className="app-container">
         <PageViewTracker />
+        <LoadingDebugger />
         <Routes>
           <Route path="/" element={<PublicLandingHero />} />
           
@@ -751,6 +788,7 @@ const AppContent: React.FC = React.memo(() => {
     return (
       <>
         <FastLoader message="Preparing your practice space..." timeout={10000} />
+        <LoadingDebugger />
       </>
     );
   }
@@ -762,6 +800,7 @@ const AppContent: React.FC = React.memo(() => {
     <div className="app-container">
       <PageViewTracker />
       <LogoutWarning />
+      <LoadingDebugger />
       
       <Routes>
         {/* ✅ FIREBASE-ONLY: Stage1Introduction with Firebase intro tracking */}
@@ -804,7 +843,7 @@ const AppContent: React.FC = React.memo(() => {
               <Routes>
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 
-                {/* ✅ FIREBASE-ONLY: HOME DASHBOARD */}
+                {/* 🔧 FIXED: HOME DASHBOARD with proper progress props */}
                 <Route path="/home" element={
                   <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
                     <HomeDashboard 
@@ -820,6 +859,8 @@ const AppContent: React.FC = React.memo(() => {
                       onShowPAHMExplanation={handlers.showPAHMExplanation}
                       onShowWhatIsPAHM={handlers.showWhatIsPAHM}
                       onLogout={handlers.logout}
+                      currentStage={currentStage}
+                      t5Completed={t5Completed}
                     />
                   </Suspense>
                 } />
@@ -964,7 +1005,7 @@ const AppContent: React.FC = React.memo(() => {
         } />
       </Routes>
 
-      {/* ✅ FIREBASE-ONLY: Progress Tracker with Firebase stage data */}
+      {/* 🔧 FIXED: Progress Tracker with consistent stage data */}
       {location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );

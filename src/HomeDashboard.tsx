@@ -1,6 +1,6 @@
-// ✅ FIREBASE-ONLY HomeDashboard.tsx - Complete Firebase Integration
+// 🔧 COMPLETE FIXED HomeDashboard.tsx - Uses Same UserContext Methods as Stage1Wrapper
 // File: src/HomeDashboard.tsx
-// 🔧 ENHANCED: Firebase-only integration while maintaining 100% functionality
+// This fixes the progress reset issue by using consistent data sources
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -9,7 +9,6 @@ import { usePractice } from './contexts/practice/PracticeContext';
 import { useUser } from './contexts/user/UserContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
-// 🎯 CRITICAL: Import and use the happiness calculation hook
 import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
 interface HomeDashboardProps {
@@ -25,6 +24,8 @@ interface HomeDashboardProps {
   onShowPostureGuide: () => void;
   onShowPAHMExplanation: () => void;
   onShowWhatIsPAHM: () => void;
+  currentStage?: number;
+  t5Completed?: boolean;
 }
 
 const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -39,22 +40,32 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onStartStage6,
   onShowPostureGuide,
   onShowPAHMExplanation,
-  onShowWhatIsPAHM
+  onShowWhatIsPAHM,
+  currentStage: propCurrentStage,
+  t5Completed: propT5Completed
 }) => {
   const { currentUser } = useAuth();
   const { sessions } = usePractice();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 FIREBASE-ONLY: Enhanced contexts for Firebase data
+  // 🔧 FIXED: Use the SAME UserContext methods that Stage1Wrapper uses
   const { 
-    userProfile, 
-    updateProfile, 
-    markStageComplete, 
-    addStageHours, 
-    markStageIntroComplete, 
-    setT5Completed, 
-    updateStageProgress 
+    userProfile,
+    // ✅ T-Level completion methods (same as Stage1Wrapper)
+    isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
+    // ✅ T-Level session count methods
+    getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
+    // ✅ Stage completion methods
+    isStage2CompleteByHours, isStage3CompleteByHours, isStage4CompleteByHours, 
+    isStage5CompleteByHours, isStage6CompleteByHours,
+    // ✅ Stage hours methods
+    getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours,
+    // ✅ Other methods
+    updateProfile, markStageComplete, addStageHours, markStageIntroComplete, 
+    setT5Completed, updateStageProgress,
+    // ✅ Progress tracking
+    getStageProgressPercentage, getTotalStage1Sessions
   } = useUser();
   
   const { 
@@ -67,7 +78,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   
   const { addReflection } = useWellness();
 
-  // 🎯 FIREBASE-ONLY: Use the centralized happiness calculation hook
+  // ✅ Keep happiness calculation hook for points display
   const { 
     userProgress, 
     isCalculating, 
@@ -77,8 +88,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     emotionalNotes
   } = useHappinessCalculation();
 
-  // ✅ FIREBASE-ONLY: Component state without localStorage dependencies
-  const [currentStage, setCurrentStage] = useState<number>(1);
+  // ✅ Component state
+  const [currentStage, setCurrentStage] = useState<number>(propCurrentStage || 1);
   const [streak, setStreak] = useState<number>(0);
   const [totalHours, setTotalHours] = useState<number>(0);
   const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
@@ -87,14 +98,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     stage: 0
   });
 
-  // 🎯 FIREBASE-ONLY: Get happiness data from the hook
+  // ✅ Get happiness data from the hook (for display only)
   const happinessData = useMemo(() => ({
     happiness_points: userProgress.happiness_points || 0,
     current_level: userProgress.user_level || 'Beginning Seeker',
     isCalculating: isCalculating
   }), [userProgress.happiness_points, userProgress.user_level, isCalculating]);
 
-  // ✅ FIREBASE-ONLY: Force data refresh using the hook
+  // ✅ Force data refresh
   const forceDataRefresh = useCallback(() => {
     console.log('🔄 Forcing data refresh in HomeDashboard...');
     if (forceRecalculation) {
@@ -102,65 +113,47 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [forceRecalculation]);
 
-  // ✅ FIREBASE-ONLY: Stage unlock checker using Firebase data
+  // 🔧 FIXED: Stage unlock checker using SAME UserContext methods as Stage1Wrapper
   const checkStageUnlocked = useCallback((targetStage: number): boolean => {
     try {
-      let stageProgress = 1;
-      let t5Complete = false;
-      let stage2Complete = false;
-      let stage3Complete = false;
-      let stage4Complete = false;
-      let stage5Complete = false;
-
-      // 🔥 FIREBASE-ONLY: Get from Firebase-backed UserContext
-      if (userProfile && typeof userProfile === 'object') {
-        console.log('🔥 Using Firebase-backed user profile for stage checking:', userProfile);
-        const profile = userProfile as any;
-        stageProgress = profile.currentStage || 1;
-        t5Complete = profile.t5Completed || false;
-        
-        // Check completion flags from stageCompletionFlags object
-        const flags = profile.stageCompletionFlags || {};
-        stage2Complete = flags.stage2Complete || false;
-        stage3Complete = flags.stage3Complete || false;
-        stage4Complete = flags.stage4Complete || false;
-        stage5Complete = flags.stage5Complete || false;
-      }
+      console.log('🔧 FIXED: Using UserContext methods for stage unlock check');
       
-      console.log('🔍 Firebase-only stage unlock check:', {
-        targetStage,
-        stageProgress,
-        t5Complete,
-        stage2Complete,
-        stage3Complete,
-        stage4Complete,
-        stage5Complete
-      });
-      
-      // Progressive unlock logic
+      // ✅ Use the EXACT same logic as Stage1Wrapper
       switch (targetStage) {
         case 1:
           return true; // Stage 1 is always unlocked
           
         case 2:
-          // Stage 2 unlocks when T5 is complete OR stageProgress >= 2
-          return t5Complete || stageProgress >= 2;
+          // ✅ CRITICAL: Use same method as Stage1Wrapper
+          const t5Complete = isT5Complete(); // Same method!
+          const t5Sessions = getT5Sessions(); // Same method!
+          console.log(`🔧 T5 Complete check: ${t5Complete} (Sessions: ${t5Sessions}/3)`);
+          return t5Complete;
           
         case 3:
-          // Stage 3 unlocks when Stage 2 is complete OR stageProgress >= 3
-          return stage2Complete || stageProgress >= 3;
+          // ✅ Use UserContext stage completion methods
+          const stage2Complete = isStage2CompleteByHours();
+          const stage2Hours = getStage2Hours();
+          console.log(`🔧 Stage 2 Complete check: ${stage2Complete} (Hours: ${stage2Hours}/15)`);
+          return stage2Complete;
           
         case 4:
-          // Stage 4 unlocks when Stage 3 is complete OR stageProgress >= 4
-          return stage3Complete || stageProgress >= 4;
+          const stage3Complete = isStage3CompleteByHours();
+          const stage3Hours = getStage3Hours();
+          console.log(`🔧 Stage 3 Complete check: ${stage3Complete} (Hours: ${stage3Hours}/15)`);
+          return stage3Complete;
           
         case 5:
-          // Stage 5 unlocks when Stage 4 is complete OR stageProgress >= 5
-          return stage4Complete || stageProgress >= 5;
+          const stage4Complete = isStage4CompleteByHours();
+          const stage4Hours = getStage4Hours();
+          console.log(`🔧 Stage 4 Complete check: ${stage4Complete} (Hours: ${stage4Hours}/15)`);
+          return stage4Complete;
           
         case 6:
-          // Stage 6 unlocks when Stage 5 is complete OR stageProgress >= 6
-          return stage5Complete || stageProgress >= 6;
+          const stage5Complete = isStage5CompleteByHours();
+          const stage5Hours = getStage5Hours();
+          console.log(`🔧 Stage 5 Complete check: ${stage5Complete} (Hours: ${stage5Hours}/15)`);
+          return stage5Complete;
           
         default:
           return false;
@@ -169,39 +162,99 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       console.error('Error checking stage unlock:', error);
       return targetStage === 1; // Default to only Stage 1 unlocked
     }
-  }, [userProfile]);
+  }, [isT5Complete, getT5Sessions, isStage2CompleteByHours, isStage3CompleteByHours, 
+      isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours,
+      getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours]);
 
-  // ✅ FIREBASE-ONLY: Stage display logic using Firebase data
+  // 🔧 FIXED: Current stage calculation using UserContext methods
+  const calculateCurrentStage = useCallback((): number => {
+    try {
+      // ✅ Progressive stage calculation using UserContext methods
+      if (!isT5Complete()) {
+        console.log('🔧 Current stage: 1 (T5 not complete)');
+        return 1;
+      }
+      
+      if (!isStage2CompleteByHours()) {
+        console.log('🔧 Current stage: 2 (T5 complete, Stage 2 not complete)');
+        return 2;
+      }
+      
+      if (!isStage3CompleteByHours()) {
+        console.log('🔧 Current stage: 3 (Stage 2 complete, Stage 3 not complete)');
+        return 3;
+      }
+      
+      if (!isStage4CompleteByHours()) {
+        console.log('🔧 Current stage: 4 (Stage 3 complete, Stage 4 not complete)');
+        return 4;
+      }
+      
+      if (!isStage5CompleteByHours()) {
+        console.log('🔧 Current stage: 5 (Stage 4 complete, Stage 5 not complete)');
+        return 5;
+      }
+      
+      if (!isStage6CompleteByHours()) {
+        console.log('🔧 Current stage: 6 (Stage 5 complete, Stage 6 not complete)');
+        return 6;
+      }
+      
+      console.log('🔧 Current stage: 6 (All stages complete)');
+      return 6;
+      
+    } catch (error) {
+      console.error('Error calculating current stage:', error);
+      return 1;
+    }
+  }, [isT5Complete, isStage2CompleteByHours, isStage3CompleteByHours, 
+      isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours]);
+
+  // ✅ Update current stage when UserContext data changes
+  useEffect(() => {
+    const newStage = calculateCurrentStage();
+    if (newStage !== currentStage) {
+      console.log(`🔧 Stage updated: ${currentStage} → ${newStage}`);
+      setCurrentStage(newStage);
+    }
+  }, [calculateCurrentStage, currentStage]);
+
+  // ✅ Also update from props if provided
+  useEffect(() => {
+    if (propCurrentStage && propCurrentStage !== currentStage) {
+      console.log(`🔧 Stage updated from props: ${currentStage} → ${propCurrentStage}`);
+      setCurrentStage(propCurrentStage);
+    }
+  }, [propCurrentStage, currentStage]);
+
+  // 🔧 FIXED: Stage display info using consistent logic
   const getStageDisplayInfo = useCallback((stageNumber: number) => {
     const isUnlocked = checkStageUnlocked(stageNumber);
-    
-    let stageProgress = 1;
-    
-    // 🔥 FIREBASE-ONLY: Get from Firebase-backed UserContext
-    if (userProfile && typeof userProfile === 'object') {
-      const profile = userProfile as any;
-      stageProgress = profile.currentStage || 1;
-    }
-    
-    const isCurrentOrCompleted = isUnlocked && stageProgress >= stageNumber;
+    const calculatedCurrentStage = calculateCurrentStage();
+    const isCurrentOrCompleted = isUnlocked && calculatedCurrentStage >= stageNumber;
     
     let lockMessage = '';
     if (!isUnlocked) {
       switch (stageNumber) {
         case 2:
-          lockMessage = '🔒 Complete Stage 1 (T5) to unlock';
+          const t5Sessions = getT5Sessions();
+          lockMessage = `🔒 Complete Stage 1 T5 (${t5Sessions}/3 sessions) to unlock`;
           break;
         case 3:
-          lockMessage = '🔒 Complete Stage 2 to unlock';
+          const stage2Hours = getStage2Hours();
+          lockMessage = `🔒 Complete Stage 2 (${stage2Hours.toFixed(1)}/15 hours) to unlock`;
           break;
         case 4:
-          lockMessage = '🔒 Complete Stage 3 to unlock';
+          const stage3Hours = getStage3Hours();
+          lockMessage = `🔒 Complete Stage 3 (${stage3Hours.toFixed(1)}/15 hours) to unlock`;
           break;
         case 5:
-          lockMessage = '🔒 Complete Stage 4 to unlock';
+          const stage4Hours = getStage4Hours();
+          lockMessage = `🔒 Complete Stage 4 (${stage4Hours.toFixed(1)}/15 hours) to unlock`;
           break;
         case 6:
-          lockMessage = '🔒 Complete Stage 5 to unlock';
+          const stage5Hours = getStage5Hours();
+          lockMessage = `🔒 Complete Stage 5 (${stage5Hours.toFixed(1)}/15 hours) to unlock`;
           break;
         default:
           lockMessage = '🔒 Locked';
@@ -214,25 +267,74 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       lockMessage,
       icon: isCurrentOrCompleted ? '✅' : isUnlocked ? '▶️' : '🔒'
     };
-  }, [checkStageUnlocked, userProfile]);
+  }, [checkStageUnlocked, calculateCurrentStage, getT5Sessions, getStage2Hours, 
+      getStage3Hours, getStage4Hours, getStage5Hours]);
 
-  // ✅ FIREBASE-ONLY: Data refresh using Firebase contexts
-  const refreshDashboardData = useCallback(() => {
-    console.log('🔄 Refreshing dashboard data...');
-    
-    let maxStage = 1;
-    
-    // 🔥 FIREBASE-ONLY: Get from Firebase-backed UserContext
-    if (userProfile && typeof userProfile === 'object') {
-      const profile = userProfile as any;
-      const firebaseStage = profile.currentStage || 1;
-      console.log(`📈 Firebase stage data: ${firebaseStage}`);
-      maxStage = firebaseStage;
+  // 🔧 FIXED: Progress display using UserContext methods
+  const getProgressSummary = useCallback(() => {
+    try {
+      // ✅ T-Level progress using UserContext methods
+      const tProgress = {
+        t1: { sessions: getT1Sessions(), complete: isT1Complete() },
+        t2: { sessions: getT2Sessions(), complete: isT2Complete() },
+        t3: { sessions: getT3Sessions(), complete: isT3Complete() },
+        t4: { sessions: getT4Sessions(), complete: isT4Complete() },
+        t5: { sessions: getT5Sessions(), complete: isT5Complete() }
+      };
       
-      if (firebaseStage !== currentStage) {
-        console.log(`📈 Stage updated from Firebase: ${currentStage} → ${firebaseStage}`);
-        setCurrentStage(firebaseStage);
-      }
+      const totalTSessions = Object.values(tProgress).reduce((sum, t) => sum + t.sessions, 0);
+      const completedTStages = Object.values(tProgress).filter(t => t.complete).length;
+      
+      // ✅ Stage hours using UserContext methods
+      const stageHours = {
+        stage2: getStage2Hours(),
+        stage3: getStage3Hours(),
+        stage4: getStage4Hours(),
+        stage5: getStage5Hours(),
+        stage6: getStage6Hours()
+      };
+      
+      const totalStageHours = Object.values(stageHours).reduce((sum, hours) => sum + hours, 0);
+      
+      console.log('🔧 T-Level Progress Summary:', tProgress);
+      console.log(`🔧 Total T-Sessions: ${totalTSessions}, Completed T-Stages: ${completedTStages}/5`);
+      console.log('🔧 Stage Hours Summary:', stageHours);
+      console.log(`🔧 Total Stage Hours: ${totalStageHours.toFixed(1)}`);
+      
+      return {
+        tProgress,
+        totalTSessions,
+        completedTStages,
+        stageHours,
+        totalStageHours,
+        stage1Complete: isT5Complete(),
+        currentStage: calculateCurrentStage()
+      };
+    } catch (error) {
+      console.error('Error getting progress summary:', error);
+      return {
+        tProgress: {},
+        totalTSessions: 0,
+        completedTStages: 0,
+        stageHours: {},
+        totalStageHours: 0,
+        stage1Complete: false,
+        currentStage: 1
+      };
+    }
+  }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
+      isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
+      getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours,
+      calculateCurrentStage]);
+
+  // ✅ Data refresh using UserContext
+  const refreshDashboardData = useCallback(() => {
+    console.log('🔄 Refreshing dashboard data using UserContext methods...');
+    
+    const newStage = calculateCurrentStage();
+    if (newStage !== currentStage) {
+      console.log(`📈 Stage updated: ${currentStage} → ${newStage}`);
+      setCurrentStage(newStage);
     }
     
     // Recalculate user stats
@@ -242,9 +344,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     if (forceRecalculation) {
       forceRecalculation();
     }
-  }, [currentStage, forceRecalculation, userProfile]);
+    
+    // Log current progress for debugging
+    const progressSummary = getProgressSummary();
+    console.log('🔧 Current Progress Summary:', progressSummary);
+    
+  }, [currentStage, calculateCurrentStage, forceRecalculation, getProgressSummary]);
 
-  // ✅ PERFORMANCE: Memoized static data to prevent recreation
+  // ✅ Performance optimized static data
   const tLevels = useMemo(() => [
     { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes' },
     { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes' },
@@ -261,7 +368,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     { num: 6, title: 'PAHM Illuminator', desc: 'Complete mastery' }
   ], []);
 
-  // ✅ PERFORMANCE: Memoized resource data with stable onClick references
   const resourceData = useMemo(() => [
     {
       icon: '📖',
@@ -283,43 +389,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   ], [currentStage, onViewLearning, onShowPostureGuide, onShowPAHMExplanation]);
 
-  // ✅ FIREBASE-ONLY: Get completed stage intros from Firebase
-  const getCompletedStageIntros = useCallback((): string[] => {
-    // 🔥 FIREBASE-ONLY: Get from Firebase-backed UserContext
-    if (userProfile && typeof userProfile === 'object') {
-      const profile = userProfile as any;
-      if (profile.completedStageIntros && Array.isArray(profile.completedStageIntros)) {
-        console.log('🔥 Using Firebase-backed completed stage intros:', profile.completedStageIntros);
-        return profile.completedStageIntros;
-      }
-    }
-    
-    // Default empty array if no Firebase data
-    console.log('🔥 No Firebase-backed completed stage intros found, returning empty array');
-    return [];
-  }, [userProfile]);
-
-  // ✅ FIREBASE-ONLY: Get onboarding completion status from Firebase
-  const getOnboardingCompletionStatus = useCallback(() => {
-    // 🔥 FIREBASE-ONLY: Use Firebase-enabled OnboardingContext
-    const questionnaireCompleted = isQuestionnaireCompleted();
-    const selfAssessmentCompleted = isSelfAssessmentCompleted();
-    const completionStatus = getCompletionStatus();
-    
-    console.log('🔥 Firebase-backed onboarding status:', {
-      questionnaireCompleted,
-      selfAssessmentCompleted,
-      completionStatus
-    });
-    
-    return {
-      questionnaireCompleted,
-      selfAssessmentCompleted,
-      completionStatus
-    };
-  }, [isQuestionnaireCompleted, isSelfAssessmentCompleted, getCompletionStatus]);
-
-  // ✅ PERFORMANCE: Memoized styles to prevent recreation on every render
+  // ✅ Styles
   const styles = useMemo(() => ({
     container: {
       minHeight: '100vh',
@@ -400,7 +470,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     } as React.CSSProperties
   }), []);
 
-  // ✅ PERFORMANCE: Optimized happiness points button style with stable dependencies
+  // ✅ Happiness button style
   const getHappinessButtonStyle = useCallback((happiness_points: number) => {
     const baseStyle: React.CSSProperties = {
       padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 24px)',
@@ -417,17 +487,17 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
 
     const background = happiness_points === 0
-      ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)' // Gray for 0 points
+      ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
       : happiness_points > 400 
-      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' // Green for high scores
+      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
       : happiness_points > 200
-      ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' // Yellow for medium scores
-      : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'; // Red for low scores
+      ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+      : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
 
     return { ...baseStyle, background };
   }, []);
 
-  // ✅ PERFORMANCE: Stable user stats calculation with proper dependencies
+  // ✅ User stats calculation
   const calculateUserStats = useCallback(() => {
     if (!currentUser || !sessions || sessions.length === 0) {
       setStreak(0);
@@ -482,20 +552,19 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [currentUser, sessions]);
 
-  // ✅ PERFORMANCE: Stable event handlers with useCallback
+  // ✅ Event handlers
   const handleHappinessPointsClick = useCallback(() => {
     navigate('/happiness-tracker');
   }, [navigate]);
 
-  // ✅ FIREBASE-ONLY: Updated Stage Click Logic using Firebase only
+  // 🔧 FIXED: Stage click handler using UserContext
   const handleStageClick = useCallback(async (stageNumber: number) => {
     if (stageNumber === 1) {
-      // ✅ FIREBASE-ONLY: Check if user has seen Stage 1 introduction
-      const completedIntros = getCompletedStageIntros();
+      // Check if user has seen Stage 1 introduction
+      const completedIntros = userProfile?.stageProgress?.completedStageIntros || [];
       const hasSeenIntroduction = completedIntros.includes('1') || completedIntros.includes('stage1-intro');
       
       if (!hasSeenIntroduction) {
-        // First time - go to introduction
         navigate('/stage1-introduction', { 
           state: { 
             hasSeenBefore: false,
@@ -504,7 +573,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         });
         return;
       } else {
-        // Second time and onwards - show T-level dropdown
         setShowT1T5Dropdown(prev => !prev);
         return;
       }
@@ -517,25 +585,23 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       return;
     }
 
-    // ✅ FIREBASE-ONLY: Update current stage using Firebase contexts
+    // Update current stage
     setCurrentStage(stageNumber);
     
     try {
-      // 🔥 FIREBASE-ONLY: Update via UserContext methods (which handle Firebase)
+      // Update via UserContext methods
       if (markStageComplete && typeof markStageComplete === 'function') {
         await markStageComplete(stageNumber);
-        console.log('🔥 Stage marked complete in Firebase:', stageNumber);
+        console.log('🔧 Stage marked complete in Firebase:', stageNumber);
       }
     } catch (error) {
       console.error('Firebase stage update failed:', error);
     }
 
     navigate(`/stage${stageNumber}`);
-  }, [navigate, getStageDisplayInfo, getCompletedStageIntros, markStageComplete]);
+  }, [navigate, getStageDisplayInfo, userProfile, markStageComplete]);
 
-  // ✅ FIREBASE-ONLY: T-Level click handler using Firebase contexts
   const handleTLevelClick = useCallback(async (level: string, duration: number) => {
-    // ✅ FIREBASE-ONLY: Check if user has seen T-level introduction from Firebase
     let hasSeenTLevelIntro = false;
 
     if (userProfile && typeof userProfile === 'object') {
@@ -555,7 +621,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     });
   }, [navigate, userProfile]);
 
-  // ✅ PERFORMANCE: Stable navigation handlers
   const handleNavigateToNotes = useCallback(() => {
     navigate('/notes');
   }, [navigate]);
@@ -568,7 +633,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     navigate('/mind-recovery');
   }, [navigate]);
 
-  // ✅ PERFORMANCE: Optimized hover handlers with useCallback
+  // ✅ Hover handlers
   const createHoverHandler = useCallback((transform: string, boxShadow?: string) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
       e.currentTarget.style.transform = transform;
@@ -587,12 +652,11 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const buttonHoverProps = useMemo(() => createHoverHandler('translateY(-2px)'), [createHoverHandler]);
   const happinessHoverProps = useMemo(() => createHoverHandler('translateY(-2px) scale(1.05)', '0 12px 30px rgba(0, 0, 0, 0.3)'), [createHoverHandler]);
 
-  // ✅ PERFORMANCE: Load initial data on mount with optimized dependencies
+  // ✅ Effects
   useEffect(() => {
     calculateUserStats();
   }, [calculateUserStats]);
 
-  // ✅ FIREBASE-ONLY: Listen for window focus for data refresh
   useEffect(() => {
     const handleFocus = () => {
       console.log('🔄 Window focused - checking for data refresh...');
@@ -619,48 +683,27 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
   }, [forceDataRefresh]);
 
-  // ✅ FIREBASE-ONLY: Listen for Firebase data changes instead of localStorage
+  // ✅ Listen for UserContext data changes
   useEffect(() => {
-    // Listen for Firebase userProfile changes
-    if (userProfile && typeof userProfile === 'object') {
-      const profile = userProfile as any;
-      
-      // Update current stage if it changed in Firebase
-      if (profile.currentStage && profile.currentStage !== currentStage) {
-        console.log(`🔥 Stage updated from Firebase: ${currentStage} → ${profile.currentStage}`);
-        setCurrentStage(profile.currentStage);
-      }
-      
-      // Check for T5 completion
-      if (profile.t5Completed && currentStage < 2) {
-        console.log('🔥 T5 completion detected from Firebase');
-        setCurrentStage(2);
-      }
+    // Update current stage when UserContext data changes
+    const newStage = calculateCurrentStage();
+    if (newStage !== currentStage) {
+      console.log(`🔧 Stage updated from UserContext: ${currentStage} → ${newStage}`);
+      setCurrentStage(newStage);
     }
-  }, [userProfile, currentStage]);
+  }, [calculateCurrentStage, currentStage]);
 
-  // ✅ FIREBASE-ONLY: Location-based effects without localStorage
   useEffect(() => {
     console.log('🔄 Location changed, checking for stage updates...', location.pathname, location.state);
     
-    // Check for stage completion in location state
     const locationState = location.state as any;
     if (locationState) {
-      if (locationState.stage2Completed) {
-        console.log('🎯 Stage 2 completion confirmed via navigation state');
-        refreshDashboardData();
-      }
-      if (locationState.stage3Completed) {
-        console.log('🎯 Stage 3 completion confirmed via navigation state');
-        refreshDashboardData();
-      }
-      if (locationState.unlockedStage) {
-        console.log(`🎯 Stage ${locationState.unlockedStage} unlocked via navigation state`);
+      if (locationState.stage2Completed || locationState.stage3Completed || locationState.unlockedStage) {
+        console.log('🎯 Stage completion detected via navigation state');
         refreshDashboardData();
       }
     }
     
-    // Check if returning from assessment routes
     const isReturningFromAssessment = locationState && (
       locationState.fromSelfAssessment || 
       locationState.fromQuestionnaire ||
@@ -674,7 +717,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       }, 500);
     }
 
-    // Always refresh on location change
     if (location.pathname === '/home') {
       setTimeout(() => {
         refreshDashboardData();
@@ -682,12 +724,49 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [location.pathname, location.state, refreshDashboardData, forceDataRefresh]);
 
-  // ✅ PERFORMANCE: Memoized display name to prevent string operations on every render
   const displayName = useMemo(() => {
     return currentUser?.displayName ? `, ${currentUser.displayName.split(' ')[0]}` : '';
   }, [currentUser?.displayName]);
 
-  // ✅ Show loading state when happiness is being calculated
+  // ✅ Add debugging component in development
+  const DebugProgress = () => {
+    if (process.env.NODE_ENV !== 'development') return null;
+    
+    const progressSummary = getProgressSummary();
+    
+    return (
+      <div style={{
+        position: 'fixed',
+        bottom: '10px',
+        left: '10px',
+        background: 'rgba(0,0,0,0.8)',
+        color: 'white',
+        padding: '10px',
+        borderRadius: '5px',
+        fontSize: '12px',
+        zIndex: 9999,
+        maxWidth: '300px'
+      }}>
+        <div><strong>🔧 Progress Debug:</strong></div>
+        <div>Current Stage: {currentStage}</div>
+        <div>T5 Complete: {isT5Complete() ? 'YES' : 'NO'} ({getT5Sessions()}/3)</div>
+        <div>Stage 2 Unlocked: {checkStageUnlocked(2) ? 'YES' : 'NO'}</div>
+        <div>Total T-Sessions: {progressSummary.totalTSessions}</div>
+        <div>Completed T-Stages: {progressSummary.completedTStages}/5</div>
+        <div>Stage 2 Hours: {getStage2Hours().toFixed(1)}/15</div>
+        <button 
+          onClick={() => {
+            console.log('🔧 Manual Progress Check:', progressSummary);
+            refreshDashboardData();
+          }}
+          style={{ marginTop: '5px', padding: '2px 5px', cursor: 'pointer' }}
+        >
+          Debug Refresh
+        </button>
+      </div>
+    );
+  };
+
   if (isCalculating) {
     return (
       <div style={styles.container}>
@@ -699,8 +778,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           color: 'white',
           fontSize: '18px'
         }}>
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '3px solid rgba(255,255,255,0.3)',
+              borderTop: '3px solid white',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 16px'
+            }} />
             <div>Calculating your present attention progress...</div>
           </div>
         </div>
@@ -1290,6 +1377,10 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     <div style={{ fontSize: '14px', opacity: 0.8 }}>
                       Physical Stillness (T1-T5)
                     </div>
+                    {/* 🔧 ADD: Progress indicator */}
+                    <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
+                      T5: {getT5Sessions()}/3 sessions {isT5Complete() && '✅'}
+                    </div>
                   </div>
                   <div style={{ fontSize: '18px' }}>
                     {showT1T5Dropdown ? '🔽' : '▶️'}
@@ -1312,39 +1403,56 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   border: '1px solid rgba(102, 126, 234, 0.2)',
                   animation: 'slideDown 0.3s ease'
                 }}>
-                  {tLevels.map((tLevel, index) => (
-                    <button
-                      key={tLevel.level}
-                      onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
-                      style={{
-                        width: '100%',
-                        background: 'transparent',
-                        border: 'none',
-                        padding: '12px 16px',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        color: '#333',
-                        borderBottom: index < tLevels.length - 1 ? '1px solid #f0f0f0' : 'none',
-                        borderRadius: index === 0 ? '12px 12px 0 0' : index === tLevels.length - 1 ? '0 0 12px 12px' : '0',
-                        transition: 'background-color 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <div style={{ fontWeight: '600', marginBottom: '2px' }}>
-                        {tLevel.level}: {tLevel.duration} minutes
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>
-                        Physical Stillness Practice
-                      </div>
-                    </button>
-                  ))}
+                  {tLevels.map((tLevel, index) => {
+                    const tLevelNum = parseInt(tLevel.level.charAt(1));
+                    const tSessions = tLevelNum === 1 ? getT1Sessions() :
+                                     tLevelNum === 2 ? getT2Sessions() :
+                                     tLevelNum === 3 ? getT3Sessions() :
+                                     tLevelNum === 4 ? getT4Sessions() :
+                                     getT5Sessions();
+                    const tComplete = tLevelNum === 1 ? isT1Complete() :
+                                     tLevelNum === 2 ? isT2Complete() :
+                                     tLevelNum === 3 ? isT3Complete() :
+                                     tLevelNum === 4 ? isT4Complete() :
+                                     isT5Complete();
+                    
+                    return (
+                      <button
+                        key={tLevel.level}
+                        onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
+                        style={{
+                          width: '100%',
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#333',
+                          borderBottom: index < tLevels.length - 1 ? '1px solid #f0f0f0' : 'none',
+                          borderRadius: index === 0 ? '12px 12px 0 0' : index === tLevels.length - 1 ? '0 0 12px 12px' : '0',
+                          transition: 'background-color 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div style={{ fontWeight: '600', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {tLevel.level}: {tLevel.duration} minutes
+                          <span style={{ fontSize: '11px', color: tComplete ? '#10b981' : '#666' }}>
+                            ({tSessions}/3 {tComplete && '✅'})
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          Physical Stillness Practice
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Stages 2-6 with Firebase-backed progression logic */}
+            {/* Stages 2-6 with UserContext-backed progression logic */}
             {stageData.map((stage) => {
               const stageInfo = getStageDisplayInfo(stage.num);
               
@@ -1381,6 +1489,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <div style={{ fontSize: '14px', opacity: 0.8 }}>
                         {stage.desc}
                       </div>
+                      {/* 🔧 ADD: Progress indicator for stages 2-6 */}
+                      {stageInfo.isUnlocked && (
+                        <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
+                          {stage.num === 2 && `Hours: ${getStage2Hours().toFixed(1)}/15 ${isStage2CompleteByHours() && '✅'}`}
+                          {stage.num === 3 && `Hours: ${getStage3Hours().toFixed(1)}/15 ${isStage3CompleteByHours() && '✅'}`}
+                          {stage.num === 4 && `Hours: ${getStage4Hours().toFixed(1)}/15 ${isStage4CompleteByHours() && '✅'}`}
+                          {stage.num === 5 && `Hours: ${getStage5Hours().toFixed(1)}/15 ${isStage5CompleteByHours() && '✅'}`}
+                          {stage.num === 6 && `Hours: ${getStage6Hours().toFixed(1)}/15 ${isStage6CompleteByHours() && '✅'}`}
+                        </div>
+                      )}
                       {!stageInfo.isUnlocked && (
                         <div style={{ 
                           fontSize: '12px', 
@@ -1576,7 +1694,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 lineHeight: '1.5'
               }}>
                 {showAccessModal.stage === 2 
-                  ? 'Complete Stage 1 (T5: 30-minute practice) to unlock Stage 2'
+                  ? `Complete Stage 1 T5 (${getT5Sessions()}/3 sessions) to unlock Stage 2`
                   : `Complete Stage ${showAccessModal.stage - 1} to unlock Stage ${showAccessModal.stage}`
                 }
               </p>
@@ -1643,6 +1761,26 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         )}
       </main>
+
+      {/* 🔧 ADD: Debug component */}
+      <DebugProgress />
+      
+      <style>{`
+        @keyframes spin { 
+          0% { transform: rotate(0deg); } 
+          100% { transform: rotate(360deg); } 
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };

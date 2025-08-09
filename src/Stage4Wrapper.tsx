@@ -1,7 +1,10 @@
+// ✅ FIXED Stage4Wrapper.tsx - Uses UserContext session tracking for 15-hour requirement
+// File: src/Stage4Wrapper.tsx
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { usePractice } from './contexts/practice/PracticeContext'; // ✅ Firebase-only practice context
-import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ For detailed session history
+import { useUser } from './contexts/user/UserContext'; // ✅ For session counting and hours tracking
 import Stage4Introduction from './Stage4Introduction';
 import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
 import UniversalPAHMTimer from './components/shared/UniversalPAHMTimer';
@@ -23,20 +26,31 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ✅ FIREBASE-ONLY: Use contexts for session management
-  const { addPracticeSession } = usePractice(); // Use existing method name
-  const { userProfile, updateProfile } = useUser();
+  // ✅ FIXED: Use UserContext for session counting and hours tracking (15-hour requirement)
+  const { 
+    incrementStage4Sessions,
+    addStageHoursDirect,
+    getStage4Sessions,
+    getStage4Hours,
+    isStage4CompleteByHours,
+    userProfile,
+    markStageIntroComplete,
+    markStageComplete
+  } = useUser();
+
+  // ✅ Keep PracticeContext for detailed session recording
+  const { addPracticeSession } = usePractice();
   
-  // ✅ PERFORMANCE: Consolidated state management - single phase instead of multiple booleans
+  // ✅ State management
   const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
   const [selectedPosture, setSelectedPosture] = useState('');
 
-  // ✅ PERFORMANCE: Memoized location state parsing
+  // ✅ Memoized location state parsing
   const locationState = useMemo((): LocationState => {
     return (location.state as LocationState) || {};
   }, [location.state]);
 
-  // ✅ PERFORMANCE: Memoized URL params parsing to prevent repeated parsing
+  // ✅ Memoized URL params parsing
   const urlParams = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
     return {
@@ -45,7 +59,7 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
     };
   }, []);
 
-  // ✅ PERFORMANCE: Memoized navigation flags calculation
+  // ✅ Memoized navigation flags calculation
   const navigationFlags = useMemo(() => {
     const isFromPAHM = locationState.fromPAHM || false;
     const isFromIntro = locationState.fromIntro || false;
@@ -60,59 +74,50 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
     };
   }, [locationState.fromPAHM, locationState.fromIntro, urlParams.returnToStage, urlParams.fromStage]);
 
-  // ✅ FIREBASE-ONLY: Memoized completion check from Firebase user profile
+  // ✅ FIXED: Check intro completion from UserContext
   const hasCompletedIntro = useMemo(() => {
     try {
-      // ✅ Get completed intros from Firebase user profile
-      if (userProfile && 'completedStageIntros' in userProfile) {
-        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
-          ? userProfile.completedStageIntros as number[]
-          : [];
-        return completedIntros.includes(4);
+      if (userProfile?.stageProgress?.completedStageIntros) {
+        return userProfile.stageProgress.completedStageIntros.includes('stage4');
       }
       return false;
     } catch (error) {
-      console.error("Error checking completed intros from Firebase:", error);
+      console.error("Error checking completed intros:", error);
       return false;
     }
-  }, [userProfile]);
+  }, [userProfile?.stageProgress?.completedStageIntros]);
 
-  // ✅ FIREBASE-ONLY: Clear any previous session data
+  // ✅ Clear previous session data
   const clearPreviousSession = useCallback(async (): Promise<void> => {
     try {
-      // ✅ Clear any active session state (no external storage needed)
       console.log('✅ Previous session state cleared successfully');
     } catch (error) {
       console.error('❌ Error clearing previous session:', error);
     }
   }, []);
 
-  // ✅ PERFORMANCE: Optimized initial phase determination with single useEffect
+  // ✅ Initial phase determination
   useEffect(() => {
     const { effectivelyFromPAHM, isFromIntro } = navigationFlags;
     
-    // Force show introduction for direct menu access (first-time or returning)
     if (!effectivelyFromPAHM && !isFromIntro) {
       setCurrentPhase('introduction');
       return;
     }
     
-    // If coming from PAHM explanation (via state or URL params), always show posture selection
     if (effectivelyFromPAHM) {
-      clearPreviousSession(); // Clear any previous session data
+      clearPreviousSession();
       setCurrentPhase('posture');
       return;
     }
     
-    // If coming from intro, show posture selection
     if (isFromIntro) {
       setCurrentPhase('posture');
     }
   }, [navigationFlags, clearPreviousSession]);
 
-  // ✅ PERFORMANCE: Stable event handlers with useCallback
+  // ✅ Navigation handlers
   const handleComplete = useCallback(() => {
-    // For Stage 4, navigate to PAHM explanation
     navigate('/learning/pahm', { 
       state: { 
         returnToStage: 4,
@@ -129,66 +134,55 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
     } else if (currentPhase === 'posture') {
       setCurrentPhase('introduction');
     } else {
-      // If in introduction, go back to home
       navigate('/home');
     }
   }, [currentPhase, navigate]);
   
+  // ✅ FIXED: Handle introduction completion
   const handleIntroComplete = useCallback(async () => {
     try {
-      // ✅ FIREBASE-ONLY: Mark Stage 4 introduction as completed
-      if (userProfile && 'completedStageIntros' in userProfile) {
-        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
-          ? userProfile.completedStageIntros as number[]
-          : [];
-        
-        if (!completedIntros.includes(4)) {
-          const updatedIntros = [...completedIntros, 4];
-          await updateProfile({
-            completedStageIntros: updatedIntros
-          } as any);
-        }
-      }
-      
-      // When introduction is complete, show posture selection
+      await markStageIntroComplete('stage4');
+      console.log('✅ Stage 4 introduction marked as completed');
       setCurrentPhase('posture');
     } catch (error) {
       console.error('❌ Error marking Stage 4 intro as completed:', error);
-      // Continue anyway - don't block user flow
-      setCurrentPhase('posture');
+      setCurrentPhase('posture'); // Continue anyway
     }
-  }, [userProfile, updateProfile]);
+  }, [markStageIntroComplete]);
   
+  // ✅ Handle posture selection
   const handleStartPractice = useCallback(async (posture: string) => {
     try {
-      // ✅ FIREBASE-ONLY: Prepare session data for Firebase
       setSelectedPosture(posture);
-      
       console.log('✅ Stage 4 practice session prepared with posture:', posture);
-      
-      // ✅ PERFORMANCE: Direct state update instead of requestAnimationFrame
       setCurrentPhase('timer');
     } catch (error) {
       console.error('❌ Error preparing Stage 4 practice session:', error);
-      // Continue anyway - don't block user flow
       setSelectedPosture(posture);
       setCurrentPhase('timer');
     }
   }, []);
   
-  const handleTimerComplete = useCallback(async () => {
+  // ✅ FIXED: Handle timer completion with proper session and hours tracking
+  const handleTimerComplete = useCallback(async (completedDuration: number = 30) => {
     try {
-      // ✅ FIREBASE-ONLY: Record completed session to Firebase
+      console.log(`🎯 Stage 4 session completed! Duration: ${completedDuration} minutes`);
+      
+      // 1. ✅ CRITICAL: Increment Stage 4 session count (persists after logout)
+      const sessionCount = await incrementStage4Sessions();
+      console.log(`📊 Stage 4 Sessions: ${sessionCount}`);
+      
+      // 2. ✅ CRITICAL: Add hours to Stage 4 for 15-hour requirement
+      const hoursToAdd = completedDuration / 60; // Convert minutes to hours
+      const totalHours = await addStageHoursDirect(4, hoursToAdd);
+      console.log(`⏱️ Stage 4 Hours: ${totalHours}/15 (${Math.round((totalHours/15)*100)}%)`);
+      
+      // 3. ✅ ALSO: Record detailed session to PracticeContext
       if (addPracticeSession) {
-        const completedSessionData = {
-          level: 'stage4',
+        await addPracticeSession({
           stageLevel: 4,
-          type: 'meditation',
           sessionType: 'meditation' as const,
-          targetDuration: 30, // 30 minutes for Stage 4
-          timeSpent: 30, // Completed duration
-          duration: 30,
-          isCompleted: true,
+          duration: completedDuration,
           timestamp: new Date().toISOString(),
           environment: {
             posture: selectedPosture,
@@ -196,45 +190,74 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
             lighting: 'natural',
             sounds: 'quiet'
           },
-          quality: 6, // Stage 4 gets good quality rating
-          notes: `Stage 4 completed session - ${selectedPosture} posture`
-        };
-        
-        await addPracticeSession(completedSessionData);
-        console.log('✅ Stage 4 session completed and saved to Firebase');
+          rating: 6, // Good rating for Stage 4
+          notes: `Stage 4 session - ${selectedPosture} posture`
+        });
+      }
+      
+      // 4. ✅ Check if Stage 4 is now complete (15+ hours)
+      const isStageComplete = isStage4CompleteByHours();
+      if (isStageComplete) {
+        console.log('🎉 Stage 4 completed! 15+ hours reached');
+        await markStageComplete(4); // Mark Stage 4 as complete and unlock Stage 5
       }
       
       setCurrentPhase('reflection');
+      
     } catch (error) {
       console.error('❌ Error completing Stage 4 session:', error);
-      // Continue anyway - don't block user flow
-      setCurrentPhase('reflection');
+      setCurrentPhase('reflection'); // Continue anyway
     }
-  }, [selectedPosture, addPracticeSession]);
+  }, [incrementStage4Sessions, addStageHoursDirect, addPracticeSession, selectedPosture, 
+      isStage4CompleteByHours, markStageComplete]);
 
+  // ✅ FIXED: Handle reflection completion with progress tracking
   const handleReflectionComplete = useCallback(async () => {
     try {
-      // ✅ FIREBASE-ONLY: Update user progress for Stage 4 completion
-      await updateProfile({
-        lastCompletedStage: 4,
-        totalSessions: (userProfile?.totalSessions || 0) + 1,
-        lastSessionDate: new Date().toISOString()
-      } as any);
+      const currentHours = getStage4Hours();
+      const currentSessions = getStage4Sessions();
+      const isComplete = isStage4CompleteByHours();
       
-      console.log('✅ Stage 4 progress updated in Firebase');
+      console.log(`📊 Stage 4 Progress: ${currentSessions} sessions, ${currentHours}/15 hours`);
+      
+      if (isComplete) {
+        // Stage 4 is complete, navigate with celebration
+        navigate('/home', {
+          state: {
+            stage4Completed: true,
+            unlockedStage: 5,
+            message: '🎉 Congratulations! Stage 4 completed (15+ hours)! Stage 5 is now unlocked!'
+          }
+        });
+      } else {
+        // Stage 4 not complete yet, show progress
+        const hoursRemaining = Math.max(0, 15 - currentHours);
+        const percentComplete = Math.round((currentHours / 15) * 100);
+        
+        navigate('/home', {
+          state: {
+            stage4InProgress: true,
+            message: `Stage 4 Progress: ${percentComplete}% complete (${hoursRemaining.toFixed(1)} hours remaining)`
+          }
+        });
+      }
+      
     } catch (error) {
-      console.error('❌ Error updating Stage 4 progress:', error);
+      console.error('❌ Error processing Stage 4 completion:', error);
+      navigate('/home', {
+        state: {
+          stage4Completed: false,
+          message: 'Stage 4 session recorded! (Sync pending)'
+        }
+      });
     }
-    
-    // Navigate back to home or to next stage
-    navigate('/home');
-  }, [userProfile, updateProfile, navigate]);
+  }, [getStage4Hours, getStage4Sessions, isStage4CompleteByHours, navigate]);
 
   const handleReflectionBack = useCallback(() => {
     setCurrentPhase('timer');
   }, []);
 
-  // ✅ PERFORMANCE: Memoized component renderer to prevent recreation on every render
+  // ✅ Memoized component renderer
   const renderCurrentPhase = useMemo(() => {
     switch (currentPhase) {
       case 'reflection':
@@ -287,7 +310,19 @@ const Stage4Wrapper: React.FC<Stage4WrapperProps> = () => {
 
   return (
     <MainNavigation>
-      {renderCurrentPhase}
+      <div className="stage4-wrapper">
+        {/* ✅ Show progress indicator */}
+        <div className="stage-progress-header">
+          <h2>Stage 4: Sustained Attention</h2>
+          <div className="progress-info">
+            <span>Sessions: {getStage4Sessions()}</span>
+            <span>Hours: {getStage4Hours().toFixed(1)}/15</span>
+            <span>Progress: {Math.round((getStage4Hours() / 15) * 100)}%</span>
+          </div>
+        </div>
+        
+        {renderCurrentPhase}
+      </div>
     </MainNavigation>
   );
 };
