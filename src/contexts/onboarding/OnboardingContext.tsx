@@ -1,4 +1,4 @@
-// ✅ COMPLETE FIREBASE-ONLY OnboardingContext - Ready to use!
+// ✅ COMPLETE FIREBASE-ONLY OnboardingContext with REAL-TIME LISTENERS
 // File: src/contexts/onboarding/OnboardingContext.tsx
 // Simply copy and paste this entire file to replace your existing OnboardingContext.tsx
 
@@ -176,7 +176,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 // ================================
-// FIREBASE-ONLY ONBOARDING PROVIDER
+// FIREBASE-ONLY ONBOARDING PROVIDER WITH REAL-TIME LISTENERS
 // ================================
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
@@ -231,63 +231,67 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [currentUser?.uid]);
 
-  const loadFromFirebase = useCallback(async () => {
-    if (!currentUser?.uid) return;
-    
+  // ================================
+  // ✅ NEW: REAL-TIME LISTENERS (Like WellnessContext)
+  // ================================
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setQuestionnaire(null);
+      setSelfAssessment(null);
+      setIsLoading(false);
+      return;
+    }
+
+    console.log(`🔄 Setting up real-time onboarding listeners for user: ${currentUser.uid.substring(0, 8)}...`);
     setIsLoading(true);
-    
-    try {
-      // Load questionnaire
-      const questionnaireDocRef = doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current');
-      const questionnaireDoc = await getDoc(questionnaireDocRef);
-      
-      if (questionnaireDoc.exists()) {
-        const data = questionnaireDoc.data();
+
+    // ✅ Real-time listener for questionnaire
+    const questionnaireDocRef = doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current');
+    const unsubscribeQuestionnaire = onSnapshot(questionnaireDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
         const questionnaireData = {
           ...data,
-          createdAt: data.createdAt?.toDate?.()?.toISOString(),
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
           completedAt: data.completedAt?.toDate?.()?.toISOString() || data.completedAt
         } as QuestionnaireData;
         setQuestionnaire(questionnaireData);
-        console.log(`📦 Questionnaire loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`🔄 Real-time questionnaire update for user ${currentUser.uid.substring(0, 8)}...`);
+      } else {
+        setQuestionnaire(null);
       }
-      
-      // Load self-assessment
-      const assessmentDocRef = doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current');
-      const assessmentDoc = await getDoc(assessmentDocRef);
-      
-      if (assessmentDoc.exists()) {
-        const data = assessmentDoc.data();
+    }, (error) => {
+      console.error('❌ Questionnaire listener error:', error);
+    });
+
+    // ✅ Real-time listener for self-assessment
+    const assessmentDocRef = doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current');
+    const unsubscribeAssessment = onSnapshot(assessmentDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
         const assessmentData = {
           ...data,
-          createdAt: data.createdAt?.toDate?.()?.toISOString(),
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
           completedAt: data.completedAt?.toDate?.()?.toISOString() || data.completedAt
         } as SelfAssessmentData;
         setSelfAssessment(assessmentData);
-        console.log(`📦 Self-assessment loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`🔄 Real-time self-assessment update for user ${currentUser.uid.substring(0, 8)}...`);
+      } else {
+        setSelfAssessment(null);
       }
-      
-    } catch (error) {
-      console.error('❌ Failed to load onboarding data from Firebase:', error);
-    } finally {
       setIsLoading(false);
-    }
-  }, [currentUser?.uid]);
+    }, (error) => {
+      console.error('❌ Self-assessment listener error:', error);
+      setIsLoading(false);
+    });
 
-  // ================================
-  // LOAD DATA ON USER CHANGE
-  // ================================
-  useEffect(() => {
-    if (currentUser?.uid) {
-      loadFromFirebase();
-    } else {
-      // Reset to defaults when no user
-      setQuestionnaire(null);
-      setSelfAssessment(null);
-    }
-  }, [currentUser?.uid, loadFromFirebase]);
+    return () => {
+      unsubscribeQuestionnaire();
+      unsubscribeAssessment();
+    };
+  }, [currentUser?.uid]);
 
   // ================================
   // EVENT EMISSION
@@ -327,16 +331,13 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedAt: new Date().toISOString()
     };
     
-    // Optimistic UI update
-    setQuestionnaire(updatedQuestionnaire);
-    
     try {
-      // Save to Firebase
+      // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
       await saveQuestionnaireToFirebase(updatedQuestionnaire);
       emitOnboardingEvent('questionnaire', updatedQuestionnaire);
+      console.log('🔄 Real-time listener will update questionnaire automatically...');
     } catch (error) {
-      // Rollback on failure
-      setQuestionnaire(null);
+      console.error('❌ Failed to update questionnaire:', error);
       throw error;
     }
   }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
@@ -389,16 +390,13 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
     
-    // Optimistic UI update
-    setQuestionnaire(questionnaireData);
-    
     try {
-      // Save to Firebase
+      // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
       await saveQuestionnaireToFirebase(questionnaireData);
       emitOnboardingEvent('questionnaire', questionnaireData);
+      console.log('🔄 Real-time listener will update questionnaire automatically...');
     } catch (error) {
-      // Rollback on failure
-      setQuestionnaire(null);
+      console.error('❌ Failed to complete questionnaire:', error);
       throw error;
     }
   }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
@@ -444,16 +442,13 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedAt: new Date().toISOString()
     } as SelfAssessmentData;
     
-    // Optimistic UI update
-    setSelfAssessment(updatedAssessment);
-    
     try {
-      // Save to Firebase
+      // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
       await saveSelfAssessmentToFirebase(updatedAssessment);
       emitOnboardingEvent('selfAssessment', updatedAssessment);
+      console.log('🔄 Real-time listener will update self-assessment automatically...');
     } catch (error) {
-      // Rollback on failure
-      setSelfAssessment(null);
+      console.error('❌ Failed to update self-assessment:', error);
       throw error;
     }
   }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
@@ -530,17 +525,12 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     }
     
-    // Optimistic UI update
-    setSelfAssessment(selfAssessmentData);
-    
     try {
-      // Save to Firebase
+      // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
       await saveSelfAssessmentToFirebase(selfAssessmentData);
       emitOnboardingEvent('selfAssessment', selfAssessmentData);
-      console.log('✅ Self-assessment completed and saved successfully');
+      console.log('🔄 Real-time listener will update self-assessment automatically...');
     } catch (error) {
-      // Rollback on failure
-      setSelfAssessment(null);
       console.error('❌ Failed to save self-assessment:', error);
       throw error;
     }
@@ -676,11 +666,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), {});
       await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), {});
       
-      // Clear local state
-      setQuestionnaire(null);
-      setSelfAssessment(null);
-      
-      console.log('🗑️ Cleared all onboarding data');
+      // Real-time listeners will clear local state automatically
+      console.log('🗑️ Cleared all onboarding data - real-time listeners will update UI');
     } catch (error) {
       console.error('❌ Error clearing onboarding data:', error);
     }

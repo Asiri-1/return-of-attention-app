@@ -1,8 +1,8 @@
-// ✅ COMPLETE UserContext with ALL Session Tracking - TypeScript Fixed
+// ✅ COMPLETE UserContext with REAL-TIME LISTENERS - TypeScript Fixed
 // File: src/contexts/user/UserContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 // ✅ FIXED: Complete interfaces with proper index signatures
@@ -353,18 +353,24 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser?.uid]);
 
-  // ✅ Enhanced Firebase load with data migration
-  const loadFromFirebase = useCallback(async () => {
-    if (!currentUser?.uid) return;
+  // ✅ NEW: Real-time listener for user profile (like WellnessContext)
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setUserProfile(null);
+      setAchievements([]);
+      setIsLoading(false);
+      return;
+    }
 
+    console.log(`🔄 Setting up real-time user profile listener for user: ${currentUser.uid.substring(0, 8)}...`);
     setIsLoading(true);
-    
-    try {
-      const userDocRef = doc(db, 'userProfiles', currentUser.uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      if (userDoc.exists()) {
-        const data = userDoc.data() as UserProfile;
+
+    const userDocRef = doc(db, 'userProfiles', currentUser.uid);
+
+    // ✅ Real-time listener for user profile
+    const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data() as UserProfile;
         
         const migratedProfile: UserProfile = {
           ...data,
@@ -411,28 +417,38 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setUserProfile(migratedProfile);
         setAchievements(migratedProfile.achievements || ['journey_started']);
+        setIsLoading(false);
         
-        console.log(`📦 User profile loaded from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
-        console.log('🔍 Loaded session counts:', migratedProfile.sessionCounts);
-        console.log('🔍 Loaded stage hours:', migratedProfile.stageHours);
+        console.log(`🔄 Real-time user profile update for user ${currentUser.uid.substring(0, 8)}...`);
+        console.log('🔍 Updated session counts:', migratedProfile.sessionCounts);
+        console.log('🔍 Updated stage hours:', migratedProfile.stageHours);
+        console.log('🔍 T5 Complete:', (migratedProfile.sessionCounts?.t5Sessions || 0) >= 3);
         
-        if (!data.sessionCounts || !data.stageHours || !data.stageCompletionStatus) {
+        // ✅ Auto-migrate if needed - using migratedProfile for safety
+        if (!migratedProfile.sessionCounts || 
+            !migratedProfile.stageHours || 
+            !migratedProfile.stageCompletionStatus ||
+            (migratedProfile.sessionCounts.t5Sessions === undefined)) {
           console.log('🔄 Migrating profile to new format...');
-          await saveToFirebase(migratedProfile);
+          saveToFirebase(migratedProfile);
         }
         
       } else {
-        console.log(`🆕 Initializing default profile for new user ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`🆕 Creating new profile for user ${currentUser.uid.substring(0, 8)}...`);
         const defaultProfile = createDefaultProfile();
-        await saveToFirebase(defaultProfile);
+        saveToFirebase(defaultProfile);
         setUserProfile(defaultProfile);
         setAchievements(defaultProfile.achievements || ['journey_started']);
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Failed to load user profile from Firebase:', error);
-    } finally {
+    }, (error) => {
+      console.error('❌ Firebase user profile listener error:', error);
       setIsLoading(false);
-    }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [currentUser?.uid, createDefaultProfile, saveToFirebase]);
 
   // ✅ FIXED: Core session counting logic - TypeScript safe with proper typing
@@ -483,8 +499,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     console.log(`✅ ${level} sessions: ${currentCount} → ${newCount}`);
     
-    setUserProfile(updatedProfile);
+    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
+    console.log('🔄 Real-time listener will update UI automatically...');
     
     return newCount;
   }, [userProfile, saveToFirebase]);
@@ -563,8 +580,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     console.log(`✅ Stage ${stageNumber} hours: ${currentHours} → ${newHours} (Complete: ${isComplete})`);
     
-    setUserProfile(updatedProfile);
+    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
+    console.log('🔄 Real-time listener will update UI automatically...');
     
     return newHours;
   }, [userProfile, saveToFirebase]);
@@ -617,7 +635,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions();
   }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions]);
 
-  // ✅ FIXED: Core profile methods with proper typing
+  // ✅ FIXED: Core profile methods with NO immediate state updates
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
     
@@ -627,7 +645,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    setUserProfile(updatedProfile);
+    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -652,7 +670,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    setUserProfile(updatedProfile);
+    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -676,7 +694,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    setUserProfile(updatedProfile);
+    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -699,7 +717,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    setUserProfile(updatedProfile);
+    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -755,7 +773,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentAchievements = userProfile.achievements || [];
     if (!currentAchievements.includes(achievement)) {
       const newAchievements = [...currentAchievements, achievement];
-      setAchievements(newAchievements);
       await updateProfile({ achievements: newAchievements });
     }
   }, [userProfile, updateProfile]);
@@ -765,23 +782,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearUserData = useCallback(async () => {
     const defaultProfile = createDefaultProfile();
-    setUserProfile(defaultProfile);
-    setAchievements(defaultProfile.achievements || []);
     await saveToFirebase(defaultProfile);
+    // Real-time listener will update state automatically
   }, [createDefaultProfile, saveToFirebase]);
 
   const exportUserData = useCallback(() => userProfile, [userProfile]);
-
-  // Load profile when user changes
-  useEffect(() => {
-    if (currentUser) {
-      loadFromFirebase();
-    } else {
-      setUserProfile(null);
-      setAchievements([]);
-      setIsLoading(false);
-    }
-  }, [currentUser, loadFromFirebase]);
 
   const contextValue = useMemo(() => ({
     userProfile,
