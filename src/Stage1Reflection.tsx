@@ -1,3 +1,4 @@
+// ✅ FIXED Stage1Reflection.tsx - Now saves T-level identifiers
 import React, { useState } from 'react';
 import { usePractice } from './contexts/practice/PracticeContext'; // ✅ Firebase-only practice context
 import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
@@ -75,7 +76,7 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
     }));
   };
   
-  // ✅ FIREBASE-ONLY: Handle form submission
+  // ✅ FIREBASE-ONLY: Handle form submission with FIXED T-level identifiers
   const handleSubmit = async () => {
     if (isSubmitting) return;
     
@@ -88,8 +89,12 @@ const Stage1Reflection: React.FC<Stage1ReflectionProps> = ({
       if (addPracticeSession) {
         const tStageLevel = tLevel ? parseInt(tLevel[1]) : 1;
         
+        // 🔥 FIXED: Add the missing T-level identifiers
         await addPracticeSession({
           stageLevel: tStageLevel,
+          stageLabel: stageLevel, // ✅ ADD: Save "T1", "T2", etc.
+          tLevel: tLevel || `T${tStageLevel}`, // ✅ ADD: Save "T1", "T2", etc.
+          level: tLevel?.toLowerCase() || `t${tStageLevel}`, // ✅ ADD: Save "t1", "t2", etc.
           sessionType: 'meditation' as const,
           duration: duration,
           timestamp: new Date().toISOString(),

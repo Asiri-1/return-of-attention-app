@@ -1,6 +1,6 @@
-// 🔧 COMPLETE FIXED App.tsx - Uses UserContext Progress Methods
+// 🔧 COMPLETE FIXED App.tsx - Complete Practice Session Flow
 // File: src/App.tsx
-// This ensures proper progress data flow to HomeDashboard
+// ✅ T1 Introduction → Universal Posture Selection → Practice Timer → Reflection → DUAL CONTEXT UPDATES
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -31,6 +31,10 @@ import SelfAssessmentCompletion from './SelfAssessmentCompletion';
 // ✅ Import Stage1Introduction directly (not lazy loaded for better UX)
 import Stage1Introduction from './Stage1Introduction';
 
+// ✅ Import T1Introduction and UniversalPostureSelection directly
+import T1Introduction from './T1Introduction';
+import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
+
 // ✅ Import PublicLandingHero directly
 import PublicLandingHero from './components/PublicLandingHero';
 
@@ -53,7 +57,8 @@ const WhatIsPAHMWrapper = lazy(() => import('./WhatIsPAHMWrapper'));
 const ImmediateReflectionWrapper = lazy(() => import('./ImmediateReflectionWrapper'));
 const ChatInterface = lazy(() => import('./components/Chatwithguru/ChatInterface'));
 
-// Practice Reflection Component (for T1-T5)
+// Practice Components
+const PracticeTimer = lazy(() => import('./PracticeTimer'));
 const PracticeReflection = lazy(() => import('./PracticeReflection'));
 
 // Public landing pages
@@ -140,112 +145,253 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
   );
 });
 
-// ✅ DEBUG COMPONENT: Add this temporarily to see what's happening
-const LoadingDebugger: React.FC = () => {
-  const { currentUser, isLoading } = useAuth();
+// ✅ DEBUG COMPONENT: Removed for production
+
+// ✅ FIXED: Universal Posture Selection Wrapper Component
+const UniversalPostureSelectionWrapper: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   
-  // Only show in development
-  if (process.env.NODE_ENV !== 'development') return null;
-  
+  // ✅ Get state passed from T1Introduction
+  const state = location.state as {
+    tLevel?: string;
+    duration?: number;
+    level?: string;
+    stageLevel?: number;
+    returnTo?: string;
+    fromIntroduction?: boolean;
+  } | null;
+
+  console.log('🔥 UniversalPostureSelectionWrapper - Received state:', state);
+
+  // ✅ Handle back navigation
+  const handleBack = () => {
+    console.log('🔙 PostureSelection - navigating back');
+    
+    if (state?.fromIntroduction) {
+      // Go back to T1 Introduction
+      navigate('/t1-introduction', { state });
+    } else {
+      // Go back to stage dashboard
+      const returnPath = state?.returnTo || '/stage1';
+      navigate(returnPath);
+    }
+  };
+
+  // ✅ Handle posture selection and navigate to practice timer
+  const handleStartPractice = (selectedPosture: string) => {
+    console.log('🎯 Posture selected:', selectedPosture);
+    console.log('🎯 Navigating to practice timer');
+    
+    // ✅ Navigate to Practice Timer with all necessary data
+    navigate('/practice-timer', {
+      state: {
+        tLevel: state?.tLevel || 'T1',
+        duration: state?.duration || 10,
+        level: state?.level || 't1',
+        stageLevel: state?.stageLevel || 1,
+        returnTo: state?.returnTo || '/stage1',
+        selectedPosture: selectedPosture,
+        fromPostureSelection: true
+      }
+    });
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: '10px',
-      right: '10px',
-      background: 'rgba(0,0,0,0.8)',
-      color: 'white',
-      padding: '10px',
-      borderRadius: '5px',
-      fontSize: '12px',
-      zIndex: 9999,
-      maxWidth: '300px'
-    }}>
-      <div>Auth Loading: {isLoading ? 'TRUE' : 'FALSE'}</div>
-      <div>User: {currentUser ? 'EXISTS' : 'NULL'}</div>
-      <div>Path: {location.pathname}</div>
-      <div>Time: {new Date().toLocaleTimeString()}</div>
-      <button 
-        onClick={() => window.location.href = '/home'}
-        style={{ marginTop: '5px', padding: '2px 5px', cursor: 'pointer' }}
-      >
-        Force Home
-      </button>
-      <button 
-        onClick={() => window.location.href = '/'}
-        style={{ marginTop: '5px', padding: '2px 5px', cursor: 'pointer', marginLeft: '5px' }}
-      >
-        Force Landing
-      </button>
-    </div>
+    <UniversalPostureSelection
+      onBack={handleBack}
+      onStartPractice={handleStartPractice}
+      currentTLevel={state?.tLevel}
+      stageNumber={state?.stageLevel}
+    />
   );
 };
 
-// ✅ FIREBASE-ONLY: Practice Reflection Wrapper using Firebase contexts only
-const PracticeReflectionWrapper: React.FC = () => {
-  const navigate = useNavigate();
+// ✅ FIXED: Practice Timer Wrapper Component
+const PracticeTimerWrapper: React.FC = () => {
   const location = useLocation();
-  const { addReflection } = useWellness();
-  const { setT5Completed, updateStageProgress } = useUser();
-  const [isSaving, setIsSaving] = useState(false);
+  const navigate = useNavigate();
   
-  const handleBack = useCallback(() => {
-    navigate('/home');
-  }, [navigate]);
-  
-  const handleSaveReflection = useCallback(async (reflectionData: any) => {
-    try {
-      setIsSaving(true);
-      
-      // ✅ FIREBASE-ONLY: Save reflection to Firebase via WellnessContext
-      await addReflection({
-        ...reflectionData,
-        timestamp: new Date().toISOString(),
-        sessionData: location.state || {},
-        type: 'practice_reflection'
-      });
-      
-      console.log('✅ Practice reflection saved to Firebase');
-      
-      // ✅ FIREBASE-ONLY: Check if this is T5 completion
-      const state = location.state as any;
-      if (state?.tLevel === 'T5' || state?.isT5Completion) {
-        // ✅ Save T5 completion to Firebase via UserContext
-        await setT5Completed(true);
-        
-        // ✅ Update stage progress to allow Stage 2 access
-        await updateStageProgress({
-          currentStage: 2,
-          t5Completed: true
-        });
-        
-        console.log('✅ T5 completed, unlocking Stage 2 in Firebase');
-        
-        // Force a page reload to ensure all components update
-        window.location.href = '/home';
-        return;
+  // ✅ Get state passed from UniversalPostureSelection
+  const state = location.state as {
+    tLevel?: string;
+    duration?: number;
+    level?: string;
+    stageLevel?: number;
+    returnTo?: string;
+    selectedPosture?: string;
+    fromPostureSelection?: boolean;
+  } | null;
+
+  console.log('🔥 PracticeTimerWrapper - Received state:', state);
+
+  // ✅ Provide default values if state is missing - wrap in useMemo
+  const timerProps = useMemo(() => ({
+    tLevel: state?.tLevel || 'T1',
+    duration: state?.duration || 10,
+    level: state?.level || 't1',
+    stageLevel: state?.stageLevel || 1,
+    returnTo: state?.returnTo || '/stage1',
+    selectedPosture: state?.selectedPosture || 'seated_chair'
+  }), [state]);
+
+  console.log('🎯 PracticeTimer Props:', timerProps);
+
+  // ✅ Handle practice completion - navigate to reflection
+  const handlePracticeComplete = useCallback(() => {
+    console.log('✅ Practice completed, navigating to reflection');
+    
+    navigate('/practice-reflection', {
+      state: {
+        sessionData: {
+          tLevel: timerProps.tLevel,
+          duration: timerProps.duration,
+          posture: timerProps.selectedPosture,
+          stageLevel: timerProps.stageLevel,
+          isCompleted: true
+        },
+        returnTo: timerProps.returnTo,
+        tLevel: timerProps.tLevel,
+        fromStage1: true
       }
-      
-      navigate('/home');
-    } catch (error) {
-      console.error('❌ Error saving practice reflection:', error);
-      alert('Failed to save reflection. Please check your connection and try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [addReflection, setT5Completed, updateStageProgress, location.state, navigate]);
-  
-  if (isSaving) {
-    return <FastLoader message="Saving your reflection to cloud..." />;
-  }
-  
+    });
+  }, [navigate, timerProps]);
+
+  // ✅ Handle navigation back to stage
+  const handleBack = useCallback(() => {
+    console.log('🔙 Navigating back to:', timerProps.returnTo);
+    navigate(timerProps.returnTo);
+  }, [navigate, timerProps.returnTo]);
+
   return (
-    <Suspense fallback={<FastLoader message="Loading practice reflection..." />}>
-      <PracticeReflection 
+    <Suspense fallback={<FastLoader message="Starting your practice session..." />}>
+      <PracticeTimer
+        stageLevel={`${timerProps.tLevel}: Physical Stillness Training`}
+        initialMinutes={timerProps.duration}
+        onComplete={handlePracticeComplete}
         onBack={handleBack}
-        onSaveReflection={handleSaveReflection}
       />
     </Suspense>
+  );
+};
+
+// ✅ CRITICAL FIX: Practice Reflection Wrapper Component - Updates BOTH Contexts
+const PracticeReflectionWrapper = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { addEmotionalNote } = useWellness();
+  
+  // ✅ CRITICAL: Import UserContext methods for session counting
+  const { 
+    incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, 
+    incrementT4Sessions, incrementT5Sessions 
+  } = useUser();
+
+  console.log('🔍 PracticeReflectionWrapper state:', location.state);
+
+  // ✅ FIXED: Handle missing state gracefully
+  const state = location.state as any;
+  if (!state) {
+    console.warn('⚠️ No state found in PracticeReflectionWrapper, redirecting to home');
+    navigate('/home');
+    return null;
+  }
+
+  const { sessionData, tLevel } = state;
+
+  const handleSaveReflection = async (reflectionData: any) => {
+    console.log('💾 Saving reflection data:', reflectionData);
+    
+    try {
+      // ✅ CRITICAL FIX: Update UserContext session counts FIRST (drives UI updates)
+      if (sessionData?.isCompleted && tLevel) {
+        console.log(`🔥 UPDATING ${tLevel} session count by 1`);
+        
+        let newSessionCount = 0;
+        switch (tLevel.toLowerCase()) {
+          case 't1':
+            newSessionCount = await incrementT1Sessions();
+            console.log(`📊 t1 sessions: ${newSessionCount-1} → ${newSessionCount}`);
+            break;
+          case 't2':
+            newSessionCount = await incrementT2Sessions();
+            console.log(`📊 t2 sessions: ${newSessionCount-1} → ${newSessionCount}`);
+            break;
+          case 't3':
+            newSessionCount = await incrementT3Sessions();
+            console.log(`📊 t3 sessions: ${newSessionCount-1} → ${newSessionCount}`);
+            break;
+          case 't4':
+            newSessionCount = await incrementT4Sessions();
+            console.log(`📊 t4 sessions: ${newSessionCount-1} → ${newSessionCount}`);
+            break;
+          case 't5':
+            newSessionCount = await incrementT5Sessions();
+            console.log(`📊 t5 sessions: ${newSessionCount-1} → ${newSessionCount}`);
+            break;
+          default:
+            console.warn(`⚠️ Unknown tLevel: ${tLevel}`);
+        }
+        
+        console.log(`✅ SESSION SAVED TO FIREBASE! - ${tLevel}`);
+        console.log(`📊 T-STAGE COMPLETION TRACKED - ${tLevel}`);
+      }
+
+      // Add reflection as emotional note
+      await addEmotionalNote({
+        content: `Completed ${tLevel || sessionData?.tLevel} practice (${sessionData?.duration || 10} minutes). Reflection: ${reflectionData.reflectionText}`,
+        emotion: sessionData?.isCompleted ? 'accomplished' : 'content',
+        energyLevel: sessionData?.isCompleted ? 8 : 6,
+        intensity: sessionData?.isCompleted ? 8 : 6,
+        tags: ['practice-reflection', (tLevel || sessionData?.tLevel)?.toLowerCase(), 'stage-1'],
+        gratitude: ['meditation practice', 'mindfulness', 'inner stillness']
+      });
+
+      console.log('✅ Reflection saved successfully');
+      
+      // ✅ FIXED: Navigate back to appropriate location
+      if (state.fromStage1) {
+        if (state.isT5Completion) {
+          // T5 completed - go to home with stage 2 unlocked message
+          navigate('/home', { 
+            state: { 
+              message: 'Congratulations! T5 completed. Stage 2 is now unlocked!',
+              stage2Unlocked: true 
+            } 
+          });
+        } else {
+          // Regular T-level completion - back to stage 1
+          console.log('🔄 Practice completed, navigating to reflection');
+          navigate('/stage1');
+        }
+      } else {
+        // Default - back to home
+        navigate('/home');
+      }
+    } catch (error) {
+      console.error('❌ Error saving reflection:', error);
+      alert('Failed to save reflection. Please try again.');
+    }
+  };
+
+  const handleBack = () => {
+    // ✅ FIXED: Proper back navigation
+    if (state?.fromStage1) {
+      navigate('/stage1');
+    } else {
+      navigate('/home');
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh' }}>
+      <Suspense fallback={<FastLoader message="Loading reflection space..." />}>
+        <PracticeReflection
+          onBack={handleBack}
+          onSaveReflection={handleSaveReflection}
+        />
+      </Suspense>
+    </div>
   );
 };
 
@@ -424,6 +570,7 @@ const AppContent: React.FC = React.memo(() => {
   
   // ✅ FIXED: Simplified state management to prevent loading loops
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
   
   // ✅ Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
@@ -480,8 +627,6 @@ const AppContent: React.FC = React.memo(() => {
       return false;
     }
   }, [isAuthenticated, isT5Complete]);
-  
-  const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
 
   // ✅ FIXED: Emergency timeout to prevent infinite loading
   useEffect(() => {
@@ -672,7 +817,6 @@ const AppContent: React.FC = React.memo(() => {
         });
         
         if (response.ok) {
-          const data = await response.json();
           navigate('/home');
         }
       } catch (error: any) {
@@ -696,8 +840,7 @@ const AppContent: React.FC = React.memo(() => {
     navigate, 
     logout, 
     signUp, 
-    signIn, 
-    recheckStatus,
+    signIn,
     userProfile
   ]);
 
@@ -723,7 +866,6 @@ const AppContent: React.FC = React.memo(() => {
     return (
       <>
         <FastLoader message={message} timeout={10000} />
-        <LoadingDebugger />
       </>
     );
   }
@@ -743,7 +885,6 @@ const AppContent: React.FC = React.memo(() => {
     return (
       <div className="app-container">
         <PageViewTracker />
-        <LoadingDebugger />
         <Routes>
           <Route path="/" element={<PublicLandingHero />} />
           
@@ -788,7 +929,6 @@ const AppContent: React.FC = React.memo(() => {
     return (
       <>
         <FastLoader message="Preparing your practice space..." timeout={10000} />
-        <LoadingDebugger />
       </>
     );
   }
@@ -800,7 +940,6 @@ const AppContent: React.FC = React.memo(() => {
     <div className="app-container">
       <PageViewTracker />
       <LogoutWarning />
-      <LoadingDebugger />
       
       <Routes>
         {/* ✅ FIREBASE-ONLY: Stage1Introduction with Firebase intro tracking */}
@@ -817,6 +956,15 @@ const AppContent: React.FC = React.memo(() => {
             />
           } 
         />
+        
+        {/* ✅ NEW: Complete Practice Flow Routes */}
+        <Route path="/t1-introduction" element={<T1Introduction />} />
+        
+        <Route path="/universal-posture-selection" element={<UniversalPostureSelectionWrapper />} />
+        
+        <Route path="/practice-timer" element={<PracticeTimerWrapper />} />
+        
+        <Route path="/practice-reflection" element={<PracticeReflectionWrapper />} />
         
         <Route path="/questionnaire" element={<QuestionnaireComponent />} />
         
@@ -918,9 +1066,6 @@ const AppContent: React.FC = React.memo(() => {
                     <WhatIsPAHMWrapper />
                   </Suspense>
                 } />
-                
-                {/* ✅ FIREBASE-ONLY: Practice reflection with cloud save */}
-                <Route path="/practice-reflection" element={<PracticeReflectionWrapper />} />
                 
                 <Route path="/seeker-practice-timer" element={<SeekerPracticeTimerRedirect />} />
                 <Route path="/seeker-practice-complete" element={<SeekerPracticeCompleteRedirect />} />

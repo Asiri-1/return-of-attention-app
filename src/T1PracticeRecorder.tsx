@@ -1,3 +1,6 @@
+// ✅ FIXED T1PracticeRecorder.tsx - Proper Integration with Current System
+// File: src/T1PracticeRecorder.tsx
+
 import { forwardRef, useImperativeHandle } from 'react';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useUser } from './contexts/user/UserContext';
@@ -9,69 +12,83 @@ interface T1PracticeRecorderProps {
 /**
  * T1PracticeRecorder - Handles recording of T1 practice sessions
  * 
- * ✅ FIREBASE-ONLY: This component now uses Firebase contexts instead of localStorage
- * separate from the progression logic but integrated with Firebase architecture.
+ * ✅ FIREBASE-ONLY: Integrates with both PracticeContext and UserContext
  */
 const T1PracticeRecorder = forwardRef<any, T1PracticeRecorderProps>(({ onRecordSession }, ref) => {
   
-  // ✅ FIREBASE-ONLY: Use contexts for session recording and user progression
+  // ✅ FIXED: Use both contexts for complete integration
   const { addPracticeSession } = usePractice();
-  const { updateProfile } = useUser();
+  const { incrementT1Sessions, getT1Sessions, isT1Complete } = useUser();
 
-  // Record a practice session
+  // ✅ FIXED: Record session with proper data structure and dual context integration
   const recordT1Session = async (
     duration: number, 
     timeSpent: number, 
     isCompleted: boolean
   ) => {
     try {
+      // 1. ✅ Increment UserContext session count first (drives UI)
+      const newSessionCount = await incrementT1Sessions();
+      console.log(`📊 T1 Sessions: ${newSessionCount-1} → ${newSessionCount}`);
+
+      // 2. ✅ Create session data with proper structure (matches your current format)
       const sessionData = {
-        level: 't1',
-        stageLevel: 1, // T1 is part of Stage 1 (Seeker)
-        type: 'meditation',
-        sessionType: 'meditation' as const, // Explicitly type as union member
-        targetDuration: duration,
-        timeSpent: timeSpent,
-        duration: timeSpent, // Actual practice time
-        isCompleted: isCompleted,
         timestamp: new Date().toISOString(),
+        duration: timeSpent, // Actual practice time in minutes
+        sessionType: 'meditation' as const,
+        stageLevel: 1, // T1 is part of Stage 1
+        stageLabel: 'T1: Physical Stillness Training',
+        tLevel: 'T1', // ✅ CRITICAL: T-level identifier
+        level: 't1',  // ✅ CRITICAL: Lowercase T-level identifier
+        rating: isCompleted ? 8 : 6,
+        notes: `T1 physical stillness training (${timeSpent} minutes)`,
+        presentPercentage: isCompleted ? 85 : 70,
         environment: {
-          posture: 'seated', // Default posture for T1
+          posture: 'seated',
           location: 'indoor',
-          lighting: 'natural', // Required property
-          sounds: 'quiet' // Required property
+          lighting: 'natural',
+          sounds: 'quiet'
         },
-        quality: isCompleted ? 5 : 3, // Quality rating based on completion (lowest for T1 - beginner level)
-        notes: `T1 practice session - ${isCompleted ? 'completed' : 'partial'} (beginner level)`
+        pahmCounts: {
+          present_attachment: 0, present_neutral: 0, present_aversion: 0,
+          past_attachment: 0, past_neutral: 0, past_aversion: 0,
+          future_attachment: 0, future_neutral: 0, future_aversion: 0
+        },
+        metadata: {
+          tLevel: 'T1',
+          isCompleted: isCompleted,
+          targetDuration: duration,
+          actualDuration: timeSpent,
+          sessionCount: newSessionCount
+        }
       };
 
-      // ✅ FIREBASE-ONLY: Save session to Firebase through PracticeContext
-      if (addPracticeSession) {
-        await addPracticeSession(sessionData);
-      }
+      // 3. ✅ Save detailed session to PracticeContext for history
+      await addPracticeSession(sessionData);
 
-      // ✅ FIREBASE-ONLY: If session was fully completed, update user profile
-      if (isCompleted) {
-        // Use basic profile update - adjust properties based on your actual UserProfile interface
-        await updateProfile({
-          // Add any valid properties that exist in your UserProfile interface
-          // For example, if you have totalSessions, totalMinutes, etc.
-        });
-      }
-
-      // Pass session data to parent component
-      onRecordSession(sessionData);
+      // 4. ✅ Notify parent component
+      onRecordSession({
+        ...sessionData,
+        // ✅ Add legacy fields for backward compatibility
+        level: 't1',
+        targetDuration: duration,
+        timeSpent: timeSpent,
+        isCompleted: isCompleted
+      });
       
-      console.log('✅ T1 session recorded successfully to Firebase', {
+      console.log('✅ T1 session recorded successfully to both contexts', {
         duration: timeSpent,
         completed: isCompleted,
+        sessionCount: newSessionCount,
         sessionId: sessionData.timestamp
       });
+
+      return sessionData;
 
     } catch (error) {
       console.error('❌ Error recording T1 session:', error);
       
-      // Still notify parent even if Firebase save fails
+      // ✅ Fallback notification to parent
       const fallbackSessionData = {
         level: 't1',
         targetDuration: duration,
@@ -82,44 +99,68 @@ const T1PracticeRecorder = forwardRef<any, T1PracticeRecorderProps>(({ onRecordS
       };
       
       onRecordSession(fallbackSessionData);
+      throw error;
     }
   };
 
-  // ✅ FIREBASE-ONLY: Get T1 session history from Firebase
-  const getT1SessionHistory = async () => {
+  // ✅ FIXED: Get T1 session history from UserContext
+  const getT1SessionHistory = () => {
     try {
-      // This would get sessions from Firebase through PracticeContext
-      // The parent component can access this through usePractice() hook
-      console.log('T1 session history available through usePractice() hook');
-      return [];
+      const sessionCount = getT1Sessions();
+      console.log(`T1 session history: ${sessionCount} sessions completed`);
+      return {
+        totalSessions: sessionCount,
+        isComplete: isT1Complete(),
+        progress: `${sessionCount}/3 sessions`
+      };
     } catch (error) {
       console.error('Error getting T1 session history:', error);
-      return [];
+      return {
+        totalSessions: 0,
+        isComplete: false,
+        progress: '0/3 sessions'
+      };
     }
   };
 
-  // ✅ FIREBASE-ONLY: Check T1 completion status from Firebase
-  const isT1Complete = async () => {
+  // ✅ FIXED: Check T1 completion status from UserContext
+  const checkT1Complete = () => {
     try {
-      // This would check completion status from Firebase through UserContext
-      // The parent component can access this through useUser() hook
-      console.log('T1 completion status available through useUser() hook');
-      return false;
+      const complete = isT1Complete();
+      const sessions = getT1Sessions();
+      console.log(`T1 completion status: ${complete} (${sessions}/3 sessions)`);
+      return {
+        isComplete: complete,
+        sessions: sessions,
+        sessionsNeeded: Math.max(0, 3 - sessions)
+      };
     } catch (error) {
       console.error('Error checking T1 completion:', error);
-      return false;
+      return {
+        isComplete: false,
+        sessions: 0,
+        sessionsNeeded: 3
+      };
     }
   };
 
-  // Expose methods to parent component
+  // ✅ Expose methods to parent component with updated signatures
   useImperativeHandle(ref, () => ({
-    recordSession: recordT1Session, // Expose with original name expected by parent
+    recordSession: recordT1Session,
     getT1SessionHistory,
-    isT1Complete
+    isT1Complete: checkT1Complete, // Updated name to avoid confusion
+    // ✅ Additional helper methods
+    getCurrentProgress: () => ({
+      sessions: getT1Sessions(),
+      isComplete: isT1Complete(),
+      progress: `${getT1Sessions()}/3`
+    })
   }));
 
   // This component doesn't render anything visible
   return null;
 });
+
+T1PracticeRecorder.displayName = 'T1PracticeRecorder';
 
 export default T1PracticeRecorder;

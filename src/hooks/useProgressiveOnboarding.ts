@@ -1,7 +1,7 @@
 // ============================================================================
 // src/hooks/useProgressiveOnboarding.ts
-// ✅ FIREBASE-ONLY: Progressive Onboarding Hook - No localStorage dependencies
-// 🔥 REMOVED: All localStorage fallbacks - Firebase contexts only
+// ✅ FIREBASE-ONLY: Progressive Onboarding Hook - FIXED SESSION FILTERING
+// 🔥 FIXED: Session filtering logic to properly match T-level identifiers
 // ============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -256,7 +256,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, isFirebaseQuestionnaireCompleted, isFirebaseSelfAssessmentCompleted, achievements, userProfile]);
   
-  // ✅ FIREBASE-ONLY: Get T-stage progress from Firebase sessions
+  // 🔥 FIXED: Get T-stage progress from Firebase sessions with CORRECTED FILTERING
   const getFirebaseTStageProgress = useCallback((): TStageProgress => {
     const defaultProgress: TStageProgress = {
       t1: { completed: false, sessions: [] as FirebasePracticeSession[], completedSessions: 0 },
@@ -281,18 +281,38 @@ export const useProgressiveOnboarding = () => {
       
       stages.forEach(stage => {
         try {
-          // Filter sessions for this T-stage from Firebase data
+          // 🔥 FIXED: More robust filtering logic that handles case mismatches
           const stageSessions = allSessions.filter((session: FirebasePracticeSession) => {
             const stageLabel = session.stageLabel?.toLowerCase();
             const stageLevel = session.stageLevel;
             const level = session.level?.toLowerCase();
             const tLevel = session.tLevel?.toLowerCase();
-            const stageNumber = parseInt(stage.substring(1));
+            const stageNumber = parseInt(stage.substring(1)); // t1 -> 1, t2 -> 2, etc.
             
-            return stageLabel === stage || 
-                   stageLevel === stageNumber ||
-                   level === stage ||
-                   tLevel === stage;
+            // Check all possible variations
+            const matchesStageLabel = stageLabel === stage || stageLabel === stage.toUpperCase();
+            const matchesStageLevel = stageLevel === stageNumber;
+            const matchesLevel = level === stage;
+            const matchesTLevel = tLevel === stage || tLevel === stage.toUpperCase();
+            
+            const isMatch = matchesStageLabel || matchesStageLevel || matchesLevel || matchesTLevel;
+            
+            if (isMatch) {
+              console.log(`🎯 Found ${stage} session:`, {
+                stageLabel: session.stageLabel,
+                stageLevel: session.stageLevel,
+                level: session.level,
+                tLevel: session.tLevel,
+                matchedBy: {
+                  stageLabel: matchesStageLabel,
+                  stageLevel: matchesStageLevel,
+                  level: matchesLevel,
+                  tLevel: matchesTLevel
+                }
+              });
+            }
+            
+            return isMatch;
           });
           
           // Check Firebase user profile for completion status (using available properties)
@@ -319,7 +339,13 @@ export const useProgressiveOnboarding = () => {
             userId: currentUser.uid.substring(0, 8) + '...',
             sessions: stageSessions.length,
             completedSessions,
-            completed
+            completed,
+            sessionDetails: stageSessions.map(s => ({
+              stageLabel: s.stageLabel,
+              tLevel: s.tLevel,
+              level: s.level,
+              rating: s.rating
+            }))
           });
         } catch (stageError) {
           console.warn(`Error processing Firebase ${stage} progress:`, stageError);
@@ -333,7 +359,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, getFirebasePracticeSessions, userProfile]);
 
-  // ✅ FIREBASE-ONLY: PAHM stage progress from Firebase data
+  // ✅ FIREBASE-ONLY: PAHM stage progress from Firebase data (unchanged)
   const getFirebasePAHMStageProgress = useCallback((): PAHMStageProgress => {
     const defaultProgress: PAHMStageProgress = {
       stage2: { hours: 0, completed: false, required: 15, name: 'PAHM Trainee', firebaseHours: 0 },
@@ -541,7 +567,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, getFirebaseTStageProgress, getFirebasePAHMStageProgress]);
   
-  // ✅ FIREBASE-ONLY: Enhanced stage management
+  // ✅ FIREBASE-ONLY: Enhanced stage management (unchanged)
   const getCurrentAccessibleStage = useCallback((): number => {
     if (!currentUser?.uid) {
       return 1;
@@ -584,7 +610,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [getCurrentAccessibleStage]);
 
-  // ✅ FIREBASE-ONLY: Enhanced happiness tracking data validation
+  // ✅ FIREBASE-ONLY: Enhanced happiness tracking data validation (unchanged)
   const hasMinimumDataForHappiness = useCallback((): boolean => {
     if (!currentUser?.uid) {
       console.warn('🚨 No authenticated user for happiness data check');
@@ -797,7 +823,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, getFirebaseCompletionStatus, getFirebaseTStageProgress, getFirebasePAHMStageProgress, getCurrentAccessibleStage]);
 
-  // ✅ FIREBASE-ONLY: Enhanced utility methods
+  // ✅ FIREBASE-ONLY: Enhanced utility methods (unchanged)
   const recheckFirebaseStatus = useCallback(async () => {
     if (!currentUser?.uid) {
       console.warn('🚨 Cannot recheck status - no authenticated user');
@@ -867,7 +893,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, userProfile, hasMinimumDataForHappiness]);
 
-  // ✅ FIREBASE-ONLY: Enhanced useEffect hooks for Firebase data
+  // ✅ FIREBASE-ONLY: Enhanced useEffect hooks for Firebase data (unchanged)
   useEffect(() => {
     if (currentUser?.uid && !onboardingLoading && !practiceLoading && !userLoading) {
       const timeoutId = setTimeout(() => {
@@ -888,7 +914,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, checkAndShowWelcome, contentLoading]);
 
-  // ✅ FIREBASE-ONLY: Listen for Firebase context events
+  // ✅ FIREBASE-ONLY: Listen for Firebase context events (unchanged)
   useEffect(() => {
     if (!currentUser?.uid) return;
 
@@ -932,7 +958,7 @@ export const useProgressiveOnboarding = () => {
     };
   }, [currentUser, recheckFirebaseStatus]);
 
-  // ✅ FIREBASE-ONLY: Return interface with Firebase enhancements
+  // ✅ FIREBASE-ONLY: Return interface with Firebase enhancements (unchanged)
   return {
     // Modal state management (unchanged)
     showQuestionnaireModal,
@@ -983,7 +1009,7 @@ export const useProgressiveOnboarding = () => {
   };
 };
 
-// ✅ FIREBASE-ONLY: Enhanced helper hook
+// ✅ FIREBASE-ONLY: Enhanced helper hook (unchanged)
 export const useCompleteProgress = () => {
   if (!useAuth().currentUser?.uid) {
     // Return safe defaults for unauthenticated users

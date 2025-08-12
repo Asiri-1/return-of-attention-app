@@ -1,9 +1,9 @@
 // ===============================================
-// 🔧 COMPLETE FIXED PRACTICE CONTEXT - WITH REAL-TIME LISTENERS
+// 🔧 COMPLETE FIXED PRACTICE CONTEXT - WITH T-LEVEL SUPPORT
 // ===============================================
 
 // FILE: src/contexts/practice/PracticeContext.tsx
-// ✅ FIXED: Added real-time listeners like WellnessContext + preserves all functionality
+// ✅ FIXED: Added tLevel and level fields + preserves all functionality
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -26,7 +26,7 @@ import {
 import { db } from '../../firebase';
 
 // ================================
-// INTERFACES (Enhanced for all session types)
+// INTERFACES (Enhanced for all session types + T-LEVEL SUPPORT)
 // ================================
 interface PracticeSessionData {
   sessionId: string;
@@ -37,6 +37,8 @@ interface PracticeSessionData {
   // Meditation-specific fields
   stageLevel?: number;
   stageLabel?: string;
+  tLevel?: string;          // ✅ ADDED: "T1", "T2", etc.
+  level?: string;           // ✅ ADDED: "t1", "t2", etc.
   
   // Mind Recovery-specific fields
   mindRecoveryContext?: 'morning-recharge' | 'emotional-reset' | 'mid-day-reset' | 'work-home-transition' | 'bedtime-winddown' | 'breathing-reset' | 'thought-labeling' | 'body-scan' | 'single-point-focus' | 'loving-kindness' | 'gratitude-moment' | 'mindful-transition' | 'stress-release';
@@ -153,7 +155,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // ================================
-  // FIREBASE OPERATIONS (UNCHANGED - ALL WORKING)
+  // FIREBASE OPERATIONS (ENHANCED WITH T-LEVEL SUPPORT)
   // ================================
   const saveSessionToFirebase = useCallback(async (sessionData: PracticeSessionData) => {
     if (!currentUser?.uid) {
@@ -176,6 +178,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // ✅ Only add defined fields to prevent "undefined" errors
       if (sessionData.stageLevel !== undefined) firestoreData.stageLevel = sessionData.stageLevel;
       if (sessionData.stageLabel !== undefined) firestoreData.stageLabel = sessionData.stageLabel;
+      if (sessionData.tLevel !== undefined) firestoreData.tLevel = sessionData.tLevel;        // ✅ ADDED
+      if (sessionData.level !== undefined) firestoreData.level = sessionData.level;          // ✅ ADDED
       if (sessionData.mindRecoveryContext !== undefined) firestoreData.mindRecoveryContext = sessionData.mindRecoveryContext;
       if (sessionData.mindRecoveryPurpose !== undefined) firestoreData.mindRecoveryPurpose = sessionData.mindRecoveryPurpose;
       if (sessionData.rating !== undefined) firestoreData.rating = sessionData.rating;
@@ -204,6 +208,10 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         type: sessionData.sessionType,
         duration: sessionData.duration,
         rating: sessionData.rating,
+        stageLevel: sessionData.stageLevel,
+        stageLabel: sessionData.stageLabel,
+        tLevel: sessionData.tLevel,      // ✅ ADDED TO LOGGING
+        level: sessionData.level,        // ✅ ADDED TO LOGGING
         collection: collectionPath
       });
       
@@ -267,7 +275,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [currentUser?.uid, sessions]);
 
   // ================================
-  // ✅ NEW: REAL-TIME LISTENERS (Like WellnessContext)
+  // ✅ REAL-TIME LISTENERS (ENHANCED WITH T-LEVEL SUPPORT)
   // ================================
   useEffect(() => {
     if (!currentUser?.uid) {
@@ -312,7 +320,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       console.log(`🔄 Real-time Mind Recovery sessions update: ${mindRecoverySessions.length} sessions`);
 
-      // ✅ Real-time listener for Practice Sessions
+      // ✅ Real-time listener for Practice Sessions (ENHANCED WITH T-LEVEL SUPPORT)
       const practiceQuery = query(
         collection(db, 'practiceSessions'),
         where('userId', '==', currentUser.uid),
@@ -331,6 +339,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             sessionType: data.sessionType || 'meditation',
             stageLevel: data.stageLevel,
             stageLabel: data.stageLabel,
+            tLevel: data.tLevel,          // ✅ ADDED: Read T-level data from Firebase
+            level: data.level,            // ✅ ADDED: Read level data from Firebase
             rating: data.rating,
             notes: data.notes,
             presentPercentage: data.presentPercentage,
@@ -344,6 +354,11 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
 
         console.log(`🔄 Real-time Practice sessions update: ${practiceSessions.length} sessions`);
+        console.log(`🔍 T-level sessions found:`, practiceSessions.filter(s => s.tLevel).map(s => ({ 
+          tLevel: s.tLevel, 
+          level: s.level, 
+          stageLabel: s.stageLabel 
+        })));
 
         // ✅ Combine and sort all sessions
         const allSessions = [...mindRecoverySessions, ...practiceSessions];
@@ -437,6 +452,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       duration: newSession.duration,
       stageLevel: newSession.stageLevel,
       stageLabel: newSession.stageLabel,
+      tLevel: newSession.tLevel,              // ✅ ADDED TO LOGGING
+      level: newSession.level,                // ✅ ADDED TO LOGGING
       mindRecoveryContext: newSession.mindRecoveryContext,
       hasRating: !!newSession.rating,
       hasNotes: !!newSession.notes
@@ -655,11 +672,12 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       sessions: sessions,
       stats: calculateStats(),
       exportedAt: new Date().toISOString(),
-      source: 'firebase_realtime_enhanced',
+      source: 'firebase_realtime_enhanced_with_tlevels',
       summary: {
         totalSessions: sessions.length,
         mindRecoverySessions: sessions.filter(s => s.sessionType === 'mind_recovery').length,
-        meditationSessions: sessions.filter(s => s.sessionType === 'meditation').length
+        meditationSessions: sessions.filter(s => s.sessionType === 'meditation').length,
+        tLevelSessions: sessions.filter(s => s.tLevel).length
       }
     };
   }, [sessions, calculateStats]);

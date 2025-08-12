@@ -7,6 +7,7 @@ import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
+import { useUser } from './contexts/user/UserContext'; // ✅ ADD: UserContext for session counting
 
 interface PracticeTimerProps {
   onComplete: () => void;
@@ -59,6 +60,15 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // Use Firebase contexts
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
+  
+  // ✅ ADD: UserContext session incrementing hooks
+  const { 
+    incrementT1Sessions, 
+    incrementT2Sessions, 
+    incrementT3Sessions, 
+    incrementT4Sessions, 
+    incrementT5Sessions 
+  } = useUser();
   
   // Refs
   const t1RecorderRef = useRef<any>(null);
@@ -403,20 +413,47 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   }, []);
 
-  // Session saving using PracticeContext only
+  // ✅ FIXED: Session saving with dual tracking (UserContext + PracticeContext)
   const saveSessionToFirebase = useCallback(async (sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
     const tLevelNumber = getTLevelNumber(tLevel);
     const timestamp = new Date().toISOString();
     
     try {
-      // Create enhanced session data for PracticeContext
+      // 1. ✅ CRITICAL: Increment UserContext session count FIRST (this persists and drives UI)
+      let sessionCount = 0;
+      switch (tLevel) {
+        case 't1':
+          sessionCount = await incrementT1Sessions();
+          console.log(`📊 T1 Sessions: ${sessionCount-1} → ${sessionCount}`);
+          break;
+        case 't2':
+          sessionCount = await incrementT2Sessions();
+          console.log(`📊 T2 Sessions: ${sessionCount-1} → ${sessionCount}`);
+          break;
+        case 't3':
+          sessionCount = await incrementT3Sessions();
+          console.log(`📊 T3 Sessions: ${sessionCount-1} → ${sessionCount}`);
+          break;
+        case 't4':
+          sessionCount = await incrementT4Sessions();
+          console.log(`📊 T4 Sessions: ${sessionCount-1} → ${sessionCount}`);
+          break;
+        case 't5':
+          sessionCount = await incrementT5Sessions();
+          console.log(`📊 T5 Sessions: ${sessionCount-1} → ${sessionCount}`);
+          break;
+      }
+      
+      // 2. ✅ ALSO: Save detailed session to PracticeContext for history
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
         sessionType: 'meditation' as const,
         stageLevel: tLevelNumber,
         stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
+        tLevel: tLevel.toUpperCase(), // ✅ ADD: "T1", "T2", etc.
+        level: tLevel,                // ✅ ADD: "t1", "t2", etc.
         rating: sessionData.rating || (isCompleted ? 8 : 6),
         notes: sessionData.notes || `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
         presentPercentage: isCompleted ? 85 : 70,
@@ -436,15 +473,16 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           tLevel: tLevel,
           isCompleted: isCompleted,
           targetDuration: initialMinutes,
-          actualDuration: sessionData.duration || initialMinutes
+          actualDuration: sessionData.duration || initialMinutes,
+          sessionCount: sessionCount // ✅ ADD: Track which session number this was
         }
       };
       
       // Save to Firebase via PracticeContext
       await addPracticeSession(enhancedSessionData);
       console.log(`✅ SESSION SAVED TO FIREBASE! - ${tLevel.toUpperCase()}`);
+      console.log(`📊 UserContext session count updated: ${sessionCount}`);
       
-      // Note: T-stage completion tracking handled by PracticeContext internally
       if (isCompleted) {
         console.log(`✅ T-STAGE COMPLETION TRACKED - ${tLevel.toUpperCase()}`);
       }
@@ -455,7 +493,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       console.error('❌ Error saving session to Firebase:', error);
       throw error;
     }
-  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber]);
+  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber, 
+      incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, 
+      incrementT4Sessions, incrementT5Sessions]); // ✅ ADD: Dependencies
 
   // Timer completion handler
   const handleTimerComplete = useCallback(async () => {
@@ -492,7 +532,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
 
     try {
-      // Save to Firebase only
+      // Save to both contexts (UserContext for counting + PracticeContext for history)
       await saveSessionToFirebase(sessionData, isFullyCompleted);
 
       const completionMessage = isFullyCompleted 
@@ -688,7 +728,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
     
     try {
-      // Save to Firebase only
+      // Save to both contexts (UserContext for counting + PracticeContext for history)
       await saveSessionToFirebase(sessionData, false);
       
       // Store reflection data in component state instead of sessionStorage
@@ -738,26 +778,40 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [propInitialMinutes]);
 
-  // Visibility change handler
+  // ✅ IMPROVED: Visibility change handler with timer recalculation
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        // Tab went to background - timer keeps running in background
+        console.log('🔄 Tab went to background, timer continues...');
         if (wakeLock) {
           setWakeLockStatus('background');
         }
-      } else if (!document.hidden && isActive && wakeLockEnabled) {
-        requestWakeLock();
+      } else if (!document.hidden && isActive) {
+        // Tab came back to foreground - resync everything
+        console.log('🔄 Tab back to foreground, resyncing...');
+        if (wakeLockEnabled) {
+          requestWakeLock();
+        }
         if (audioContext && audioContext.state === 'suspended') {
           audioContext.resume().catch(error => {
             console.warn('Failed to resume AudioContext:', error);
           });
+        }
+        // ✅ Force timer recalculation when tab becomes visible again
+        if (sessionStartTimestamp && isRunning && !isPaused) {
+          const now = Date.now();
+          const elapsed = Math.floor((now - sessionStartTimestamp - totalPausedTime) / 1000);
+          const newTimeRemaining = Math.max(0, (initialMinutes * 60) - elapsed);
+          setTimeRemaining(newTimeRemaining);
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock, audioContext]);
+  }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock, audioContext, 
+      sessionStartTimestamp, isRunning, isPaused, totalPausedTime, initialMinutes]); // ✅ ADD: Dependencies
 
   // Format time
   const formatTime = (seconds: number): string => {

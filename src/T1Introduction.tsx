@@ -1,121 +1,126 @@
+// ✅ FIXED T1Introduction - Navigate to Posture Selection First
+// File: src/T1Introduction.tsx
+
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './StageLevelIntroduction.css';
 
-interface T1IntroductionProps {
-  onComplete: () => void;
-  onBack: () => void;
-}
-
-const T1Introduction: React.FC<T1IntroductionProps> = ({
-  onComplete,
-  onBack
-}) => {
-  const stageTitle = "Seeker: Physical Readiness";
+const T1Introduction: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   
+  // ✅ Get state passed from Stage1Wrapper
+  const state = location.state as {
+    tLevel?: string;
+    duration?: number;
+    level?: string;
+    stageLevel?: number;
+    returnTo?: string;
+  } | null;
+
+  console.log('🔥 T1Introduction - Received state:', state);
+
+  const stageTitle = "Seeker: Physical Readiness";
+  const stageDescription = "Develop physical foundation through progressive stillness training from 10 to 30 minutes.";
+
+  // ✅ FIXED: Navigate to Universal Posture Selection (not directly to practice timer)
+  const handleComplete = () => {
+    console.log('🎯 T1 Introduction completed - navigating to posture selection');
+    
+    // ✅ Navigate to Universal Posture Selection with T1 practice data
+    navigate('/universal-posture-selection', {
+      state: {
+        tLevel: state?.tLevel || 'T1',
+        duration: state?.duration || 10,
+        level: state?.level || 't1',
+        stageLevel: state?.stageLevel || 1,
+        returnTo: state?.returnTo || '/stage1',
+        fromIntroduction: true // Flag to indicate this came from introduction
+      }
+    });
+  };
+
+  const handleBack = () => {
+    console.log('🔙 T1 Introduction - navigating back to stage');
+    const returnPath = state?.returnTo || '/stage1';
+    navigate(returnPath);
+  };
+
   return (
     <div className="stage-level-introduction">
-      <div className="stage-instructions-header">
-        <button className="back-button" onClick={onBack}>Back</button>
-        <h1>{stageTitle}</h1>
-      </div>
-      
-      <div className="introduction-content">
-        <div className="slide-container">
-          <h2>Your First Goal</h2>
-          <p>
-            Begin with T1: three 10-minute sessions of physical stillness. 
-            Once you can maintain stillness comfortably for this duration, 
-            you'll progress to longer periods.
-          </p>
-          
-          <div className="slide-progress">
-            <div className="progress-dot active" />
+      <div className="introduction-container">
+        {/* Header */}
+        <div className="introduction-header">
+          <button 
+            className="back-button"
+            onClick={handleBack}
+            aria-label="Go back to stage selection"
+          >
+            ← Back
+          </button>
+          <h1 className="stage-title">{stageTitle}</h1>
+        </div>
+
+        {/* Content */}
+        <div className="introduction-content">
+          <div className="stage-overview">
+            <h2>Stage 1: Physical Stillness</h2>
+            <p className="stage-description">{stageDescription}</p>
           </div>
 
-          {/* ✅ MOVED: Navigation buttons now below progress dots with blue styling */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: '32px',
-            gap: '16px'
-          }}>
-            <button 
-              onClick={onBack}
-              aria-label="Go back"
-              style={{
-                background: 'rgba(102, 126, 234, 0.1)',
-                color: '#667eea',
-                border: '2px solid rgba(102, 126, 234, 0.3)',
-                borderRadius: '12px',
-                padding: '12px 24px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                minWidth: '100px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0px)';
-              }}
-            >
-              ← Back
-            </button>
-            
-            <button 
-              onClick={onComplete}
-              aria-label="Begin practice"
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '12px 32px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-                minWidth: '180px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0px)';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
-              }}
-            >
-              Begin Practice →
-            </button>
+          <div className="level-details">
+            <h3>T1: Physical Stillness Training</h3>
+            <div className="level-info">
+              <div className="duration-info">
+                <span className="label">Duration:</span>
+                <span className="value">{state?.duration || 10} minutes</span>
+              </div>
+              <div className="objective-info">
+                <span className="label">Objective:</span>
+                <span className="value">Develop basic physical stillness and posture awareness</span>
+              </div>
+            </div>
+
+            <div className="practice-guidelines">
+              <h4>Practice Guidelines:</h4>
+              <ul>
+                <li>Find a comfortable seated position with your spine naturally upright</li>
+                <li>Allow your breathing to be natural and relaxed</li>
+                <li>Focus on maintaining physical stillness throughout the session</li>
+                <li>Gently return attention to posture when the mind wanders</li>
+                <li>Complete 3 sessions to unlock the next level</li>
+              </ul>
+            </div>
+
+            <div className="benefits">
+              <h4>Benefits:</h4>
+              <ul>
+                <li>Improved postural awareness and control</li>
+                <li>Enhanced ability to maintain physical stillness</li>
+                <li>Foundation for deeper meditation practices</li>
+                <li>Increased mind-body connection</li>
+              </ul>
+            </div>
           </div>
         </div>
-        
-        {/* ✅ IMPROVED: Progress indicator now integrated above navigation */}
-        <div style={{
-          width: '100%',
-          height: '4px',
-          background: 'rgba(102, 126, 234, 0.1)',
-          borderRadius: '2px',
-          marginTop: '24px',
-          overflow: 'hidden'
-        }}>
-          <div 
-            style={{ 
-              width: '100%', // Single slide, so 100% complete
-              height: '100%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '2px',
-              transition: 'width 0.3s ease'
-            }}
-          />
+
+        {/* Action Button */}
+        <div className="introduction-actions">
+          <button 
+            className="begin-practice-button"
+            onClick={handleComplete}
+          >
+            Begin Practice
+          </button>
         </div>
+
+        {/* Debug Info (development only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="debug-info">
+            <h4>Debug Info:</h4>
+            <pre>{JSON.stringify(state, null, 2)}</pre>
+          </div>
+        )}
       </div>
     </div>
   );
