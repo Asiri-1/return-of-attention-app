@@ -1,15 +1,22 @@
-// 🔧 COMPLETE FIXED HomeDashboard.tsx - Uses Same UserContext Methods as Stage1Wrapper
+// 🔧 COMPLETE FIXED HomeDashboard.tsx - With fromStage1 Detection
 // File: src/HomeDashboard.tsx
-// This fixes the progress reset issue by using consistent data sources
+// ✅ FIXED: Detects fromStage1 navigation state to refresh session counts
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useUser } from './contexts/user/UserContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
-import { useWellness } from './contexts/wellness/WellnessContext';
-import { useHappinessCalculation } from './hooks/useHappinessCalculation';
+
+// ✅ Make happiness calculation optional to prevent chunk loading errors
+let useHappinessCalculation: any = null;
+try {
+  const happinessModule = require('./hooks/useHappinessCalculation');
+  useHappinessCalculation = happinessModule.useHappinessCalculation;
+} catch (error) {
+  console.warn('⚠️ Happiness calculation hook not available:', error);
+}
 
 interface HomeDashboardProps {
   onStartPractice: () => void;
@@ -62,31 +69,29 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     // ✅ Stage hours methods
     getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours,
     // ✅ Other methods
-    updateProfile, markStageComplete, addStageHours, markStageIntroComplete, 
-    setT5Completed, updateStageProgress,
-    // ✅ Progress tracking
-    getStageProgressPercentage, getTotalStage1Sessions
+    markStageComplete
   } = useUser();
   
   const { 
-    questionnaire, 
-    selfAssessment, 
     isQuestionnaireCompleted, 
-    isSelfAssessmentCompleted,
-    getCompletionStatus 
+    isSelfAssessmentCompleted
   } = useOnboarding();
-  
-  const { addReflection } = useWellness();
 
-  // ✅ Keep happiness calculation hook for points display
-  const { 
-    userProgress, 
-    isCalculating, 
-    forceRecalculation,
-    componentBreakdown,
-    practiceSessions,
-    emotionalNotes
-  } = useHappinessCalculation();
+  // ✅ Safe happiness calculation hook usage
+  let userProgress: any = { happiness_points: 0, user_level: 'Beginning Seeker' };
+  let isCalculating = false;
+  let forceRecalculation: (() => void) | null = null;
+
+  if (useHappinessCalculation) {
+    try {
+      const happinessData = useHappinessCalculation();
+      userProgress = happinessData.userProgress || userProgress;
+      isCalculating = happinessData.isCalculating || false;
+      forceRecalculation = happinessData.forceRecalculation || null;
+    } catch (error) {
+      console.warn('⚠️ Error using happiness calculation:', error);
+    }
+  }
 
   // ✅ Component state
   const [currentStage, setCurrentStage] = useState<number>(propCurrentStage || 1);
@@ -97,8 +102,9 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     show: false,
     stage: 0
   });
+  const [forceDataRefresh, setForceDataRefresh] = useState<number>(0);
 
-  // ✅ Get happiness data from the hook (for display only)
+  // ✅ Get happiness data safely
   const happinessData = useMemo(() => ({
     happiness_points: userProgress.happiness_points || 0,
     current_level: userProgress.user_level || 'Beginning Seeker',
@@ -106,11 +112,16 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   }), [userProgress.happiness_points, userProgress.user_level, isCalculating]);
 
   // ✅ Force data refresh
-  const forceDataRefresh = useCallback(() => {
+  const forceDataRefreshHandler = useCallback(() => {
     console.log('🔄 Forcing data refresh in HomeDashboard...');
-    if (forceRecalculation) {
-      forceRecalculation();
+    if (forceRecalculation && typeof forceRecalculation === 'function') {
+      try {
+        forceRecalculation();
+      } catch (error) {
+        console.warn('⚠️ Error calling forceRecalculation:', error);
+      }
     }
+    setForceDataRefresh(prev => prev + 1);
   }, [forceRecalculation]);
 
   // 🔧 FIXED: Stage unlock checker using SAME UserContext methods as Stage1Wrapper
@@ -163,8 +174,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       return targetStage === 1; // Default to only Stage 1 unlocked
     }
   }, [isT5Complete, getT5Sessions, isStage2CompleteByHours, isStage3CompleteByHours, 
-      isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours,
-      getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours]);
+      isStage4CompleteByHours, isStage5CompleteByHours,
+      getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours]);
 
   // 🔧 FIXED: Current stage calculation using UserContext methods
   const calculateCurrentStage = useCallback((): number => {
@@ -208,7 +219,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       return 1;
     }
   }, [isT5Complete, isStage2CompleteByHours, isStage3CompleteByHours, 
-      isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours]);
+      isStage4CompleteByHours, isStage5CompleteByHours]);
 
   // ✅ Update current stage when UserContext data changes
   useEffect(() => {
@@ -327,6 +338,61 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours,
       calculateCurrentStage]);
 
+  // ✅ User stats calculation
+  const calculateUserStats = useCallback(() => {
+    if (!currentUser || !sessions || sessions.length === 0) {
+      setStreak(0);
+      setTotalHours(0);
+      return;
+    }
+
+    try {
+      const totalPracticeHours = sessions.reduce((total: number, session: any) => {
+        const duration = session.duration || 0;
+        return total + (duration / 60);
+      }, 0);
+
+      let currentStreak = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const uniqueDateSessions = [...sessions]
+        .map(session => {
+          const date = new Date(session.timestamp);
+          date.setHours(0, 0, 0, 0);
+          return date;
+        })
+        .sort((a, b) => b.getTime() - a.getTime())
+        .filter((date, index, arr) => index === 0 || date.getTime() !== arr[index - 1].getTime());
+
+      let streakCount = 0;
+      let checkDate = new Date(today);
+
+      for (const sessionDate of uniqueDateSessions) {
+        const diffDays = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === streakCount) {
+          streakCount++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      
+      currentStreak = streakCount;
+
+      setStreak(currentStreak);
+      setTotalHours(Math.round(totalPracticeHours * 10) / 10);
+
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error calculating user stats:', error);
+      }
+      setStreak(0);
+      setTotalHours(0);
+    }
+  }, [currentUser, sessions]);
+
   // ✅ Data refresh using UserContext
   const refreshDashboardData = useCallback(() => {
     console.log('🔄 Refreshing dashboard data using UserContext methods...');
@@ -341,15 +407,22 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     calculateUserStats();
     
     // Force happiness calculation refresh if available
-    if (forceRecalculation) {
-      forceRecalculation();
+    if (forceRecalculation && typeof forceRecalculation === 'function') {
+      try {
+        forceRecalculation();
+      } catch (error) {
+        console.warn('⚠️ Error calling forceRecalculation:', error);
+      }
     }
     
     // Log current progress for debugging
     const progressSummary = getProgressSummary();
     console.log('🔧 Current Progress Summary:', progressSummary);
     
-  }, [currentStage, calculateCurrentStage, forceRecalculation, getProgressSummary]);
+    // Force component re-render
+    setForceDataRefresh(prev => prev + 1);
+    
+  }, [currentStage, calculateCurrentStage, calculateUserStats, forceRecalculation, getProgressSummary]);
 
   // ✅ Performance optimized static data
   const tLevels = useMemo(() => [
@@ -497,61 +570,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     return { ...baseStyle, background };
   }, []);
 
-  // ✅ User stats calculation
-  const calculateUserStats = useCallback(() => {
-    if (!currentUser || !sessions || sessions.length === 0) {
-      setStreak(0);
-      setTotalHours(0);
-      return;
-    }
-
-    try {
-      const totalPracticeHours = sessions.reduce((total: number, session: any) => {
-        const duration = session.duration || 0;
-        return total + (duration / 60);
-      }, 0);
-
-      let currentStreak = 0;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const uniqueDateSessions = [...sessions]
-        .map(session => {
-          const date = new Date(session.timestamp);
-          date.setHours(0, 0, 0, 0);
-          return date;
-        })
-        .sort((a, b) => b.getTime() - a.getTime())
-        .filter((date, index, arr) => index === 0 || date.getTime() !== arr[index - 1].getTime());
-
-      let streakCount = 0;
-      let checkDate = new Date(today);
-
-      for (const sessionDate of uniqueDateSessions) {
-        const diffDays = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === streakCount) {
-          streakCount++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-      
-      currentStreak = streakCount;
-
-      setStreak(currentStreak);
-      setTotalHours(Math.round(totalPracticeHours * 10) / 10);
-
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error calculating user stats:', error);
-      }
-      setStreak(0);
-      setTotalHours(0);
-    }
-  }, [currentUser, sessions]);
-
   // ✅ Event handlers
   const handleHappinessPointsClick = useCallback(() => {
     navigate('/happiness-tracker');
@@ -661,7 +679,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     const handleFocus = () => {
       console.log('🔄 Window focused - checking for data refresh...');
       setTimeout(() => {
-        forceDataRefresh();
+        forceDataRefreshHandler();
       }, 100);
     };
 
@@ -669,7 +687,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       if (!document.hidden) {
         console.log('🔄 Page visible - checking for data refresh...');
         setTimeout(() => {
-          forceDataRefresh();
+          forceDataRefreshHandler();
         }, 100);
       }
     };
@@ -681,7 +699,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [forceDataRefresh]);
+  }, [forceDataRefreshHandler]);
 
   // ✅ Listen for UserContext data changes
   useEffect(() => {
@@ -693,79 +711,56 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [calculateCurrentStage, currentStage]);
 
+  // ✅ CRITICAL: Detect fromStage1 navigation state to refresh
   useEffect(() => {
     console.log('🔄 Location changed, checking for stage updates...', location.pathname, location.state);
     
     const locationState = location.state as any;
     if (locationState) {
-      if (locationState.stage2Completed || locationState.stage3Completed || locationState.unlockedStage) {
+      if (locationState.stage2Completed || 
+          locationState.stage3Completed || 
+          locationState.unlockedStage || 
+          locationState.fromStage1) { // ✅ CRITICAL: Detect fromStage1 flag
         console.log('🎯 Stage completion detected via navigation state');
         refreshDashboardData();
       }
     }
     
-    const isReturningFromAssessment = locationState && (
-      locationState.fromSelfAssessment || 
-      locationState.fromQuestionnaire ||
-      locationState.completedAssessment
-    );
-
-    if (isReturningFromAssessment) {
-      console.log('🎯 Returning from assessment - forcing data refresh...');
-      setTimeout(() => {
-        forceDataRefresh();
-      }, 500);
-    }
-
+    // ✅ ALWAYS refresh when returning to home
     if (location.pathname === '/home') {
       setTimeout(() => {
         refreshDashboardData();
       }, 100);
     }
-  }, [location.pathname, location.state, refreshDashboardData, forceDataRefresh]);
+  }, [location.pathname, location.state, refreshDashboardData]);
+
+  // ✅ AGGRESSIVE: Force refresh when session counts change
+  useEffect(() => {
+    console.log('🔄 Session counts changed, forcing refresh...');
+    console.log(`T1: ${getT1Sessions()}, T2: ${getT2Sessions()}, T3: ${getT3Sessions()}, T4: ${getT4Sessions()}, T5: ${getT5Sessions()}`);
+    
+    // Force component re-render
+    setForceDataRefresh(prev => prev + 1);
+    
+    // Recalculate current stage
+    const newStage = calculateCurrentStage();
+    if (newStage !== currentStage) {
+      console.log(`📈 Stage updated: ${currentStage} → ${newStage}`);
+      setCurrentStage(newStage);
+    }
+  }, [getT1Sessions(), getT2Sessions(), getT3Sessions(), getT4Sessions(), getT5Sessions(), calculateCurrentStage, currentStage]);
+
+  // ✅ Listen for user profile changes
+  useEffect(() => {
+    if (userProfile?.sessionCounts) {
+      console.log('👤 User profile updated, refreshing dashboard...');
+      refreshDashboardData();
+    }
+  }, [userProfile?.sessionCounts, refreshDashboardData]);
 
   const displayName = useMemo(() => {
     return currentUser?.displayName ? `, ${currentUser.displayName.split(' ')[0]}` : '';
   }, [currentUser?.displayName]);
-
-  // ✅ Add debugging component in development
-  const DebugProgress = () => {
-    if (process.env.NODE_ENV !== 'development') return null;
-    
-    const progressSummary = getProgressSummary();
-    
-    return (
-      <div style={{
-        position: 'fixed',
-        bottom: '10px',
-        left: '10px',
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '10px',
-        borderRadius: '5px',
-        fontSize: '12px',
-        zIndex: 9999,
-        maxWidth: '300px'
-      }}>
-        <div><strong>🔧 Progress Debug:</strong></div>
-        <div>Current Stage: {currentStage}</div>
-        <div>T5 Complete: {isT5Complete() ? 'YES' : 'NO'} ({getT5Sessions()}/3)</div>
-        <div>Stage 2 Unlocked: {checkStageUnlocked(2) ? 'YES' : 'NO'}</div>
-        <div>Total T-Sessions: {progressSummary.totalTSessions}</div>
-        <div>Completed T-Stages: {progressSummary.completedTStages}/5</div>
-        <div>Stage 2 Hours: {getStage2Hours().toFixed(1)}/15</div>
-        <button 
-          onClick={() => {
-            console.log('🔧 Manual Progress Check:', progressSummary);
-            refreshDashboardData();
-          }}
-          style={{ marginTop: '5px', padding: '2px 5px', cursor: 'pointer' }}
-        >
-          Debug Refresh
-        </button>
-      </div>
-    );
-  };
 
   if (isCalculating) {
     return (
@@ -805,7 +800,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           flex: '1 1 auto'
         }}>
           <h1 style={styles.welcomeTitle}>
-            Welcome{displayName}
+            Welcome back{displayName}! Your happiness points: {happinessData.happiness_points}
           </h1>
         </div>
         
@@ -935,397 +930,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </button>
           </div>
         </section>
-
-        {/* Success message when happiness tracking is enabled */}
-        {happinessData.happiness_points > 0 && (
-          <section style={{
-            ...styles.section,
-            background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-            border: '2px solid #10b981',
-            marginBottom: '24px'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <h3 style={{ 
-                fontSize: '20px', 
-                color: '#065f46', 
-                margin: '0 0 8px 0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}>
-                ✅ Happiness Tracking Enabled!
-              </h3>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#065f46', 
-                margin: 0 
-              }}>
-                Your current happiness score: <strong>{happinessData.happiness_points} points</strong> 
-                ({happinessData.current_level})
-              </p>
-            </div>
-          </section>
-        )}
-
-        {/* Enhanced tracking suggestion */}
-        {happinessData.happiness_points > 0 && (
-          !userProgress.dataCompleteness?.selfAssessment || 
-          !userProgress.dataCompleteness?.questionnaire
-        ) && (
-          <section style={{
-            ...styles.section,
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-            border: '2px solid #f59e0b',
-            marginBottom: '24px'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                color: '#92400e', 
-                margin: '0 0 8px 0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}>
-                🎯 Enhance Your Happiness Tracking
-              </h3>
-              
-              {!userProgress.dataCompleteness?.selfAssessment && !userProgress.dataCompleteness?.questionnaire ? (
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: '#92400e', 
-                  margin: '0 0 16px 0' 
-                }}>
-                  Complete both your questionnaire and self-assessment for the most detailed insights and personalized recommendations!
-                </p>
-              ) : !userProgress.dataCompleteness?.selfAssessment ? (
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: '#92400e', 
-                  margin: '0 0 16px 0' 
-                }}>
-                  Complete your self-assessment for attachment flexibility scoring and more detailed insights!
-                </p>
-              ) : (
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: '#92400e', 
-                  margin: '0 0 16px 0' 
-                }}>
-                  Complete your questionnaire for more comprehensive happiness tracking and insights!
-                </p>
-              )}
-              
-              <div style={{ 
-                display: 'flex', 
-                gap: '12px', 
-                justifyContent: 'center', 
-                flexWrap: 'wrap' 
-              }}>
-                {!userProgress.dataCompleteness?.questionnaire && (
-                  <button
-                    onClick={() => {
-                      console.log('🎯 Navigating to questionnaire for enhanced tracking...');
-                      navigate('/questionnaire', { 
-                        state: { 
-                          returnTo: '/home', 
-                          enhancedMode: true,
-                          fromHomeDashboard: true 
-                        } 
-                      });
-                    }}
-                    style={{
-                      background: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      padding: '12px 20px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#2563eb';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#3b82f6';
-                      e.currentTarget.style.transform = 'translateY(0px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                    }}
-                  >
-                    📝 Complete Questionnaire
-                  </button>
-                )}
-                
-                {!userProgress.dataCompleteness?.selfAssessment && (
-                  <button
-                    onClick={() => {
-                      console.log('🎯 Navigating to self-assessment for enhanced tracking...');
-                      navigate('/self-assessment', { 
-                        state: { 
-                          returnTo: '/home', 
-                          enhancedMode: true,
-                          fromHomeDashboard: true 
-                        } 
-                      });
-                    }}
-                    style={{
-                      background: '#f59e0b',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      padding: '12px 20px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#d97706';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#f59e0b';
-                      e.currentTarget.style.transform = 'translateY(0px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
-                    }}
-                  >
-                    🎯 Complete Self-Assessment
-                  </button>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Onboarding section for users with 0 happiness points */}
-        {happinessData.happiness_points === 0 && !happinessData.isCalculating && (
-          <section style={styles.section}>
-            <h2 style={{ ...styles.sectionTitle, color: '#f59e0b' }}>
-              🌟 Complete Your Onboarding to Enable Happiness Tracking
-            </h2>
-            <div style={{
-              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-              borderRadius: '16px',
-              padding: '24px',
-              marginBottom: '20px',
-              border: '2px solid #f59e0b'
-            }}>
-              <p style={{ fontSize: '16px', color: '#92400e', marginBottom: '16px', textAlign: 'center' }}>
-                Your <strong>happiness tracking</strong> will begin once you complete any of these:
-              </p>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                
-                <button
-                  onClick={() => {
-                    console.log('🚀 Navigating to questionnaire from onboarding...');
-                    navigate('/questionnaire', { 
-                      state: { 
-                        returnTo: '/home',
-                        fromHomeDashboard: true 
-                      } 
-                    });
-                  }}
-                  style={{
-                    background: 'white',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    textAlign: 'center',
-                    border: '2px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    width: '100%'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#f59e0b';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245, 158, 11, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                  }}
-                >
-                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📝</div>
-                  <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '4px', fontSize: '16px' }}>
-                    Complete Questionnaire
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>
-                    + Self-Assessment
-                  </div>
-                  <div style={{
-                    background: '#f59e0b',
-                    color: 'white',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    margin: '0 auto',
-                    maxWidth: '120px'
-                  }}>
-                    Start Now →
-                  </div>
-                </button>
-
-                <div style={{
-                  background: 'white',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  textAlign: 'center',
-                  border: '2px solid #e5e7eb',
-                  position: 'relative'
-                }}>
-                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>🧘</div>
-                  <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '4px', fontSize: '16px' }}>
-                    Complete 3+ Sessions
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>
-                    Any T-level practice
-                  </div>
-                  <div style={{
-                    background: '#e5e7eb',
-                    color: '#6b7280',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    margin: '0 auto',
-                    maxWidth: '140px'
-                  }}>
-                    Practice Below ↓
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    console.log('🚀 Navigating to questionnaire (Quick Path)...');
-                    navigate('/questionnaire', { 
-                      state: { 
-                        returnTo: '/home',
-                        quickPath: true,
-                        fromHomeDashboard: true,
-                        message: 'Quick Path: Complete questionnaire, then do 1 practice session!' 
-                      } 
-                    });
-                  }}
-                  style={{
-                    background: 'white',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    textAlign: 'center',
-                    border: '2px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    width: '100%'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#10b981';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                  }}
-                >
-                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚡</div>
-                  <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '4px', fontSize: '16px' }}>
-                    Quick Path
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>
-                    Questionnaire + 1 Session
-                  </div>
-                  <div style={{
-                    background: '#10b981',
-                    color: 'white',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    margin: '0 auto',
-                    maxWidth: '100px'
-                  }}>
-                    Fastest →
-                  </div>
-                </button>
-              </div>
-              
-              <div style={{
-                background: 'rgba(245, 158, 11, 0.15)',
-                borderRadius: '12px',
-                padding: '20px',
-                marginTop: '20px',
-                textAlign: 'center',
-                border: '1px solid rgba(245, 158, 11, 0.3)'
-              }}>
-                <div style={{ 
-                  fontSize: '16px', 
-                  color: '#92400e', 
-                  fontWeight: '600', 
-                  marginBottom: '12px' 
-                }}>
-                  📊 Or Take Just the Self-Assessment
-                </div>
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: '#92400e', 
-                  marginBottom: '16px',
-                  margin: '0 0 16px 0' 
-                }}>
-                  Quicker option: Skip questionnaire and go directly to the attachment assessment
-                </p>
-                <button
-                  onClick={() => {
-                    console.log('🚀 Navigating to self-assessment directly...');
-                    navigate('/self-assessment', { 
-                      state: { 
-                        returnTo: '/home',
-                        fromHomeDashboard: true 
-                      } 
-                    });
-                  }}
-                  style={{
-                    background: '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '12px 20px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#d97706';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f59e0b';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
-                  }}
-                >
-                  🎯 Take Self-Assessment Only
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Stages Section */}
         <section style={styles.section}>
@@ -1762,9 +1366,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         )}
       </main>
 
-      {/* 🔧 ADD: Debug component */}
-      <DebugProgress />
-      
       <style>{`
         @keyframes spin { 
           0% { transform: rotate(0deg); } 

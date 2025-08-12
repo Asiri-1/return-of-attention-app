@@ -1,6 +1,7 @@
-// 🔧 COMPLETE FIXED App.tsx - Complete Practice Session Flow
+// 🔧 COMPLETE FIXED App.tsx - SIMPLIFIED Practice Session Flow
 // File: src/App.tsx
-// ✅ T1 Introduction → Universal Posture Selection → Practice Timer → Reflection → DUAL CONTEXT UPDATES
+// ✅ REMOVED: Duplicate session saving logic from PracticeReflectionWrapper
+// ✅ KEPT: PracticeTimer handles all session saving (UserContext + PracticeContext)
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -145,8 +146,6 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
   );
 });
 
-// ✅ DEBUG COMPONENT: Removed for production
-
 // ✅ FIXED: Universal Posture Selection Wrapper Component
 const UniversalPostureSelectionWrapper: React.FC = () => {
   const location = useLocation();
@@ -252,7 +251,7 @@ const PracticeTimerWrapper: React.FC = () => {
         },
         returnTo: timerProps.returnTo,
         tLevel: timerProps.tLevel,
-        fromStage1: true
+        fromStage1: true // ✅ CRITICAL: Add this flag
       }
     });
   }, [navigate, timerProps]);
@@ -275,17 +274,11 @@ const PracticeTimerWrapper: React.FC = () => {
   );
 };
 
-// ✅ CRITICAL FIX: Practice Reflection Wrapper Component - Updates BOTH Contexts
+// ✅ SIMPLIFIED: Practice Reflection Wrapper - ONLY handles reflection notes
 const PracticeReflectionWrapper = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { addEmotionalNote } = useWellness();
-  
-  // ✅ CRITICAL: Import UserContext methods for session counting
-  const { 
-    incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, 
-    incrementT4Sessions, incrementT5Sessions 
-  } = useUser();
 
   console.log('🔍 PracticeReflectionWrapper state:', location.state);
 
@@ -303,41 +296,7 @@ const PracticeReflectionWrapper = () => {
     console.log('💾 Saving reflection data:', reflectionData);
     
     try {
-      // ✅ CRITICAL FIX: Update UserContext session counts FIRST (drives UI updates)
-      if (sessionData?.isCompleted && tLevel) {
-        console.log(`🔥 UPDATING ${tLevel} session count by 1`);
-        
-        let newSessionCount = 0;
-        switch (tLevel.toLowerCase()) {
-          case 't1':
-            newSessionCount = await incrementT1Sessions();
-            console.log(`📊 t1 sessions: ${newSessionCount-1} → ${newSessionCount}`);
-            break;
-          case 't2':
-            newSessionCount = await incrementT2Sessions();
-            console.log(`📊 t2 sessions: ${newSessionCount-1} → ${newSessionCount}`);
-            break;
-          case 't3':
-            newSessionCount = await incrementT3Sessions();
-            console.log(`📊 t3 sessions: ${newSessionCount-1} → ${newSessionCount}`);
-            break;
-          case 't4':
-            newSessionCount = await incrementT4Sessions();
-            console.log(`📊 t4 sessions: ${newSessionCount-1} → ${newSessionCount}`);
-            break;
-          case 't5':
-            newSessionCount = await incrementT5Sessions();
-            console.log(`📊 t5 sessions: ${newSessionCount-1} → ${newSessionCount}`);
-            break;
-          default:
-            console.warn(`⚠️ Unknown tLevel: ${tLevel}`);
-        }
-        
-        console.log(`✅ SESSION SAVED TO FIREBASE! - ${tLevel}`);
-        console.log(`📊 T-STAGE COMPLETION TRACKED - ${tLevel}`);
-      }
-
-      // Add reflection as emotional note
+      // ✅ ONLY: Add reflection as emotional note (PracticeTimer already saved the session)
       await addEmotionalNote({
         content: `Completed ${tLevel || sessionData?.tLevel} practice (${sessionData?.duration || 10} minutes). Reflection: ${reflectionData.reflectionText}`,
         emotion: sessionData?.isCompleted ? 'accomplished' : 'content',
@@ -349,24 +308,33 @@ const PracticeReflectionWrapper = () => {
 
       console.log('✅ Reflection saved successfully');
       
-      // ✅ FIXED: Navigate back to appropriate location
+      // ✅ CRITICAL: Navigate with fromStage1 flag to trigger HomeDashboard refresh
       if (state.fromStage1) {
         if (state.isT5Completion) {
           // T5 completed - go to home with stage 2 unlocked message
           navigate('/home', { 
             state: { 
               message: 'Congratulations! T5 completed. Stage 2 is now unlocked!',
-              stage2Unlocked: true 
+              stage2Unlocked: true,
+              fromStage1: true // ✅ CRITICAL: This triggers HomeDashboard refresh
             } 
           });
         } else {
           // Regular T-level completion - back to stage 1
-          console.log('🔄 Practice completed, navigating to reflection');
-          navigate('/stage1');
+          console.log('🔄 Practice completed, navigating to stage1');
+          navigate('/stage1', {
+            state: {
+              fromStage1: true // ✅ CRITICAL: This triggers refresh
+            }
+          });
         }
       } else {
         // Default - back to home
-        navigate('/home');
+        navigate('/home', {
+          state: {
+            fromStage1: true // ✅ CRITICAL: This triggers refresh
+          }
+        });
       }
     } catch (error) {
       console.error('❌ Error saving reflection:', error);
