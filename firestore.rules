@@ -34,6 +34,47 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
         allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
       }
+      
+      // ✅ NEW: User progress tracking for stage progression (CRITICAL for audit compliance)
+      match /userProgress/{progressId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+      }
+      
+      // ✅ NEW: Stage progression data (hours-based tracking)
+      match /stageProgression/{stageId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+      }
+      
+      // ✅ NEW: Session counts and completion tracking
+      match /sessionCounts/{countId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+      }
+      
+      // ✅ NEW: Stage hours tracking (per stage)
+      match /stageHours/{hoursId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+      }
+    }
+    
+    // ✅ NEW: Global stage progression analytics (admin only)
+    match /analytics/{analyticsId} {
+      allow read, write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ NEW: System-wide stage requirements and configuration
+    match /systemConfig/{configId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ NEW: Global leaderboards and progress tracking
+    match /leaderboards/{boardId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
     }
   }
 }

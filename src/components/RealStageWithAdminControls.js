@@ -1,6 +1,6 @@
-// ✅ FIREBASE-ONLY RealStageWithAdminControls - Complete Admin Testing with Firebase Integration
+// ✅ FIREBASE-ONLY RealStageWithAdminControls - Complete Admin Testing with Firebase Integration + Stage 6
 // File: src/components/RealStageWithAdminControls.js
-// 🎯 UPDATED: All data operations now use Firebase contexts instead of local state
+// 🎯 UPDATED: All data operations now use Firebase contexts + Added Stage 6 (30 hours)
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/auth/AuthContext';
@@ -26,15 +26,16 @@ const RealStageWithAdminControls = () => {
   // Combine loading states
   const isLoading = userLoading || practiceLoading || wellnessLoading || onboardingLoading;
 
-  // Your actual app stages
+  // ✅ UPDATED: Your app stages with Stage 6 added (30 hours requirement)
   const stages = [
     { id: 'welcome', name: '🏠 Welcome Screen', hasTimer: false },
     { id: 'demographics', name: '👤 Demographics', hasTimer: false },
-    { id: 'stage1', name: '1️⃣ Stage 1 - T1', hasTimer: true, duration: 300 }, // 5 minutes
-    { id: 'stage2', name: '2️⃣ Stage 2 - T2', hasTimer: true, duration: 480 }, // 8 minutes
-    { id: 'stage3', name: '3️⃣ Stage 3 - T3', hasTimer: true, duration: 600 }, // 10 minutes
-    { id: 'stage4', name: '4️⃣ Stage 4 - T4', hasTimer: true, duration: 540 }, // 9 minutes
-    { id: 'stage5', name: '5️⃣ Stage 5 - T5', hasTimer: true, duration: 420 }, // 7 minutes
+    { id: 'stage1', name: '1️⃣ Stage 1 - T1', hasTimer: true, duration: 300, hoursRequired: 5 }, // 5 minutes, 5 hours
+    { id: 'stage2', name: '2️⃣ Stage 2 - T2', hasTimer: true, duration: 480, hoursRequired: 10 }, // 8 minutes, 10 hours
+    { id: 'stage3', name: '3️⃣ Stage 3 - T3', hasTimer: true, duration: 600, hoursRequired: 15 }, // 10 minutes, 15 hours
+    { id: 'stage4', name: '4️⃣ Stage 4 - T4', hasTimer: true, duration: 540, hoursRequired: 20 }, // 9 minutes, 20 hours
+    { id: 'stage5', name: '5️⃣ Stage 5 - T5', hasTimer: true, duration: 420, hoursRequired: 25 }, // 7 minutes, 25 hours
+    { id: 'stage6', name: '6️⃣ Stage 6 - T6', hasTimer: true, duration: 900, hoursRequired: 30 }, // 15 minutes, 30 hours
     { id: 'results', name: '📊 Results & PAHM', hasTimer: false }
   ];
 
@@ -131,18 +132,74 @@ const RealStageWithAdminControls = () => {
     }
   };
 
+  // ✅ NEW: Save Stage 6 to Firebase with advanced session data
+  const saveStage6ToFirebase = async (data) => {
+    try {
+      console.log('🔥 FIREBASE: Saving Stage 6 advanced session to Firebase');
+      
+      // Save as practice session with enhanced metadata
+      const sessionData = {
+        timestamp: new Date().toISOString(),
+        duration: 15, // 15 minute advanced session
+        sessionType: 'advanced_meditation',
+        stageLevel: 6,
+        stageLabel: 'Stage 6: Advanced Present Attention Practice',
+        rating: data.session_rating || 9,
+        notes: `Advanced Stage 6 session completed. Focus quality: ${data.focus_quality || 'Excellent'}, Insights: ${data.insights || 'Deep awareness achieved'}`,
+        advancedData: {
+          focusQuality: data.focus_quality,
+          distractionLevel: data.distraction_level,
+          awarenessDepth: data.awareness_depth,
+          insights: data.insights,
+          techniques: data.techniques_used || [],
+          environment: data.environment,
+          emotionalState: data.emotional_state
+        },
+        environment: {
+          posture: data.posture || 'seated',
+          location: data.location || 'quiet_space',
+          lighting: data.lighting || 'natural',
+          sounds: data.sounds || 'silence'
+        }
+      };
+
+      await addPracticeSession(sessionData);
+
+      // Save advanced insights as emotional note
+      if (data.insights || data.emotional_state) {
+        const emotionalNoteData = {
+          emotion: data.emotional_state || 'peaceful',
+          intensity: parseInt(data.awareness_depth) || 8,
+          triggers: ['Advanced meditation practice'],
+          response: data.insights || 'Deep present moment awareness achieved',
+          notes: `Stage 6 advanced practice: ${data.focus_quality} focus quality, insights gained about present attention`,
+          timestamp: new Date().toISOString()
+        };
+        await addEmotionalNote(emotionalNoteData);
+      }
+
+      console.log('✅ FIREBASE: Stage 6 advanced data saved successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ FIREBASE: Error saving Stage 6 data:', error);
+      return false;
+    }
+  };
+
   const saveStageSessionToFirebase = async (stageId, duration) => {
     try {
       console.log(`🔥 FIREBASE: Saving ${stageId} session to Firebase`);
       
+      const stageInfo = stages.find(s => s.id === stageId);
       const sessionData = {
         timestamp: new Date().toISOString(),
         duration: Math.round(duration / 60), // Convert seconds to minutes
         sessionType: stageId.includes('stage') ? 'meditation' : 'assessment',
         stageLevel: parseInt(stageId.replace('stage', '') || '0'),
-        stageLabel: stages.find(s => s.id === stageId)?.name || stageId,
-        rating: 7,
-        notes: `Admin test session for ${stageId}`,
+        stageLabel: stageInfo?.name || stageId,
+        rating: stageId === 'stage6' ? 9 : 7, // Higher rating for advanced Stage 6
+        notes: `Admin test session for ${stageId}${stageId === 'stage6' ? ' - Advanced practice level' : ''}`,
+        hoursRequirement: stageInfo?.hoursRequired || 0,
         environment: {
           posture: 'seated',
           location: 'testing',
@@ -192,6 +249,312 @@ const RealStageWithAdminControls = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // ✅ NEW: Stage 6 content with advanced meditation features
+  const renderStage6Content = () => {
+    return (
+      <div className="real-stage-content bg-gradient-to-b from-indigo-100 to-purple-50 p-8 rounded-lg">
+        {/* Stage 6 Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-indigo-800 mb-2">Stage 6: Advanced Present Attention Practice</h2>
+          <p className="text-indigo-700">Mastery level meditation - requires 30 hours of practice experience</p>
+          
+          {/* ✅ FIREBASE-ONLY: Firebase status */}
+          <div className="bg-white rounded-lg p-4 mt-4 shadow-lg inline-block">
+            <h3 className="text-sm font-bold text-indigo-800 mb-2">🔥 Firebase Integration</h3>
+            <div className="text-xs text-indigo-600">
+              <p>Saves to: Advanced Practice Sessions & Deep Insights</p>
+              <p>Required: 30 hours total practice time</p>
+              <p>Status: {isLoading ? '🔄 Ready to save' : '✅ Connected'}</p>
+            </div>
+          </div>
+          
+          {/* REAL TIMER DISPLAY for Stage 6 */}
+          {currentStage.hasTimer && (
+            <div className="mt-4 bg-white rounded-lg p-4 shadow-lg inline-block">
+              <div className="text-2xl font-bold text-indigo-600">
+                ⏰ {formatTime(stageTimer)}
+              </div>
+              <div className="text-sm text-indigo-500">
+                {isTimerRunning ? 'Advanced practice time remaining' : 'Timer paused'}
+              </div>
+              <div className="w-64 bg-indigo-200 rounded-full h-2 mt-2">
+                <div 
+                  className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full transition-all duration-1000"
+                  style={{ 
+                    width: `${((currentStage.duration - stageTimer) / currentStage.duration) * 100}%` 
+                  }}
+                ></div>
+              </div>
+              <div className="text-xs text-indigo-600 mt-1">
+                15-minute advanced session
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* REAL STAGE 6 CONTENT with advanced features */}
+        <div className="max-w-2xl mx-auto space-y-8">
+          
+          {/* Advanced Practice Setup */}
+          <div className="bg-white rounded-lg p-6 shadow-lg border-l-4 border-indigo-500">
+            <h3 className="text-xl font-bold text-indigo-800 mb-4">
+              🧘‍♂️ Advanced Practice Setup
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-indigo-700 font-semibold mb-2">Meditation Posture</label>
+                <select 
+                  className="w-full p-3 border-2 border-indigo-300 rounded-lg focus:border-indigo-500"
+                  value={stageData.posture || ''}
+                  onChange={(e) => setStageData({...stageData, posture: e.target.value})}
+                >
+                  <option value="">Select posture</option>
+                  <option value="seated_floor">Seated on floor (lotus/cross-legged)</option>
+                  <option value="seated_chair">Seated on chair</option>
+                  <option value="standing">Standing meditation</option>
+                  <option value="walking">Walking meditation</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-indigo-700 font-semibold mb-2">Environment</label>
+                <select 
+                  className="w-full p-3 border-2 border-indigo-300 rounded-lg focus:border-indigo-500"
+                  value={stageData.environment || ''}
+                  onChange={(e) => setStageData({...stageData, environment: e.target.value})}
+                >
+                  <option value="">Select environment</option>
+                  <option value="indoor_quiet">Indoor - Quiet space</option>
+                  <option value="indoor_background">Indoor - Background sounds</option>
+                  <option value="outdoor_nature">Outdoor - Nature sounds</option>
+                  <option value="outdoor_urban">Outdoor - Urban setting</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Advanced Techniques Selection */}
+          <div className="bg-white rounded-lg p-6 shadow-lg border-l-4 border-purple-500">
+            <h3 className="text-xl font-bold text-purple-800 mb-4">
+              🎯 Advanced Attention Techniques
+            </h3>
+            <div className="space-y-3">
+              <p className="text-purple-700 mb-4">Select the techniques you'll focus on in this advanced session:</p>
+              {[
+                'Sustained single-pointed attention',
+                'Open awareness monitoring',
+                'Meta-cognitive awareness',
+                'Present moment anchoring',
+                'Effortless attention',
+                'Non-dual awareness'
+              ].map((technique, index) => (
+                <label key={index} className="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    className="mr-3 text-purple-600"
+                    checked={stageData.techniques_used?.includes(technique) || false}
+                    onChange={(e) => {
+                      const currentTechniques = stageData.techniques_used || [];
+                      const updatedTechniques = e.target.checked
+                        ? [...currentTechniques, technique]
+                        : currentTechniques.filter(t => t !== technique);
+                      setStageData({...stageData, techniques_used: updatedTechniques});
+                    }}
+                  />
+                  <span className="text-purple-700">{technique}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Session Quality Assessment */}
+          <div className="bg-white rounded-lg p-6 shadow-lg border-l-4 border-green-500">
+            <h3 className="text-xl font-bold text-green-800 mb-4">
+              📊 Advanced Session Assessment
+            </h3>
+            <div className="space-y-6">
+              
+              {/* Focus Quality */}
+              <div>
+                <label className="block text-green-700 font-semibold mb-2">Focus Quality</label>
+                <div className="space-y-2">
+                  {[
+                    'Exceptional - Effortless sustained attention',
+                    'Excellent - Strong focus with minimal drift',
+                    'Good - Consistent attention with some wandering',
+                    'Moderate - Regular attention with frequent returns',
+                    'Developing - Learning to sustain attention'
+                  ].map((option, index) => (
+                    <label key={index} className="flex items-center">
+                      <input 
+                        type="radio" 
+                        name="focus_quality" 
+                        value={option}
+                        className="mr-3 text-green-600"
+                        checked={stageData.focus_quality === option}
+                        onChange={(e) => setStageData({...stageData, focus_quality: e.target.value})}
+                      />
+                      <span className="text-green-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Distraction Level */}
+              <div>
+                <p className="text-green-700 font-semibold mb-3">Distraction Level (1-10)</p>
+                <div className="px-2">
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="1"
+                    value={stageData.distraction_level || 3}
+                    className="w-full h-3 bg-green-200 rounded-lg appearance-none cursor-pointer"
+                    onChange={(e) => setStageData({...stageData, distraction_level: e.target.value})}
+                  />
+                  <div className="flex justify-between text-sm text-green-600 mt-1">
+                    <span>1 (No distractions)</span>
+                    <span>Current: {stageData.distraction_level || 3}</span>
+                    <span>10 (Very distracted)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Awareness Depth */}
+              <div>
+                <p className="text-green-700 font-semibold mb-3">Awareness Depth (1-10)</p>
+                <div className="px-2">
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="1"
+                    value={stageData.awareness_depth || 7}
+                    className="w-full h-3 bg-green-200 rounded-lg appearance-none cursor-pointer"
+                    onChange={(e) => setStageData({...stageData, awareness_depth: e.target.value})}
+                  />
+                  <div className="flex justify-between text-sm text-green-600 mt-1">
+                    <span>1 (Surface level)</span>
+                    <span>Current: {stageData.awareness_depth || 7}</span>
+                    <span>10 (Profound depth)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Advanced Insights */}
+          <div className="bg-white rounded-lg p-6 shadow-lg border-l-4 border-yellow-500">
+            <h3 className="text-xl font-bold text-yellow-800 mb-4">
+              💡 Advanced Practice Insights
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-yellow-700 font-semibold mb-2">
+                  Key insights or realizations from this session
+                </label>
+                <textarea 
+                  rows="3"
+                  className="w-full p-3 border-2 border-yellow-300 rounded-lg focus:border-yellow-500"
+                  placeholder="Describe any insights about present attention, awareness, or meditation practice..."
+                  value={stageData.insights || ''}
+                  onChange={(e) => setStageData({...stageData, insights: e.target.value})}
+                ></textarea>
+              </div>
+              <div>
+                <label className="block text-yellow-700 font-semibold mb-2">
+                  Emotional state during practice
+                </label>
+                <select 
+                  className="w-full p-3 border-2 border-yellow-300 rounded-lg focus:border-yellow-500"
+                  value={stageData.emotional_state || ''}
+                  onChange={(e) => setStageData({...stageData, emotional_state: e.target.value})}
+                >
+                  <option value="">Select emotional state</option>
+                  <option value="peaceful">Peaceful and calm</option>
+                  <option value="joyful">Joyful and uplifted</option>
+                  <option value="focused">Focused and alert</option>
+                  <option value="relaxed">Relaxed and at ease</option>
+                  <option value="neutral">Neutral/balanced</option>
+                  <option value="restless">Restless or agitated</option>
+                  <option value="sleepy">Drowsy or sleepy</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-yellow-700 font-semibold mb-2">
+                  Session Rating (1-10)
+                </label>
+                <div className="px-2">
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="1"
+                    value={stageData.session_rating || 8}
+                    className="w-full h-3 bg-yellow-200 rounded-lg appearance-none cursor-pointer"
+                    onChange={(e) => setStageData({...stageData, session_rating: e.target.value})}
+                  />
+                  <div className="flex justify-between text-sm text-yellow-600 mt-1">
+                    <span>1 (Poor session)</span>
+                    <span>Rating: {stageData.session_rating || 8}</span>
+                    <span>10 (Exceptional session)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Current Data Preview for Testing */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-bold text-gray-800 mb-2">📊 Current Firebase Data (Stage 6):</h4>
+            <pre className="text-xs text-gray-600 overflow-auto">
+              {JSON.stringify(stageData, null, 2)}
+            </pre>
+          </div>
+
+          {/* Stage 6 Completion with Firebase Save */}
+          <div className="text-center">
+            <button 
+              className={`
+                px-8 py-4 rounded-lg font-bold text-lg transition-all
+                ${stageTimer > 0 || isLoading
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white'
+                }
+              `}
+              disabled={stageTimer > 0 || isLoading}
+              onClick={async () => {
+                const success = await saveStage6ToFirebase(stageData);
+                if (success) {
+                  alert('✅ FIREBASE: Stage 6 Advanced Practice completed and saved to Firebase! Master level achieved!');
+                } else {
+                  alert('❌ FIREBASE: Error saving Stage 6. Please try again.');
+                }
+              }}
+            >
+              {stageTimer > 0 
+                ? `Complete in ${formatTime(stageTimer)}` 
+                : isLoading 
+                  ? 'Saving Advanced Session to Firebase...'
+                  : 'Complete Stage 6 Advanced Practice → Save to Firebase'
+              }
+            </button>
+            {stageTimer > 0 && (
+              <p className="text-sm text-indigo-600 mt-2">
+                Take your time with this advanced 15-minute practice session
+              </p>
+            )}
+            {isLoading && (
+              <p className="text-sm text-indigo-600 mt-2">
+                🔥 Saving your advanced practice data to Firebase cloud...
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // ✅ FIREBASE-ONLY: Enhanced stage content with Firebase integration
@@ -549,6 +912,9 @@ const RealStageWithAdminControls = () => {
           </div>
         );
 
+      case 'stage6':
+        return renderStage6Content();
+
       default:
         const stageInfo = stages.find(s => s.id === currentStage.id);
         return (
@@ -561,6 +927,7 @@ const RealStageWithAdminControls = () => {
                 <h3 className="text-sm font-bold text-gray-800 mb-2">🔥 Firebase Ready</h3>
                 <div className="text-xs text-gray-600">
                   <p>Will save to: Practice Sessions</p>
+                  <p>Hours Required: {stageInfo.hoursRequired || 'N/A'}</p>
                   <p>User: {currentUser?.email || 'Not logged in'}</p>
                 </div>
               </div>
@@ -592,6 +959,8 @@ const RealStageWithAdminControls = () => {
                 Users would see all the actual questions, inputs, and interactions for this stage.
                 <br/><br/>
                 <strong>🔥 Firebase Integration:</strong> All data will be saved to Firebase contexts upon completion.
+                <br/>
+                <strong>📊 Hours Required:</strong> {stageInfo.hoursRequired} hours total practice time
               </p>
               <button 
                 className={`
@@ -652,7 +1021,8 @@ const RealStageWithAdminControls = () => {
               <div className="text-red-100 text-xs mt-1">
                 👤 User: {currentUser?.email || 'Not logged in'} | 
                 🔥 Firebase: {isLoading ? '🔄 Loading' : '✅ Connected'} |
-                📊 Profile: {userProfile ? '✅ Loaded' : '❌ Missing'}
+                📊 Profile: {userProfile ? '✅ Loaded' : '❌ Missing'} |
+                🎯 Stages: 1-6 (5, 10, 15, 20, 25, 30 hours)
               </div>
             </div>
             <button
@@ -665,7 +1035,7 @@ const RealStageWithAdminControls = () => {
         </div>
       )}
 
-      {/* Stage Selection */}
+      {/* ✅ UPDATED: Stage Selection with Stage 6 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {stages.map(stage => (
           <button
@@ -683,6 +1053,9 @@ const RealStageWithAdminControls = () => {
             </div>
             <div className="text-xs text-blue-600 mt-1">
               🔥 Firebase integrated
+              {stage.hoursRequired && (
+                <span className="block">📊 {stage.hoursRequired}h required</span>
+              )}
             </div>
           </button>
         ))}
@@ -700,6 +1073,9 @@ const RealStageWithAdminControls = () => {
                   <p className="text-yellow-700 text-sm">Skip timers, complete stages instantly, and save to Firebase for testing</p>
                   <p className="text-yellow-600 text-xs">
                     🔥 All completions will save real data to Firebase contexts
+                    {currentStage.hoursRequired && (
+                      <span className="block">📊 Testing {currentStage.name} - {currentStage.hoursRequired} hours requirement</span>
+                    )}
                   </p>
                 </div>
                 <div className="space-x-2">
@@ -739,30 +1115,30 @@ const RealStageWithAdminControls = () => {
         </div>
       )}
 
-      {/* ✅ FIREBASE-ONLY: Enhanced instructions */}
+      {/* ✅ FIREBASE-ONLY: Enhanced instructions with Stage 6 info */}
       {!currentStage && (
         <div className="bg-blue-50 border border-blue-300 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-blue-800 mb-4">🎯 Firebase-Integrated Real User Experience Testing:</h3>
+          <h3 className="text-lg font-bold text-blue-800 mb-4">🎯 Firebase-Integrated Real User Experience Testing - Stages 1-6:</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-blue-700">
             <div>
-              <h4 className="font-semibold mb-2">1. Select Any Stage</h4>
+              <h4 className="font-semibold mb-2">1. Select Any Stage (1-6)</h4>
               <p className="text-sm mb-4">Click any stage button to see the REAL user experience with Firebase integration</p>
               
               <h4 className="font-semibold mb-2">2. Firebase Data Operations</h4>
               <p className="text-sm">All data saves to real Firebase contexts: User, Practice, Wellness, Onboarding</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-2">3. Admin Fast Forward Controls</h4>
-              <p className="text-sm mb-4">Skip timers, complete stages instantly, and save real data to Firebase for testing</p>
+              <h4 className="font-semibold mb-2">3. Stage 6 - NEW Advanced Practice</h4>
+              <p className="text-sm mb-4">15-minute advanced meditation requiring 30 hours total practice time</p>
               
-              <h4 className="font-semibold mb-2">4. Test Like Real Users</h4>
-              <p className="text-sm">Fill forms, submit data, interact exactly as users would - all saves to Firebase</p>
+              <h4 className="font-semibold mb-2">4. Hours-Based Progression</h4>
+              <p className="text-sm">Stage 1: 5h → Stage 2: 10h → Stage 3: 15h → Stage 4: 20h → Stage 5: 25h → Stage 6: 30h</p>
             </div>
           </div>
           
-          {/* Firebase Status Summary */}
+          {/* ✅ UPDATED: Firebase Status Summary with Stage 6 info */}
           <div className="mt-6 bg-white rounded-lg p-4 border-2 border-blue-200">
-            <h4 className="font-bold text-blue-800 mb-3">🔥 Firebase Integration Status</h4>
+            <h4 className="font-bold text-blue-800 mb-3">🔥 Firebase Integration Status - Complete Stage System (1-6)</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="text-center">
                 <div className={`text-2xl mb-1 ${currentUser ? 'text-green-500' : 'text-red-500'}`}>
@@ -785,12 +1161,25 @@ const RealStageWithAdminControls = () => {
               <div className="text-center">
                 <div className="text-2xl mb-1 text-green-500">✅</div>
                 <div className="font-semibold">Practice Context</div>
-                <div className="text-xs text-gray-600">Ready</div>
+                <div className="text-xs text-gray-600">Ready (Stages 1-6)</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl mb-1 text-green-500">✅</div>
                 <div className="font-semibold">Wellness Context</div>
                 <div className="text-xs text-gray-600">Ready</div>
+              </div>
+            </div>
+            
+            {/* ✅ NEW: Stage 6 Feature Highlight */}
+            <div className="mt-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
+              <h5 className="font-bold text-indigo-800 mb-2">🎯 NEW: Stage 6 Advanced Features</h5>
+              <div className="text-xs text-indigo-700 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div>✅ 15-minute advanced sessions</div>
+                <div>✅ 30-hour progression requirement</div>
+                <div>✅ Enhanced Firebase data recording</div>
+                <div>✅ Advanced meditation techniques</div>
+                <div>✅ Deep insight tracking</div>
+                <div>✅ Master-level practice analytics</div>
               </div>
             </div>
           </div>

@@ -1,31 +1,65 @@
-// ✅ COMPLETE FIXED Stage1Wrapper.tsx - Proper Practice Flow
+// ✅ COMPLETE FIXED Stage1Wrapper.tsx - Data Sanitization to Prevent DataCloneError
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useUser } from './contexts/user/UserContext';
 import { useAuth } from './contexts/auth/AuthContext';
 
+interface TStageStatus {
+  level: string;
+  sessions: number;
+  isComplete: boolean;
+  isAccessible: boolean;
+  stage1Hours: number;
+  isStage1Complete: boolean;
+  hoursProgress: number;
+}
+
+// ✅ CRITICAL: Data sanitization function to prevent DataCloneError
+const sanitizeData = (data: any): any => {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  
+  try {
+    // Use JSON stringify/parse to remove non-serializable objects
+    return JSON.parse(JSON.stringify(data));
+  } catch (error) {
+    console.warn('Data sanitization failed, returning safe defaults:', error);
+    return {
+      tStage: 'T1',
+      completed: false,
+      duration: 10,
+      posture: 'seated',
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
 const Stage1Wrapper: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentUser } = useAuth();
   const { addPracticeSession } = usePractice();
   
-  // ✅ FIXED: Use UserContext methods for consistent session tracking
   const { 
     userProfile,
     getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
     isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
-    incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, incrementT4Sessions, incrementT5Sessions
+    incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, incrementT4Sessions, incrementT5Sessions,
+    getStage1Hours,
+    addStageHoursDirect,
+    getCurrentStageByHours,
+    getTotalPracticeHours,
+    isStage1CompleteByHours
   } = useUser();
 
-  const [tStages, setTStages] = useState<any[]>([]);
+  const [tStages, setTStages] = useState<TStageStatus[]>([]);
 
-  // ✅ FIXED: Session recording that works with BOTH contexts
+  // ✅ FIXED: Session recording with complete data sanitization
   const handleSessionRecord = useCallback(async (sessionData: any) => {
-    console.log('📊 Recording T-session:', sessionData);
+    console.log('📊 Recording T-session with data sanitization:', sessionData);
     
     if (!currentUser?.uid) {
       console.error('❌ No authenticated user');
@@ -33,80 +67,142 @@ const Stage1Wrapper: React.FC = () => {
     }
 
     try {
-      const { tStage, completed, duration = 10, posture = 'seated' } = sessionData;
-      const tLevelNumber = parseInt(tStage.replace('T', ''));
+      // ✅ CRITICAL: Sanitize sessionData FIRST to prevent DataCloneError
+      const sanitizedSessionData = sanitizeData({
+        tStage: sessionData?.tStage || 'T1',
+        completed: sessionData?.completed || false,
+        duration: sessionData?.duration || 10,
+        actualDuration: sessionData?.actualDuration || sessionData?.duration || 10,
+        posture: sessionData?.posture || 'seated',
+        rating: sessionData?.rating || 7,
+        notes: sessionData?.notes || '',
+        timestamp: sessionData?.timestamp || new Date().toISOString()
+      });
       
-      // 1. ✅ CRITICAL: Increment UserContext session count FIRST (drives UI)
+      const { 
+        tStage, 
+        completed, 
+        duration, 
+        actualDuration,
+        posture 
+      } = sanitizedSessionData;
+      
+      const practiceMinutes = actualDuration || duration;
+      const practiceHours = practiceMinutes / 60;
+      
+      console.log(`🧘 Processing ${tStage} session: ${practiceMinutes} minutes (${practiceHours.toFixed(2)} hours)`);
+      
+      // 1. ✅ Increment session count
       let newSessionCount = 0;
-      switch (tStage.toLowerCase()) {
-        case 't1':
-          newSessionCount = await incrementT1Sessions();
-          console.log(`📊 T1 Sessions: ${newSessionCount-1} → ${newSessionCount}`);
-          break;
-        case 't2':
-          newSessionCount = await incrementT2Sessions();
-          console.log(`📊 T2 Sessions: ${newSessionCount-1} → ${newSessionCount}`);
-          break;
-        case 't3':
-          newSessionCount = await incrementT3Sessions();
-          console.log(`📊 T3 Sessions: ${newSessionCount-1} → ${newSessionCount}`);
-          break;
-        case 't4':
-          newSessionCount = await incrementT4Sessions();
-          console.log(`📊 T4 Sessions: ${newSessionCount-1} → ${newSessionCount}`);
-          break;
-        case 't5':
-          newSessionCount = await incrementT5Sessions();
-          console.log(`📊 T5 Sessions: ${newSessionCount-1} → ${newSessionCount}`);
-          break;
-      }
+      const tLevel = tStage.toLowerCase();
+      
+      if (tLevel === 't1') newSessionCount = await incrementT1Sessions();
+      else if (tLevel === 't2') newSessionCount = await incrementT2Sessions();
+      else if (tLevel === 't3') newSessionCount = await incrementT3Sessions();
+      else if (tLevel === 't4') newSessionCount = await incrementT4Sessions();
+      else if (tLevel === 't5') newSessionCount = await incrementT5Sessions();
 
-      // 2. ✅ ALSO: Save detailed session to PracticeContext for history
-      const enhancedSessionData = {
+      // 2. ✅ Add hours to Stage 1
+      await addStageHoursDirect(1, practiceHours);
+      
+      console.log(`📊 Added ${practiceHours.toFixed(2)} hours to Stage 1`);
+      console.log(`📊 ${tStage} Sessions: ${newSessionCount-1} → ${newSessionCount}`);
+
+      // 3. ✅ Create completely clean session data for PracticeContext
+      const cleanSessionData = sanitizeData({
         timestamp: new Date().toISOString(),
-        duration: duration,
-        sessionType: 'meditation' as const,
-        stageLevel: tLevelNumber,
-        stageLabel: `${tStage}: Physical Stillness Training`,
-        tLevel: tStage, // "T1", "T2", etc.
-        level: tStage.toLowerCase(), // "t1", "t2", etc.
+        duration: practiceMinutes,
+        sessionType: 'meditation',
+        stageLevel: 1,
+        stageLabel: `Stage 1 - ${tStage}: Physical Stillness Training`,
+        tLevel: tStage,
+        level: tLevel,
         rating: completed ? 8 : 6,
-        notes: `${tStage} physical stillness training (${duration} minutes)`,
+        notes: `${tStage} physical stillness training (${practiceMinutes} minutes)`,
         presentPercentage: completed ? 85 : 70,
         environment: {
-          posture: posture,
+          posture: posture || 'seated',
           location: 'indoor',
           lighting: 'natural',
           sounds: 'quiet'
         },
         pahmCounts: {
-          present_attachment: 0, present_neutral: 0, present_aversion: 0,
-          past_attachment: 0, past_neutral: 0, past_aversion: 0,
-          future_attachment: 0, future_neutral: 0, future_aversion: 0
+          present_attachment: 0,
+          present_neutral: 0,
+          present_aversion: 0,
+          past_attachment: 0,
+          past_neutral: 0,
+          past_aversion: 0,
+          future_attachment: 0,
+          future_neutral: 0,
+          future_aversion: 0
         },
         metadata: {
           tLevel: tStage,
           isCompleted: completed,
           targetDuration: duration,
-          actualDuration: duration,
-          sessionCount: newSessionCount
+          actualDuration: practiceMinutes,
+          sessionCount: newSessionCount,
+          hoursAdded: practiceHours,
+          stage1TotalHours: getStage1Hours() + practiceHours
         }
-      };
+      });
 
-      // Save to PracticeContext
-      await addPracticeSession(enhancedSessionData);
-      console.log(`✅ Session saved to both contexts - ${tStage}`);
-      console.log(`📊 New session count: ${newSessionCount}`);
+      // 4. ✅ Save to PracticeContext with sanitized data
+      await addPracticeSession(cleanSessionData);
+      console.log(`✅ Session saved successfully - ${tStage}`);
 
     } catch (error) {
       console.error('❌ Error recording session:', error);
+      
+      // ✅ Try to save basic session data as fallback
+      try {
+        console.log('🔧 Attempting fallback session save...');
+        
+        const fallbackSessionData = sanitizeData({
+          timestamp: new Date().toISOString(),
+          duration: 10,
+          sessionType: 'meditation',
+          stageLevel: 1,
+          stageLabel: 'Stage 1 - T1: Physical Stillness Training',
+          tLevel: 'T1',
+          level: 't1',
+          rating: 7,
+          notes: 'Session recorded with fallback data',
+          presentPercentage: 75,
+          environment: {
+            posture: 'seated',
+            location: 'indoor',
+            lighting: 'natural',
+            sounds: 'quiet'
+          },
+          pahmCounts: {
+            present_attachment: 0,
+            present_neutral: 0,
+            present_aversion: 0,
+            past_attachment: 0,
+            past_neutral: 0,
+            past_aversion: 0,
+            future_attachment: 0,
+            future_neutral: 0,
+            future_aversion: 0
+          }
+        });
+        
+        await addPracticeSession(fallbackSessionData);
+        console.log('✅ Fallback session saved');
+        
+      } catch (fallbackError) {
+        console.error('❌ Fallback session save also failed:', fallbackError);
+      }
+      
       throw error;
     }
   }, [currentUser, incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, 
-      incrementT4Sessions, incrementT5Sessions, addPracticeSession]);
+      incrementT4Sessions, incrementT5Sessions, addPracticeSession, addStageHoursDirect, getStage1Hours]);
 
-  // ✅ FIXED: Session status calculation using UserContext with CORRECT accessibility
-  const calculateTStageStatus = useCallback((tLevel: string) => {
+  // ✅ Calculate T-stage status
+  const calculateTStageStatus = useCallback((tLevel: string): TStageStatus => {
     const tNumber = parseInt(tLevel.replace('T', ''));
     
     let sessions = 0;
@@ -138,88 +234,101 @@ const Stage1Wrapper: React.FC = () => {
         isComplete = false;
     }
 
-    console.log(`🔍 ${tLevel} Status: ${sessions}/3 sessions, Complete: ${isComplete}`);
+    const stage1Hours = getStage1Hours();
+    const isStage1Complete = isStage1CompleteByHours();
     
-    // ✅ FIXED: Correct accessibility logic - T1 is ALWAYS accessible
+    // Accessibility logic
     let isAccessible = false;
-    
-    if (tNumber === 1) {
-      isAccessible = true; // T1 is always accessible
-    } else if (tNumber === 2) {
-      isAccessible = isT1Complete(); // T2 needs T1 complete
-    } else if (tNumber === 3) {
-      isAccessible = isT2Complete(); // T3 needs T2 complete
-    } else if (tNumber === 4) {
-      isAccessible = isT3Complete(); // T4 needs T3 complete
-    } else if (tNumber === 5) {
-      isAccessible = isT4Complete(); // T5 needs T4 complete
-    }
+    if (tNumber === 1) isAccessible = true;
+    else if (tNumber === 2) isAccessible = isT1Complete();
+    else if (tNumber === 3) isAccessible = isT2Complete();
+    else if (tNumber === 4) isAccessible = isT3Complete();
+    else if (tNumber === 5) isAccessible = isT4Complete();
     
     return {
       level: tLevel,
-      sessions: sessions,
-      isComplete: isComplete,
-      isAccessible: isAccessible
+      sessions,
+      isComplete,
+      isAccessible,
+      stage1Hours,
+      isStage1Complete,
+      hoursProgress: stage1Hours / 5.0
     };
   }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
-      isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete]);
+      isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
+      getStage1Hours, isStage1CompleteByHours]);
 
-  // ✅ FIXED: Update T-stages when session counts change  
+  // ✅ Update stages when data changes
   const t1Sessions = getT1Sessions();
   const t2Sessions = getT2Sessions();
   const t3Sessions = getT3Sessions();
   const t4Sessions = getT4Sessions();
   const t5Sessions = getT5Sessions();
+  const stage1Hours = getStage1Hours();
 
   useEffect(() => {
-    console.log('🔄 Recalculating T-stage statuses...');
     const stages = ['T1', 'T2', 'T3', 'T4', 'T5'].map(calculateTStageStatus);
     setTStages(stages);
-    console.log('📊 Updated T-stage statuses:', stages);
-  }, [calculateTStageStatus, t1Sessions, t2Sessions, t3Sessions, t4Sessions, t5Sessions]);
+  }, [calculateTStageStatus, t1Sessions, t2Sessions, t3Sessions, t4Sessions, t5Sessions, stage1Hours]);
 
-  // ✅ FIXED: Start practice handler with proper flow (Introduction → Posture → Timer)
+  // ✅ FIXED: Start practice handler with data sanitization
   const handleStartPractice = useCallback((tLevel: string, duration: number) => {
     console.log(`🧘 Starting ${tLevel} practice (${duration} minutes)`);
     
-    // ✅ Check if user has seen T1 introduction (for T1 only)
+    // Check T1 introduction
     if (tLevel === 'T1') {
       const hasSeenT1Intro = userProfile?.stageProgress?.completedStageIntros?.includes('t1-intro') || false;
       
       if (!hasSeenT1Intro) {
-        // First time T1 user → Go to T1 Introduction
-        console.log('🔄 First time T1 user, navigating to T1 introduction');
-        navigate('/t1-introduction', {
-          state: {
-            tLevel: tLevel,
-            duration: duration,
-            level: tLevel.toLowerCase(),
-            stageLevel: 1,
-            returnTo: '/stage1'
-          }
+        // ✅ Sanitize navigation state data
+        const navigationState = sanitizeData({
+          tLevel,
+          duration,
+          level: tLevel.toLowerCase(),
+          stageLevel: 1,
+          returnTo: '/stage1',
+          onSessionComplete: null // Remove function reference
         });
+        
+        navigate('/t1-introduction', { state: navigationState });
         return;
       }
     }
     
-    // ✅ For returning users or non-T1 levels → Go directly to Posture Selection
-    console.log('🔄 Navigating to posture selection');
-    navigate('/universal-posture-selection', {
-      state: {
-        tLevel: tLevel,
-        duration: duration,
-        level: tLevel.toLowerCase(),
-        stageLevel: 1,
-        returnTo: '/stage1',
-        fromStage1: true
-      }
+    // ✅ Sanitize navigation state data for posture selection
+    const navigationState = sanitizeData({
+      tLevel,
+      duration,
+      level: tLevel.toLowerCase(),
+      stageLevel: 1,
+      returnTo: '/stage1',
+      fromStage1: true,
+      onSessionComplete: null // Remove function reference
     });
+    
+    navigate('/universal-posture-selection', { state: navigationState });
   }, [navigate, userProfile]);
 
-  // ✅ Simple back handler
   const handleBack = useCallback(() => {
     navigate('/home');
   }, [navigate]);
+
+  // ✅ Authentication check
+  if (!currentUser) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      }}>
+        <div style={{ color: 'white', fontSize: '18px' }}>
+          Please log in to access Stage 1
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -235,6 +344,7 @@ const Stage1Wrapper: React.FC = () => {
         padding: '40px',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
       }}>
+        {/* Header */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -267,12 +377,61 @@ const Stage1Wrapper: React.FC = () => {
         <p style={{
           fontSize: '18px',
           color: '#666',
-          marginBottom: '40px',
+          marginBottom: '20px',
           textAlign: 'center'
         }}>
           Develop physical foundation through progressive stillness training from 10 to 30 minutes.
         </p>
 
+        {/* Stage 1 Progress */}
+        <div style={{
+          background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+          borderRadius: '16px',
+          padding: '24px',
+          marginBottom: '30px',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            color: '#374151',
+            marginBottom: '12px'
+          }}>
+            Stage 1 Progress: {getStage1Hours().toFixed(1)}/5.0 Hours
+          </h3>
+          <div style={{
+            background: '#e5e7eb',
+            borderRadius: '10px',
+            height: '20px',
+            overflow: 'hidden',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              height: '100%',
+              width: `${Math.min((getStage1Hours() / 5.0) * 100, 100)}%`,
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
+          <div style={{
+            fontSize: '14px',
+            color: '#6b7280'
+          }}>
+            Complete 5 total hours across all T-levels to master Stage 1
+          </div>
+          {isStage1CompleteByHours() && (
+            <div style={{
+              fontSize: '16px',
+              color: '#059669',
+              fontWeight: '600',
+              marginTop: '8px'
+            }}>
+              🎉 Stage 1 Complete! Ready for Stage 2
+            </div>
+          )}
+        </div>
+
+        {/* T-Stages Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -398,7 +557,7 @@ const Stage1Wrapper: React.FC = () => {
           })}
         </div>
 
-        {/* Debug info in development */}
+        {/* Debug Info */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '40px',
@@ -409,13 +568,16 @@ const Stage1Wrapper: React.FC = () => {
             color: '#666'
           }}>
             <h4>Debug Info:</h4>
-            <div>T1 Sessions: {getT1Sessions()}/3 ({isT1Complete() ? 'Complete' : 'Incomplete'})</div>
-            <div>T2 Sessions: {getT2Sessions()}/3 ({isT2Complete() ? 'Complete' : 'Incomplete'})</div>
-            <div>T3 Sessions: {getT3Sessions()}/3 ({isT3Complete() ? 'Complete' : 'Incomplete'})</div>
-            <div>T4 Sessions: {getT4Sessions()}/3 ({isT4Complete() ? 'Complete' : 'Incomplete'})</div>
-            <div>T5 Sessions: {getT5Sessions()}/3 ({isT5Complete() ? 'Complete' : 'Incomplete'})</div>
-            <div>User Profile ID: {userProfile?.userId?.substring(0, 8)}...</div>
-            <div>T1 Intro Seen: {userProfile?.stageProgress?.completedStageIntros?.includes('t1-intro') ? 'Yes' : 'No'}</div>
+            <div>T1: {getT1Sessions()}/3 ({isT1Complete() ? 'Complete' : 'Incomplete'})</div>
+            <div>T2: {getT2Sessions()}/3 ({isT2Complete() ? 'Complete' : 'Incomplete'})</div>
+            <div>T3: {getT3Sessions()}/3 ({isT3Complete() ? 'Complete' : 'Incomplete'})</div>
+            <div>T4: {getT4Sessions()}/3 ({isT4Complete() ? 'Complete' : 'Incomplete'})</div>
+            <div>T5: {getT5Sessions()}/3 ({isT5Complete() ? 'Complete' : 'Incomplete'})</div>
+            <div><strong>Stage 1 Hours: {getStage1Hours().toFixed(2)}/5.0</strong></div>
+            <div><strong>Stage 1 Complete: {isStage1CompleteByHours() ? 'Yes' : 'No'}</strong></div>
+            <div><strong>Total Hours: {getTotalPracticeHours().toFixed(2)}</strong></div>
+            <div><strong>Current Stage: {getCurrentStageByHours()}</strong></div>
+            <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
           </div>
         )}
       </div>

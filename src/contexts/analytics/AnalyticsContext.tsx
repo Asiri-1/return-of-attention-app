@@ -1,4 +1,6 @@
-// src/contexts/analytics/AnalyticsContext.tsx
+// ✅ YOUR ORIGINAL CODE + 2 MINOR FIXES
+// File: src/contexts/analytics/AnalyticsContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { usePractice } from '../practice/PracticeContext';
@@ -333,27 +335,55 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const presentPercentage = totalCounts > 0 ? Math.round((timeDistribution.present / totalCounts) * 100) : 0;
     const neutralPercentage = totalCounts > 0 ? Math.round((emotionalDistribution.neutral / totalCounts) * 100) : 0;
 
-    // Calculate trends
+    // ✅ FIX 1: Simplified trend calculation - removed unused variables
     const recentSessions = pahmSessions.slice(-10);
     const earlierSessions = pahmSessions.slice(-20, -10);
     
-    const calculateTrend = (recent: any[], earlier: any[], metric: string) => {
+    const calculateTrend = (recent: any[], earlier: any[], metric: 'present' | 'neutral') => {
       if (recent.length === 0 || earlier.length === 0) return 'stable';
       
-      const recentAvg = recent.reduce((sum, s) => {
-        // ✅ FIXED: Removed unused sessionTotal variable
-        return sum + (metric === 'present' ? timeDistribution.present / pahmSessions.length : 
-                     metric === 'neutral' ? emotionalDistribution.neutral / pahmSessions.length : 0);
+      // Calculate percentage for recent sessions
+      const recentPercent = recent.reduce((sum, session) => {
+        if (!session.pahmCounts) return sum;
+        
+        const sessionTotal = Object.values(session.pahmCounts).reduce((total: number, count: any) => total + (count || 0), 0);
+        if (sessionTotal === 0) return sum;
+        
+        if (metric === 'present') {
+          const presentCount = (session.pahmCounts.present_attachment || 0) + 
+                             (session.pahmCounts.present_neutral || 0) + 
+                             (session.pahmCounts.present_aversion || 0);
+          return sum + (presentCount / sessionTotal) * 100;
+        } else {
+          const neutralCount = (session.pahmCounts.present_neutral || 0) + 
+                             (session.pahmCounts.past_neutral || 0) + 
+                             (session.pahmCounts.future_neutral || 0);
+          return sum + (neutralCount / sessionTotal) * 100;
+        }
       }, 0) / recent.length;
       
-      const earlierAvg = earlier.reduce((sum, s) => {
-        // ✅ FIXED: Removed unused sessionTotal variable
-        return sum + (metric === 'present' ? timeDistribution.present / pahmSessions.length : 
-                     metric === 'neutral' ? emotionalDistribution.neutral / pahmSessions.length : 0);
+      // Calculate percentage for earlier sessions
+      const earlierPercent = earlier.reduce((sum, session) => {
+        if (!session.pahmCounts) return sum;
+        
+        const sessionTotal = Object.values(session.pahmCounts).reduce((total: number, count: any) => total + (count || 0), 0);
+        if (sessionTotal === 0) return sum;
+        
+        if (metric === 'present') {
+          const presentCount = (session.pahmCounts.present_attachment || 0) + 
+                             (session.pahmCounts.present_neutral || 0) + 
+                             (session.pahmCounts.present_aversion || 0);
+          return sum + (presentCount / sessionTotal) * 100;
+        } else {
+          const neutralCount = (session.pahmCounts.present_neutral || 0) + 
+                             (session.pahmCounts.past_neutral || 0) + 
+                             (session.pahmCounts.future_neutral || 0);
+          return sum + (neutralCount / sessionTotal) * 100;
+        }
       }, 0) / earlier.length;
       
-      const difference = recentAvg - earlierAvg;
-      return Math.abs(difference) < 0.05 ? 'stable' : difference > 0 ? 'improving' : 'declining';
+      const difference = recentPercent - earlierPercent;
+      return Math.abs(difference) < 5 ? 'stable' : difference > 0 ? 'improving' : 'declining';
     };
 
     const trends = {
@@ -894,16 +924,27 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const cached = getCachedResult(cacheKey, 10);
     if (cached) return cached;
 
+    // ✅ FIX 2: Added null check for stats
+    const safeStats = stats || {
+      totalSessions: 0,
+      totalMindRecoverySessions: 0,
+      totalMinutes: 0,
+      averageQuality: 0,
+      averagePresentPercentage: 0,
+      currentStreak: 0,
+      longestStreak: 0
+    };
+
     const overview = {
-      totalSessions: stats.totalSessions,
+      totalSessions: safeStats.totalSessions,
       totalMeditationSessions: sessions.filter(s => s.sessionType === 'meditation').length,
-      totalMindRecoverySessions: stats.totalMindRecoverySessions,
-      totalPracticeTime: stats.totalMinutes,
-      averageSessionLength: Math.round(stats.totalMinutes / Math.max(stats.totalSessions, 1)),
-      averageQuality: stats.averageQuality,
-      averagePresentPercentage: stats.averagePresentPercentage,
-      currentStreak: stats.currentStreak,
-      longestStreak: stats.longestStreak,
+      totalMindRecoverySessions: safeStats.totalMindRecoverySessions,
+      totalPracticeTime: safeStats.totalMinutes,
+      averageSessionLength: Math.round(safeStats.totalMinutes / Math.max(safeStats.totalSessions, 1)),
+      averageQuality: safeStats.averageQuality,
+      averagePresentPercentage: safeStats.averagePresentPercentage,
+      currentStreak: safeStats.currentStreak,
+      longestStreak: safeStats.longestStreak,
       consistencyScore: 85, // Calculate based on practice frequency
       progressTrend: 'stable' as const
     };
@@ -926,7 +967,7 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         'Focus on breath awareness in your next session'
       ],
       nextMilestones: [
-        { title: 'Week Warrior', progress: Math.min((stats.currentStreak / 7) * 100, 100), target: 7 }
+        { title: 'Week Warrior', progress: Math.min((safeStats.currentStreak / 7) * 100, 100), target: 7 }
       ],
       practiceOptimization: {
         bestTimeOfDay: 'Morning',
@@ -938,8 +979,8 @@ export const AnalyticsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // Generate predictions
     const predictions = {
-      streakPrediction: { likely: stats.currentStreak + 3, optimistic: stats.currentStreak + 7, confidence: 70 },
-      qualityImprovement: { expectedRating: stats.averageQuality + 0.2, timeframe: '2 weeks', confidence: 65 },
+      streakPrediction: { likely: safeStats.currentStreak + 3, optimistic: safeStats.currentStreak + 7, confidence: 70 },
+      qualityImprovement: { expectedRating: safeStats.averageQuality + 0.2, timeframe: '2 weeks', confidence: 65 },
       stageAdvancement: { nextStage: 2, estimatedTime: '1 month', confidence: 80 }
     };
 

@@ -1,9 +1,65 @@
-// ✅ COMPLETE UserContext with REAL-TIME LISTENERS - TypeScript Fixed
+// ✅ COMPLETE UserContext with REAL-TIME LISTENERS - FULLY FIXED + DATA SANITIZATION
 // File: src/contexts/user/UserContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+
+// ================================
+// 🔧 CRITICAL FIX: Data Sanitization Function for UserContext
+// ================================
+const sanitizeForFirebase = (data: any): any => {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  
+  if (typeof data === 'function') {
+    return '[Function]';
+  }
+  
+  if (data instanceof Date) {
+    return data.toISOString();
+  }
+  
+  if (typeof data === 'object') {
+    if (Array.isArray(data)) {
+      return data.map(item => sanitizeForFirebase(item));
+    }
+    
+    const sanitized: any = {};
+    for (const key in data) {
+      if (data.hasOwnProperty(key)) {
+        try {
+          const value = data[key];
+          
+          // Skip functions and circular references
+          if (typeof value === 'function') {
+            continue;
+          }
+          if (value === data) {
+            continue;
+          }
+          
+          // Handle specific problematic types
+          if (value instanceof Window || value instanceof Document || value instanceof Element) {
+            continue;
+          }
+          
+          // Recursively sanitize nested objects
+          sanitized[key] = sanitizeForFirebase(value);
+        } catch (error) {
+          console.warn(`Skipping problematic field ${key}:`, error);
+          continue;
+        }
+      }
+    }
+    return sanitized;
+  }
+  
+  // Return primitive values as-is
+  return data;
+};
 
 // ✅ FIXED: Complete interfaces with proper index signatures
 interface SessionCounts {
@@ -28,6 +84,7 @@ interface StageHours {
   stage4Hours: number;
   stage5Hours: number;
   stage6Hours: number;
+  totalPracticeHours: number;
   [key: string]: number;
 }
 
@@ -55,12 +112,34 @@ interface LastSessions {
   [key: string]: string | undefined;
 }
 
+// ✅ FIXED: Enhanced stage progression interface
+interface StageProgression {
+  currentStage: number;
+  totalHours?: number;
+  completedStages: number[];
+  stageHours: { [key: string]: number };
+  stageCompletionFlags: { [key: string]: boolean };
+  completedStageIntros: string[];
+  t5Completed?: boolean;
+  devCurrentStage?: string;
+  hourRequirements?: {
+    stage1: 5;
+    stage2: 10;
+    stage3: 15;
+    stage4: 20;
+    stage5: 25;
+    stage6: 30;
+  };
+  lastStageCheck?: Timestamp;
+}
+
 interface UserProfile {
   userId: string;
   displayName: string;
   email: string;
   totalSessions: number;
   totalMinutes: number;
+  totalHours?: number;
   currentStreak: number;
   longestStreak: number;
   averageQuality: number;
@@ -69,17 +148,7 @@ interface UserProfile {
   totalMindRecoveryMinutes?: number;
   averageMindRecoveryRating?: number;
 
-  stageProgress?: {
-    currentStage: number;
-    devCurrentStage?: string;
-    completedStages: number[];
-    stageHours: { [key: string]: number };
-    stageCompletionFlags: { [key: string]: boolean };
-    completedStageIntros: string[];
-    t5Completed?: boolean;
-  };
-
-  // ✅ FIXED: Use typed interfaces
+  stageProgress?: StageProgression;
   sessionCounts?: SessionCounts;
   stageHours?: StageHours;
   stageCompletionStatus?: StageCompletionStatus;
@@ -87,13 +156,14 @@ interface UserProfile {
 
   currentProgress?: {
     currentStage: number;
-    currentTLevel: string;
-    totalSessions: number;
-    totalMinutes: number;
-    longestStreak: number;
-    currentStreak: number;
-    averageQuality: number;
-    averagePresentPercentage: number;
+    currentTLevel?: string;
+    totalSessions?: number;
+    totalMinutes?: number;
+    totalHours?: number;
+    longestStreak?: number;
+    currentStreak?: number;
+    averageQuality?: number;
+    averagePresentPercentage?: number;
   };
 
   preferences?: {
@@ -128,10 +198,16 @@ interface UserContextType {
   markStageComplete: (stage: number) => Promise<void>;
   setT5Completed: (completed: boolean) => Promise<void>;
   
-  // ✅ FIXED: Add missing methods that your existing code uses
   addStageHours: (stage: number, hours: number) => Promise<void>;
   markStageIntroComplete: (stage: string) => Promise<void>;
   syncProfile: () => Promise<void>;
+  
+  // ✅ NEW: Hours-based stage progression methods
+  getTotalPracticeHours: () => number;
+  getCurrentStageByHours: () => number;
+  getStageProgressByHours: (stage: number) => { completed: number; total: number; percentage: number };
+  canAdvanceToStageByHours: (stage: number) => boolean;
+  updateTotalPracticeHours: (hours: number) => Promise<void>;
   
   // Happiness & achievements
   updateHappinessPoints: (points: number) => Promise<void>;
@@ -140,7 +216,7 @@ interface UserContextType {
   getAchievements: () => string[];
   hasAchievement: (achievement: string) => boolean;
   
-  // ✅ T-Level Session Tracking (Stage 1)
+  // T-Level Session Tracking
   getT1Sessions: () => number;
   getT2Sessions: () => number;
   getT3Sessions: () => number;
@@ -157,7 +233,7 @@ interface UserContextType {
   isT4Complete: () => boolean;
   isT5Complete: () => boolean;
   
-  // ✅ Stage Session Tracking (Stages 2-6)
+  // Stage Session Tracking
   getStage2Sessions: () => number;
   getStage3Sessions: () => number;
   getStage4Sessions: () => number;
@@ -169,7 +245,8 @@ interface UserContextType {
   incrementStage5Sessions: () => Promise<number>;
   incrementStage6Sessions: () => Promise<number>;
   
-  // ✅ Hours Tracking (15 hours required for stages 2-6)
+  // Hours Tracking
+  getStage1Hours: () => number;
   getStage2Hours: () => number;
   getStage3Hours: () => number;
   getStage4Hours: () => number;
@@ -177,14 +254,15 @@ interface UserContextType {
   getStage6Hours: () => number;
   addStageHoursDirect: (stageNumber: number, hours: number) => Promise<number>;
   
-  // ✅ Completion Status
+  // Completion Status
+  isStage1CompleteByHours: () => boolean;
   isStage2CompleteByHours: () => boolean;
   isStage3CompleteByHours: () => boolean;
   isStage4CompleteByHours: () => boolean;
   isStage5CompleteByHours: () => boolean;
   isStage6CompleteByHours: () => boolean;
   
-  // ✅ Progress Tracking
+  // Progress Tracking
   getStageProgressPercentage: (stageNumber: number) => number;
   getTotalStage1Sessions: () => number;
   
@@ -201,7 +279,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [achievements, setAchievements] = useState<string[]>([]);
 
-  // ✅ Create default profile with all session tracking fields
+  // ✅ FIXED: Create default profile - NO DUPLICATE totalHours
   const createDefaultProfile = useCallback((): UserProfile => {
     return {
       userId: currentUser?.uid || 'guest',
@@ -224,7 +302,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         stageHours: {},
         stageCompletionFlags: {},
         completedStageIntros: [],
-        t5Completed: false
+        t5Completed: false,
+        totalHours: 0,
+        hourRequirements: {
+          stage1: 5,
+          stage2: 10,
+          stage3: 15,
+          stage4: 20,
+          stage5: 25,
+          stage6: 30
+        }
       },
 
       sessionCounts: {
@@ -248,6 +335,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         stage4Hours: 0,
         stage5Hours: 0,
         stage6Hours: 0,
+        totalPracticeHours: 0,
       },
       
       stageCompletionStatus: {
@@ -269,7 +357,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         longestStreak: 0,
         currentStreak: 0,
         averageQuality: 0,
-        averagePresentPercentage: 0
+        averagePresentPercentage: 0,
+        totalHours: 0
       },
 
       preferences: {
@@ -287,18 +376,25 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       happiness_points: 0,
       achievements: ['journey_started'],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      totalHours: 0  // ✅ FIXED: Single totalHours at profile level
     };
   }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
 
-  // ✅ Enhanced Firebase save with proper error handling
+  // ✅ CRITICAL: Firebase save with AUTHENTICATION GUARD and DATA SANITIZATION
   const saveToFirebase = useCallback(async (profile: UserProfile) => {
+    // ✅ CRITICAL: Authentication guard
     if (!currentUser?.uid) {
-      console.warn('⚠️ Cannot save to Firebase: No current user');
+      console.warn('⚠️ Cannot save to Firebase: No authenticated user');
       return;
     }
 
     try {
+      const stageHours = profile.stageHours || {} as StageHours;
+      const totalPracticeHours = Object.keys(stageHours)
+        .filter(key => key.startsWith('stage') && key.endsWith('Hours') && key !== 'totalPracticeHours')
+        .reduce((sum, key) => sum + (stageHours[key] || 0), 0);
+
       const cleanProfile = {
         ...profile,
         userId: currentUser.uid,
@@ -325,6 +421,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           stage4Hours: 0,
           stage5Hours: 0,
           stage6Hours: 0,
+          totalPracticeHours,
           ...(profile.stageHours || {})
         },
         
@@ -338,14 +435,49 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...(profile.stageCompletionStatus || {})
         },
         
+        stageProgress: {
+          currentStage: 1,
+          devCurrentStage: 'stage1',
+          completedStages: [],
+          stageHours: {},
+          stageCompletionFlags: {},
+          completedStageIntros: [],
+          t5Completed: false,
+          ...profile.stageProgress,
+          totalHours: totalPracticeHours,
+          hourRequirements: {
+            stage1: 5,
+            stage2: 10,
+            stage3: 15,
+            stage4: 20,
+            stage5: 25,
+            stage6: 30
+          }
+        },
+        
+        currentProgress: {
+          currentStage: 1,
+          currentTLevel: "Beginner",
+          totalSessions: 0,
+          totalMinutes: 0,
+          longestStreak: 0,
+          currentStreak: 0,
+          averageQuality: 0,
+          averagePresentPercentage: 0,
+          ...profile.currentProgress,
+          totalHours: totalPracticeHours
+        },
+        
         lastSessions: profile.lastSessions || {},
-        lastUpdated: serverTimestamp()
+        lastUpdated: serverTimestamp(),
+        totalHours: totalPracticeHours  // ✅ FIXED: Single totalHours at end
       };
+
+      // ✅ CRITICAL: Sanitize data before saving to Firebase
+      const sanitizedProfile = sanitizeForFirebase(cleanProfile);
       
-      await setDoc(doc(db, 'userProfiles', currentUser.uid), cleanProfile, { merge: true });
+      await setDoc(doc(db, 'userProfiles', currentUser.uid), sanitizedProfile, { merge: true });
       console.log(`✅ User profile saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
-      console.log('🔍 Saved session counts:', cleanProfile.sessionCounts);
-      console.log('🔍 Saved stage hours:', cleanProfile.stageHours);
       
     } catch (error) {
       console.error('❌ Failed to save user profile to Firebase:', error);
@@ -353,9 +485,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser?.uid]);
 
-  // ✅ NEW: Real-time listener for user profile (like WellnessContext)
+  // ✅ CRITICAL: Real-time listener with AUTHENTICATION GUARD
   useEffect(() => {
+    // ✅ CRITICAL: Authentication guard - Exit early if no user
     if (!currentUser?.uid) {
+      console.log('❌ No authenticated user in UserContext - clearing profile');
       setUserProfile(null);
       setAchievements([]);
       setIsLoading(false);
@@ -367,98 +501,234 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const userDocRef = doc(db, 'userProfiles', currentUser.uid);
 
-    // ✅ Real-time listener for user profile
-    const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        const data = docSnapshot.data() as UserProfile;
-        
-        const migratedProfile: UserProfile = {
-          ...data,
-          createdAt: data.createdAt || new Date().toISOString(),
-          updatedAt: data.updatedAt || new Date().toISOString(),
-          
-          sessionCounts: {
-            t1Sessions: 0,
-            t2Sessions: 0,
-            t3Sessions: 0,
-            t4Sessions: 0,
-            t5Sessions: 0,
-            stage1TotalSessions: 0,
-            stage2TotalSessions: 0,
-            stage3TotalSessions: 0,
-            stage4TotalSessions: 0,
-            stage5TotalSessions: 0,
-            stage6TotalSessions: 0,
-            ...(data.sessionCounts || {})
-          },
-          
-          stageHours: {
-            stage1Hours: 0,
-            stage2Hours: 0,
-            stage3Hours: 0,
-            stage4Hours: 0,
-            stage5Hours: 0,
-            stage6Hours: 0,
-            ...(data.stageHours || {})
-          },
-          
-          stageCompletionStatus: {
-            stage1Complete: false,
-            stage2Complete: false,
-            stage3Complete: false,
-            stage4Complete: false,
-            stage5Complete: false,
-            stage6Complete: false,
-            ...(data.stageCompletionStatus || {})
-          },
-          
-          lastSessions: data.lastSessions || {}
-        };
-        
-        setUserProfile(migratedProfile);
-        setAchievements(migratedProfile.achievements || ['journey_started']);
-        setIsLoading(false);
-        
-        console.log(`🔄 Real-time user profile update for user ${currentUser.uid.substring(0, 8)}...`);
-        console.log('🔍 Updated session counts:', migratedProfile.sessionCounts);
-        console.log('🔍 Updated stage hours:', migratedProfile.stageHours);
-        console.log('🔍 T5 Complete:', (migratedProfile.sessionCounts?.t5Sessions || 0) >= 3);
-        
-        // ✅ Auto-migrate if needed - using migratedProfile for safety
-        if (!migratedProfile.sessionCounts || 
-            !migratedProfile.stageHours || 
-            !migratedProfile.stageCompletionStatus ||
-            (migratedProfile.sessionCounts.t5Sessions === undefined)) {
-          console.log('🔄 Migrating profile to new format...');
-          saveToFirebase(migratedProfile);
+    const unsubscribe = onSnapshot(userDocRef, 
+      (docSnapshot) => {
+        try {
+          if (docSnapshot.exists()) {
+            const data = docSnapshot.data() as UserProfile;
+            
+            const stageHours = data.stageHours || {} as StageHours;
+            const totalPracticeHours = Object.keys(stageHours)
+              .filter(key => key.startsWith('stage') && key.endsWith('Hours') && key !== 'totalPracticeHours')
+              .reduce((sum, key) => sum + (stageHours[key] || 0), 0);
+
+            const migratedProfile: UserProfile = {
+              ...data,
+              createdAt: data.createdAt || new Date().toISOString(),
+              updatedAt: data.updatedAt || new Date().toISOString(),
+              
+              sessionCounts: {
+                t1Sessions: 0,
+                t2Sessions: 0,
+                t3Sessions: 0,
+                t4Sessions: 0,
+                t5Sessions: 0,
+                stage1TotalSessions: 0,
+                stage2TotalSessions: 0,
+                stage3TotalSessions: 0,
+                stage4TotalSessions: 0,
+                stage5TotalSessions: 0,
+                stage6TotalSessions: 0,
+                ...(data.sessionCounts || {})
+              },
+              
+              stageHours: {
+                stage1Hours: 0,
+                stage2Hours: 0,
+                stage3Hours: 0,
+                stage4Hours: 0,
+                stage5Hours: 0,
+                stage6Hours: 0,
+                totalPracticeHours,
+                ...(data.stageHours || {})
+              },
+              
+              stageCompletionStatus: {
+                stage1Complete: false,
+                stage2Complete: false,
+                stage3Complete: false,
+                stage4Complete: false,
+                stage5Complete: false,
+                stage6Complete: false,
+                ...(data.stageCompletionStatus || {})
+              },
+              
+              stageProgress: {
+                currentStage: 1,
+                devCurrentStage: 'stage1',
+                completedStages: [],
+                stageHours: {},
+                stageCompletionFlags: {},
+                completedStageIntros: [],
+                t5Completed: false,
+                ...data.stageProgress,
+                totalHours: totalPracticeHours,
+                hourRequirements: {
+                  stage1: 5,
+                  stage2: 10,
+                  stage3: 15,
+                  stage4: 20,
+                  stage5: 25,
+                  stage6: 30
+                }
+              },
+              
+              currentProgress: {
+                currentStage: 1,
+                currentTLevel: "Beginner",
+                totalSessions: 0,
+                totalMinutes: 0,
+                longestStreak: 0,
+                currentStreak: 0,
+                averageQuality: 0,
+                averagePresentPercentage: 0,
+                ...data.currentProgress,
+                totalHours: totalPracticeHours
+              },
+              
+              lastSessions: data.lastSessions || {},
+              totalHours: totalPracticeHours  // ✅ FIXED: Single totalHours
+            };
+            
+            setUserProfile(migratedProfile);
+            setAchievements(migratedProfile.achievements || ['journey_started']);
+            setIsLoading(false);
+            
+            console.log(`🔄 Real-time user profile update for user ${currentUser.uid.substring(0, 8)}...`);
+            
+            const needsMigration = !migratedProfile.totalHours || 
+                                  !migratedProfile.stageProgress?.hourRequirements ||
+                                  !migratedProfile.currentProgress?.totalHours;
+            
+            if (needsMigration) {
+              console.log('🔄 Migrating profile to hours-based progression...');
+              saveToFirebase(migratedProfile);
+            }
+            
+          } else {
+            console.log(`🆕 Creating new profile for user ${currentUser.uid.substring(0, 8)}...`);
+            const defaultProfile = createDefaultProfile();
+            saveToFirebase(defaultProfile);
+            setUserProfile(defaultProfile);
+            setAchievements(defaultProfile.achievements || ['journey_started']);
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.error('❌ Error processing user profile update:', error);
+          setIsLoading(false);
         }
-        
-      } else {
-        console.log(`🆕 Creating new profile for user ${currentUser.uid.substring(0, 8)}...`);
-        const defaultProfile = createDefaultProfile();
-        saveToFirebase(defaultProfile);
-        setUserProfile(defaultProfile);
-        setAchievements(defaultProfile.achievements || ['journey_started']);
+      }, 
+      (error) => {
+        console.error('❌ Firebase user profile listener error:', error);
         setIsLoading(false);
       }
-    }, (error) => {
-      console.error('❌ Firebase user profile listener error:', error);
-      setIsLoading(false);
-    });
+    );
 
     return () => {
       unsubscribe();
     };
   }, [currentUser?.uid, createDefaultProfile, saveToFirebase]);
 
-  // ✅ FIXED: Core session counting logic - TypeScript safe with proper typing
+  // ✅ Hours-based methods
+  const getTotalPracticeHours = useCallback((): number => {
+    return userProfile?.totalHours || userProfile?.stageHours?.totalPracticeHours || 0;
+  }, [userProfile]);
+
+  const getCurrentStageByHours = useCallback((): number => {
+    const totalHours = getTotalPracticeHours();
+    
+    if (totalHours >= 30) return 6;
+    if (totalHours >= 25) return 5;
+    if (totalHours >= 20) return 4;
+    if (totalHours >= 15) return 3;
+    if (totalHours >= 10) return 2;
+    if (totalHours >= 5) return 2;
+    return 1;
+  }, [getTotalPracticeHours]);
+
+  const getStageProgressByHours = useCallback((stage: number): { completed: number; total: number; percentage: number } => {
+    const totalHours = getTotalPracticeHours();
+    
+    const stageRequirements: { [key: number]: number } = {
+      1: 5, 2: 10, 3: 15, 4: 20, 5: 25, 6: 30
+    };
+    
+    const required = stageRequirements[stage] || 10;
+    const completed = Math.min(totalHours, required);
+    const percentage = Math.min(Math.round((completed / required) * 100), 100);
+    
+    return { 
+      completed: Math.round(completed * 10) / 10,
+      total: required, 
+      percentage 
+    };
+  }, [getTotalPracticeHours]);
+
+  const canAdvanceToStageByHours = useCallback((targetStage: number): boolean => {
+    const totalHours = getTotalPracticeHours();
+    
+    const unlockRequirements: { [key: number]: number } = {
+      1: 0, 2: 5, 3: 10, 4: 15, 5: 20, 6: 25
+    };
+    
+    const requiredHours = unlockRequirements[targetStage] || 0;
+    return totalHours >= requiredHours;
+  }, [getTotalPracticeHours]);
+
+  // ✅ CRITICAL: updateTotalPracticeHours with AUTHENTICATION GUARD
+  const updateTotalPracticeHours = useCallback(async (hours: number) => {
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid || !userProfile) {
+      console.warn('⚠️ Cannot update practice hours - no authenticated user or profile');
+      return;
+    }
+    
+    const updatedProfile: UserProfile = {
+      ...userProfile,
+      stageHours: {
+        ...userProfile.stageHours,
+        totalPracticeHours: hours
+      } as StageHours,
+      stageProgress: {
+        currentStage: 1,
+        devCurrentStage: 'stage1',
+        completedStages: [],
+        stageHours: {},
+        stageCompletionFlags: {},
+        completedStageIntros: [],
+        t5Completed: false,
+        ...userProfile.stageProgress,
+        totalHours: hours
+      },
+      currentProgress: {
+        currentStage: 1,
+        currentTLevel: "Beginner",
+        totalSessions: 0,
+        totalMinutes: 0,
+        longestStreak: 0,
+        currentStreak: 0,
+        averageQuality: 0,
+        averagePresentPercentage: 0,
+        ...userProfile.currentProgress,
+        totalHours: hours
+      },
+      updatedAt: new Date().toISOString(),
+      totalHours: hours  // ✅ FIXED: Single totalHours at end
+    };
+    
+    await saveToFirebase(updatedProfile);
+  }, [currentUser?.uid, userProfile, saveToFirebase]);
+
+  // ✅ Session counting methods with AUTHENTICATION GUARD
   const updateSessionCount = useCallback(async (level: string, increment: number = 1) => {
-    if (!userProfile) return 0;
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid || !userProfile) {
+      console.warn('⚠️ Cannot update session count - no authenticated user or profile');
+      return 0;
+    }
 
     const sessionKey = `${level.toLowerCase()}Sessions`;
     const lastSessionKey = `last${level.charAt(0).toUpperCase() + level.slice(1)}Session`;
-    
-    console.log(`📊 Updating ${level} session count by ${increment}`);
     
     const currentSessionCounts = userProfile.sessionCounts || {} as SessionCounts;
     const currentCount = currentSessionCounts[sessionKey] || 0;
@@ -469,19 +739,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       [sessionKey]: newCount,
     };
 
-    // Update stage totals
     if (level.startsWith('t')) {
-      newSessionCounts.stage1TotalSessions = currentSessionCounts.stage1TotalSessions + increment;
+      newSessionCounts.stage1TotalSessions = (currentSessionCounts.stage1TotalSessions || 0) + increment;
     } else if (level === 'stage2') {
-      newSessionCounts.stage2TotalSessions = currentSessionCounts.stage2TotalSessions + increment;
+      newSessionCounts.stage2TotalSessions = (currentSessionCounts.stage2TotalSessions || 0) + increment;
     } else if (level === 'stage3') {
-      newSessionCounts.stage3TotalSessions = currentSessionCounts.stage3TotalSessions + increment;
+      newSessionCounts.stage3TotalSessions = (currentSessionCounts.stage3TotalSessions || 0) + increment;
     } else if (level === 'stage4') {
-      newSessionCounts.stage4TotalSessions = currentSessionCounts.stage4TotalSessions + increment;
+      newSessionCounts.stage4TotalSessions = (currentSessionCounts.stage4TotalSessions || 0) + increment;
     } else if (level === 'stage5') {
-      newSessionCounts.stage5TotalSessions = currentSessionCounts.stage5TotalSessions + increment;
+      newSessionCounts.stage5TotalSessions = (currentSessionCounts.stage5TotalSessions || 0) + increment;
     } else if (level === 'stage6') {
-      newSessionCounts.stage6TotalSessions = currentSessionCounts.stage6TotalSessions + increment;
+      newSessionCounts.stage6TotalSessions = (currentSessionCounts.stage6TotalSessions || 0) + increment;
     }
 
     const newLastSessions: LastSessions = {
@@ -497,14 +766,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
 
-    console.log(`✅ ${level} sessions: ${currentCount} → ${newCount}`);
-    
-    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
-    console.log('🔄 Real-time listener will update UI automatically...');
-    
     return newCount;
-  }, [userProfile, saveToFirebase]);
+  }, [currentUser?.uid, userProfile, saveToFirebase]);
 
   const getSessionCount = useCallback((level: string): number => {
     const sessionKey = `${level.toLowerCase()}Sessions`;
@@ -512,7 +776,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return sessionCounts[sessionKey] || 0;
   }, [userProfile]);
 
-  // ✅ T-Level Session Methods (Stage 1)
+  // T-Level methods
   const getT1Sessions = useCallback(() => getSessionCount('t1'), [getSessionCount]);
   const getT2Sessions = useCallback(() => getSessionCount('t2'), [getSessionCount]);
   const getT3Sessions = useCallback(() => getSessionCount('t3'), [getSessionCount]);
@@ -531,7 +795,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isT4Complete = useCallback(() => getT4Sessions() >= 3, [getT4Sessions]);
   const isT5Complete = useCallback(() => getT5Sessions() >= 3, [getT5Sessions]);
 
-  // ✅ Stage Session Methods (Stages 2-6)
+  // Stage methods
   const getStage2Sessions = useCallback(() => getSessionCount('stage2'), [getSessionCount]);
   const getStage3Sessions = useCallback(() => getSessionCount('stage3'), [getSessionCount]);
   const getStage4Sessions = useCallback(() => getSessionCount('stage4'), [getSessionCount]);
@@ -544,26 +808,37 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const incrementStage5Sessions = useCallback(() => updateSessionCount('stage5'), [updateSessionCount]);
   const incrementStage6Sessions = useCallback(() => updateSessionCount('stage6'), [updateSessionCount]);
 
-  // ✅ FIXED: Hours tracking for 15-hour requirements
+  // ✅ CRITICAL: addStageHoursDirect with AUTHENTICATION GUARD
   const addStageHoursDirect = useCallback(async (stageNumber: number, hoursToAdd: number) => {
-    if (!userProfile) return 0;
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid || !userProfile) {
+      console.warn('⚠️ Cannot add stage hours - no authenticated user or profile');
+      return 0;
+    }
 
     const stageKey = `stage${stageNumber}Hours`;
     const completionKey = `stage${stageNumber}Complete`;
-    
-    console.log(`⏱️ Adding ${hoursToAdd} hours to Stage ${stageNumber}`);
     
     const currentStageHours = userProfile.stageHours || {} as StageHours;
     const currentHours = currentStageHours[stageKey] || 0;
     const newHours = currentHours + hoursToAdd;
     
-    const requiredHours = stageNumber === 1 ? 0 : 15;
+    const hourRequirements = userProfile.stageProgress?.hourRequirements || {
+      stage1: 5, stage2: 10, stage3: 15, stage4: 20, stage5: 25, stage6: 30
+    };
+    const requiredHours = hourRequirements[`stage${stageNumber}` as keyof typeof hourRequirements] || 15;
     const isComplete = newHours >= requiredHours;
     
     const newStageHours: StageHours = {
       ...currentStageHours,
       [stageKey]: newHours
     };
+    
+    const totalPracticeHours = Object.keys(newStageHours)
+      .filter(key => key.startsWith('stage') && key.endsWith('Hours') && key !== 'totalPracticeHours')
+      .reduce((sum, key) => sum + (newStageHours[key] || 0), 0);
+    
+    newStageHours.totalPracticeHours = totalPracticeHours;
 
     const currentCompletionStatus = userProfile.stageCompletionStatus || {} as StageCompletionStatus;
     const newCompletionStatus: StageCompletionStatus = {
@@ -575,17 +850,36 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...userProfile,
       stageHours: newStageHours,
       stageCompletionStatus: newCompletionStatus,
-      updatedAt: new Date().toISOString()
+      stageProgress: {
+        currentStage: 1,
+        devCurrentStage: 'stage1',
+        completedStages: [],
+        stageHours: {},
+        stageCompletionFlags: {},
+        completedStageIntros: [],
+        t5Completed: false,
+        ...userProfile.stageProgress,
+        totalHours: totalPracticeHours
+      },
+      currentProgress: {
+        currentStage: 1,
+        currentTLevel: "Beginner",
+        totalSessions: 0,
+        totalMinutes: 0,
+        longestStreak: 0,
+        currentStreak: 0,
+        averageQuality: 0,
+        averagePresentPercentage: 0,
+        ...userProfile.currentProgress,
+        totalHours: totalPracticeHours
+      },
+      updatedAt: new Date().toISOString(),
+      totalHours: totalPracticeHours  // ✅ FIXED: Single totalHours at end
     };
 
-    console.log(`✅ Stage ${stageNumber} hours: ${currentHours} → ${newHours} (Complete: ${isComplete})`);
-    
-    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
-    console.log('🔄 Real-time listener will update UI automatically...');
-    
     return newHours;
-  }, [userProfile, saveToFirebase]);
+  }, [currentUser?.uid, userProfile, saveToFirebase]);
 
   const getStageHours = useCallback((stageNumber: number): number => {
     const stageKey = `stage${stageNumber}Hours`;
@@ -593,6 +887,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return stageHours[stageKey] || 0;
   }, [userProfile]);
 
+  const getStage1Hours = useCallback(() => getStageHours(1), [getStageHours]);
   const getStage2Hours = useCallback(() => getStageHours(2), [getStageHours]);
   const getStage3Hours = useCallback(() => getStageHours(3), [getStageHours]);
   const getStage4Hours = useCallback(() => getStageHours(4), [getStageHours]);
@@ -609,13 +904,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return completionStatus[completionKey] || false;
   }, [userProfile, isT5Complete]);
 
+  const isStage1CompleteByHours = useCallback(() => isStageCompleteByHours(1), [isStageCompleteByHours]);
   const isStage2CompleteByHours = useCallback(() => isStageCompleteByHours(2), [isStageCompleteByHours]);
   const isStage3CompleteByHours = useCallback(() => isStageCompleteByHours(3), [isStageCompleteByHours]);
   const isStage4CompleteByHours = useCallback(() => isStageCompleteByHours(4), [isStageCompleteByHours]);
   const isStage5CompleteByHours = useCallback(() => isStageCompleteByHours(5), [isStageCompleteByHours]);
   const isStage6CompleteByHours = useCallback(() => isStageCompleteByHours(6), [isStageCompleteByHours]);
 
-  // ✅ Progress tracking
   const getStageProgressPercentage = useCallback((stageNumber: number): number => {
     if (stageNumber === 1) {
       const t1 = isT1Complete() ? 1 : getT1Sessions() / 3;
@@ -626,18 +921,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return Math.round(((t1 + t2 + t3 + t4 + t5) / 5) * 100);
     } else {
       const hours = getStageHours(stageNumber);
-      return Math.min(Math.round((hours / 15) * 100), 100);
+      const hourRequirements = userProfile?.stageProgress?.hourRequirements || {
+        stage1: 5, stage2: 10, stage3: 15, stage4: 20, stage5: 25, stage6: 30
+      };
+      const required = hourRequirements[`stage${stageNumber}` as keyof typeof hourRequirements] || 15;
+      return Math.min(Math.round((hours / required) * 100), 100);
     }
   }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions, 
-      isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete, getStageHours]);
+      isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete, 
+      getStageHours, userProfile]);
 
   const getTotalStage1Sessions = useCallback((): number => {
     return getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions();
   }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions]);
 
-  // ✅ FIXED: Core profile methods with NO immediate state updates
+  // Profile methods with AUTHENTICATION GUARD
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
-    if (!userProfile) return;
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid || !userProfile) {
+      console.warn('⚠️ Cannot update profile - no authenticated user or profile');
+      return;
+    }
     
     const updatedProfile: UserProfile = {
       ...userProfile,
@@ -645,9 +949,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
-  }, [userProfile, saveToFirebase]);
+  }, [currentUser?.uid, userProfile, saveToFirebase]);
 
   const updatePreferences = useCallback(async (preferences: Partial<UserProfile['preferences']>) => {
     if (!userProfile) return;
@@ -670,7 +973,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -694,7 +996,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -717,7 +1018,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     
-    // ✅ NO IMMEDIATE STATE UPDATE - Real-time listener will handle this
     await saveToFirebase(updatedProfile);
   }, [userProfile, saveToFirebase]);
 
@@ -736,7 +1036,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateStageProgress({ t5Completed: completed });
   }, [updateStageProgress]);
 
-  // ✅ FIXED: Add missing methods that your existing code uses
   const addStageHours = useCallback(async (stage: number, hours: number) => {
     await addStageHoursDirect(stage, hours);
   }, [addStageHoursDirect]);
@@ -783,7 +1082,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearUserData = useCallback(async () => {
     const defaultProfile = createDefaultProfile();
     await saveToFirebase(defaultProfile);
-    // Real-time listener will update state automatically
   }, [createDefaultProfile, saveToFirebase]);
 
   const exportUserData = useCallback(() => userProfile, [userProfile]);
@@ -793,7 +1091,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     achievements,
     
-    // Core methods
     updateProfile,
     updatePreferences,
     updateProgress,
@@ -801,19 +1098,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     markStageComplete,
     setT5Completed,
     
-    // Missing methods
     addStageHours,
     markStageIntroComplete,
     syncProfile,
     
-    // Happiness & achievements
+    getTotalPracticeHours,
+    getCurrentStageByHours,
+    getStageProgressByHours,
+    canAdvanceToStageByHours,
+    updateTotalPracticeHours,
+    
     updateHappinessPoints,
     addHappinessPoints,
     addAchievement,
     getAchievements,
     hasAchievement,
     
-    // T-Level tracking
     getT1Sessions,
     getT2Sessions,
     getT3Sessions,
@@ -830,7 +1130,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isT4Complete,
     isT5Complete,
     
-    // Stage tracking
     getStage2Sessions,
     getStage3Sessions,
     getStage4Sessions,
@@ -842,7 +1141,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     incrementStage5Sessions,
     incrementStage6Sessions,
     
-    // Hours tracking
+    getStage1Hours,
     getStage2Hours,
     getStage3Hours,
     getStage4Hours,
@@ -850,32 +1149,31 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getStage6Hours,
     addStageHoursDirect,
     
-    // Completion status
+    isStage1CompleteByHours,
     isStage2CompleteByHours,
     isStage3CompleteByHours,
     isStage4CompleteByHours,
     isStage5CompleteByHours,
     isStage6CompleteByHours,
     
-    // Progress tracking
     getStageProgressPercentage,
     getTotalStage1Sessions,
     
-    // Utility
     clearUserData,
     exportUserData
   }), [
     userProfile, isLoading, achievements,
     updateProfile, updatePreferences, updateProgress, updateStageProgress, markStageComplete, setT5Completed,
     addStageHours, markStageIntroComplete, syncProfile,
+    getTotalPracticeHours, getCurrentStageByHours, getStageProgressByHours, canAdvanceToStageByHours, updateTotalPracticeHours,
     updateHappinessPoints, addHappinessPoints, addAchievement, getAchievements, hasAchievement,
     getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
     incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, incrementT4Sessions, incrementT5Sessions,
     isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
     getStage2Sessions, getStage3Sessions, getStage4Sessions, getStage5Sessions, getStage6Sessions,
     incrementStage2Sessions, incrementStage3Sessions, incrementStage4Sessions, incrementStage5Sessions, incrementStage6Sessions,
-    getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours, addStageHoursDirect,
-    isStage2CompleteByHours, isStage3CompleteByHours, isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours,
+    getStage1Hours, getStage2Hours, getStage3Hours, getStage4Hours, getStage5Hours, getStage6Hours, addStageHoursDirect,
+    isStage1CompleteByHours, isStage2CompleteByHours, isStage3CompleteByHours, isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours,
     getStageProgressPercentage, getTotalStage1Sessions,
     clearUserData, exportUserData
   ]);

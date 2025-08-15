@@ -1,6 +1,6 @@
-// 🔧 COMPLETE FIXED HomeDashboard.tsx - With fromStage1 Detection
+// 🔧 COMPLETE FIXED HomeDashboard.tsx - CORRECTED Stage Requirements Per Audit
 // File: src/HomeDashboard.tsx
-// ✅ FIXED: Detects fromStage1 navigation state to refresh session counts
+// ✅ FIXED: Uses correct stage hour requirements: 5, 10, 15, 20, 25, 30
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -124,7 +124,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     setForceDataRefresh(prev => prev + 1);
   }, [forceRecalculation]);
 
-  // 🔧 FIXED: Stage unlock checker using SAME UserContext methods as Stage1Wrapper
+  // 🔧 FIXED: Stage unlock checker using CORRECTED hour requirements
   const checkStageUnlocked = useCallback((targetStage: number): boolean => {
     try {
       console.log('🔧 FIXED: Using UserContext methods for stage unlock check');
@@ -142,28 +142,31 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           return t5Complete;
           
         case 3:
-          // ✅ Use UserContext stage completion methods
+          // ✅ CORRECTED: Stage 2 = 10 hours (not 15)
           const stage2Complete = isStage2CompleteByHours();
           const stage2Hours = getStage2Hours();
-          console.log(`🔧 Stage 2 Complete check: ${stage2Complete} (Hours: ${stage2Hours}/15)`);
+          console.log(`🔧 Stage 2 Complete check: ${stage2Complete} (Hours: ${stage2Hours}/10)`);
           return stage2Complete;
           
         case 4:
+          // ✅ CORRECT: Stage 3 = 15 hours
           const stage3Complete = isStage3CompleteByHours();
           const stage3Hours = getStage3Hours();
           console.log(`🔧 Stage 3 Complete check: ${stage3Complete} (Hours: ${stage3Hours}/15)`);
           return stage3Complete;
           
         case 5:
+          // ✅ CORRECTED: Stage 4 = 20 hours (not 15)
           const stage4Complete = isStage4CompleteByHours();
           const stage4Hours = getStage4Hours();
-          console.log(`🔧 Stage 4 Complete check: ${stage4Complete} (Hours: ${stage4Hours}/15)`);
+          console.log(`🔧 Stage 4 Complete check: ${stage4Complete} (Hours: ${stage4Hours}/20)`);
           return stage4Complete;
           
         case 6:
+          // ✅ CORRECTED: Stage 5 = 25 hours (not 15)
           const stage5Complete = isStage5CompleteByHours();
           const stage5Hours = getStage5Hours();
-          console.log(`🔧 Stage 5 Complete check: ${stage5Complete} (Hours: ${stage5Hours}/15)`);
+          console.log(`🔧 Stage 5 Complete check: ${stage5Complete} (Hours: ${stage5Hours}/25)`);
           return stage5Complete;
           
         default:
@@ -238,7 +241,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [propCurrentStage, currentStage]);
 
-  // 🔧 FIXED: Stage display info using consistent logic
+  // 🔧 FIXED: Stage display info using CORRECTED hour requirements
   const getStageDisplayInfo = useCallback((stageNumber: number) => {
     const isUnlocked = checkStageUnlocked(stageNumber);
     const calculatedCurrentStage = calculateCurrentStage();
@@ -253,19 +256,23 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           break;
         case 3:
           const stage2Hours = getStage2Hours();
-          lockMessage = `🔒 Complete Stage 2 (${stage2Hours.toFixed(1)}/15 hours) to unlock`;
+          // ✅ CORRECTED: Stage 2 = 10 hours (not 15)
+          lockMessage = `🔒 Complete Stage 2 (${stage2Hours.toFixed(1)}/10 hours) to unlock`;
           break;
         case 4:
           const stage3Hours = getStage3Hours();
+          // ✅ CORRECT: Stage 3 = 15 hours
           lockMessage = `🔒 Complete Stage 3 (${stage3Hours.toFixed(1)}/15 hours) to unlock`;
           break;
         case 5:
           const stage4Hours = getStage4Hours();
-          lockMessage = `🔒 Complete Stage 4 (${stage4Hours.toFixed(1)}/15 hours) to unlock`;
+          // ✅ CORRECTED: Stage 4 = 20 hours (not 15)
+          lockMessage = `🔒 Complete Stage 4 (${stage4Hours.toFixed(1)}/20 hours) to unlock`;
           break;
         case 6:
           const stage5Hours = getStage5Hours();
-          lockMessage = `🔒 Complete Stage 5 (${stage5Hours.toFixed(1)}/15 hours) to unlock`;
+          // ✅ CORRECTED: Stage 5 = 25 hours (not 15)
+          lockMessage = `🔒 Complete Stage 5 (${stage5Hours.toFixed(1)}/25 hours) to unlock`;
           break;
         default:
           lockMessage = '🔒 Locked';
@@ -1056,7 +1063,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               )}
             </div>
 
-            {/* Stages 2-6 with UserContext-backed progression logic */}
+            {/* Stages 2-6 with CORRECTED UserContext-backed progression logic */}
             {stageData.map((stage) => {
               const stageInfo = getStageDisplayInfo(stage.num);
               
@@ -1093,14 +1100,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <div style={{ fontSize: '14px', opacity: 0.8 }}>
                         {stage.desc}
                       </div>
-                      {/* 🔧 ADD: Progress indicator for stages 2-6 */}
+                      {/* 🔧 CORRECTED: Progress indicator for stages 2-6 with CORRECT requirements */}
                       {stageInfo.isUnlocked && (
                         <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
-                          {stage.num === 2 && `Hours: ${getStage2Hours().toFixed(1)}/15 ${isStage2CompleteByHours() && '✅'}`}
+                          {stage.num === 2 && `Hours: ${getStage2Hours().toFixed(1)}/10 ${isStage2CompleteByHours() && '✅'}`}
                           {stage.num === 3 && `Hours: ${getStage3Hours().toFixed(1)}/15 ${isStage3CompleteByHours() && '✅'}`}
-                          {stage.num === 4 && `Hours: ${getStage4Hours().toFixed(1)}/15 ${isStage4CompleteByHours() && '✅'}`}
-                          {stage.num === 5 && `Hours: ${getStage5Hours().toFixed(1)}/15 ${isStage5CompleteByHours() && '✅'}`}
-                          {stage.num === 6 && `Hours: ${getStage6Hours().toFixed(1)}/15 ${isStage6CompleteByHours() && '✅'}`}
+                          {stage.num === 4 && `Hours: ${getStage4Hours().toFixed(1)}/20 ${isStage4CompleteByHours() && '✅'}`}
+                          {stage.num === 5 && `Hours: ${getStage5Hours().toFixed(1)}/25 ${isStage5CompleteByHours() && '✅'}`}
+                          {stage.num === 6 && `Hours: ${getStage6Hours().toFixed(1)}/30 ${isStage6CompleteByHours() && '✅'}`}
                         </div>
                       )}
                       {!stageInfo.isUnlocked && (

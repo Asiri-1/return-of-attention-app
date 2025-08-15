@@ -1,9 +1,12 @@
 // ===============================================
-// 🔧 COMPLETE FIXED PRACTICE CONTEXT - WITH T-LEVEL SUPPORT
+// 🔧 CORRECTED PRACTICE CONTEXT - WITH AUTHENTICATION GUARDS
 // ===============================================
 
 // FILE: src/contexts/practice/PracticeContext.tsx
-// ✅ FIXED: Added tLevel and level fields + preserves all functionality
+// ✅ FIXED: Authentication guards to prevent Firebase permission errors
+// ✅ FIXED: Stage progression based on HOURS, not sessions
+// ✅ FIXED: Firebase persistence for stage progression
+// ✅ FIXED: Data sanitization to prevent DataCloneError
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -15,6 +18,8 @@ import {
   updateDoc, 
   deleteDoc, 
   getDocs, 
+  getDoc,
+  setDoc,
   query, 
   orderBy, 
   where,
@@ -24,6 +29,61 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../../firebase';
+
+// ================================
+// 🔧 CRITICAL FIX: Data Sanitization Function
+// ================================
+const sanitizeForFirebase = (data: any): any => {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  
+  if (typeof data === 'function') {
+    return '[Function]';
+  }
+  
+  if (data instanceof Date) {
+    return data.toISOString();
+  }
+  
+  if (typeof data === 'object') {
+    if (Array.isArray(data)) {
+      return data.map(item => sanitizeForFirebase(item));
+    }
+    
+    const sanitized: any = {};
+    for (const key in data) {
+      if (data.hasOwnProperty(key)) {
+        try {
+          const value = data[key];
+          
+          // Skip functions and circular references
+          if (typeof value === 'function') {
+            continue;
+          }
+          if (value === data) {
+            continue;
+          }
+          
+          // Handle specific problematic types
+          if (value instanceof Window || value instanceof Document || value instanceof Element) {
+            continue;
+          }
+          
+          // Recursively sanitize nested objects
+          sanitized[key] = sanitizeForFirebase(value);
+        } catch (error) {
+          console.warn(`Skipping problematic field ${key}:`, error);
+          continue;
+        }
+      }
+    }
+    return sanitized;
+  }
+  
+  // Return primitive values as-is
+  return data;
+};
 
 // ================================
 // INTERFACES (Enhanced for all session types + T-LEVEL SUPPORT)
@@ -82,6 +142,7 @@ interface PracticeSessionData {
 interface PracticeStats {
   totalSessions: number;
   totalMinutes: number;
+  totalHours: number;
   averageQuality: number;
   averagePresentPercentage: number;
   currentStreak: number;
@@ -92,6 +153,19 @@ interface PracticeStats {
   totalMeditationSessions: number;
   totalMeditationMinutes: number;
   averageMeditationRating: number;
+}
+
+interface StageProgressionData {
+  currentStage: number;
+  totalHours: number;
+  lastUpdated: Timestamp;
+  stageHistory: {
+    [key: string]: {
+      completedAt: Timestamp;
+      hoursRequired: number;
+      hoursCompleted: number;
+    };
+  };
 }
 
 interface PracticeContextType {
@@ -114,10 +188,14 @@ interface PracticeContextType {
   getSessionsByDateRange: (startDate: Date, endDate: Date) => PracticeSessionData[];
   getRecentSessions: (count: number) => PracticeSessionData[];
   
-  // Stage progression
+  // Stage progression (hours-based, 6 stages)
   getCurrentStage: () => number;
   getStageProgress: (stage: number) => { completed: number; total: number; percentage: number };
   canAdvanceToStage: (stage: number) => boolean;
+  getTotalPracticeHours: () => number;
+  checkAndAdvanceStage: () => Promise<StageProgressionData>;
+  saveStageProgression: (stage: number, hours: number) => Promise<void>;
+  loadStageProgression: () => Promise<StageProgressionData | null>;
   
   // Statistics
   calculateStats: () => PracticeStats;
@@ -139,7 +217,7 @@ interface PracticeContextType {
 const PracticeContext = createContext<PracticeContextType | undefined>(undefined);
 
 // ================================
-// ENHANCED PRACTICE PROVIDER WITH REAL-TIME LISTENERS
+// PRACTICE PROVIDER WITH AUTHENTICATION GUARDS
 // ================================
 export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
@@ -155,17 +233,189 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // ================================
-  // FIREBASE OPERATIONS (ENHANCED WITH T-LEVEL SUPPORT)
+  // STAGE PROGRESSION FUNCTIONS (6 STAGES: 5,10,15,20,25,30 HOURS)
+  // ================================
+  
+  const getTotalPracticeHours = useCallback((): number => {
+    const meditationSessions = sessions.filter(s => s.sessionType === 'meditation');
+    const totalMinutes = meditationSessions.reduce((sum, session) => sum + session.duration, 0);
+    const totalHours = totalMinutes / 60;
+    
+    console.log(`🔍 Total practice calculation: ${meditationSessions.length} sessions, ${totalMinutes} minutes, ${totalHours.toFixed(1)} hours`);
+    return totalHours;
+  }, [sessions]);
+
+  const getCurrentStage = useCallback((): number => {
+    const totalHours = getTotalPracticeHours();
+    
+    console.log(`🔍 Stage calculation - Total Hours: ${totalHours.toFixed(1)}`);
+    
+    // 6-stage progression system
+    if (totalHours >= 30) return 6;  // 30+ hours for Stage 6
+    if (totalHours >= 25) return 5;  // 25+ hours for Stage 5
+    if (totalHours >= 20) return 4;  // 20+ hours for Stage 4  
+    if (totalHours >= 15) return 3;  // 15+ hours for Stage 3
+    if (totalHours >= 10) return 2;  // 10+ hours for Stage 2
+    if (totalHours >= 5) return 2;   // 5+ hours advances to Stage 2
+    return 1;                        // Less than 5 hours = Stage 1
+  }, [getTotalPracticeHours]);
+
+  const getStageProgress = useCallback((stage: number): { completed: number; total: number; percentage: number } => {
+    const totalHours = getTotalPracticeHours();
+    
+    // Hour requirements for 6 stages
+    const stageRequirements: { [key: number]: number } = {
+      1: 5,    // 5 hours to complete Stage 1
+      2: 10,   // 10 hours to complete Stage 2
+      3: 15,   // 15 hours to complete Stage 3
+      4: 20,   // 20 hours to complete Stage 4
+      5: 25,   // 25 hours to complete Stage 5
+      6: 30    // 30 hours to complete Stage 6
+    };
+    
+    const required = stageRequirements[stage] || 5;
+    const completed = Math.min(totalHours, required);
+    const percentage = Math.min(Math.round((completed / required) * 100), 100);
+    
+    console.log(`🔍 Stage ${stage} progress: ${completed.toFixed(1)}/${required} hours (${percentage}%)`);
+    
+    return { 
+      completed: Math.round(completed * 10) / 10,
+      total: required, 
+      percentage 
+    };
+  }, [getTotalPracticeHours]);
+
+  const canAdvanceToStage = useCallback((targetStage: number): boolean => {
+    const totalHours = getTotalPracticeHours();
+    
+    // Hour requirements to UNLOCK each stage (6 stages)
+    const unlockRequirements: { [key: number]: number } = {
+      1: 0,    // Stage 1 always unlocked
+      2: 5,    // Need 5 hours to unlock Stage 2
+      3: 10,   // Need 10 hours to unlock Stage 3
+      4: 15,   // Need 15 hours to unlock Stage 4
+      5: 20,   // Need 20 hours to unlock Stage 5
+      6: 25    // Need 25 hours to unlock Stage 6
+    };
+    
+    const requiredHours = unlockRequirements[targetStage] || 0;
+    const canAdvance = totalHours >= requiredHours;
+    
+    console.log(`🔍 Can advance to Stage ${targetStage}? ${totalHours.toFixed(1)}/${requiredHours} hours = ${canAdvance}`);
+    
+    return canAdvance;
+  }, [getTotalPracticeHours]);
+
+  const saveStageProgression = useCallback(async (stage: number, hoursCompleted: number): Promise<void> => {
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid) {
+      console.warn('⚠️ Cannot save stage progression - no authenticated user');
+      return;
+    }
+    
+    try {
+      const userProgressRef = doc(db, 'userProgress', currentUser.uid);
+      
+      // Check if document exists
+      const docSnap = await getDoc(userProgressRef);
+      let existingData: any = {};
+      
+      if (docSnap.exists()) {
+        existingData = docSnap.data();
+      }
+      
+      // 6-stage progression data
+      const progressData: StageProgressionData = {
+        currentStage: stage,
+        totalHours: hoursCompleted,
+        lastUpdated: serverTimestamp() as Timestamp,
+        stageHistory: {
+          ...existingData.stageHistory,
+          [`stage${stage}`]: {
+            completedAt: serverTimestamp() as Timestamp,
+            hoursRequired: [5, 10, 15, 20, 25, 30][stage - 1] || 5,
+            hoursCompleted: hoursCompleted
+          }
+        }
+      };
+      
+      // Sanitize data before saving to Firebase
+      const sanitizedData = sanitizeForFirebase(progressData);
+      
+      await setDoc(userProgressRef, sanitizedData, { merge: true });
+      console.log(`✅ Stage progression saved: Stage ${stage}, Hours: ${hoursCompleted.toFixed(1)}`);
+    } catch (error) {
+      console.error('❌ Failed to save stage progression:', error);
+      throw error;
+    }
+  }, [currentUser?.uid]);
+
+  const loadStageProgression = useCallback(async (): Promise<StageProgressionData | null> => {
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid) {
+      console.log('⚠️ Cannot load stage progression - no authenticated user');
+      return null;
+    }
+    
+    try {
+      const userProgressRef = doc(db, 'userProgress', currentUser.uid);
+      const docSnap = await getDoc(userProgressRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data() as StageProgressionData;
+        console.log(`✅ Stage progression loaded: Stage ${data.currentStage}, Hours: ${data.totalHours.toFixed(1)}`);
+        return data;
+      } else {
+        console.log('📭 No saved stage progression found');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Failed to load stage progression:', error);
+      return null;
+    }
+  }, [currentUser?.uid]);
+
+  const checkAndAdvanceStage = useCallback(async (): Promise<StageProgressionData> => {
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid) {
+      console.warn('⚠️ Cannot check stage advancement - no authenticated user');
+      throw new Error('User not authenticated');
+    }
+
+    const currentStage = getCurrentStage();
+    const totalHours = getTotalPracticeHours();
+    
+    console.log(`🔍 Checking stage advancement: Current Stage ${currentStage}, Total Hours: ${totalHours.toFixed(1)}`);
+    
+    // Save current progression to Firebase
+    await saveStageProgression(currentStage, totalHours);
+    
+    const progressionData: StageProgressionData = {
+      currentStage,
+      totalHours,
+      lastUpdated: serverTimestamp() as Timestamp,
+      stageHistory: {}
+    };
+    
+    console.log(`📈 Stage progression updated: Stage ${currentStage}, Hours: ${totalHours.toFixed(1)}`);
+    
+    return progressionData;
+  }, [currentUser?.uid, getCurrentStage, getTotalPracticeHours, saveStageProgression]);
+
+  // ================================
+  // FIREBASE OPERATIONS WITH AUTHENTICATION GUARDS
   // ================================
   const saveSessionToFirebase = useCallback(async (sessionData: PracticeSessionData) => {
+    // ✅ CRITICAL: Authentication guard
     if (!currentUser?.uid) {
       console.error('❌ No user authenticated for session save');
       throw new Error('User not authenticated');
     }
 
     try {
-      // ✅ Create clean data for Firestore - filter out undefined values
-      const firestoreData: any = {
+      // Sanitize session data before saving
+      const rawData: any = {
         sessionId: sessionData.sessionId,
         timestamp: sessionData.timestamp,
         duration: sessionData.duration,
@@ -175,22 +425,25 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updatedAt: serverTimestamp()
       };
 
-      // ✅ Only add defined fields to prevent "undefined" errors
-      if (sessionData.stageLevel !== undefined) firestoreData.stageLevel = sessionData.stageLevel;
-      if (sessionData.stageLabel !== undefined) firestoreData.stageLabel = sessionData.stageLabel;
-      if (sessionData.tLevel !== undefined) firestoreData.tLevel = sessionData.tLevel;        // ✅ ADDED
-      if (sessionData.level !== undefined) firestoreData.level = sessionData.level;          // ✅ ADDED
-      if (sessionData.mindRecoveryContext !== undefined) firestoreData.mindRecoveryContext = sessionData.mindRecoveryContext;
-      if (sessionData.mindRecoveryPurpose !== undefined) firestoreData.mindRecoveryPurpose = sessionData.mindRecoveryPurpose;
-      if (sessionData.rating !== undefined) firestoreData.rating = sessionData.rating;
-      if (sessionData.notes !== undefined) firestoreData.notes = sessionData.notes;
-      if (sessionData.presentPercentage !== undefined) firestoreData.presentPercentage = sessionData.presentPercentage;
-      if (sessionData.environment !== undefined) firestoreData.environment = sessionData.environment;
-      if (sessionData.pahmCounts !== undefined) firestoreData.pahmCounts = sessionData.pahmCounts;
-      if (sessionData.recoveryMetrics !== undefined) firestoreData.recoveryMetrics = sessionData.recoveryMetrics;
-      if (sessionData.metadata !== undefined) firestoreData.metadata = sessionData.metadata;
+      // Only add defined fields to prevent "undefined" errors
+      if (sessionData.stageLevel !== undefined) rawData.stageLevel = sessionData.stageLevel;
+      if (sessionData.stageLabel !== undefined) rawData.stageLabel = sessionData.stageLabel;
+      if (sessionData.tLevel !== undefined) rawData.tLevel = sessionData.tLevel;
+      if (sessionData.level !== undefined) rawData.level = sessionData.level;
+      if (sessionData.mindRecoveryContext !== undefined) rawData.mindRecoveryContext = sessionData.mindRecoveryContext;
+      if (sessionData.mindRecoveryPurpose !== undefined) rawData.mindRecoveryPurpose = sessionData.mindRecoveryPurpose;
+      if (sessionData.rating !== undefined) rawData.rating = sessionData.rating;
+      if (sessionData.notes !== undefined) rawData.notes = sessionData.notes;
+      if (sessionData.presentPercentage !== undefined) rawData.presentPercentage = sessionData.presentPercentage;
+      if (sessionData.environment !== undefined) rawData.environment = sessionData.environment;
+      if (sessionData.pahmCounts !== undefined) rawData.pahmCounts = sessionData.pahmCounts;
+      if (sessionData.recoveryMetrics !== undefined) rawData.recoveryMetrics = sessionData.recoveryMetrics;
+      if (sessionData.metadata !== undefined) rawData.metadata = sessionData.metadata;
 
-      // ✅ Use correct collection paths
+      // Sanitize the complete data object
+      const firestoreData = sanitizeForFirebase(rawData);
+
+      // Use correct collection paths
       let collectionPath;
       if (sessionData.sessionType === 'mind_recovery') {
         collectionPath = 'mindRecoverySessions';
@@ -200,20 +453,10 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('💾 Saving Meditation session to practiceSessions collection');
       }
 
-      console.log('🔍 Clean Firestore data (no undefined values):', firestoreData);
+      console.log('🔍 Sanitized Firestore data:', firestoreData);
 
       const docRef = await addDoc(collection(db, collectionPath), firestoreData);
       console.log(`✅ ${sessionData.sessionType} session saved to Firebase:`, docRef.id);
-      console.log(`📊 Session data:`, {
-        type: sessionData.sessionType,
-        duration: sessionData.duration,
-        rating: sessionData.rating,
-        stageLevel: sessionData.stageLevel,
-        stageLabel: sessionData.stageLabel,
-        tLevel: sessionData.tLevel,      // ✅ ADDED TO LOGGING
-        level: sessionData.level,        // ✅ ADDED TO LOGGING
-        collection: collectionPath
-      });
       
       return docRef.id;
     } catch (error) {
@@ -224,7 +467,11 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [currentUser?.uid]);
 
   const updateSessionInFirebase = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
-    if (!currentUser?.uid) return;
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid) {
+      console.warn('⚠️ Cannot update session - no authenticated user');
+      return;
+    }
 
     try {
       const session = sessions.find(s => s.sessionId === sessionId);
@@ -233,11 +480,10 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      // Use correct collection path
       const collectionPath = session.sessionType === 'mind_recovery' ? 'mindRecoverySessions' : 'practiceSessions';
       const sessionDoc = doc(db, collectionPath, session.firestoreId);
       
-      // ✅ Filter out undefined values in updates too
+      // Sanitize updates before saving
       const cleanUpdates: any = { updatedAt: serverTimestamp() };
       Object.keys(updates).forEach(key => {
         const value = (updates as any)[key];
@@ -246,7 +492,9 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       });
       
-      await updateDoc(sessionDoc, cleanUpdates);
+      const sanitizedUpdates = sanitizeForFirebase(cleanUpdates);
+      
+      await updateDoc(sessionDoc, sanitizedUpdates);
       console.log(`✅ Session updated in Firebase (${collectionPath}):`, session.firestoreId);
     } catch (error) {
       console.error('❌ Failed to update session in Firebase:', error);
@@ -254,7 +502,11 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [currentUser?.uid, sessions]);
 
   const deleteSessionFromFirebase = useCallback(async (sessionId: string) => {
-    if (!currentUser?.uid) return;
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid) {
+      console.warn('⚠️ Cannot delete session - no authenticated user');
+      return;
+    }
 
     try {
       const session = sessions.find(s => s.sessionId === sessionId);
@@ -263,7 +515,6 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      // Use correct collection path
       const collectionPath = session.sessionType === 'mind_recovery' ? 'mindRecoverySessions' : 'practiceSessions';
       const sessionDoc = doc(db, collectionPath, session.firestoreId);
       
@@ -275,122 +526,147 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [currentUser?.uid, sessions]);
 
   // ================================
-  // ✅ REAL-TIME LISTENERS (ENHANCED WITH T-LEVEL SUPPORT)
+  // ✅ CRITICAL: REAL-TIME LISTENERS WITH AUTHENTICATION GUARDS
   // ================================
   useEffect(() => {
+    // ✅ CRITICAL: Authentication guard - Exit early if no user
     if (!currentUser?.uid) {
+      console.log('❌ No authenticated user in PracticeContext - clearing sessions');
       setSessions([]);
+      setIsLoading(false);
       return;
     }
 
-    console.log(`🔄 Setting up real-time listeners for user: ${currentUser.uid.substring(0, 8)}...`);
+    console.log(`🔄 Setting up real-time listeners for authenticated user: ${currentUser.uid.substring(0, 8)}...`);
     setIsLoading(true);
 
-    // ✅ Real-time listener for Mind Recovery Sessions
-    const mindRecoveryQuery = query(
-      collection(db, 'mindRecoverySessions'),
-      where('userId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc')
-    );
+    let unsubscribeAll: (() => void) | null = null;
 
-    const unsubscribeMindRecovery = onSnapshot(mindRecoveryQuery, (querySnapshot) => {
-      const mindRecoverySessions: PracticeSessionData[] = [];
-      querySnapshot.forEach((docSnapshot) => {
-        const data = docSnapshot.data();
-        const session: PracticeSessionData = {
-          sessionId: data.sessionId || generateId('mind_recovery'),
-          firestoreId: docSnapshot.id,
-          timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
-          duration: data.duration || 0,
-          sessionType: 'mind_recovery',
-          mindRecoveryContext: data.mindRecoveryContext,
-          mindRecoveryPurpose: data.mindRecoveryPurpose,
-          rating: data.rating,
-          notes: data.notes,
-          presentPercentage: data.presentPercentage,
-          environment: data.environment,
-          pahmCounts: data.pahmCounts,
-          recoveryMetrics: data.recoveryMetrics,
-          metadata: data.metadata,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt
-        };
-        mindRecoverySessions.push(session);
-      });
-
-      console.log(`🔄 Real-time Mind Recovery sessions update: ${mindRecoverySessions.length} sessions`);
-
-      // ✅ Real-time listener for Practice Sessions (ENHANCED WITH T-LEVEL SUPPORT)
-      const practiceQuery = query(
-        collection(db, 'practiceSessions'),
+    try {
+      // Real-time listener for Mind Recovery Sessions
+      const mindRecoveryQuery = query(
+        collection(db, 'mindRecoverySessions'),
         where('userId', '==', currentUser.uid),
         orderBy('createdAt', 'desc')
       );
 
-      const unsubscribePractice = onSnapshot(practiceQuery, (practiceSnapshot) => {
-        const practiceSessions: PracticeSessionData[] = [];
-        practiceSnapshot.forEach((docSnapshot) => {
-          const data = docSnapshot.data();
-          const session: PracticeSessionData = {
-            sessionId: data.sessionId || generateId('practice'),
-            firestoreId: docSnapshot.id,
-            timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
-            duration: data.duration || 0,
-            sessionType: data.sessionType || 'meditation',
-            stageLevel: data.stageLevel,
-            stageLabel: data.stageLabel,
-            tLevel: data.tLevel,          // ✅ ADDED: Read T-level data from Firebase
-            level: data.level,            // ✅ ADDED: Read level data from Firebase
-            rating: data.rating,
-            notes: data.notes,
-            presentPercentage: data.presentPercentage,
-            environment: data.environment,
-            pahmCounts: data.pahmCounts,
-            metadata: data.metadata,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt
+      const unsubscribeMindRecovery = onSnapshot(mindRecoveryQuery, 
+        (querySnapshot) => {
+          const mindRecoverySessions: PracticeSessionData[] = [];
+          querySnapshot.forEach((docSnapshot) => {
+            const data = docSnapshot.data();
+            const session: PracticeSessionData = {
+              sessionId: data.sessionId || generateId('mind_recovery'),
+              firestoreId: docSnapshot.id,
+              timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
+              duration: data.duration || 0,
+              sessionType: 'mind_recovery',
+              mindRecoveryContext: data.mindRecoveryContext,
+              mindRecoveryPurpose: data.mindRecoveryPurpose,
+              rating: data.rating,
+              notes: data.notes,
+              presentPercentage: data.presentPercentage,
+              environment: data.environment,
+              pahmCounts: data.pahmCounts,
+              recoveryMetrics: data.recoveryMetrics,
+              metadata: data.metadata,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt
+            };
+            mindRecoverySessions.push(session);
+          });
+
+          console.log(`🔄 Real-time Mind Recovery sessions update: ${mindRecoverySessions.length} sessions`);
+
+          // Real-time listener for Practice Sessions
+          const practiceQuery = query(
+            collection(db, 'practiceSessions'),
+            where('userId', '==', currentUser.uid),
+            orderBy('createdAt', 'desc')
+          );
+
+          const unsubscribePractice = onSnapshot(practiceQuery, 
+            (practiceSnapshot) => {
+              const practiceSessions: PracticeSessionData[] = [];
+              practiceSnapshot.forEach((docSnapshot) => {
+                const data = docSnapshot.data();
+                const session: PracticeSessionData = {
+                  sessionId: data.sessionId || generateId('practice'),
+                  firestoreId: docSnapshot.id,
+                  timestamp: data.timestamp || (data.createdAt?.toDate?.()?.toISOString()) || new Date().toISOString(),
+                  duration: data.duration || 0,
+                  sessionType: data.sessionType || 'meditation',
+                  stageLevel: data.stageLevel,
+                  stageLabel: data.stageLabel,
+                  tLevel: data.tLevel,
+                  level: data.level,
+                  rating: data.rating,
+                  notes: data.notes,
+                  presentPercentage: data.presentPercentage,
+                  environment: data.environment,
+                  pahmCounts: data.pahmCounts,
+                  metadata: data.metadata,
+                  createdAt: data.createdAt,
+                  updatedAt: data.updatedAt
+                };
+                practiceSessions.push(session);
+              });
+
+              console.log(`🔄 Real-time Practice sessions update: ${practiceSessions.length} sessions`);
+              console.log(`🔍 T-level sessions found:`, practiceSessions.filter(s => s.tLevel).map(s => ({ 
+                tLevel: s.tLevel, 
+                level: s.level, 
+                stageLabel: s.stageLabel 
+              })));
+
+              // Combine and sort all sessions
+              const allSessions = [...mindRecoverySessions, ...practiceSessions];
+              allSessions.sort((a, b) => {
+                const timeA = a.createdAt?.toDate?.()?.getTime() || new Date(a.timestamp).getTime();
+                const timeB = b.createdAt?.toDate?.()?.getTime() || new Date(b.timestamp).getTime();
+                return timeB - timeA;
+              });
+
+              setSessions(allSessions);
+              setIsLoading(false);
+              console.log(`✅ Real-time sessions update complete: ${allSessions.length} total sessions`);
+            }, 
+            (error) => {
+              console.error('❌ Firebase practice sessions listener error:', error);
+              setIsLoading(false);
+            }
+          );
+
+          unsubscribeAll = () => {
+            unsubscribePractice();
           };
-          practiceSessions.push(session);
-        });
 
-        console.log(`🔄 Real-time Practice sessions update: ${practiceSessions.length} sessions`);
-        console.log(`🔍 T-level sessions found:`, practiceSessions.filter(s => s.tLevel).map(s => ({ 
-          tLevel: s.tLevel, 
-          level: s.level, 
-          stageLabel: s.stageLabel 
-        })));
+          return unsubscribeAll;
+        }, 
+        (error) => {
+          console.error('❌ Firebase mind recovery sessions listener error:', error);
+          setIsLoading(false);
+        }
+      );
 
-        // ✅ Combine and sort all sessions
-        const allSessions = [...mindRecoverySessions, ...practiceSessions];
-        allSessions.sort((a, b) => {
-          const timeA = a.createdAt?.toDate?.()?.getTime() || new Date(a.timestamp).getTime();
-          const timeB = b.createdAt?.toDate?.()?.getTime() || new Date(b.timestamp).getTime();
-          return timeB - timeA;
-        });
-
-        setSessions(allSessions);
-        setIsLoading(false);
-        console.log(`✅ Real-time sessions update complete: ${allSessions.length} total sessions`);
-      }, (error) => {
-        console.error('❌ Firebase practice sessions listener error:', error);
-        setIsLoading(false);
-      });
-
-      return () => {
-        unsubscribePractice();
+      unsubscribeAll = () => {
+        unsubscribeMindRecovery();
       };
-    }, (error) => {
-      console.error('❌ Firebase mind recovery sessions listener error:', error);
+
+    } catch (error) {
+      console.error('❌ Error setting up Firebase listeners:', error);
       setIsLoading(false);
-    });
+    }
 
     return () => {
-      unsubscribeMindRecovery();
+      if (unsubscribeAll) {
+        unsubscribeAll();
+      }
     };
   }, [currentUser?.uid, generateId]);
 
   // ================================
-  // ENHANCED STATISTICS (UNCHANGED - ALL WORKING)
+  // STATISTICS AND SESSION MANAGEMENT
   // ================================
   const calculateStats = useCallback((): PracticeStats => {
     const allSessions = sessions;
@@ -399,13 +675,13 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     const totalSessions = allSessions.length;
     const totalMinutes = allSessions.reduce((sum, session) => sum + session.duration, 0);
+    const totalHours = totalMinutes / 60;
     const averageQuality = totalSessions > 0 ? 
       Math.round((allSessions.reduce((sum, session) => sum + (session.rating || 0), 0) / totalSessions) * 10) / 10 : 0;
     const averagePresentPercentage = totalSessions > 0 ?
       Math.round(allSessions.reduce((sum, session) => sum + (session.presentPercentage || 0), 0) / totalSessions) : 0;
     
     // Calculate streaks (simplified for now)
-    const sortedSessions = [...allSessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     let currentStreak = 0;
     let longestStreak = 0;
     
@@ -424,6 +700,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return {
       totalSessions,
       totalMinutes,
+      totalHours,
       averageQuality,
       averagePresentPercentage,
       currentStreak,
@@ -437,36 +714,49 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [sessions]);
 
-  // ================================
-  // SESSION MANAGEMENT (UNCHANGED - ALL WORKING)
-  // ================================
   const addPracticeSession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
+    // ✅ CRITICAL: Authentication guard
+    if (!currentUser?.uid) {
+      console.error('❌ Cannot add session - no authenticated user');
+      throw new Error('User not authenticated');
+    }
+
     const newSession: PracticeSessionData = {
       ...session,
       sessionId: generateId('session'),
       timestamp: session.timestamp || new Date().toISOString()
     };
     
-    console.log('🔄 Adding practice session:', {
+    console.log('🔄 Adding practice session with stage tracking:', {
       sessionType: newSession.sessionType,
       duration: newSession.duration,
       stageLevel: newSession.stageLevel,
       stageLabel: newSession.stageLabel,
-      tLevel: newSession.tLevel,              // ✅ ADDED TO LOGGING
-      level: newSession.level,                // ✅ ADDED TO LOGGING
+      tLevel: newSession.tLevel,
+      level: newSession.level,
       mindRecoveryContext: newSession.mindRecoveryContext,
       hasRating: !!newSession.rating,
       hasNotes: !!newSession.notes
     });
     
-    // ✅ NO IMMEDIATE UI UPDATE - Real-time listener will handle this
-    // This prevents duplicate sessions in UI
-    
     // Save to Firebase - real-time listener will update UI
     try {
       const firestoreId = await saveSessionToFirebase(newSession);
       console.log('✅ Session successfully saved with ID:', firestoreId);
-      console.log('🔄 Real-time listener will update UI automatically...');
+      
+      // Check and update stage progression after each meditation session
+      if (newSession.sessionType === 'meditation') {
+        console.log('📈 Checking stage progression after meditation session...');
+        setTimeout(async () => {
+          try {
+            const progression = await checkAndAdvanceStage();
+            console.log('📈 Stage progression updated:', progression);
+          } catch (error) {
+            console.error('❌ Error updating stage progression:', error);
+          }
+        }, 1000);
+      }
+      
     } catch (error) {
       console.error('❌ Failed to save session to Firebase:', error);
       alert('Failed to save session. Please check your connection and try again.');
@@ -477,7 +767,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (syncProfile) {
       syncProfile();
     }
-  }, [generateId, saveSessionToFirebase, syncProfile]);
+  }, [currentUser?.uid, generateId, saveSessionToFirebase, syncProfile, checkAndAdvanceStage]);
 
   const addMindRecoverySession = useCallback(async (session: Omit<PracticeSessionData, 'sessionId'>) => {
     const mindRecoverySession: Omit<PracticeSessionData, 'sessionId'> = {
@@ -502,28 +792,49 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       firestoreId: session?.firestoreId
     });
     
-    // ✅ NO IMMEDIATE UI UPDATE - Real-time listener will handle this
-    
     // Delete from Firebase - real-time listener will update UI
     await deleteSessionFromFirebase(sessionId);
+    
+    // Recalculate stage progression after deletion
+    if (session?.sessionType === 'meditation') {
+      setTimeout(async () => {
+        try {
+          const progression = await checkAndAdvanceStage();
+          console.log('📈 Stage progression updated after deletion:', progression);
+        } catch (error) {
+          console.error('❌ Error updating stage progression after deletion:', error);
+        }
+      }, 1000);
+    }
     
     // Sync stats
     if (syncProfile) {
       syncProfile();
     }
-  }, [sessions, deleteSessionFromFirebase, syncProfile]);
+  }, [sessions, deleteSessionFromFirebase, syncProfile, checkAndAdvanceStage]);
 
   const updateSession = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
     console.log('📝 Updating session:', { sessionId, updates });
     
-    // ✅ NO IMMEDIATE UI UPDATE - Real-time listener will handle this
-    
     // Update in Firebase - real-time listener will update UI
     await updateSessionInFirebase(sessionId, updates);
-  }, [updateSessionInFirebase]);
+    
+    // Recalculate stage progression if it was a meditation session
+    const session = sessions.find(s => s.sessionId === sessionId);
+    if (session?.sessionType === 'meditation') {
+      setTimeout(async () => {
+        try {
+          const progression = await checkAndAdvanceStage();
+          console.log('📈 Stage progression updated after session update:', progression);
+        } catch (error) {
+          console.error('❌ Error updating stage progression after update:', error);
+        }
+      }, 1000);
+    }
+  }, [updateSessionInFirebase, sessions, checkAndAdvanceStage]);
 
   // ================================
-  // DATA RETRIEVAL METHODS (UNCHANGED - ALL WORKING)
+  // DATA RETRIEVAL METHODS
   // ================================
   const getPracticeSessions = useCallback((): PracticeSessionData[] => {
     return sessions;
@@ -555,46 +866,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // STAGE PROGRESSION METHODS (UNCHANGED - ALL WORKING)
-  // ================================
-  const getCurrentStage = useCallback((): number => {
-    const meditationSessions = getMeditationSessions();
-    if (meditationSessions.length === 0) return 1;
-    
-    const totalSessions = meditationSessions.length;
-    const avgQuality = meditationSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / totalSessions;
-    
-    if (totalSessions >= 50 && avgQuality >= 4.0) return 5;
-    if (totalSessions >= 30 && avgQuality >= 3.5) return 4;
-    if (totalSessions >= 15 && avgQuality >= 3.0) return 3;
-    if (totalSessions >= 5 && avgQuality >= 2.5) return 2;
-    return 1;
-  }, [getMeditationSessions]);
-
-  const getStageProgress = useCallback((stage: number): { completed: number; total: number; percentage: number } => {
-    const stageSessions = getSessionsByStage(stage);
-    const stageRequirements = {
-      1: 5,
-      2: 10,
-      3: 15,
-      4: 20,
-      5: 25
-    };
-    
-    const required = stageRequirements[stage as keyof typeof stageRequirements] || 10;
-    const completed = stageSessions.length;
-    const percentage = Math.min(Math.round((completed / required) * 100), 100);
-    
-    return { completed, total: required, percentage };
-  }, [getSessionsByStage]);
-
-  const canAdvanceToStage = useCallback((stage: number): boolean => {
-    const currentStage = getCurrentStage();
-    return stage <= currentStage + 1;
-  }, [getCurrentStage]);
-
-  // ================================
-  // STATISTICS METHODS (UNCHANGED - ALL WORKING)
+  // STATISTICS METHODS
   // ================================
   const getSessionFrequency = useCallback(() => {
     const now = new Date();
@@ -626,12 +898,10 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // UTILITY METHODS (UNCHANGED - ALL WORKING)
+  // UTILITY METHODS
   // ================================
   const clearPracticeData = useCallback(async () => {
     console.log('🧹 Clearing all practice data...');
-    
-    // ✅ NO IMMEDIATE UI UPDATE - Real-time listener will handle this
     
     // Clear Firebase data from both collections
     if (currentUser?.uid) {
@@ -658,6 +928,10 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           batch.delete(docSnapshot.ref);
         });
         
+        // Clear stage progression data
+        const userProgressRef = doc(db, 'userProgress', currentUser.uid);
+        batch.delete(userProgressRef);
+        
         await batch.commit();
         console.log(`🧹 Practice data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
         console.log('🔄 Real-time listener will update UI automatically...');
@@ -671,19 +945,30 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return {
       sessions: sessions,
       stats: calculateStats(),
+      stageProgression: {
+        currentStage: getCurrentStage(),
+        totalHours: getTotalPracticeHours(),
+        canAdvanceToStage2: canAdvanceToStage(2),
+        canAdvanceToStage3: canAdvanceToStage(3),
+        canAdvanceToStage4: canAdvanceToStage(4),
+        canAdvanceToStage5: canAdvanceToStage(5),
+        canAdvanceToStage6: canAdvanceToStage(6)
+      },
       exportedAt: new Date().toISOString(),
-      source: 'firebase_realtime_enhanced_with_tlevels',
+      source: 'firebase_realtime_enhanced_with_tlevels_and_6stage_progression',
       summary: {
         totalSessions: sessions.length,
         mindRecoverySessions: sessions.filter(s => s.sessionType === 'mind_recovery').length,
         meditationSessions: sessions.filter(s => s.sessionType === 'meditation').length,
-        tLevelSessions: sessions.filter(s => s.tLevel).length
+        tLevelSessions: sessions.filter(s => s.tLevel).length,
+        totalHours: getTotalPracticeHours(),
+        maxStage: 6
       }
     };
-  }, [sessions, calculateStats]);
+  }, [sessions, calculateStats, getCurrentStage, getTotalPracticeHours, canAdvanceToStage]);
 
   // ================================
-  // LEGACY COMPATIBILITY (UNCHANGED - ALL WORKING)
+  // LEGACY COMPATIBILITY
   // ================================
   const getLegacyPracticeHistory = useCallback((): PracticeSessionData[] => {
     return getPracticeSessions();
@@ -721,10 +1006,14 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     getSessionsByDateRange,
     getRecentSessions,
     
-    // Stage progression
+    // Stage progression (hours-based, 6 stages)
     getCurrentStage,
     getStageProgress,
     canAdvanceToStage,
+    getTotalPracticeHours,
+    checkAndAdvanceStage,
+    saveStageProgression,
+    loadStageProgression,
     
     // Statistics
     calculateStats,
@@ -744,6 +1033,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     getPracticeSessions, getMindRecoverySessions, getMeditationSessions,
     getSessionsByStage, getSessionsByDateRange, getRecentSessions,
     getCurrentStage, getStageProgress, canAdvanceToStage,
+    getTotalPracticeHours, checkAndAdvanceStage, saveStageProgression, loadStageProgression,
     calculateStats, getSessionFrequency, getProgressTrend,
     clearPracticeData, exportPracticeData,
     getLegacyPracticeHistory, getLegacyMindRecoveryHistory
