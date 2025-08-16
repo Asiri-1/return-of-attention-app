@@ -4,11 +4,12 @@
 
 // FILE: src/HomeDashboard.tsx
 // ✅ FIXED: Complete Firebase integration through PracticeContext
-// ✅ FIXED: Hours-based stage progression (5,10,15,20,25,30 hours)
+// ✅ FIXED: Hours-based stage progression (3,5,10,20,25,30 hours)
 // ✅ FIXED: Real-time updates from Firebase listeners
 // ✅ FIXED: Complete 6-stage system with correct unlock logic
 // ✅ FIXED: Data sanitization to prevent DataCloneError
 // ✅ FIXED: Authentication guards for all operations
+// ✅ FIXED: Stage 1 progress display shows correct T-level counts
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -166,18 +167,45 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [canAdvanceToStage]);
 
-  // ✅ CRITICAL: Get stage progress using PracticeContext
+  // ✅ FIXED: Correct Stage 1 progress calculation showing all T-levels
   const getStageDisplayProgress = useCallback((stageNumber: number) => {
     try {
       if (stageNumber === 1) {
-        // Stage 1 uses T5 completion
+        // ✅ FIXED: Count ALL T-level sessions, not just T5
+        const t1Sessions = getT1Sessions();
+        const t2Sessions = getT2Sessions(); 
+        const t3Sessions = getT3Sessions();
+        const t4Sessions = getT4Sessions();
         const t5Sessions = getT5Sessions();
+        
+        // Calculate total T-level sessions completed
+        const totalTSessions = t1Sessions + t2Sessions + t3Sessions + t4Sessions + t5Sessions;
+        
+        // Check completion status
+        const t1Complete = isT1Complete();
+        const t2Complete = isT2Complete();
+        const t3Complete = isT3Complete();
+        const t4Complete = isT4Complete();
         const t5Complete = isT5Complete();
+        
+        // Stage 1 is complete when all T-levels are done
+        const stage1Complete = t1Complete && t2Complete && t3Complete && t4Complete && t5Complete;
+        
+        console.log(`🎯 Stage 1 Progress:`, {
+          t1: `${t1Sessions}/3 ${t1Complete ? '✅' : ''}`,
+          t2: `${t2Sessions}/3 ${t2Complete ? '✅' : ''}`, 
+          t3: `${t3Sessions}/3 ${t3Complete ? '✅' : ''}`,
+          t4: `${t4Sessions}/3 ${t4Complete ? '✅' : ''}`,
+          t5: `${t5Sessions}/3 ${t5Complete ? '✅' : ''}`,
+          total: `${totalTSessions}/15 sessions`,
+          complete: stage1Complete
+        });
+        
         return {
-          current: t5Sessions,
-          required: 3,
-          isComplete: t5Complete,
-          displayText: `T5: ${t5Sessions}/3 sessions`
+          current: totalTSessions,
+          required: 15, // 3 sessions × 5 T-levels = 15 total sessions
+          isComplete: stage1Complete,
+          displayText: `T-Levels: ${totalTSessions}/15 sessions` // ✅ FIXED: Shows real progress
         };
       }
       
@@ -195,12 +223,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       console.error(`Error getting stage ${stageNumber} progress:`, error);
       return {
         current: 0,
-        required: 1,
+        required: stageNumber === 1 ? 15 : 1,
         isComplete: false,
-        displayText: 'Progress unavailable'
+        displayText: stageNumber === 1 ? 'T-Levels: 0/15 sessions' : 'Progress unavailable'
       };
     }
-  }, [getStageProgress, getT5Sessions, isT5Complete]);
+  }, [getStageProgress, getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions, 
+      isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete]);
 
   // ✅ Get stage display info with correct unlock requirements
   const getStageDisplayInfo = useCallback((stageNumber: number) => {
@@ -212,8 +241,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     if (!isUnlocked) {
       switch (stageNumber) {
         case 2:
-          const t5Sessions = getT5Sessions();
-          lockMessage = `🔒 Complete Stage 1 T5 (${t5Sessions}/3 sessions) to unlock`;
+          const stage1Progress = getStageDisplayProgress(1);
+          lockMessage = `🔒 Complete Stage 1 (${stage1Progress.current}/${stage1Progress.required} sessions) to unlock`;
           break;
         case 3:
           const stage2Progress = getStageProgress(2);
@@ -243,7 +272,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       progress,
       icon: isCurrentOrCompleted ? '✅' : isUnlocked ? '▶️' : '🔒'
     };
-  }, [checkStageUnlocked, actualCurrentStage, getStageDisplayProgress, getStageProgress, getT5Sessions]);
+  }, [checkStageUnlocked, actualCurrentStage, getStageDisplayProgress, getStageProgress]);
 
   // ✅ Calculate user statistics
   const calculateUserStats = useCallback(() => {
@@ -983,8 +1012,9 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     <div style={{ fontSize: '14px', opacity: 0.8 }}>
                       Physical Stillness (T1-T5)
                     </div>
+                    {/* ✅ FIXED: Show total T-level progress instead of just T5 */}
                     <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
-                      T5: {getT5Sessions()}/3 sessions {isT5Complete() && '✅'}
+                      T-Levels: {getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()}/15 sessions
                     </div>
                   </div>
                   <div style={{ fontSize: '18px' }}>
@@ -1294,7 +1324,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 lineHeight: '1.5'
               }}>
                 {showAccessModal.stage === 2 
-                  ? `Complete Stage 1 T5 (${getT5Sessions()}/3 sessions) to unlock Stage 2`
+                  ? `Complete Stage 1 T-Levels (${getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()}/15 sessions) to unlock Stage 2`
                   : `Complete the previous stage to unlock Stage ${showAccessModal.stage}`
                 }
               </p>
