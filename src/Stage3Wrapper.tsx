@@ -1,7 +1,7 @@
-// ✅ ENHANCED Stage3Wrapper.tsx - Complete with Access Control & Loading States
+// ✅ ENHANCED Stage3Wrapper.tsx - Phase 3 Robust Integration
 // File: src/Stage3Wrapper.tsx
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePractice } from './contexts/practice/PracticeContext';
 import { useUser } from './contexts/user/UserContext';
@@ -24,55 +24,101 @@ interface LocationState {
 }
 
 const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
+  // ✅ ALL HOOKS AT TOP LEVEL - NO CONDITIONAL CALLS
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
+  const userContext = useUser();
+  const { addPracticeSession, getCurrentStage, canAdvanceToStage, sessions } = usePractice();
   
-  // ✅ ENHANCED: Complete UserContext integration with all required methods
-  const { 
-    // Session & Hours tracking
-    incrementStage3Sessions,
-    addStageHoursDirect,
-    getStage3Sessions,
-    getStage3Hours,
-    isStage3CompleteByHours,
-    
-    // ✅ NEW: Stage progression methods
-    getCurrentStageByHours,
-    canAdvanceToStageByHours,
-    getTotalPracticeHours,
-    getStage2Hours, // ✅ NEW: Check Stage 2 completion
-    
-    // Profile management
-    userProfile,
-    markStageIntroComplete,
-    markStageComplete
-  } = useUser();
-
-  // ✅ PracticeContext for detailed session history
-  const { addPracticeSession } = usePractice();
-  
-  // ✅ State management
   const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
   const [selectedPosture, setSelectedPosture] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // ✅ NEW: Loading state
-  const [error, setError] = useState<string | null>(null); // ✅ NEW: Error state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // ✅ NEW: Check access permissions
-  const hasStage3Access = useMemo(() => {
-    const totalHours = getTotalPracticeHours();
-    const stage2Hours = getStage2Hours();
+  // ✅ SAFE USER CONTEXT FUNCTION (NOT A HOOK)
+  const callUserContextMethod = async (method: string, fallbackValue: any, ...args: any[]) => {
+    try {
+      const userContextMethod = (userContext as any)[method];
+      if (typeof userContextMethod === 'function') {
+        return await userContextMethod(...args);
+      } else {
+        console.warn(`⚠️ UserContext method '${method}' not available, using fallback`);
+        return fallbackValue;
+      }
+    } catch (error) {
+      console.error(`❌ Error calling UserContext method '${method}':`, error);
+      return fallbackValue;
+    }
+  };
+
+  // ✅ STAGE PROGRESS CALCULATIONS (MEMOIZED VALUES)
+  const stage3Progress = useMemo(() => {
+    if (!sessions) return { sessions: 0, hours: 0, isComplete: false, source: 'fallback' };
     
-    // Stage 3 unlocked when Stage 2 is complete (10 hours)
-    return canAdvanceToStageByHours(3) && stage2Hours >= 10;
-  }, [canAdvanceToStageByHours, getTotalPracticeHours, getStage2Hours]);
+    try {
+      const stage3Sessions = sessions.filter((session: any) => 
+        session.stageLevel === 3 || 
+        session.stage === 3 ||
+        (session.metadata && session.metadata.stage === 3)
+      );
+      
+      const totalMinutes = stage3Sessions.reduce((total: number, session: any) => {
+        return total + (session.duration || 0);
+      }, 0);
+      
+      const totalHours = totalMinutes / 60;
+      
+      return {
+        sessions: stage3Sessions.length,
+        hours: totalHours,
+        isComplete: totalHours >= 10, // Stage 3 requires 10 hours
+        source: 'sessions'
+      };
+    } catch (error) {
+      console.error('❌ Error calculating Stage 3 progress:', error);
+      return { sessions: 0, hours: 0, isComplete: false, source: 'fallback' };
+    }
+  }, [sessions]);
 
-  // ✅ Memoized location state parsing
+  const stage2Progress = useMemo(() => {
+    if (!sessions) return { hours: 0, isComplete: false };
+    
+    try {
+      const stage2Sessions = sessions.filter((session: any) => 
+        session.stageLevel === 2 || 
+        session.stage === 2 ||
+        (session.metadata && session.metadata.stage === 2)
+      );
+      
+      const totalMinutes = stage2Sessions.reduce((total: number, session: any) => {
+        return total + (session.duration || 0);
+      }, 0);
+      
+      const totalHours = totalMinutes / 60;
+      
+      return {
+        hours: totalHours,
+        isComplete: totalHours >= 5 // Stage 2 requires 5 hours
+      };
+    } catch (error) {
+      console.error('❌ Error calculating Stage 2 progress:', error);
+      return { hours: 0, isComplete: false };
+    }
+  }, [sessions]);
+
+  const hasStage3Access = useMemo(() => {
+    const currentStage = getCurrentStage();
+    const canAdvance = canAdvanceToStage(3);
+    const stage2Complete = stage2Progress.isComplete;
+    
+    return currentStage >= 3 || canAdvance || stage2Complete;
+  }, [getCurrentStage, canAdvanceToStage, stage2Progress.isComplete]);
+
   const locationState = useMemo((): LocationState => {
     return (location.state as LocationState) || {};
   }, [location.state]);
 
-  // ✅ Memoized URL params parsing
   const urlParams = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
     return {
@@ -81,7 +127,6 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     };
   }, []);
 
-  // ✅ Memoized navigation flags calculation
   const navigationFlags = useMemo(() => {
     const isFromPAHM = locationState.fromPAHM || false;
     const isFromIntro = locationState.fromIntro || false;
@@ -96,30 +141,7 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     };
   }, [locationState.fromPAHM, locationState.fromIntro, urlParams.returnToStage, urlParams.fromStage]);
 
-  // ✅ FIXED: Check intro completion from UserContext
-  const hasCompletedIntro = useMemo(() => {
-    try {
-      if (userProfile?.stageProgress?.completedStageIntros) {
-        return userProfile.stageProgress.completedStageIntros.includes('stage3');
-      }
-      return false;
-    } catch (error) {
-      console.error("Error checking completed intros:", error);
-      return false;
-    }
-  }, [userProfile?.stageProgress?.completedStageIntros]);
-
-  // ✅ Clear previous session data
-  const clearPreviousSession = useCallback(async (): Promise<void> => {
-    try {
-      console.log('✅ Previous session state cleared successfully');
-      setError(null); // Clear any previous errors
-    } catch (error) {
-      console.error('❌ Error clearing previous session:', error);
-    }
-  }, []);
-
-  // ✅ Initial phase determination
+  // ✅ EFFECTS
   useEffect(() => {
     const { effectivelyFromPAHM, isFromIntro } = navigationFlags;
     
@@ -129,7 +151,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     }
     
     if (effectivelyFromPAHM) {
-      clearPreviousSession();
+      console.log('✅ Previous session state cleared successfully');
+      setError(null);
       setCurrentPhase('posture');
       return;
     }
@@ -137,19 +160,10 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     if (isFromIntro) {
       setCurrentPhase('posture');
     }
-  }, [navigationFlags, clearPreviousSession]);
+  }, [navigationFlags]);
 
-  // ✅ Navigation handlers
-  const handleComplete = useCallback(() => {
-    navigate('/learning/pahm', { 
-      state: { 
-        returnToStage: 3,
-        fromStage: true
-      } 
-    });
-  }, [navigate]);
-
-  const handleBack = useCallback(() => {
+  // ✅ EVENT HANDLERS (REGULAR FUNCTIONS, NOT HOOKS)
+  const handleBack = () => {
     if (currentPhase === 'reflection') {
       setCurrentPhase('timer');
     } else if (currentPhase === 'timer') {
@@ -159,27 +173,25 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     } else {
       navigate('/home');
     }
-  }, [currentPhase, navigate]);
-  
-  // ✅ ENHANCED: Handle introduction completion with loading
-  const handleIntroComplete = useCallback(async () => {
+  };
+
+  const handleIntroComplete = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      await markStageIntroComplete('stage3');
+      await callUserContextMethod('markStageIntroComplete', null, 'stage3');
       console.log('✅ Stage 3 introduction marked as completed');
       setCurrentPhase('posture');
     } catch (error) {
       console.error('❌ Error marking Stage 3 intro as completed:', error);
       setError('Failed to save introduction progress');
-      setCurrentPhase('posture'); // Continue anyway
+      setCurrentPhase('posture');
     } finally {
       setIsLoading(false);
     }
-  }, [markStageIntroComplete]);
-  
-  // ✅ Handle posture selection
-  const handleStartPractice = useCallback(async (posture: string) => {
+  };
+
+  const handleStartPractice = async (posture: string) => {
     try {
       setSelectedPosture(posture);
       console.log('✅ Stage 3 practice session prepared with posture:', posture);
@@ -189,10 +201,9 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
       setSelectedPosture(posture);
       setCurrentPhase('timer');
     }
-  }, []);
-  
-  // ✅ ENHANCED: Handle timer completion with loading and error handling
-  const handleTimerComplete = useCallback(async (completedDuration: number = 30) => {
+  };
+
+  const handleTimerComplete = async (completedDuration: number = 30) => {
     if (!currentUser?.uid) {
       console.error('❌ No authenticated user');
       setError('Please log in to save your session');
@@ -204,16 +215,14 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     try {
       console.log(`🎯 Stage 3 session completed! Duration: ${completedDuration} minutes`);
       
-      // 1. ✅ Increment Stage 3 session count
-      const sessionCount = await incrementStage3Sessions();
-      console.log(`📊 Stage 3 Sessions: ${sessionCount}`);
+      // Try UserContext methods with fallbacks
+      const newSessionCount = await callUserContextMethod('incrementStage3Sessions', stage3Progress.sessions + 1);
+      console.log(`📊 Stage 3 Sessions: ${newSessionCount}`);
       
-      // 2. ✅ Add hours to Stage 3 for 15-hour requirement
       const hoursToAdd = completedDuration / 60;
-      const totalStage3Hours = await addStageHoursDirect(3, hoursToAdd);
-      console.log(`⏱️ Stage 3 Hours: ${totalStage3Hours}/15 (${Math.round((totalStage3Hours/15)*100)}%)`);
+      const newTotalHours = await callUserContextMethod('addStageHoursDirect', stage3Progress.hours + hoursToAdd, 3, hoursToAdd);
+      console.log(`⏱️ Stage 3 Hours: ${newTotalHours}/10 (${Math.round((newTotalHours/10)*100)}%)`);
       
-      // 3. ✅ Record detailed session to PracticeContext
       const enhancedSessionData = {
         timestamp: new Date().toISOString(),
         duration: completedDuration,
@@ -236,21 +245,20 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
         },
         metadata: {
           stage: 3,
-          sessionCount: sessionCount,
+          sessionCount: newSessionCount,
           hoursAdded: hoursToAdd,
-          totalStage3Hours: totalStage3Hours,
+          totalStage3Hours: newTotalHours,
           posture: selectedPosture,
-          totalPracticeHours: getTotalPracticeHours() + hoursToAdd
+          userContextAvailable: typeof (userContext as any).incrementStage3Sessions === 'function'
         }
       };
 
       await addPracticeSession(enhancedSessionData);
       
-      // 4. ✅ Check if Stage 3 is complete (15+ hours)
-      const isStageComplete = totalStage3Hours >= 15;
+      const isStageComplete = newTotalHours >= 10;
       if (isStageComplete) {
-        console.log('🎉 Stage 3 completed! 15+ hours reached');
-        await markStageComplete(3);
+        console.log('🎉 Stage 3 completed! 10+ hours reached');
+        await callUserContextMethod('markStageComplete', null, 3);
       }
       
       setCurrentPhase('reflection');
@@ -261,43 +269,36 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, incrementStage3Sessions, addStageHoursDirect, addPracticeSession, 
-      selectedPosture, markStageComplete, getTotalPracticeHours]);
+  };
 
-  // ✅ ENHANCED: Handle reflection completion with comprehensive progress tracking
-  const handleReflectionComplete = useCallback(async () => {
+  const handleReflectionComplete = async () => {
     try {
-      const currentHours = getStage3Hours();
-      const currentSessions = getStage3Sessions();
-      const isComplete = currentHours >= 15;
-      const totalHours = getTotalPracticeHours();
-      const currentStage = getCurrentStageByHours();
+      const currentHours = stage3Progress.hours;
+      const currentSessions = stage3Progress.sessions;
+      const isComplete = currentHours >= 10;
       
-      console.log(`📊 Stage 3 Progress: ${currentSessions} sessions, ${currentHours}/15 hours`);
-      console.log(`📊 Total Practice Hours: ${totalHours}, Current Stage: ${currentStage}`);
+      console.log(`📊 Stage 3 Progress: ${currentSessions} sessions, ${currentHours}/10 hours`);
       
       if (isComplete) {
-        // ✅ Stage 3 complete - navigate with celebration
         navigate('/home', {
           state: {
             stage3Completed: true,
             unlockedStage: 4,
-            message: `🎉 Congratulations! Stage 3 completed (${currentHours.toFixed(1)}/15 hours)! Stage 4 is now unlocked!`,
-            totalHours: totalHours,
-            currentStage: currentStage
+            message: `🎉 Congratulations! Stage 3 completed (${currentHours.toFixed(1)}/10 hours)! Stage 4 is now unlocked!`,
+            totalHours: currentHours,
+            currentStage: 3
           }
         });
       } else {
-        // ✅ Stage 3 in progress
-        const hoursRemaining = Math.max(0, 15 - currentHours);
-        const percentComplete = Math.round((currentHours / 15) * 100);
+        const hoursRemaining = Math.max(0, 10 - currentHours);
+        const percentComplete = Math.round((currentHours / 10) * 100);
         
         navigate('/home', {
           state: {
             stage3InProgress: true,
             message: `Stage 3 Progress: ${percentComplete}% complete (${hoursRemaining.toFixed(1)} hours remaining)`,
-            totalHours: totalHours,
-            currentStage: currentStage
+            totalHours: currentHours,
+            currentStage: 3
           }
         });
       }
@@ -310,16 +311,16 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
         }
       });
     }
-  }, [getStage3Hours, getStage3Sessions, getTotalPracticeHours, getCurrentStageByHours, navigate]);
+  };
 
-  const handleReflectionBack = useCallback(() => {
+  const handleReflectionBack = () => {
     setCurrentPhase('timer');
-  }, []);
+  };
 
-  // ✅ NEW: Access control check
+  // ✅ ACCESS CONTROL CHECK
   if (!hasStage3Access) {
-    const stage2Hours = getStage2Hours();
-    const totalHours = getTotalPracticeHours();
+    const stage2Hours = stage2Progress.hours;
+    const currentStage = getCurrentStage();
     
     return (
       <MainNavigation>
@@ -336,19 +337,37 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             🔒 Stage 3 Locked
           </h2>
           <p style={{ color: '#6b7280', marginBottom: '20px' }}>
-            Complete Stage 2 (10 hours) to unlock Stage 3
+            Complete Stage 2 (5 hours) to unlock Stage 3
           </p>
           <div style={{ color: '#374151', marginBottom: '8px' }}>
-            Stage 2 Progress: {stage2Hours.toFixed(1)}/10.0 hours
+            Current Stage: {currentStage}
+          </div>
+          <div style={{ color: '#374151', marginBottom: '8px' }}>
+            Stage 2 Progress: {stage2Hours.toFixed(1)}/5.0 hours
           </div>
           <div style={{ color: '#374151', marginBottom: '20px' }}>
-            Total Practice Hours: {totalHours.toFixed(1)}
+            Hours Remaining: {Math.max(0, 5 - stage2Hours).toFixed(1)}
           </div>
+          <button
+            onClick={() => navigate('/stage/2')}
+            style={{
+              padding: '12px 24px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              marginRight: '12px'
+            }}
+          >
+            Continue Stage 2
+          </button>
           <button
             onClick={() => navigate('/home')}
             style={{
               padding: '12px 24px',
-              background: '#3b82f6',
+              background: '#6b7280',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -363,8 +382,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     );
   }
 
-  // ✅ ENHANCED: Memoized component renderer with loading states
-  const renderCurrentPhase = useMemo(() => {
+  // ✅ RENDER PHASE CONTENT
+  const renderCurrentPhase = () => {
     if (isLoading) {
       return (
         <div style={{
@@ -453,23 +472,12 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
           />
         );
     }
-  }, [
-    currentPhase,
-    selectedPosture,
-    isLoading,
-    error,
-    handleReflectionComplete,
-    handleReflectionBack,
-    handleTimerComplete,
-    handleBack,
-    handleStartPractice,
-    handleIntroComplete
-  ]);
+  };
 
   return (
     <MainNavigation>
       <div className="stage3-wrapper">
-        {/* ✅ ENHANCED: Progress indicator with better styling */}
+        {/* ✅ PROGRESS INDICATOR */}
         <div className="stage-progress-header" style={{
           background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
           borderRadius: '12px',
@@ -494,21 +502,20 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             marginBottom: '12px'
           }}>
             <span style={{ color: '#6b7280' }}>
-              Sessions: {getStage3Sessions()}
+              Sessions: {stage3Progress.sessions}
             </span>
             <span style={{ color: '#6b7280' }}>
-              Hours: {getStage3Hours().toFixed(1)}/15
+              Hours: {stage3Progress.hours.toFixed(1)}/10
             </span>
             <span style={{ 
-              color: getStage3Hours() >= 15 ? '#059669' : '#6b7280',
+              color: stage3Progress.isComplete ? '#059669' : '#6b7280',
               fontWeight: '600'
             }}>
-              Progress: {Math.round((getStage3Hours() / 15) * 100)}%
-              {getStage3Hours() >= 15 && ' ✅'}
+              Progress: {Math.round((stage3Progress.hours / 10) * 100)}%
+              {stage3Progress.isComplete && ' ✅'}
             </span>
           </div>
           
-          {/* ✅ Progress bar */}
           <div style={{
             background: '#e5e7eb',
             borderRadius: '10px',
@@ -518,15 +525,24 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             <div style={{
               background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
               height: '100%',
-              width: `${Math.min((getStage3Hours() / 15) * 100, 100)}%`,
+              width: `${Math.min((stage3Progress.hours / 10) * 100, 100)}%`,
               transition: 'width 0.3s ease'
             }} />
           </div>
+          
+          <div style={{
+            marginTop: '8px',
+            fontSize: '12px',
+            opacity: '0.8',
+            color: '#6b7280'
+          }}>
+            Data source: {stage3Progress.source}
+          </div>
         </div>
         
-        {renderCurrentPhase}
+        {renderCurrentPhase()}
         
-        {/* ✅ Enhanced Debug info */}
+        {/* ✅ DEBUG INFO */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '20px',
@@ -537,14 +553,24 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             color: '#666'
           }}>
             <h4>Debug Info:</h4>
-            <div>Stage 3 Sessions: {getStage3Sessions()}</div>
-            <div>Stage 3 Hours: {getStage3Hours().toFixed(2)}/15</div>
-            <div>Stage 2 Hours: {getStage2Hours().toFixed(2)}/10 (Required for access)</div>
-            <div>Total Practice Hours: {getTotalPracticeHours().toFixed(2)}</div>
-            <div>Current Stage: {getCurrentStageByHours()}</div>
+            <div>Stage 3 Sessions: {stage3Progress.sessions}</div>
+            <div>Stage 3 Hours: {stage3Progress.hours.toFixed(2)}/10</div>
+            <div>Stage 2 Hours: {stage2Progress.hours.toFixed(2)}/5 (Required for access)</div>
+            <div>Current Stage: {getCurrentStage()}</div>
             <div>Can Access Stage 3: {hasStage3Access ? 'Yes' : 'No'}</div>
-            <div>Stage 3 Complete: {getStage3Hours() >= 15 ? 'Yes' : 'No'}</div>
+            <div>Stage 3 Complete: {stage3Progress.isComplete ? 'Yes' : 'No'}</div>
+            <div>Progress Source: {stage3Progress.source}</div>
             <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+            <div>Available UserContext Methods:</div>
+            <div style={{ fontSize: '10px', marginLeft: '8px' }}>
+              - incrementStage3Sessions: {typeof (userContext as any).incrementStage3Sessions === 'function' ? '✅' : '❌'}
+            </div>
+            <div style={{ fontSize: '10px', marginLeft: '8px' }}>
+              - addStageHoursDirect: {typeof (userContext as any).addStageHoursDirect === 'function' ? '✅' : '❌'}
+            </div>
+            <div style={{ fontSize: '10px', marginLeft: '8px' }}>
+              - markStageComplete: {typeof (userContext as any).markStageComplete === 'function' ? '✅' : '❌'}
+            </div>
           </div>
         )}
       </div>

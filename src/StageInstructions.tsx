@@ -1,6 +1,12 @@
+// ✅ ENHANCED StageInstructions.tsx - Phase 3 Firebase Integration
+// File: src/StageInstructions.tsx
+
 import React, { useState, useCallback, useEffect } from 'react';
 import './StageInstructions.css';
 import { useNavigate } from 'react-router-dom';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useUser } from './contexts/user/UserContext';
+import { useAuth } from './contexts/auth/AuthContext';
 
 export interface StageInstructionsProps {
   onBack: () => void;
@@ -11,10 +17,73 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
 }) => {
   const [selectedStage, setSelectedStage] = useState(1);
   const [selectedSubstage, setSelectedSubstage] = useState("t1");
+  const [loading, setLoading] = useState(true);
+  
   const navigate = useNavigate();
+  
+  // ✅ ENHANCED: Firebase context integration
+  const { getCurrentStage, getStageProgress, sessions, isLoading } = usePractice();
+  const { userProfile } = useUser();
+  const { currentUser } = useAuth();
+
+  // ✅ ENHANCED: Initialize with user's current stage
+  useEffect(() => {
+    if (!isLoading && currentUser) {
+      const currentStage = getCurrentStage();
+      setSelectedStage(currentStage);
+      
+      // Set appropriate substage based on progress for Stage 1
+      if (currentStage === 1) {
+        setSelectedSubstage("t1"); // Default to T1 for Stage 1
+      }
+      setLoading(false);
+    }
+  }, [isLoading, currentUser, getCurrentStage]);
+
+  // ✅ ENHANCED: Get real-time progress for display
+  const getProgressInfo = useCallback((stageId: number) => {
+    if (!currentUser) return null;
+    
+    const progress = getStageProgress(stageId);
+    const currentStage = getCurrentStage();
+    
+    return {
+      isUnlocked: stageId <= currentStage,
+      isCurrent: stageId === currentStage,
+      isComplete: progress.completed >= progress.total,
+      progress: progress.percentage || 0,
+      sessionsCompleted: progress.completed || 0,
+      timeSpent: 0 // We'll calculate this from sessions if needed
+    };
+  }, [currentUser, getCurrentStage, getStageProgress]);
+
+  // ✅ ENHANCED: Get T-level specific progress
+  const getTLevelProgress = useCallback((tLevel: string) => {
+    if (!sessions) return { completed: 0, required: 3, isComplete: false, timeSpent: 0 };
+    
+    const tLevelSessions = sessions.filter((session: any) => 
+      session.tLevel === tLevel.toUpperCase() || 
+      session.level === tLevel.toLowerCase()
+    );
+    
+    return {
+      completed: tLevelSessions.length,
+      required: 3,
+      isComplete: tLevelSessions.length >= 3,
+      timeSpent: tLevelSessions.reduce((total: number, session: any) => total + (session.duration || 0), 0)
+    };
+  }, [sessions]);
   
   // ✅ ENHANCED: Memoized callbacks for better performance
   const handleStageSelect = useCallback((stage: number) => {
+    const progressInfo = getProgressInfo(stage);
+    
+    // Only allow selection of unlocked stages
+    if (progressInfo && !progressInfo.isUnlocked) {
+      console.log(`Stage ${stage} is locked. Current stage: ${getCurrentStage()}`);
+      return;
+    }
+    
     setSelectedStage(stage);
     // Reset substage when changing main stage
     if (stage === 1) {
@@ -22,7 +91,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
     } else {
       setSelectedSubstage("");
     }
-  }, []);
+  }, [getProgressInfo, getCurrentStage]);
 
   const handleSubstageSelect = useCallback((substage: string) => {
     setSelectedSubstage(substage);
@@ -70,12 +139,26 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
     };
   }, []);
   
+  // ✅ ENHANCED: Stage one content with real-time progress
   const renderStageOneContent = useCallback(() => {
+    const tProgress = getTLevelProgress(selectedSubstage);
+    
     switch (selectedSubstage) {
       case "t1":
         return (
           <div className="substage-content">
-            <h3>T1: 10 minutes - Establishing basic stillness</h3>
+            <div className="substage-header">
+              <h3>T1: 10 minutes - Establishing basic stillness</h3>
+              {currentUser && (
+                <div className="progress-indicator">
+                  <span className="sessions-completed">
+                    Sessions: {tProgress.completed}/{tProgress.required}
+                  </span>
+                  {tProgress.isComplete && <span className="completion-badge">✅ Complete</span>}
+                </div>
+              )}
+            </div>
+            
             <p>T1 consists of three 10-minute sessions.</p>
             
             <h4>Instructions:</h4>
@@ -87,12 +170,28 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
             </ol>
             
             <p><strong>Progression Requirement:</strong> Complete at least 3 sessions at this duration before moving to T2.</p>
+            
+            {currentUser && (tProgress.timeSpent || 0) > 0 && (
+              <div className="practice-summary">
+                <p><strong>Your Progress:</strong> {Math.round(tProgress.timeSpent || 0)} minutes practiced across {tProgress.completed} sessions</p>
+              </div>
+            )}
           </div>
         );
       case "t2":
         return (
           <div className="substage-content">
-            <h3>T2: 15 minutes - Extending initial capacity</h3>
+            <div className="substage-header">
+              <h3>T2: 15 minutes - Extending initial capacity</h3>
+              {currentUser && (
+                <div className="progress-indicator">
+                  <span className="sessions-completed">
+                    Sessions: {tProgress.completed}/{tProgress.required}
+                  </span>
+                  {tProgress.isComplete && <span className="completion-badge">✅ Complete</span>}
+                </div>
+              )}
+            </div>
             
             <h4>Instructions:</h4>
             <ol>
@@ -102,12 +201,28 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
             </ol>
             
             <p><strong>Progression Requirement:</strong> Complete at least 3 sessions at this duration before moving to T3.</p>
+            
+            {currentUser && (tProgress.timeSpent || 0) > 0 && (
+              <div className="practice-summary">
+                <p><strong>Your Progress:</strong> {Math.round(tProgress.timeSpent || 0)} minutes practiced across {tProgress.completed} sessions</p>
+              </div>
+            )}
           </div>
         );
       case "t3":
         return (
           <div className="substage-content">
-            <h3>T3: 20 minutes - Building endurance</h3>
+            <div className="substage-header">
+              <h3>T3: 20 minutes - Building endurance</h3>
+              {currentUser && (
+                <div className="progress-indicator">
+                  <span className="sessions-completed">
+                    Sessions: {tProgress.completed}/{tProgress.required}
+                  </span>
+                  {tProgress.isComplete && <span className="completion-badge">✅ Complete</span>}
+                </div>
+              )}
+            </div>
             
             <h4>Instructions:</h4>
             <ol>
@@ -117,12 +232,28 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
             </ol>
             
             <p><strong>Progression Requirement:</strong> Complete at least 3 sessions at this duration before moving to T4.</p>
+            
+            {currentUser && (tProgress.timeSpent || 0) > 0 && (
+              <div className="practice-summary">
+                <p><strong>Your Progress:</strong> {Math.round(tProgress.timeSpent || 0)} minutes practiced across {tProgress.completed} sessions</p>
+              </div>
+            )}
           </div>
         );
       case "t4":
         return (
           <div className="substage-content">
-            <h3>T4: 25 minutes - Deepening stability</h3>
+            <div className="substage-header">
+              <h3>T4: 25 minutes - Deepening stability</h3>
+              {currentUser && (
+                <div className="progress-indicator">
+                  <span className="sessions-completed">
+                    Sessions: {tProgress.completed}/{tProgress.required}
+                  </span>
+                  {tProgress.isComplete && <span className="completion-badge">✅ Complete</span>}
+                </div>
+              )}
+            </div>
             
             <h4>Instructions:</h4>
             <ol>
@@ -132,12 +263,28 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
             </ol>
             
             <p><strong>Progression Requirement:</strong> Complete at least 3 sessions at this duration before moving to T5.</p>
+            
+            {currentUser && (tProgress.timeSpent || 0) > 0 && (
+              <div className="practice-summary">
+                <p><strong>Your Progress:</strong> {Math.round(tProgress.timeSpent || 0)} minutes practiced across {tProgress.completed} sessions</p>
+              </div>
+            )}
           </div>
         );
       case "t5":
         return (
           <div className="substage-content">
-            <h3>T5: 30 minutes or more - Full practice duration</h3>
+            <div className="substage-header">
+              <h3>T5: 30 minutes or more - Full practice duration</h3>
+              {currentUser && (
+                <div className="progress-indicator">
+                  <span className="sessions-completed">
+                    Sessions: {tProgress.completed}/{tProgress.required}
+                  </span>
+                  {tProgress.isComplete && <span className="completion-badge">✅ Complete</span>}
+                </div>
+              )}
+            </div>
             
             <h4>Instructions:</h4>
             <ol>
@@ -147,6 +294,12 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
             </ol>
             
             <p><strong>Completion Requirement:</strong> You must complete 15 practice hours at the T5 stage (30 minutes or more sessions) and feel confident in your ability to maintain physical stillness for this duration before proceeding to Stage Two.</p>
+            
+            {currentUser && (tProgress.timeSpent || 0) > 0 && (
+              <div className="practice-summary">
+                <p><strong>Your Progress:</strong> {Math.round(tProgress.timeSpent || 0)} minutes practiced across {tProgress.completed} sessions</p>
+              </div>
+            )}
             
             <div className="completion-note">
               <h4>Completing Stage One</h4>
@@ -171,7 +324,22 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
           </div>
         );
     }
-  }, [selectedSubstage]);
+  }, [selectedSubstage, getTLevelProgress, currentUser]);
+
+  // ✅ ENHANCED: Show loading state
+  if (loading || isLoading) {
+    return (
+      <div className="stage-instructions">
+        <div className="stage-instructions-header">
+          <button className="back-button" onClick={onBack}>Back</button>
+          <h1>Stage Instructions</h1>
+        </div>
+        <div className="loading-container">
+          <p>Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="stage-instructions">
@@ -186,6 +354,11 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
           Back
         </button>
         <h1>Stage Instructions</h1>
+        {currentUser && (
+          <div className="user-progress-summary">
+            <span>Current Stage: {getCurrentStage()}</span>
+          </div>
+        )}
       </div>
       
       <div className="stage-instructions-content">
@@ -197,21 +370,42 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
             { id: 4, title: "Practitioner: Tool-Free Practice" },
             { id: 5, title: "Master: Sustained Presence" },
             { id: 6, title: "Illuminator: Integration & Teaching" }
-          ].map((stage) => (
-            <button 
-              key={stage.id}
-              className={selectedStage === stage.id ? "active" : ""} 
-              onClick={() => handleStageSelect(stage.id)}
-              onTouchStart={handleTouchStart}
-              onKeyDown={(e) => handleKeyDown(e, () => handleStageSelect(stage.id))}
-              role="tab"
-              aria-selected={selectedStage === stage.id}
-              aria-controls={`stage-${stage.id}-content`}
-              aria-label={`Select ${stage.title}`}
-            >
-              {stage.title}
-            </button>
-          ))}
+          ].map((stage) => {
+            const progressInfo = getProgressInfo(stage.id);
+            const isLocked = progressInfo && !progressInfo.isUnlocked;
+            const isCurrent = progressInfo && progressInfo.isCurrent;
+            
+            return (
+              <button 
+                key={stage.id}
+                className={`
+                  ${selectedStage === stage.id ? "active" : ""} 
+                  ${isLocked ? "locked" : ""} 
+                  ${isCurrent ? "current" : ""}
+                `}
+                onClick={() => handleStageSelect(stage.id)}
+                onTouchStart={handleTouchStart}
+                onKeyDown={(e) => handleKeyDown(e, () => handleStageSelect(stage.id))}
+                role="tab"
+                aria-selected={selectedStage === stage.id}
+                aria-controls={`stage-${stage.id}-content`}
+                aria-label={`${isLocked ? 'Locked: ' : ''}${isCurrent ? 'Current: ' : ''}${stage.title}`}
+                disabled={isLocked || false}
+              >
+                <span className="stage-title">{stage.title}</span>
+                {progressInfo && (
+                  <div className="stage-progress-info">
+                    {isLocked && <span className="lock-icon">🔒</span>}
+                    {isCurrent && <span className="current-icon">📍</span>}
+                    {progressInfo.isComplete && <span className="complete-icon">✅</span>}
+                    {progressInfo.progress > 0 && !progressInfo.isComplete && (
+                      <span className="progress-percent">{Math.round(progressInfo.progress)}%</span>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
         
         {selectedStage === 1 && (
@@ -230,14 +424,23 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
                     { id: "T3", description: "20 minutes" },
                     { id: "T4", description: "25 minutes" },
                     { id: "T5", description: "30+ minutes" }
-                  ].map((step) => (
-                    <div key={step.id} className="progression-step">
-                      <div className="step-indicator" aria-label={`${step.id}: ${step.description}`}>
-                        {step.id}
+                  ].map((step) => {
+                    const tProgress = getTLevelProgress(step.id);
+                    return (
+                      <div key={step.id} className={`progression-step ${tProgress.isComplete ? 'complete' : ''}`}>
+                        <div className="step-indicator" aria-label={`${step.id}: ${step.description}`}>
+                          {step.id}
+                          {tProgress.isComplete && <span className="complete-check">✓</span>}
+                        </div>
+                        <div className="step-description">
+                          {step.description}
+                          {currentUser && tProgress.completed > 0 && (
+                            <div className="step-progress">({tProgress.completed}/{tProgress.required})</div>
+                          )}
+                        </div>
                       </div>
-                      <div className="step-description">{step.description}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -249,21 +452,32 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
                 { id: "t3", title: "T3: 20 minutes" },
                 { id: "t4", title: "T4: 25 minutes" },
                 { id: "t5", title: "T5: 30+ minutes" }
-              ].map((substage) => (
-                <button 
-                  key={substage.id}
-                  className={selectedSubstage === substage.id ? "active" : ""} 
-                  onClick={() => handleSubstageSelect(substage.id)}
-                  onTouchStart={handleTouchStart}
-                  onKeyDown={(e) => handleKeyDown(e, () => handleSubstageSelect(substage.id))}
-                  role="tab"
-                  aria-selected={selectedSubstage === substage.id}
-                  aria-controls={`substage-${substage.id}-content`}
-                  aria-label={`Select ${substage.title}`}
-                >
-                  {substage.title}
-                </button>
-              ))}
+              ].map((substage) => {
+                const tProgress = getTLevelProgress(substage.id);
+                return (
+                  <button 
+                    key={substage.id}
+                    className={`
+                      ${selectedSubstage === substage.id ? "active" : ""} 
+                      ${tProgress.isComplete ? "complete" : ""}
+                    `}
+                    onClick={() => handleSubstageSelect(substage.id)}
+                    onTouchStart={handleTouchStart}
+                    onKeyDown={(e) => handleKeyDown(e, () => handleSubstageSelect(substage.id))}
+                    role="tab"
+                    aria-selected={selectedSubstage === substage.id}
+                    aria-controls={`substage-${substage.id}-content`}
+                    aria-label={`${substage.title}${tProgress.isComplete ? ' - Complete' : ''}`}
+                  >
+                    <span className="substage-title">{substage.title}</span>
+                    {currentUser && (
+                      <span className="substage-progress">
+                        {tProgress.isComplete ? '✅' : `${tProgress.completed}/${tProgress.required}`}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             
             <div id={`substage-${selectedSubstage}-content`} role="tabpanel">
@@ -289,6 +503,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
           </div>
         )}
         
+        {/* Stage 2-6 content remains the same but could be enhanced similarly */}
         {selectedStage === 2 && (
           <div className="stage-content" id="stage-2-content" role="tabpanel">
             <h2>Observer: Understanding Thought Patterns</h2>
@@ -335,6 +550,7 @@ const StageInstructions: React.FC<StageInstructionsProps> = ({
           </div>
         )}
         
+        {/* Stages 3-6 content continues as in your original code... */}
         {selectedStage === 3 && (
           <div className="stage-content" id="stage-3-content" role="tabpanel">
             <h2>Tracker: Dot Tracking Practice</h2>

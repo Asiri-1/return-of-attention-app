@@ -1,9 +1,8 @@
-// ✅ FIREBASE-ONLY Stage1Introduction.tsx - Navigate to Progressive T-Level Selection
-// File: src/Stage1Introduction.tsx
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from './contexts/user/UserContext'; // ✅ Firebase-only user context
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useUser } from './contexts/user/UserContext';
+import { useAuth } from './contexts/auth/AuthContext';
 import './StageLevelIntroduction.css';
 
 interface Stage1IntroductionProps {
@@ -19,74 +18,90 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const stageNumber = 1;
   const navigate = useNavigate();
   
-  // ✅ FIREBASE-ONLY: Use Firebase user context
+  // ✅ Phase 3 Context Integration
+  const { getCurrentStage, getStageProgress, sessions, isLoading: practiceLoading } = usePractice();
   const { userProfile, updateProfile } = useUser();
-  
-  const slides = [
+  const { currentUser } = useAuth();
+
+  // ✅ Progress Info for Header
+  const progressInfo = useMemo(() => {
+    const currentStage = getCurrentStage();
+    const progress = getStageProgress(1);
+    
+    return {
+      currentStage,
+      percentage: Math.round(progress.percentage || 0),
+      isComplete: (progress as any).isComplete || false
+    };
+  }, [getCurrentStage, getStageProgress]);
+
+  // ✅ Enhanced slides with dynamic content
+  const slides = useMemo(() => [
     {
       title: "Welcome to Stage One",
-      content: "As a Seeker, you're beginning the journey of developing physical readiness for meditation practice. This stage focuses on building the capacity to remain physically still for extended periods.",
+      content: `As a Seeker, you're beginning the journey of developing physical readiness for meditation practice. This stage focuses on building the capacity to remain physically still for extended periods. You're starting an incredible journey of transformation!`,
       icon: "🌱"
     },
     {
       title: "The Physical Foundation",
-      content: "Physical stillness creates the container for all mental work that follows. By training your body to remain still, you develop the first essential skill for deeper practice.",
+      content: "Physical stillness creates the container for all mental work that follows. By training your body to remain still, you develop the first essential skill for deeper practice. This is where your meditation journey truly begins.",
       icon: "🏗️"
     },
     {
       title: "T1-T5 Progression",
-      content: "Stage One is divided into 5 progressive levels (T1-T5), gradually building from 10 minutes to 30+ minutes of stillness. Each level builds upon the previous one.",
+      content: "Stage One is divided into 5 progressive levels (T1-T5), gradually building from 10 minutes to 30+ minutes of stillness. Each level builds upon the previous one, creating a systematic approach to developing physical mastery.",
       icon: "📈"
     }
-  ];
+  ], []);
   
-  // ✅ FIREBASE-ONLY: Memoized completion handler
+  // ✅ Safe User Profile Update
   const markIntroCompleted = useCallback(async () => {
+    if (!currentUser) return;
+    
     console.log('🔍 Stage 1 introduction completed');
     
     try {
-      // ✅ FIREBASE-ONLY: Update completed intros in Firebase
-      if (userProfile && 'completedStageIntros' in userProfile) {
-        const completedIntros = Array.isArray(userProfile.completedStageIntros) 
-          ? userProfile.completedStageIntros as number[]
-          : [];
-        
-        if (!completedIntros.includes(stageNumber)) {
-          const updatedIntros = [...completedIntros, stageNumber];
-          await updateProfile({ 
-            completedStageIntros: updatedIntros,
-            currentStage: 1 // Ensure Stage 1 is current
-          } as any);
-          console.log('✅ Stage 1 intro completion saved to Firebase');
-        }
-      } else {
-        // First time - initialize completed intros
-        await updateProfile({ 
-          completedStageIntros: [stageNumber],
-          currentStage: 1
+      setIsLoading(true);
+      
+      const currentIntros = (userProfile as any)?.completedStageIntros || [];
+      
+      if (!currentIntros.includes(stageNumber)) {
+        const updatedIntros = [...currentIntros, stageNumber];
+        await updateProfile({
+          ...userProfile,
+          completedStageIntros: updatedIntros,
+          currentStage: 1,
+          lastUpdated: new Date().toISOString()
         } as any);
-        console.log('✅ Stage 1 intro completion initialized in Firebase');
+        
+        console.log('✅ Stage 1 introduction marked as completed');
       }
     } catch (error) {
-      console.warn('Could not update stage completion in Firebase:', error);
-      // Continue anyway since this is not critical
+      console.error('❌ Error marking stage intro as completed:', error);
+      setError('Failed to save introduction progress');
+      // Continue anyway - don't block the user flow
+    } finally {
+      setIsLoading(false);
     }
-  }, [stageNumber, userProfile, updateProfile]);
+  }, [stageNumber, userProfile, updateProfile, currentUser]);
   
-  // ✅ FIREBASE-ONLY: Skip handler now goes to PROGRESSIVE T-level selection
+  // ✅ Skip handler navigates to progressive Stage1Wrapper
   const handleSkip = useCallback(async () => {
     await markIntroCompleted();
     
     setTimeout(() => {
       console.log('🔍 Navigating to PROGRESSIVE T-level selection after skip');
-      navigate('/stage1'); // ✅ FIXED: Go to progressive Stage1Wrapper, not TLevelSelectionPage
+      navigate('/stage1');
     }, 100);
   }, [markIntroCompleted, navigate]);
   
-  // ✅ FIREBASE-ONLY: Next slide handler goes to PROGRESSIVE T-level selection after completion
+  // ✅ Next slide handler with completion
   const nextSlide = useCallback(async () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
@@ -95,7 +110,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
       
       setTimeout(() => {
         console.log('🔍 Navigating to PROGRESSIVE T-level selection after completion');
-        navigate('/stage1'); // ✅ FIXED: Go to progressive Stage1Wrapper, not TLevelSelectionPage
+        navigate('/stage1');
       }, 100);
     }
   }, [currentSlide, slides.length, markIntroCompleted, navigate]);
@@ -112,7 +127,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     setCurrentSlide(index);
   }, []);
   
-  // ✅ IMPROVED: React-based welcome message
+  // ✅ Welcome back message effect
   useEffect(() => {
     if (hasSeenBefore) {
       setShowWelcomeBack(true);
@@ -124,7 +139,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   }, [hasSeenBefore]);
   
-  // ✅ NEW: iPhone touch/swipe support
+  // ✅ Touch/swipe support for mobile
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
@@ -152,7 +167,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     }
   }, [touchStart, touchEnd, nextSlide, prevSlide]);
 
-  // ✅ NEW: Keyboard navigation
+  // ✅ Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
@@ -169,13 +184,35 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [nextSlide, prevSlide, handleSkip]);
   
-  // ✅ FIXED: Button text now says "Start Progressive Practice"
+  // ✅ Dynamic button text
   const getButtonText = () => {
     if (currentSlide < slides.length - 1) {
       return "Next";
     }
-    return "Start Progressive Practice"; // ✅ CHANGED: Indicates progressive flow
+    return "Start Progressive Practice";
   };
+
+  // ✅ Loading State
+  if (practiceLoading || isLoading) {
+    return (
+      <div className="stage-level-introduction">
+        <div className="loading-content" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh'
+        }}>
+          <div style={{ fontSize: '18px', marginBottom: '12px' }}>
+            Loading Stage 1 Introduction...
+          </div>
+          <div style={{ fontSize: '14px', color: '#6b7280' }}>
+            Preparing your physical readiness training
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -184,12 +221,24 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* ✅ IMPROVED: React-based welcome message */}
+      {/* ✅ Welcome back message */}
       {showWelcomeBack && (
-        <div className="welcome-back-message">
+        <div className="welcome-back-message" style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: 'white',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 25px rgba(16, 185, 129, 0.3)',
+          zIndex: 1000,
+          animation: 'slideInDown 0.5s ease-out'
+        }}>
           <div className="welcome-back-content">
-            <h3>Welcome Back! 👋</h3>
-            <p>Continue your Stage 1 journey or skip to progressive practice selection.</p>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>Welcome Back! 👋</h3>
+            <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>Continue your Stage 1 journey or skip to progressive practice selection.</p>
           </div>
         </div>
       )}
@@ -199,27 +248,95 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
           className="back-button" 
           onClick={onBack}
           aria-label="Go back"
+          disabled={isLoading}
         >
           Back
         </button>
-        <h1>Seeker: Physical Readiness</h1>
+        
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <h1>Stage 1: Seeker Level</h1>
+          {progressInfo && (
+            <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
+              Current Stage: {progressInfo.currentStage} • Progress: {progressInfo.percentage}%
+              {progressInfo.isComplete && ' ✅'}
+            </div>
+          )}
+        </div>
+        
         <button 
           className="skip-button" 
           onClick={handleSkip}
           aria-label={hasSeenBefore ? "Skip to progressive practice" : "Skip introduction"}
+          disabled={isLoading}
         >
-          {hasSeenBefore ? "Skip to Practice" : "Skip"}
+          {isLoading ? 'Saving...' : hasSeenBefore ? "Skip to Practice" : "Skip"}
         </button>
       </div>
       
       <div className="introduction-content">
+        {/* ✅ Achievement Badge */}
+        <div className="achievement-badge" style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '20px',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>🌱 Stage 1: Physical Foundation</h3>
+          <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+            You're beginning the journey of developing physical readiness for meditation!
+          </p>
+        </div>
+
+        {/* ✅ Error Display */}
+        {error && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #ef4444',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            <div style={{ color: '#dc2626', fontSize: '16px', marginBottom: '8px' }}>
+              ⚠️ {error}
+            </div>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                padding: '8px 16px',
+                background: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        
         <div className="slide-container">
-          {/* ✅ ADDED: Visual icon for better engagement */}
-          <div className="slide-icon">{slides[currentSlide].icon}</div>
+          {/* ✅ Visual icon for better engagement */}
+          <div className="slide-icon" style={{ 
+            fontSize: '48px', 
+            textAlign: 'center', 
+            marginBottom: '20px' 
+          }}>
+            {slides[currentSlide].icon}
+          </div>
           <h2>{slides[currentSlide].title}</h2>
           <p>{slides[currentSlide].content}</p>
           
-          <div className="slide-progress">
+          <div className="slide-progress" style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '12px',
+            marginTop: '24px'
+          }}>
             {slides.map((_, index) => (
               <div 
                 key={index} 
@@ -234,11 +351,21 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
                     goToSlide(index);
                   }
                 }}
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: index === currentSlide 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    : 'rgba(102, 126, 234, 0.3)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
               />
             ))}
           </div>
 
-          {/* ✅ MOVED: Navigation buttons now below progress dots with blue styling */}
+          {/* ✅ Navigation buttons */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -250,6 +377,7 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
               <button 
                 onClick={prevSlide}
                 aria-label="Go to previous slide"
+                disabled={isLoading}
                 style={{
                   background: 'rgba(102, 126, 234, 0.1)',
                   color: '#667eea',
@@ -258,28 +386,34 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
                   padding: '12px 24px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.3s ease',
-                  minWidth: '100px'
+                  minWidth: '100px',
+                  opacity: isLoading ? 0.6 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  if (!isLoading) {
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0px)';
+                  if (!isLoading) {
+                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                  }
                 }}
               >
                 ← Back
               </button>
             ) : (
-              <div style={{ minWidth: '100px' }}></div> // Spacer
+              <div style={{ minWidth: '100px' }}></div>
             )}
             
             <button 
               onClick={nextSlide}
               aria-label={currentSlide === slides.length - 1 ? 'Start progressive practice' : 'Go to next slide'}
+              disabled={isLoading}
               style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
@@ -288,26 +422,31 @@ const Stage1Introduction: React.FC<Stage1IntroductionProps> = ({
                 padding: '12px 32px',
                 fontSize: '16px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.3s ease',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-                minWidth: '180px'
+                minWidth: '180px',
+                opacity: isLoading ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                if (!isLoading) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0px)';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                if (!isLoading) {
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                }
               }}
             >
-              {getButtonText()} →
+              {isLoading ? 'Starting...' : `${getButtonText()} →`}
             </button>
           </div>
         </div>
         
-        {/* ✅ IMPROVED: Progress indicator now integrated above navigation */}
+        {/* ✅ Progress indicator */}
         <div style={{
           width: '100%',
           height: '4px',
