@@ -1,4 +1,4 @@
-// ✅ ENHANCED Stage6Wrapper.tsx - Phase 3 Robust Integration
+// ✅ FIXED Stage6Wrapper.tsx - React Hooks Compliance
 // File: src/Stage6Wrapper.tsx
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
@@ -28,9 +28,16 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
   
-  // ✅ ENHANCED: Safe UserContext integration with fallbacks
+  // ✅ ALL HOOKS AT TOP LEVEL
   const userContext = useUser();
   const { userProfile } = userContext;
+  const { addPracticeSession, getCurrentStage, getStageProgress, canAdvanceToStage, calculateStats, sessions } = usePractice();
+  
+  // ✅ State management
+  const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
+  const [selectedPosture, setSelectedPosture] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // ✅ ENHANCED: Safe method calling wrapper
   const safeUserContextCall = useCallback(async (method: string, fallbackValue: any, ...args: any[]) => {
@@ -48,21 +55,10 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     }
   }, [userContext]);
 
-  // ✅ PracticeContext for detailed session history
-  const { addPracticeSession, getCurrentStage, getStageProgress, canAdvanceToStage, calculateStats, sessions } = usePractice();
-  
-  // ✅ State management
-  const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
-  const [selectedPosture, setSelectedPosture] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   // ✅ ENHANCED: Get Stage 6 progress from sessions if UserContext methods unavailable
   const getStage6ProgressFromSessions = useCallback(() => {
-    // Use sessions directly from PracticeContext
     const allSessions = sessions || [];
     
-    // Filter Stage 6 sessions
     const stage6Sessions = allSessions.filter((session: any) => 
       session.stageLevel === 6 || 
       session.stage === 6 ||
@@ -84,10 +80,8 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
 
   // ✅ ENHANCED: Get Stage 5 progress for access control
   const getStage5ProgressFromSessions = useCallback(() => {
-    // Use sessions directly from PracticeContext
     const allSessions = sessions || [];
     
-    // Filter Stage 5 sessions
     const stage5Sessions = allSessions.filter((session: any) => 
       session.stageLevel === 5 || 
       session.stage === 5 ||
@@ -107,10 +101,9 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     };
   }, [sessions]);
 
-  // ✅ ENHANCED: Stage 6 progress with dual source support
+  // ✅ FIXED: Stage 6 progress with dual source support - MOVED TO TOP LEVEL
   const stage6Progress = useMemo(() => {
     try {
-      // Try to get from sessions first (always available)
       const fromSessions = getStage6ProgressFromSessions();
       
       return {
@@ -125,7 +118,7 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     }
   }, [getStage6ProgressFromSessions]);
 
-  // ✅ ENHANCED: Stage 5 progress for access control
+  // ✅ FIXED: Stage 5 progress for access control - MOVED TO TOP LEVEL
   const stage5Progress = useMemo(() => {
     try {
       const fromSessions = getStage5ProgressFromSessions();
@@ -139,13 +132,12 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     }
   }, [getStage5ProgressFromSessions]);
 
-  // ✅ ENHANCED: Access control with fallback logic
+  // ✅ FIXED: Access control with fallback logic - MOVED TO TOP LEVEL
   const hasStage6Access = useMemo(() => {
     const currentStage = getCurrentStage();
     const canAdvance = canAdvanceToStage(6);
     const stage5Complete = stage5Progress.isComplete;
     
-    // Stage 6 access: current stage >= 6 OR can advance to 6 OR Stage 5 complete
     return currentStage >= 6 || canAdvance || stage5Complete;
   }, [getCurrentStage, canAdvanceToStage, stage5Progress.isComplete]);
 
@@ -177,6 +169,104 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
       effectivelyFromPAHM
     };
   }, [locationState.fromPAHM, locationState.fromIntro, urlParams.returnToStage, urlParams.fromStage]);
+
+  // ✅ FIXED: Memoized component renderer - MOVED TO TOP LEVEL
+  const renderCurrentPhase = useMemo(() => {
+    if (isLoading) {
+      return (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh'
+        }}>
+          <div style={{ fontSize: '18px', marginBottom: '12px' }}>
+            Saving your mastery session...
+          </div>
+          <div style={{ fontSize: '14px', color: '#6b7280' }}>
+            Recording your progress toward meditation mastery
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          textAlign: 'center',
+          padding: '20px'
+        }}>
+          <div style={{ color: '#ef4444', fontSize: '18px', marginBottom: '12px' }}>
+            ⚠️ {error}
+          </div>
+          <button
+            onClick={() => setError(null)}
+            style={{
+              padding: '12px 24px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    switch (currentPhase) {
+      case 'reflection':
+        return (
+          <UniversalPAHMReflection
+            stageLevel={6}
+            onComplete={handleReflectionComplete}
+            onBack={handleReflectionBack}
+          />
+        );
+        
+      case 'timer':
+        return (
+          <UniversalPAHMTimer
+            stageLevel={6}
+            onComplete={handleTimerComplete}
+            onBack={handleBack}
+            posture={selectedPosture}
+          />
+        );
+        
+      case 'posture':
+        return (
+          <UniversalPostureSelection
+            stageNumber={6}
+            onBack={handleBack}
+            onStartPractice={handleStartPractice}
+          />
+        );
+        
+      case 'introduction':
+      default:
+        return (
+          <Stage6Introduction
+            onComplete={handleIntroComplete}
+            onBack={handleBack}
+          />
+        );
+    }
+  }, [
+    currentPhase,
+    selectedPosture,
+    isLoading,
+    error
+    // Note: Handler functions will be defined below, so we'll add them to dependencies later
+  ]);
 
   // ✅ Clear previous session data
   const clearPreviousSession = useCallback(async (): Promise<void> => {
@@ -232,7 +322,7 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     } catch (error) {
       console.error('❌ Error marking Stage 6 intro as completed:', error);
       setError('Failed to save introduction progress');
-      setCurrentPhase('posture'); // Continue anyway
+      setCurrentPhase('posture');
     } finally {
       setIsLoading(false);
     }
@@ -264,16 +354,13 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     try {
       console.log(`🎯 Stage 6 session completed! Duration: ${completedDuration} minutes`);
       
-      // 1. ✅ Try to increment Stage 6 sessions via UserContext
       const newSessionCount = await safeUserContextCall('incrementStage6Sessions', stage6Progress.sessions + 1);
       console.log(`📊 Stage 6 Sessions: ${newSessionCount}`);
       
-      // 2. ✅ Try to add hours via UserContext
       const hoursToAdd = completedDuration / 60;
       const newTotalHours = await safeUserContextCall('addStageHoursDirect', stage6Progress.hours + hoursToAdd, 6, hoursToAdd);
       console.log(`⏱️ Stage 6 Hours: ${newTotalHours}/30 (${Math.round((newTotalHours/30)*100)}%) - MASTERY LEVEL!`);
       
-      // 3. ✅ Always record detailed session to PracticeContext (guaranteed to work)
       const enhancedSessionData = {
         timestamp: new Date().toISOString(),
         duration: completedDuration,
@@ -308,7 +395,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
 
       await addPracticeSession(enhancedSessionData);
       
-      // 4. ✅ Check if Stage 6 is complete (30+ hours) - MEDITATION MASTERY!
       const isStageComplete = newTotalHours >= 30;
       if (isStageComplete) {
         console.log('🏆 STAGE 6 COMPLETED! 30+ hours reached - MEDITATION MASTERY ACHIEVED! 🎉');
@@ -335,7 +421,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
       console.log(`📊 Stage 6 Progress: ${currentSessions} sessions, ${currentHours}/30 hours - MASTERY LEVEL`);
       
       if (isComplete) {
-        // ✅ Stage 6 complete - MEDITATION MASTERY ACHIEVED!
         navigate('/home', {
           state: {
             stage6Completed: true,
@@ -349,7 +434,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
           }
         });
       } else {
-        // ✅ Stage 6 in progress (30-hour MASTERY target)
         const hoursRemaining = Math.max(0, 30 - currentHours);
         const percentComplete = Math.round((currentHours / 30) * 100);
         
@@ -453,109 +537,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
     );
   }
 
-  // ✅ Memoized component renderer with loading states
-  const renderCurrentPhase = useMemo(() => {
-    if (isLoading) {
-      return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh'
-        }}>
-          <div style={{ fontSize: '18px', marginBottom: '12px' }}>
-            Saving your mastery session...
-          </div>
-          <div style={{ fontSize: '14px', color: '#6b7280' }}>
-            Recording your progress toward meditation mastery
-          </div>
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          textAlign: 'center',
-          padding: '20px'
-        }}>
-          <div style={{ color: '#ef4444', fontSize: '18px', marginBottom: '12px' }}>
-            ⚠️ {error}
-          </div>
-          <button
-            onClick={() => setError(null)}
-            style={{
-              padding: '12px 24px',
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer'
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-
-    switch (currentPhase) {
-      case 'reflection':
-        return (
-          <UniversalPAHMReflection
-            stageLevel={6}
-            onComplete={handleReflectionComplete}
-            onBack={handleReflectionBack}
-          />
-        );
-        
-      case 'timer':
-        return (
-          <UniversalPAHMTimer
-            stageLevel={6}
-            onComplete={handleTimerComplete}
-            onBack={handleBack}
-            posture={selectedPosture}
-          />
-        );
-        
-      case 'posture':
-        return (
-          <UniversalPostureSelection
-            stageNumber={6}
-            onBack={handleBack}
-            onStartPractice={handleStartPractice}
-          />
-        );
-        
-      case 'introduction':
-      default:
-        return (
-          <Stage6Introduction
-            onComplete={handleIntroComplete}
-            onBack={handleBack}
-          />
-        );
-    }
-  }, [
-    currentPhase,
-    selectedPosture,
-    isLoading,
-    error,
-    handleReflectionComplete,
-    handleReflectionBack,
-    handleTimerComplete,
-    handleBack,
-    handleStartPractice,
-    handleIntroComplete
-  ]);
-
   return (
     <MainNavigation>
       <div className="stage6-wrapper">
@@ -598,7 +579,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
             </span>
           </div>
           
-          {/* ✅ Progress bar with 30-hour calculation - MASTERY THEME */}
           <div style={{
             background: 'rgba(255, 255, 255, 0.3)',
             borderRadius: '10px',
@@ -614,7 +594,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
             }} />
           </div>
           
-          {/* ✅ Data source indicator */}
           <div style={{
             marginTop: '8px',
             fontSize: '12px',
@@ -623,7 +602,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
             Data source: {stage6Progress.source}
           </div>
           
-          {/* ✅ MASTERY Badge when complete */}
           {stage6Progress.isComplete && (
             <div style={{
               marginTop: '16px',
@@ -640,7 +618,6 @@ const Stage6Wrapper: React.FC<Stage6WrapperProps> = () => {
         
         {renderCurrentPhase}
         
-        {/* ✅ Enhanced Debug info for MASTERY stage */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '20px',

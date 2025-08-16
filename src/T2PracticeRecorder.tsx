@@ -1,10 +1,5 @@
-// ✅ ENHANCED T2PracticeRecorder.tsx - PHASE 3 FIREBASE INTEGRATION
+// ✅ FIXED T2PracticeRecorder.tsx - React Hooks Compliance
 // File: src/T2PracticeRecorder.tsx
-// ✅ ENHANCED: Complete Firebase context integration
-// ✅ ENHANCED: Error handling and fallback mechanisms
-// ✅ ENHANCED: Real-time progress tracking
-// ✅ ENHANCED: Session validation and sanitization
-// ✅ ENHANCED: T1 prerequisite validation
 
 import { forwardRef, useImperativeHandle, useCallback } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -21,19 +16,20 @@ interface T2PracticeRecorderProps {
  * ✅ FIREBASE-ONLY: Integrates with PracticeContext, UserContext, and AuthContext
  * ✅ ENHANCED: Phase 3 compliant with proper error handling and validation
  * ✅ ENHANCED: T1 prerequisite checking and T2 progression tracking
+ * ✅ FIXED: React Hooks compliance - all hooks at top level
  */
 const T2PracticeRecorder = forwardRef<any, T2PracticeRecorderProps>(({ onRecordSession }, ref) => {
   
-  // ✅ ENHANCED: Complete Firebase context integration
+  // ✅ FIXED: ALL HOOKS AT TOP LEVEL
   const { currentUser } = useAuth();
   const { addPracticeSession, calculateStats, sessions } = usePractice();
-  const { userProfile } = useUser();
+  const userContext = useUser();
+  const { userProfile } = userContext;
 
-  // ✅ ENHANCED: Safe method wrapper for UserContext methods
+  // ✅ FIXED: Safe method wrapper using userContext from top level
   const safeUserContextCall = useCallback(async (method: string, fallbackValue: any, ...args: any[]) => {
     try {
-      const userContext = useUser() as any;
-      const userContextMethod = userContext[method];
+      const userContextMethod = (userContext as any)[method];
       if (typeof userContextMethod === 'function') {
         return await userContextMethod(...args);
       } else {
@@ -44,7 +40,7 @@ const T2PracticeRecorder = forwardRef<any, T2PracticeRecorderProps>(({ onRecordS
       console.warn(`⚠️ Error calling UserContext.${method}:`, error);
       return fallbackValue;
     }
-  }, []);
+  }, [userContext]);
 
   // ✅ ENHANCED: Calculate T1 and T2 progress using available data
   const getT2ProgressFromStats = useCallback(() => {

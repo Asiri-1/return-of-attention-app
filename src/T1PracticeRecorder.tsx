@@ -1,9 +1,5 @@
-// ✅ ENHANCED T1PracticeRecorder.tsx - PHASE 3 FIREBASE INTEGRATION
+// ✅ FIXED T1PracticeRecorder.tsx - React Hooks Compliance
 // File: src/T1PracticeRecorder.tsx
-// ✅ ENHANCED: Complete Firebase context integration
-// ✅ ENHANCED: Error handling and fallback mechanisms
-// ✅ ENHANCED: Real-time progress tracking
-// ✅ ENHANCED: Session validation and sanitization
 
 import { forwardRef, useImperativeHandle, useCallback } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
@@ -19,19 +15,20 @@ interface T1PracticeRecorderProps {
  * 
  * ✅ FIREBASE-ONLY: Integrates with PracticeContext, UserContext, and AuthContext
  * ✅ ENHANCED: Phase 3 compliant with proper error handling
+ * ✅ FIXED: React Hooks compliance - all hooks at top level
  */
 const T1PracticeRecorder = forwardRef<any, T1PracticeRecorderProps>(({ onRecordSession }, ref) => {
   
-  // ✅ ENHANCED: Complete Firebase context integration
+  // ✅ FIXED: ALL HOOKS AT TOP LEVEL
   const { currentUser } = useAuth();
   const { addPracticeSession, calculateStats, sessions } = usePractice();
-  const { userProfile } = useUser();
+  const userContext = useUser();
+  const { userProfile } = userContext;
 
-  // ✅ ENHANCED: Safe method wrapper for UserContext methods
+  // ✅ FIXED: Safe method wrapper using userContext from top level
   const safeUserContextCall = useCallback(async (method: string, fallbackValue: any, ...args: any[]) => {
     try {
-      const userContext = useUser() as any;
-      const userContextMethod = userContext[method];
+      const userContextMethod = (userContext as any)[method];
       if (typeof userContextMethod === 'function') {
         return await userContextMethod(...args);
       } else {
@@ -42,7 +39,7 @@ const T1PracticeRecorder = forwardRef<any, T1PracticeRecorderProps>(({ onRecordS
       console.warn(`⚠️ Error calling UserContext.${method}:`, error);
       return fallbackValue;
     }
-  }, []);
+  }, [userContext]);
 
   // ✅ ENHANCED: Calculate T1 progress using available data
   const getT1ProgressFromStats = useCallback(() => {
