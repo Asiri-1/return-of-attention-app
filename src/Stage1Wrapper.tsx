@@ -1,4 +1,4 @@
-// ✅ ENHANCED Stage1Wrapper.tsx - Phase 3 Robust Integration
+// ✅ FIXED Stage1Wrapper.tsx - Complete T-Level Practice UI
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -47,11 +47,7 @@ const Stage1Wrapper: React.FC = () => {
   const userContext = useUser();
   const { addPracticeSession, getCurrentStage, sessions } = usePractice();
   
-  const [tStages, setTStages] = useState<TStageStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ SAFE USER CONTEXT FUNCTION (NOT A HOOK) - Removed since not used
-  // const callUserContextMethod = async (method: string, fallbackValue: any, ...args: any[]) => { ... }
 
   // ✅ STAGE PROGRESS CALCULATIONS (MEMOIZED VALUES)
   const stage1Progress = useMemo(() => {
@@ -84,29 +80,63 @@ const Stage1Wrapper: React.FC = () => {
     }
   }, [sessions]);
 
-  // ✅ T-LEVEL PROGRESS CALCULATIONS
+  // ✅ T-LEVEL PROGRESS CALCULATIONS - USING USERCONTEXT METHODS
   const tLevelProgress = useMemo(() => {
-    if (!sessions) return { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0, source: 'fallback' };
-    
     try {
-      const tLevelCounts = { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0 };
-      
-      sessions.forEach((session: any) => {
-        const tLevel = session.tLevel || session.metadata?.tLevel;
-        if (tLevel && tLevelCounts.hasOwnProperty(tLevel)) {
-          tLevelCounts[tLevel as keyof typeof tLevelCounts]++;
-        }
-      });
+      // Use UserContext methods that pull from Firebase
+      const t1Sessions = userContext.getT1Sessions ? userContext.getT1Sessions() : 0;
+      const t2Sessions = userContext.getT2Sessions ? userContext.getT2Sessions() : 0;
+      const t3Sessions = userContext.getT3Sessions ? userContext.getT3Sessions() : 0;
+      const t4Sessions = userContext.getT4Sessions ? userContext.getT4Sessions() : 0;
+      const t5Sessions = userContext.getT5Sessions ? userContext.getT5Sessions() : 0;
       
       return {
-        ...tLevelCounts,
-        source: 'sessions'
+        T1: t1Sessions,
+        T2: t2Sessions,
+        T3: t3Sessions,
+        T4: t4Sessions,
+        T5: t5Sessions,
+        source: 'usercontext'
       };
     } catch (error) {
       console.error('❌ Error calculating T-level progress:', error);
       return { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0, source: 'fallback' };
     }
-  }, [sessions]);
+  }, [userContext]);
+
+  // ✅ T-LEVEL STATUS CALCULATION - THIS GENERATES THE PRACTICE BUTTONS
+  const tStages = useMemo(() => {
+    const stages = [];
+    const levels = ['T1', 'T2', 'T3', 'T4', 'T5'];
+    
+    for (let i = 0; i < levels.length; i++) {
+      const level = levels[i];
+      const sessions = tLevelProgress[level as keyof typeof tLevelProgress] || 0;
+      const isComplete = sessions >= 3;
+      
+      // T1 is always accessible, others require previous level completion
+      let isAccessible = i === 0; // T1 is always accessible
+      if (i > 0) {
+        const prevLevel = levels[i - 1];
+        const prevSessions = tLevelProgress[prevLevel as keyof typeof tLevelProgress] || 0;
+        isAccessible = prevSessions >= 3; // Previous level must be complete
+      }
+      
+      stages.push({
+        level,
+        sessions,
+        isComplete,
+        isAccessible,
+        stage1Hours: stage1Progress.hours,
+        isStage1Complete: stage1Progress.isComplete,
+        hoursProgress: (stage1Progress.hours / 3) * 100,
+        source: tLevelProgress.source
+      });
+    }
+    
+    console.log('🎯 Generated T-stages:', stages);
+    return stages;
+  }, [tLevelProgress, stage1Progress]);
 
   // ✅ FIXED: Start practice handler with data sanitization
   const handleStartPractice = useCallback((tLevel: string, duration: number) => {
@@ -285,7 +315,7 @@ const Stage1Wrapper: React.FC = () => {
             </div>
           )}
 
-          {/* T-Stages Grid */}
+          {/* ✅ T-STAGES GRID - THE PRACTICE BUTTONS */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -433,7 +463,7 @@ const Stage1Wrapper: React.FC = () => {
               <div>Progress Source: {stage1Progress.source}</div>
               <div>T-Level Source: {tLevelProgress.source}</div>
               <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
-              <div>Available UserContext Methods:</div>
+              <div>Total T-stages generated: {tStages.length}</div>
             </div>
           )}
         </div>

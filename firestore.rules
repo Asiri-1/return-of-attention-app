@@ -1,80 +1,288 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Admin user gets read access to all data for analytics
+    
+    // ===============================================
+    // 🔧 ADMIN ACCESS - Complete read access for analytics
+    // ===============================================
     match /{document=**} {
       allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
     }
     
-    // Regular users can only access their own data
+    // ===============================================
+    // 👤 USER PROFILES - Basic user data
+    // ===============================================
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Practice sessions for each user
-      match /practiceSessions/{sessionId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        // Admin can read all practice sessions for analytics
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // Mind recovery sessions for each user  
-      match /mindRecoveryHistory/{sessionId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // Emotional notes for each user
-      match /emotionalNotes/{noteId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // AI chat interactions for each user
-      match /chatInteractions/{interactionId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // ✅ NEW: User progress tracking for stage progression (CRITICAL for audit compliance)
-      match /userProgress/{progressId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // ✅ NEW: Stage progression data (hours-based tracking)
-      match /stageProgression/{stageId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // ✅ NEW: Session counts and completion tracking
-      match /sessionCounts/{countId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
-      
-      // ✅ NEW: Stage hours tracking (per stage)
-      match /stageHours/{hoursId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
-      }
     }
     
-    // ✅ NEW: Global stage progression analytics (admin only)
+    // ===============================================
+    // 🧘 PRACTICE SESSIONS - Main meditation tracking
+    // ===============================================
+    match /practiceSessions/{sessionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      // Admin access
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🌱 MIND RECOVERY SESSIONS - Quick mindfulness sessions
+    // ===============================================
+    // ✅ CRITICAL FIX: Your code uses 'mindRecoverySessions', not 'mindRecoveryHistory'
+    match /mindRecoverySessions/{sessionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      // Admin access
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ LEGACY SUPPORT: Keep old collection name for backward compatibility
+    match /mindRecoveryHistory/{sessionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 📝 EMOTIONAL NOTES & WELLNESS TRACKING
+    // ===============================================
+    match /emotionalNotes/{noteId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ NEW: Daily notes collection
+    match /daily_notes/{noteId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ NEW: Reflections collection
+    match /reflections/{reflectionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🤖 AI CHAT INTERACTIONS
+    // ===============================================
+    match /chatInteractions/{interactionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 📈 STAGE PROGRESSION & PROGRESS TRACKING
+    // ===============================================
+    // ✅ CRITICAL: User progress tracking (used by PracticeContext)
+    match /userProgress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ ALTERNATIVE: Progress tracking with different document structure
+    match /userProgress/{progressId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ STAGE PROGRESSION: Hours-based tracking
+    match /stageProgression/{stageId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ SESSION COUNTS: T-level completion tracking
+    match /sessionCounts/{countId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ STAGE HOURS: Per-stage hour tracking
+    match /stageHours/{hoursId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 📊 ANALYTICS & TRACKING EVENTS
+    // ===============================================
+    // ✅ ANALYTICS EVENTS: User behavior tracking
+    match /analytics_events/{eventId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ GLOBAL ANALYTICS: Admin-only system-wide data
     match /analytics/{analyticsId} {
       allow read, write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
     }
     
-    // ✅ NEW: System-wide stage requirements and configuration
+    // ===============================================
+    // ⚙️ SYSTEM CONFIGURATION
+    // ===============================================
+    // ✅ SYSTEM CONFIG: App settings and stage requirements
     match /systemConfig/{configId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
     }
     
-    // ✅ NEW: Global leaderboards and progress tracking
+    // ✅ STAGE REQUIREMENTS: Global stage progression rules
+    match /stageRequirements/{requirementId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🏆 LEADERBOARDS & SOCIAL FEATURES
+    // ===============================================
     match /leaderboards/{boardId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ USER ACHIEVEMENTS: Individual progress milestones
+    match /achievements/{achievementId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🔄 ONBOARDING & USER JOURNEY
+    // ===============================================
+    // ✅ ONBOARDING DATA: User setup and preferences
+    match /onboardingData/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ USER PREFERENCES: App settings and customization
+    match /userPreferences/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🎯 AUDIT COMPLIANCE: Additional Required Collections
+    // ===============================================
+    // ✅ AUDIT REQUIREMENT: Practice session history (legacy compatibility)
+    match /practice_sessions/{sessionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ AUDIT REQUIREMENT: Mind recovery session history
+    match /mind_recovery_sessions/{sessionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ AUDIT REQUIREMENT: Stage progression history
+    match /stage_progression/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🧠 HAPPINESS & WELLNESS TRACKING
+    // ===============================================
+    // ✅ HAPPINESS TRACKING: Mood and wellbeing data
+    match /happinessTracking/{trackingId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ WELLNESS METRICS: Comprehensive health tracking
+    match /wellnessMetrics/{metricId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🔧 BACKUP & RECOVERY COLLECTIONS
+    // ===============================================
+    // ✅ SESSION BACKUPS: Recovery for failed saves
+    match /sessionBackups/{backupId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ DATA MIGRATION: Support for app updates
+    match /dataMigration/{migrationId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ===============================================
+    // 🐛 ERROR TRACKING & DEBUGGING
+    // ===============================================
+    // ✅ ERROR LOGS: User-specific error tracking
+    match /errorLogs/{errorId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
+    }
+    
+    // ✅ SYSTEM LOGS: Admin-only system-wide logging
+    match /systemLogs/{logId} {
+      allow read, write: if request.auth != null && request.auth.token.email == 'asiriamarasinghe35@gmail.com';
     }
   }
 }
