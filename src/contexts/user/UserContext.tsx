@@ -1,17 +1,13 @@
-// ✅ COMPLETE BACKWARD-COMPATIBLE UserContext with PracticeContext Integration
+// ✅ COMPLETE FIXED UserContext.tsx - Reads Sessions from PracticeContext
 // File: src/contexts/user/UserContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { usePractice } from '../practice/PracticeContext'; // ✅ DIRECT IMPORT
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 
-// ✅ CRITICAL: Import PracticeContext for session data (handled via reference)
-// We'll use a forward reference pattern to avoid circular dependencies
-
-// ================================
-// 🔧 CRITICAL FIX: Data Sanitization Function for UserContext
-// ================================
+// ✅ Data sanitization function
 const sanitizeForFirebase = (data: any): any => {
   if (data === null || data === undefined) {
     return data;
@@ -36,20 +32,10 @@ const sanitizeForFirebase = (data: any): any => {
         try {
           const value = data[key];
           
-          // Skip functions and circular references
-          if (typeof value === 'function') {
-            continue;
-          }
-          if (value === data) {
-            continue;
-          }
+          if (typeof value === 'function') continue;
+          if (value === data) continue;
+          if (value instanceof Window || value instanceof Document || value instanceof Element) continue;
           
-          // Handle specific problematic types
-          if (value instanceof Window || value instanceof Document || value instanceof Element) {
-            continue;
-          }
-          
-          // Recursively sanitize nested objects
           sanitized[key] = sanitizeForFirebase(value);
         } catch (error) {
           console.warn(`Skipping problematic field ${key}:`, error);
@@ -60,11 +46,10 @@ const sanitizeForFirebase = (data: any): any => {
     return sanitized;
   }
   
-  // Return primitive values as-is
   return data;
 };
 
-// ✅ BACKWARD COMPATIBLE: Full interfaces maintained
+// ✅ All your existing interfaces
 interface SessionCounts {
   t1Sessions: number;
   t2Sessions: number;
@@ -205,7 +190,7 @@ interface UserContextType {
   markStageIntroComplete: (stage: string) => Promise<void>;
   syncProfile: () => Promise<void>;
   
-  // ✅ KEPT: Hours-based stage progression methods
+  // Hours-based stage progression methods
   getTotalPracticeHours: () => number;
   getCurrentStageByHours: () => number;
   getStageProgressByHours: (stage: number) => { completed: number; total: number; percentage: number };
@@ -219,7 +204,7 @@ interface UserContextType {
   getAchievements: () => string[];
   hasAchievement: (achievement: string) => boolean;
   
-  // ✅ KEPT: T-Level Session Tracking (now reads from PracticeContext)
+  // ✅ T-Level Session Tracking (reads from PracticeContext)
   getT1Sessions: () => number;
   getT2Sessions: () => number;
   getT3Sessions: () => number;
@@ -236,7 +221,7 @@ interface UserContextType {
   isT4Complete: () => boolean;
   isT5Complete: () => boolean;
   
-  // ✅ KEPT: Stage Session Tracking
+  // Stage Session Tracking
   getStage2Sessions: () => number;
   getStage3Sessions: () => number;
   getStage4Sessions: () => number;
@@ -248,7 +233,7 @@ interface UserContextType {
   incrementStage5Sessions: () => Promise<number>;
   incrementStage6Sessions: () => Promise<number>;
   
-  // ✅ KEPT: Hours Tracking
+  // Hours Tracking
   getStage1Hours: () => number;
   getStage2Hours: () => number;
   getStage3Hours: () => number;
@@ -257,7 +242,7 @@ interface UserContextType {
   getStage6Hours: () => number;
   addStageHoursDirect: (stageNumber: number, hours: number) => Promise<number>;
   
-  // ✅ KEPT: Completion Status
+  // Completion Status
   isStage1CompleteByHours: () => boolean;
   isStage2CompleteByHours: () => boolean;
   isStage3CompleteByHours: () => boolean;
@@ -265,11 +250,11 @@ interface UserContextType {
   isStage5CompleteByHours: () => boolean;
   isStage6CompleteByHours: () => boolean;
   
-  // ✅ KEPT: Progress Tracking
+  // Progress Tracking
   getStageProgressPercentage: (stageNumber: number) => number;
   getTotalStage1Sessions: () => number;
   
-  // ✅ ADDED: Missing methods that other components expect
+  // Missing methods that other components expect
   isStage1Complete: () => boolean;
   
   // Utility methods
@@ -279,29 +264,14 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// ✅ CRITICAL: Forward reference for PracticeContext to avoid circular dependency
-let practiceContextRef: any = null;
-
-// ✅ Method to set PracticeContext reference
-export const setPracticeContextReference = (practiceContext: any) => {
-  practiceContextRef = practiceContext;
-};
-
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
+  const { sessions } = usePractice(); // ✅ DIRECT ACCESS TO SESSIONS
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [achievements, setAchievements] = useState<string[]>([]);
 
-  // ✅ Get PracticeContext sessions for T-level counting
-  const getPracticeContextSessions = useCallback(() => {
-    if (practiceContextRef && practiceContextRef.sessions) {
-      return practiceContextRef.sessions;
-    }
-    return [];
-  }, []);
-
-  // ✅ KEPT: Create default profile with all fields
+  // ✅ Create default profile
   const createDefaultProfile = useCallback((): UserProfile => {
     return {
       userId: currentUser?.uid || 'guest',
@@ -328,9 +298,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasSeenTLevelIntro: false,
         totalHours: 0,
         hourRequirements: {
-          stage1: 5,
-          stage2: 10,
-          stage3: 15,
+          stage1: 3,
+          stage2: 5,
+          stage3: 10,
           stage4: 20,
           stage5: 25,
           stage6: 30
@@ -404,7 +374,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [currentUser?.uid, currentUser?.displayName, currentUser?.email]);
 
-  // ✅ CRITICAL: Firebase save with AUTHENTICATION GUARD and DATA SANITIZATION
+  // ✅ Firebase save with authentication guard
   const saveToFirebase = useCallback(async (profile: UserProfile) => {
     if (!currentUser?.uid) {
       console.warn('⚠️ Cannot save to Firebase: No authenticated user');
@@ -469,9 +439,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...profile.stageProgress,
           totalHours: totalPracticeHours,
           hourRequirements: {
-            stage1: 5,
-            stage2: 10,
-            stage3: 15,
+            stage1: 3,
+            stage2: 5,
+            stage3: 10,
             stage4: 20,
             stage5: 25,
             stage6: 30
@@ -507,9 +477,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser?.uid]);
 
-  // ✅ CRITICAL: Real-time listener with AUTHENTICATION GUARD
+  // ✅ Real-time listener with authentication guard
   useEffect(() => {
-    // ✅ CRITICAL: Authentication guard - Exit early if no user
     if (!currentUser?.uid) {
       console.log('❌ No authenticated user in UserContext - clearing profile');
       setUserProfile(null);
@@ -591,43 +560,55 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [currentUser?.uid, createDefaultProfile, saveToFirebase]);
 
-  // ✅ AUDIT COMPLIANT: T-Level methods using PracticeContext data
+  // ✅ FIXED: T-Level methods using PracticeContext sessions
   const getT1Sessions = useCallback((): number => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => 
-      (s.tLevel === 'T1' || s.level === 't1') && s.completed && s.sessionType === 'meditation'
+    if (!sessions) return 0;
+    const t1Sessions = sessions.filter(session => 
+      (session.tLevel === 'T1' || session.level === 't1') && 
+      session.completed !== false && 
+      session.sessionType === 'meditation'
     ).length;
-  }, [getPracticeContextSessions]);
+    console.log('🔍 UPDATING T1 session count by 1: Now', t1Sessions);
+    return t1Sessions;
+  }, [sessions]);
 
   const getT2Sessions = useCallback((): number => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => 
-      (s.tLevel === 'T2' || s.level === 't2') && s.completed && s.sessionType === 'meditation'
+    if (!sessions) return 0;
+    return sessions.filter(session => 
+      (session.tLevel === 'T2' || session.level === 't2') && 
+      session.completed !== false && 
+      session.sessionType === 'meditation'
     ).length;
-  }, [getPracticeContextSessions]);
+  }, [sessions]);
 
   const getT3Sessions = useCallback((): number => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => 
-      (s.tLevel === 'T3' || s.level === 't3') && s.completed && s.sessionType === 'meditation'
+    if (!sessions) return 0;
+    return sessions.filter(session => 
+      (session.tLevel === 'T3' || session.level === 't3') && 
+      session.completed !== false && 
+      session.sessionType === 'meditation'
     ).length;
-  }, [getPracticeContextSessions]);
+  }, [sessions]);
 
   const getT4Sessions = useCallback((): number => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => 
-      (s.tLevel === 'T4' || s.level === 't4') && s.completed && s.sessionType === 'meditation'
+    if (!sessions) return 0;
+    return sessions.filter(session => 
+      (session.tLevel === 'T4' || session.level === 't4') && 
+      session.completed !== false && 
+      session.sessionType === 'meditation'
     ).length;
-  }, [getPracticeContextSessions]);
+  }, [sessions]);
 
   const getT5Sessions = useCallback((): number => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => 
-      (s.tLevel === 'T5' || s.level === 't5') && s.completed && s.sessionType === 'meditation'
+    if (!sessions) return 0;
+    return sessions.filter(session => 
+      (session.tLevel === 'T5' || session.level === 't5') && 
+      session.completed !== false && 
+      session.sessionType === 'meditation'
     ).length;
-  }, [getPracticeContextSessions]);
+  }, [sessions]);
 
-  // ✅ AUDIT COMPLIANT: T-level completion checking (3 sessions each)
+  // ✅ T-level completion checking (3 sessions each)
   const isT1Complete = useCallback((): boolean => {
     return getT1Sessions() >= 3;
   }, [getT1Sessions]);
@@ -648,7 +629,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return getT5Sessions() >= 3;
   }, [getT5Sessions]);
 
-  // ✅ KEPT: Increment methods (for backward compatibility, but these log that they should use PracticeContext)
+  // ✅ Increment methods (for backward compatibility)
   const incrementT1Sessions = useCallback(async (): Promise<number> => {
     console.log('⚠️ incrementT1Sessions called - sessions should be tracked via PracticeContext');
     const currentCount = getT1Sessions();
@@ -679,40 +660,33 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return currentCount + 1;
   }, [getT5Sessions]);
 
-  // ✅ KEPT: Hours-based stage progression methods (using PracticeContext data)
+  // ✅ Hours-based stage progression methods (using PracticeContext)
   const getTotalPracticeHours = useCallback((): number => {
-    if (practiceContextRef && practiceContextRef.getTotalPracticeHours) {
-      return practiceContextRef.getTotalPracticeHours();
-    }
-    return userProfile?.totalHours || userProfile?.stageHours?.totalPracticeHours || 0;
-  }, [userProfile]);
+    if (!sessions) return 0;
+    const totalMinutes = sessions
+      .filter(session => session.completed !== false)
+      .reduce((sum, session) => sum + (session.duration || 0), 0);
+    return totalMinutes / 60;
+  }, [sessions]);
 
   const getCurrentStageByHours = useCallback((): number => {
-    if (practiceContextRef && practiceContextRef.getCurrentStage) {
-      return practiceContextRef.getCurrentStage();
-    }
-    
     const totalHours = getTotalPracticeHours();
     if (totalHours >= 30) return 6;
     if (totalHours >= 25) return 5;
     if (totalHours >= 20) return 4;
-    if (totalHours >= 15) return 3;
-    if (totalHours >= 10) return 2;
+    if (totalHours >= 10) return 3;
     if (totalHours >= 5) return 2;
+    if (totalHours >= 3) return 2;
     return 1;
   }, [getTotalPracticeHours]);
 
   const getStageProgressByHours = useCallback((stage: number): { completed: number; total: number; percentage: number } => {
-    if (practiceContextRef && practiceContextRef.getStageProgress) {
-      return practiceContextRef.getStageProgress(stage);
-    }
-    
     const totalHours = getTotalPracticeHours();
     const stageRequirements: { [key: number]: number } = {
-      1: 5, 2: 10, 3: 15, 4: 20, 5: 25, 6: 30
+      1: 3, 2: 5, 3: 10, 4: 20, 5: 25, 6: 30
     };
     
-    const required = stageRequirements[stage] || 10;
+    const required = stageRequirements[stage] || 3;
     const completed = Math.min(totalHours, required);
     const percentage = Math.min(Math.round((completed / required) * 100), 100);
     
@@ -724,53 +698,49 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [getTotalPracticeHours]);
 
   const canAdvanceToStageByHours = useCallback((targetStage: number): boolean => {
-    if (practiceContextRef && practiceContextRef.canAdvanceToStage) {
-      return practiceContextRef.canAdvanceToStage(targetStage);
-    }
-    
     const totalHours = getTotalPracticeHours();
     const unlockRequirements: { [key: number]: number } = {
-      1: 0, 2: 5, 3: 10, 4: 15, 5: 20, 6: 25
+      1: 0, 2: 3, 3: 5, 4: 10, 5: 20, 6: 25
     };
     
     const requiredHours = unlockRequirements[targetStage] || 0;
     return totalHours >= requiredHours;
   }, [getTotalPracticeHours]);
 
-  // ✅ KEPT: All stage session methods (for backward compatibility)
+  // ✅ Stage session methods (for backward compatibility)
   const getStage2Sessions = useCallback(() => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => s.stageLevel === 2 && s.completed).length;
-  }, [getPracticeContextSessions]);
+    if (!sessions) return 0;
+    return sessions.filter(session => session.stageLevel === 2 && session.completed !== false).length;
+  }, [sessions]);
 
   const getStage3Sessions = useCallback(() => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => s.stageLevel === 3 && s.completed).length;
-  }, [getPracticeContextSessions]);
+    if (!sessions) return 0;
+    return sessions.filter(session => session.stageLevel === 3 && session.completed !== false).length;
+  }, [sessions]);
 
   const getStage4Sessions = useCallback(() => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => s.stageLevel === 4 && s.completed).length;
-  }, [getPracticeContextSessions]);
+    if (!sessions) return 0;
+    return sessions.filter(session => session.stageLevel === 4 && session.completed !== false).length;
+  }, [sessions]);
 
   const getStage5Sessions = useCallback(() => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => s.stageLevel === 5 && s.completed).length;
-  }, [getPracticeContextSessions]);
+    if (!sessions) return 0;
+    return sessions.filter(session => session.stageLevel === 5 && session.completed !== false).length;
+  }, [sessions]);
 
   const getStage6Sessions = useCallback(() => {
-    const sessions = getPracticeContextSessions();
-    return sessions.filter((s: any) => s.stageLevel === 6 && s.completed).length;
-  }, [getPracticeContextSessions]);
+    if (!sessions) return 0;
+    return sessions.filter(session => session.stageLevel === 6 && session.completed !== false).length;
+  }, [sessions]);
 
-  // ✅ KEPT: Stage increment methods (for backward compatibility)
+  // ✅ Stage increment methods (for backward compatibility)
   const incrementStage2Sessions = useCallback(async () => getStage2Sessions() + 1, [getStage2Sessions]);
   const incrementStage3Sessions = useCallback(async () => getStage3Sessions() + 1, [getStage3Sessions]);
   const incrementStage4Sessions = useCallback(async () => getStage4Sessions() + 1, [getStage4Sessions]);
   const incrementStage5Sessions = useCallback(async () => getStage5Sessions() + 1, [getStage5Sessions]);
   const incrementStage6Sessions = useCallback(async () => getStage6Sessions() + 1, [getStage6Sessions]);
 
-  // ✅ KEPT: Stage hours methods (for backward compatibility)
+  // ✅ Stage hours methods (for backward compatibility)
   const getStageHours = useCallback((stageNumber: number): number => {
     const stageKey = `stage${stageNumber}Hours`;
     const stageHours = userProfile?.stageHours || {} as StageHours;
@@ -784,7 +754,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getStage5Hours = useCallback(() => getStageHours(5), [getStageHours]);
   const getStage6Hours = useCallback(() => getStageHours(6), [getStageHours]);
 
-  // ✅ KEPT: Add stage hours method
+  // ✅ Add stage hours method
   const addStageHoursDirect = useCallback(async (stageNumber: number, hoursToAdd: number) => {
     if (!currentUser?.uid || !userProfile) {
       console.warn('⚠️ Cannot add stage hours - no authenticated user or profile');
@@ -818,7 +788,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newHours;
   }, [currentUser?.uid, userProfile, saveToFirebase]);
 
-  // ✅ KEPT: Stage completion methods (for backward compatibility)
+  // ✅ Stage completion methods (for backward compatibility)
   const isStageCompleteByHours = useCallback((stageNumber: number): boolean => {
     if (stageNumber === 1) {
       return isT1Complete() && isT2Complete() && isT3Complete() && isT4Complete() && isT5Complete();
@@ -836,12 +806,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isStage5CompleteByHours = useCallback(() => isStageCompleteByHours(5), [isStageCompleteByHours]);
   const isStage6CompleteByHours = useCallback(() => isStageCompleteByHours(6), [isStageCompleteByHours]);
 
-  // ✅ ADDED: Missing isStage1Complete method that other components expect
+  // ✅ Missing isStage1Complete method that other components expect
   const isStage1Complete = useCallback(() => {
     return isT1Complete() && isT2Complete() && isT3Complete() && isT4Complete() && isT5Complete();
   }, [isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete]);
 
-  // ✅ KEPT: Progress tracking methods
+  // ✅ Progress tracking methods
   const getStageProgressPercentage = useCallback((stageNumber: number): number => {
     if (stageNumber === 1) {
       const t1 = isT1Complete() ? 1 : getT1Sessions() / 3;
@@ -853,7 +823,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       const hours = getStageHours(stageNumber);
       const hourRequirements = userProfile?.stageProgress?.hourRequirements || {
-        stage1: 5, stage2: 10, stage3: 15, stage4: 20, stage5: 25, stage6: 30
+        stage1: 3, stage2: 5, stage3: 10, stage4: 20, stage5: 25, stage6: 30
       };
       const required = hourRequirements[`stage${stageNumber}` as keyof typeof hourRequirements] || 15;
       return Math.min(Math.round((hours / required) * 100), 100);
@@ -866,7 +836,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions();
   }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions]);
 
-  // Profile methods with AUTHENTICATION GUARD
+  // ✅ Profile methods with authentication guard
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!currentUser?.uid || !userProfile) {
       console.warn('⚠️ Cannot update profile - no authenticated user or profile');
@@ -1061,6 +1031,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const exportUserData = useCallback(() => userProfile, [userProfile]);
 
+  // ✅ Context value with all methods
   const contextValue = useMemo(() => ({
     userProfile,
     isLoading,
@@ -1089,7 +1060,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getAchievements,
     hasAchievement,
     
-    // ✅ BACKWARD COMPATIBLE: All T-level methods
+    // ✅ T-Level Session Methods (reads from PracticeContext)
     getT1Sessions,
     getT2Sessions,
     getT3Sessions,
@@ -1106,7 +1077,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isT4Complete,
     isT5Complete,
     
-    // ✅ BACKWARD COMPATIBLE: All stage methods
+    // Stage methods
     getStage2Sessions,
     getStage3Sessions,
     getStage4Sessions,
@@ -1118,7 +1089,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     incrementStage5Sessions,
     incrementStage6Sessions,
     
-    // ✅ BACKWARD COMPATIBLE: All hours methods
+    // Hours methods
     getStage1Hours,
     getStage2Hours,
     getStage3Hours,
@@ -1127,7 +1098,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getStage6Hours,
     addStageHoursDirect,
     
-    // ✅ BACKWARD COMPATIBLE: All completion methods
+    // Completion methods
     isStage1CompleteByHours,
     isStage2CompleteByHours,
     isStage3CompleteByHours,
@@ -1135,11 +1106,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isStage5CompleteByHours,
     isStage6CompleteByHours,
     
-    // ✅ BACKWARD COMPATIBLE: Progress methods
+    // Progress methods
     getStageProgressPercentage,
     getTotalStage1Sessions,
     
-    // ✅ ADDED: Missing method
+    // Missing method
     isStage1Complete,
     
     clearUserData,
