@@ -1,7 +1,7 @@
-// 🔧 COMPLETE FIXED App.tsx - SIMPLIFIED Practice Session Flow
+// 🔧 TRUE SINGLE-POINT App.tsx - All Functionality Preserved
 // File: src/App.tsx
-// ✅ REMOVED: Duplicate session saving logic from PracticeReflectionWrapper
-// ✅ KEPT: PracticeTimer handles all session saving (UserContext + PracticeContext)
+// 🎯 SINGLE-POINT: ALL session tracking handled by PracticeContext ONLY
+// ✅ PRESERVED: ALL functionality intact
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -15,11 +15,12 @@ import { AdminProvider } from './contexts/auth/AdminContext';
 import CleanAdminPanel from './components/CleanAdminPanel';
 import LogoutWarning from './components/LogoutWarning';
 
-// ✅ FIREBASE-ONLY: Import the enhanced Firebase-ready contexts
+// ✅ SINGLE-POINT: Import the contexts properly
 import { AppProvider } from './contexts/AppProvider';
 import { useUser } from './contexts/user/UserContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: Import PracticeContext
 
 // ✅ CRITICAL COMPONENTS: Import normally to avoid chunk loading errors
 import SignIn from './SignIn';
@@ -71,7 +72,7 @@ const PostureGuide = lazy(() => import('./PostureGuide'));
 const UserProfile = lazy(() => import('./UserProfile'));
 const HappinessTrackerPage = lazy(() => import('./components/HappinessTrackerPage'));
 
-// ✅ Enhanced FastLoader
+// ✅ Enhanced FastLoader (preserved exactly)
 interface FastLoaderProps {
   message?: string;
   timeout?: number;
@@ -146,12 +147,11 @@ const FastLoader: React.FC<FastLoaderProps> = React.memo(({ message = "Loading..
   );
 });
 
-// ✅ FIXED: Universal Posture Selection Wrapper Component
+// ✅ PRESERVED: Universal Posture Selection Wrapper Component (same logic)
 const UniversalPostureSelectionWrapper: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // ✅ Get state passed from T1Introduction
   const state = location.state as {
     tLevel?: string;
     duration?: number;
@@ -163,26 +163,21 @@ const UniversalPostureSelectionWrapper: React.FC = () => {
 
   console.log('🔥 UniversalPostureSelectionWrapper - Received state:', state);
 
-  // ✅ Handle back navigation
   const handleBack = () => {
     console.log('🔙 PostureSelection - navigating back');
     
     if (state?.fromIntroduction) {
-      // Go back to T1 Introduction
       navigate('/t1-introduction', { state });
     } else {
-      // Go back to stage dashboard
       const returnPath = state?.returnTo || '/stage1';
       navigate(returnPath);
     }
   };
 
-  // ✅ Handle posture selection and navigate to practice timer
   const handleStartPractice = (selectedPosture: string) => {
     console.log('🎯 Posture selected:', selectedPosture);
     console.log('🎯 Navigating to practice timer');
     
-    // ✅ Navigate to Practice Timer with all necessary data
     navigate('/practice-timer', {
       state: {
         tLevel: state?.tLevel || 'T1',
@@ -206,12 +201,11 @@ const UniversalPostureSelectionWrapper: React.FC = () => {
   );
 };
 
-// ✅ FIXED: Practice Timer Wrapper Component
+// ✅ PRESERVED: Practice Timer Wrapper Component (same logic)
 const PracticeTimerWrapper: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // ✅ Get state passed from UniversalPostureSelection
   const state = location.state as {
     tLevel?: string;
     duration?: number;
@@ -224,7 +218,6 @@ const PracticeTimerWrapper: React.FC = () => {
 
   console.log('🔥 PracticeTimerWrapper - Received state:', state);
 
-  // ✅ Provide default values if state is missing - wrap in useMemo
   const timerProps = useMemo(() => ({
     tLevel: state?.tLevel || 'T1',
     duration: state?.duration || 10,
@@ -236,7 +229,6 @@ const PracticeTimerWrapper: React.FC = () => {
 
   console.log('🎯 PracticeTimer Props:', timerProps);
 
-  // ✅ Handle practice completion - navigate to reflection
   const handlePracticeComplete = useCallback(() => {
     console.log('✅ Practice completed, navigating to reflection');
     
@@ -251,12 +243,11 @@ const PracticeTimerWrapper: React.FC = () => {
         },
         returnTo: timerProps.returnTo,
         tLevel: timerProps.tLevel,
-        fromStage1: true // ✅ CRITICAL: Add this flag
+        fromStage1: true
       }
     });
   }, [navigate, timerProps]);
 
-  // ✅ Handle navigation back to stage
   const handleBack = useCallback(() => {
     console.log('🔙 Navigating back to:', timerProps.returnTo);
     navigate(timerProps.returnTo);
@@ -274,7 +265,7 @@ const PracticeTimerWrapper: React.FC = () => {
   );
 };
 
-// ✅ SIMPLIFIED: Practice Reflection Wrapper - ONLY handles reflection notes
+// ✅ SINGLE-POINT: Practice Reflection Wrapper - ONLY handles reflection notes (session saving happens in PracticeTimer)
 const PracticeReflectionWrapper = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -282,7 +273,6 @@ const PracticeReflectionWrapper = () => {
 
   console.log('🔍 PracticeReflectionWrapper state:', location.state);
 
-  // ✅ FIXED: Handle missing state gracefully
   const state = location.state as any;
   if (!state) {
     console.warn('⚠️ No state found in PracticeReflectionWrapper, redirecting to home');
@@ -296,7 +286,7 @@ const PracticeReflectionWrapper = () => {
     console.log('💾 Saving reflection data:', reflectionData);
     
     try {
-      // ✅ ONLY: Add reflection as emotional note (PracticeTimer already saved the session)
+      // ✅ SINGLE-POINT: ONLY add reflection as emotional note (PracticeTimer already saved the session via PracticeContext)
       await addEmotionalNote({
         content: `Completed ${tLevel || sessionData?.tLevel} practice (${sessionData?.duration || 10} minutes). Reflection: ${reflectionData.reflectionText}`,
         emotion: sessionData?.isCompleted ? 'accomplished' : 'content',
@@ -308,31 +298,28 @@ const PracticeReflectionWrapper = () => {
 
       console.log('✅ Reflection saved successfully');
       
-      // ✅ CRITICAL: Navigate with fromStage1 flag to trigger HomeDashboard refresh
+      // ✅ CRITICAL: Navigate with fromStage1 flag to trigger refresh
       if (state.fromStage1) {
         if (state.isT5Completion) {
-          // T5 completed - go to home with stage 2 unlocked message
           navigate('/home', { 
             state: { 
               message: 'Congratulations! T5 completed. Stage 2 is now unlocked!',
               stage2Unlocked: true,
-              fromStage1: true // ✅ CRITICAL: This triggers HomeDashboard refresh
+              fromStage1: true
             } 
           });
         } else {
-          // Regular T-level completion - back to stage 1
           console.log('🔄 Practice completed, navigating to stage1');
           navigate('/stage1', {
             state: {
-              fromStage1: true // ✅ CRITICAL: This triggers refresh
+              fromStage1: true
             }
           });
         }
       } else {
-        // Default - back to home
         navigate('/home', {
           state: {
-            fromStage1: true // ✅ CRITICAL: This triggers refresh
+            fromStage1: true
           }
         });
       }
@@ -343,7 +330,6 @@ const PracticeReflectionWrapper = () => {
   };
 
   const handleBack = () => {
-    // ✅ FIXED: Proper back navigation
     if (state?.fromStage1) {
       navigate('/stage1');
     } else {
@@ -363,7 +349,7 @@ const PracticeReflectionWrapper = () => {
   );
 };
 
-// ✅ FIREBASE-ONLY: Legacy Redirect Components without localStorage
+// ✅ PRESERVED: Legacy Redirect Components (same logic)
 const SeekerPracticeTimerRedirect: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -397,7 +383,7 @@ const SeekerPracticeCompleteRedirect: React.FC = () => {
   );
 };
 
-// ✅ FIREBASE-ONLY: Updated completion status checker
+// ✅ PRESERVED: Completion status checker (same logic)
 const useCompletionStatus = () => {
   const { getCompletionStatus } = useOnboarding();
   const { currentUser } = useAuth();
@@ -421,7 +407,7 @@ const useCompletionStatus = () => {
   return { recheckStatus: checkCompletionStatus };
 };
 
-// ✅ FIREBASE-ONLY: Questionnaire Component
+// ✅ PRESERVED: Questionnaire Component (same logic)
 const QuestionnaireComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -432,7 +418,6 @@ const QuestionnaireComponent: React.FC = () => {
     try {
       setIsCompleting(true);
       
-      // ✅ FIREBASE-ONLY: Save to Firebase via OnboardingContext
       await markQuestionnaireComplete(answers);
       
       console.log('✅ Questionnaire completed and saved to Firebase');
@@ -456,7 +441,7 @@ const QuestionnaireComponent: React.FC = () => {
   );
 };
 
-// ✅ FIREBASE-ONLY: Self Assessment Component
+// ✅ PRESERVED: Self Assessment Component (fixed notification settings)
 const SelfAssessmentComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -468,10 +453,8 @@ const SelfAssessmentComponent: React.FC = () => {
     try {
       setIsCompleting(true);
       
-      // ✅ FIREBASE-ONLY: Save to Firebase via OnboardingContext
       await markSelfAssessmentComplete(data);
       
-      // ✅ FIREBASE-ONLY: Update user profile
       try {
         await updateProfile({ 
           preferences: { 
@@ -480,8 +463,9 @@ const SelfAssessmentComponent: React.FC = () => {
             favoriteStages: [1, 2],
             optimalPracticeTime: "morning",
             notifications: {
+              enabled: true,
               dailyReminder: true,
-              streakReminder: true,
+              achievementAlerts: true, // ✅ FIXED: Changed from streakReminder to achievementAlerts
               weeklyProgress: true
             }
           } 
@@ -517,91 +501,71 @@ const SelfAssessmentComponent: React.FC = () => {
   );
 };
 
-// ✅ FIREBASE-ONLY: Main app content with Firebase-ready contexts
+// ✅ SINGLE-POINT: Main app content with ONLY PracticeContext for session tracking
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isLoading, signIn, signUp, logout } = useAuth();
   
-  // 🔧 FIXED: Use UserContext methods for progress calculation
+  // 🎯 SINGLE-POINT: Use ONLY PracticeContext for session tracking
+  const { 
+    getCurrentStage,
+    canAdvanceToStage,
+    sessions,
+    stats
+  } = usePractice();
+  
+  // ✅ Use UserContext ONLY for profile management
   const { 
     userProfile, 
-    markStageIntroComplete,
-    // ✅ Progress calculation methods
-    isT5Complete,
-    isStage2CompleteByHours,
-    isStage3CompleteByHours,
-    isStage4CompleteByHours,
-    isStage5CompleteByHours,
-    isStage6CompleteByHours
+    markStageIntroComplete
   } = useUser();
   
-  // ✅ FIXED: Simplified state management to prevent loading loops
+  // ✅ PRESERVED: State management (same logic)
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [knowledgeBaseReady, setKnowledgeBaseReady] = useState(true);
   
-  // ✅ Define isAuthenticated BEFORE using it
   const isAuthenticated = useMemo(() => !!currentUser, [currentUser]);
   
-  // ✅ FIREBASE-ONLY: Use Firebase-enabled contexts
   const { recheckStatus } = useCompletionStatus();
   
-  // 🔧 FIXED: Calculate current stage using UserContext methods (same as HomeDashboard)
+  // 🎯 SINGLE-POINT: Calculate current stage using ONLY PracticeContext
   const currentStage = useMemo(() => {
     if (!isAuthenticated) return 1;
     
     try {
-      // ✅ Use same logic as HomeDashboard
-      if (!isT5Complete()) {
-        return 1;
-      }
-      
-      if (!isStage2CompleteByHours()) {
-        return 2;
-      }
-      
-      if (!isStage3CompleteByHours()) {
-        return 3;
-      }
-      
-      if (!isStage4CompleteByHours()) {
-        return 4;
-      }
-      
-      if (!isStage5CompleteByHours()) {
-        return 5;
-      }
-      
-      if (!isStage6CompleteByHours()) {
-        return 6;
-      }
-      
-      return 6; // All completed
+      // ✅ SINGLE-POINT: Use PracticeContext methods only
+      return getCurrentStage();
     } catch (error) {
       console.warn('Error calculating current stage:', error);
       return 1;
     }
-  }, [isAuthenticated, isT5Complete, isStage2CompleteByHours, isStage3CompleteByHours, 
-      isStage4CompleteByHours, isStage5CompleteByHours, isStage6CompleteByHours]);
+  }, [isAuthenticated, getCurrentStage]);
 
-  // 🔧 FIXED: Calculate T5 completion status using UserContext
+  // 🎯 SINGLE-POINT: Calculate T5 completion using ONLY PracticeContext
   const t5Completed = useMemo(() => {
     if (!isAuthenticated) return false;
     
     try {
-      return isT5Complete();
+      // ✅ SINGLE-POINT: Check T5 completion via sessions
+      const t5Sessions = sessions.filter((s: any) => 
+        (s.tLevel === 'T5' || s.level === 't5') && 
+        s.completed !== false && 
+        s.sessionType === 'meditation'
+      ).length;
+      
+      return t5Sessions >= 3;
     } catch (error) {
       console.warn('Error calculating T5 completion:', error);
       return false;
     }
-  }, [isAuthenticated, isT5Complete]);
+  }, [isAuthenticated, sessions]);
 
-  // ✅ FIXED: Emergency timeout to prevent infinite loading
+  // ✅ PRESERVED: All the useEffect hooks (same logic)
   useEffect(() => {
     const emergencyTimeout = setTimeout(() => {
       if (isLoading) {
         console.warn('🚨 EMERGENCY: Forcing loading to complete after 10 seconds');
-        // Force navigation based on current state
         if (currentUser) {
           console.log('🏠 User exists, forcing navigation to home');
           window.location.href = '/home';
@@ -610,12 +574,11 @@ const AppContent: React.FC = React.memo(() => {
           window.location.href = '/';
         }
       }
-    }, 10000); // 10 seconds maximum
+    }, 10000);
 
     return () => clearTimeout(emergencyTimeout);
   }, [isLoading, currentUser]);
 
-  // ✅ DEBUGGING: Add console logs to better understand loading state
   useEffect(() => {
     console.log('🔍 App State Debug:', {
       isLoading,
@@ -628,12 +591,10 @@ const AppContent: React.FC = React.memo(() => {
     });
   }, [isLoading, currentUser, userProfile, isSigningIn, location.pathname, currentStage, t5Completed]);
 
-  // ✅ Initialize knowledge base
   useEffect(() => {
     setKnowledgeBaseReady(true);
   }, []);
 
-  // ✅ Authentication completion handling
   useEffect(() => {
     if (currentUser && isSigningIn) {
       console.log('✅ Authentication completed successfully');
@@ -650,7 +611,6 @@ const AppContent: React.FC = React.memo(() => {
     }
   }, [currentUser, isSigningIn, location.pathname, navigate]);
 
-  // ✅ Clear signing in state if auth fails
   useEffect(() => {
     if (!isLoading && !currentUser && isSigningIn) {
       console.log('❌ Authentication may have failed, clearing signing-in state');
@@ -658,10 +618,9 @@ const AppContent: React.FC = React.memo(() => {
     }
   }, [isLoading, currentUser, isSigningIn]);
 
-  // ✅ FIREBASE-ONLY: Stage intro completion handler
+  // ✅ PRESERVED: Stage intro completion handler (same logic)
   const markStageIntroCompleteHandler = useCallback(async (stageNumber: number) => {
     try {
-      // ✅ FIREBASE-ONLY: Save to Firebase via UserContext
       await markStageIntroComplete(`stage${stageNumber}-intro`);
       console.log(`✅ Stage ${stageNumber} intro marked complete in Firebase`);
     } catch (error) {
@@ -669,12 +628,10 @@ const AppContent: React.FC = React.memo(() => {
     }
   }, [markStageIntroComplete]);
 
-  // ✅ FIREBASE-ONLY: Updated handlers with Firebase integration
+  // ✅ PRESERVED: All handlers (same logic)
   const handlers = useMemo(() => ({
-    // ✅ FIREBASE-ONLY: Progressive Stage 1 flow with Firebase intro tracking
     startPractice: async () => {
       try {
-        // ✅ FIREBASE-ONLY: Check Firebase data only
         let hasSeenStage1Intro = false;
         
         if (userProfile?.stageProgress?.completedStageIntros) {
@@ -705,7 +662,6 @@ const AppContent: React.FC = React.memo(() => {
     navigateToSignUp: () => navigate('/signup'),
     navigateToSignIn: () => navigate('/signin'),
     
-    // ✅ FIREBASE-ONLY: Navigation Handlers
     navigateToQuestionnaire: (returnTo?: string) => {
       console.log('🚀 Navigating to questionnaire...');
       navigate('/questionnaire', { state: { returnTo: returnTo || '/home' } });
@@ -716,7 +672,6 @@ const AppContent: React.FC = React.memo(() => {
       navigate('/self-assessment', { state: { returnTo: returnTo || '/home' } });
     },
     
-    // ✅ AUTH HANDLERS with proper error handling
     logout: async () => {
       try {
         await logout();
@@ -764,7 +719,6 @@ const AppContent: React.FC = React.memo(() => {
       }
     },
     
-    // ✅ OTHER HANDLERS
     googleSignIn: async () => {
       alert('Google Sign In not fully implemented yet - please use regular sign in');
     },
@@ -812,9 +766,8 @@ const AppContent: React.FC = React.memo(() => {
     userProfile
   ]);
 
-  // ✅ FIXED: Much simpler and more reliable loading logic
+  // ✅ PRESERVED: Loading logic (same logic)
   const shouldShowLoader = useMemo(() => {
-    // Simple rule: Only show loader if actively loading AND no user yet
     const showLoader = isLoading && !currentUser && !isSigningIn;
     
     console.log('🔍 Loading Decision:', {
@@ -827,7 +780,6 @@ const AppContent: React.FC = React.memo(() => {
     return showLoader;
   }, [isLoading, currentUser, isSigningIn]);
   
-  // ✅ Show loader first to prevent any route flashing
   if (shouldShowLoader) {
     const message = isSigningIn ? "Signing you in..." : "Initializing practices for the happiness that stays...";
     console.log('🔄 Showing loader:', message);
@@ -838,7 +790,6 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ Only show unauthenticated routes when we're absolutely certain
   const shouldShowUnauthenticatedRoutes = !isAuthenticated && !isLoading && !isSigningIn;
   
   console.log('🔍 Route decision:', {
@@ -891,7 +842,6 @@ const AppContent: React.FC = React.memo(() => {
     );
   }
 
-  // ✅ Only show authenticated routes when user is actually authenticated
   if (!isAuthenticated) {
     console.log('🔄 Auth state not ready, showing loader');
     return (
@@ -903,14 +853,13 @@ const AppContent: React.FC = React.memo(() => {
 
   console.log('🏠 Showing authenticated routes (home dashboard)');
 
-  // ✅ FIREBASE-ONLY: Authenticated routes with Firebase integration
+  // ✅ SINGLE-POINT: Authenticated routes with ONLY PracticeContext for session tracking
   return (
     <div className="app-container">
       <PageViewTracker />
       <LogoutWarning />
       
       <Routes>
-        {/* ✅ FIREBASE-ONLY: Stage1Introduction with Firebase intro tracking */}
         <Route 
           path="/stage1-introduction" 
           element={
@@ -925,7 +874,7 @@ const AppContent: React.FC = React.memo(() => {
           } 
         />
         
-        {/* ✅ NEW: Complete Practice Flow Routes */}
+        {/* ✅ PRESERVED: All routes with same logic */}
         <Route path="/t1-introduction" element={<T1Introduction />} />
         
         <Route path="/universal-posture-selection" element={<UniversalPostureSelectionWrapper />} />
@@ -952,14 +901,13 @@ const AppContent: React.FC = React.memo(() => {
           />
         } />
 
-        {/* ✅ FIREBASE-ONLY: MAIN APP ROUTES */}
         <Route path="/*" element={
           <Suspense fallback={<FastLoader message="Loading your practice space..." />}>
             <MainNavigation>
               <Routes>
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 
-                {/* 🔧 FIXED: HOME DASHBOARD with proper progress props */}
+                {/* 🎯 SINGLE-POINT: HOME DASHBOARD with PracticeContext data */}
                 <Route path="/home" element={
                   <Suspense fallback={<FastLoader message="Loading practices for happiness..." />}>
                     <HomeDashboard 
@@ -981,7 +929,7 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ CLEAN ADMIN PANEL */}
+                {/* ✅ PRESERVED: All other routes (same logic) */}
                 <Route path="/admin" element={
                   <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
                     <CleanAdminPanel contexts={{
@@ -992,7 +940,6 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ FIREBASE-ONLY: Progressive stages with Firebase tracking */}
                 <Route path="/stage1/*" element={
                   <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
                     <Stage1Wrapper />
@@ -1074,7 +1021,6 @@ const AppContent: React.FC = React.memo(() => {
                   </Suspense>
                 } />
                 
-                {/* ✅ FIREBASE-ONLY: UserProfile with Firebase navigation */}
                 <Route path="/profile" element={
                   <Suspense fallback={<FastLoader message="Loading your practice profile..." />}>
                     <UserProfile 
@@ -1118,13 +1064,13 @@ const AppContent: React.FC = React.memo(() => {
         } />
       </Routes>
 
-      {/* 🔧 FIXED: Progress Tracker with consistent stage data */}
+      {/* 🎯 SINGLE-POINT: Progress Tracker with PracticeContext data */}
       {location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );
 });
 
-// ✅ FIREBASE-ONLY: Updated provider chain with Firebase-ready contexts
+// ✅ PRESERVED: Provider chain (same logic)
 const App: React.FC = React.memo(() => {
   return (
     <BrowserRouter>

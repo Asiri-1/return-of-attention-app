@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-// ✅ FIREBASE-ONLY: Use Firebase contexts only
-import { usePractice } from '../../contexts/practice/PracticeContext';
-import { useWellness } from '../../contexts/wellness/WellnessContext';
-import { useUser } from '../../contexts/user/UserContext';
+// ✅ SINGLE-POINT: Use ONLY appropriate contexts for their purposes
+import { usePractice } from '../../contexts/practice/PracticeContext'; // ✅ For session data only
+import { useWellness } from '../../contexts/wellness/WellnessContext'; // ✅ For emotional notes only
+import { useUser } from '../../contexts/user/UserContext'; // ✅ For profile management only
 import { useNavigate, useLocation } from 'react-router-dom';
 import PAHMReflectionShared from '../../PAHMReflectionShared';
 
@@ -67,21 +67,21 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
   onComplete, 
   onBack 
 }) => {
-  // ✅ FIREBASE-ONLY: Use Firebase contexts only
-  const { sessions } = usePractice();
-  const { addEmotionalNote } = useWellness();
-  const { updateStageProgress } = useUser();
+  // ✅ SINGLE-POINT: Use contexts for their specific purposes only
+  const { sessions } = usePractice(); // ✅ Only for getting session data
+  const { addEmotionalNote } = useWellness(); // ✅ Only for emotional notes
+  const { userProfile, updateProfile } = useUser(); // ✅ Only for profile updates
   const navigate = useNavigate();
   const location = useLocation();
   const stageConfig = STAGE_CONFIGS[stageLevel as keyof typeof STAGE_CONFIGS];
 
-  // 🎭 EMOTION SELECTION STATE
+  // 🎭 EMOTION SELECTION STATE (preserved exactly)
   const [showEmotionSelection, setShowEmotionSelection] = useState(false);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('');
   const [emotionNote, setEmotionNote] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // 🎯 Get data from navigation state (same pattern as PAHMTimer3)
+  // 🎯 Get data from navigation state (preserved exactly)
   const navigationState = location.state as {
     stageLevel?: string;
     stageName?: string;
@@ -104,13 +104,12 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
   let practiceDuration = 0;
   let posture = 'seated';
 
+  // ✅ PRESERVED: Same data extraction logic
   if (navigationState?.pahmData) {
-    // Use data from navigation state (preferred method)
     pahmTrackingData = navigationState.pahmData;
     practiceDuration = navigationState.duration || 0;
     posture = navigationState.posture || 'seated';
   } else {
-    // Fallback: Get the most recent session from Firebase practice context
     const allSessions = sessions || [];
     const mostRecentSession = allSessions.length > 0 
       ? allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
@@ -134,7 +133,6 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
       practiceDuration = mostRecentSession.duration || 0;
       posture = mostRecentSession.environment?.posture || 'seated';
     } else {
-      // ✅ FIREBASE-ONLY: No sessionStorage fallback - use defaults
       console.log('No recent session found in Firebase, using default values');
       practiceDuration = stageConfig.minDuration;
       posture = 'seated';
@@ -143,21 +141,55 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
 
   const totalPahmCount = Object.values(pahmTrackingData).reduce((sum, count) => sum + count, 0);
 
-  // 🎭 EMOTION SELECTION STEP
+  // 🎭 PRESERVED: Same emotion selection handlers but with SINGLE-POINT stage progress update
   const handleAddEmotionalNote = () => {
     setShowEmotionSelection(true);
+  };
+
+  // ✅ SINGLE-POINT: Update stage progress via UserContext profile management (not session tracking)
+  const updateStageProgressViaPractice = async () => {
+    try {
+      if (!userProfile) {
+        console.warn('⚠️ No user profile found, cannot update stage progress');
+        return;
+      }
+
+      // ✅ SINGLE-POINT: Update user profile to reflect stage completion
+      const updatedStageProgress = {
+        ...userProfile.stageProgress,
+        currentStage: Math.max(userProfile.stageProgress?.currentStage || 1, stageLevel + 1),
+        stageCompletionFlags: {
+          ...userProfile.stageProgress?.stageCompletionFlags,
+          [`stage${stageLevel}`]: true
+        },
+        completedStages: [
+          ...(userProfile.stageProgress?.completedStages || []),
+          ...(userProfile.stageProgress?.completedStages?.includes(stageLevel) ? [] : [stageLevel])
+        ],
+        maxStageReached: Math.max(userProfile.stageProgress?.maxStageReached || 1, stageLevel + 1),
+        lastAdvancement: new Date().toISOString()
+      };
+
+      // ✅ SINGLE-POINT: Update via UserContext profile management
+      await updateProfile({
+        stageProgress: updatedStageProgress,
+        currentProgress: updatedStageProgress // ✅ Keep both for backward compatibility
+      });
+
+      console.log(`✅ Stage ${stageLevel} completion updated in user profile`);
+    } catch (error) {
+      console.error('❌ Error updating stage progress via profile:', error);
+      // Don't throw - allow completion to continue even if profile update fails
+    }
   };
 
   const handleSkipEmotionalNote = async () => {
     try {
       setIsSaving(true);
-      // ✅ FIREBASE-ONLY: Update stage progress via UserContext
-      await updateStageProgress({
-        currentStage: Math.max(stageLevel, stageLevel + 1),
-        stageCompletionFlags: {
-          [`stage${stageLevel}Complete`]: true
-        }
-      });
+      
+      // ✅ SINGLE-POINT: Update stage progress via profile management
+      await updateStageProgressViaPractice();
+      
       onComplete();
     } catch (error) {
       console.error('Error updating stage progress:', error);
@@ -181,7 +213,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
       const baseContent = emotionNote.trim() || 
         `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
       
-      // ✅ FIREBASE-ONLY: Save emotional note via WellnessContext
+      // ✅ PRESERVED: Save emotional note via WellnessContext
       await addEmotionalNote({
         content: baseContent,
         emotion: selectedEmotion,
@@ -190,13 +222,8 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
         tags: ['meditation', `stage-${stageLevel}`]
       });
 
-      // ✅ FIREBASE-ONLY: Update stage progress via UserContext
-      await updateStageProgress({
-        currentStage: Math.max(stageLevel, stageLevel + 1),
-        stageCompletionFlags: {
-          [`stage${stageLevel}Complete`]: true
-        }
-      });
+      // ✅ SINGLE-POINT: Update stage progress via profile management
+      await updateStageProgressViaPractice();
 
       onComplete();
     } catch (error) {
@@ -212,7 +239,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     handleSkipEmotionalNote();
   };
 
-  // 🎭 EMOTION SELECTION UI
+  // 🎭 PRESERVED: Same emotion selection UI (no changes)
   if (showEmotionSelection) {
     return (
       <div style={{
@@ -387,14 +414,12 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     );
   }
 
-  // 🎯 ORIGINAL REFLECTION UI WITH EMOTION OPTION
+  // 🎯 PRESERVED: Same reflection handlers
   const handleComplete = () => {
-    // Show emotion selection option instead of auto-completing
     setShowEmotionSelection(true);
   };
 
   const handleReflectionComplete = () => {
-    // Option to add emotional note after seeing reflection
     const shouldAddNote = window.confirm(
       "Would you like to add an emotional note about how you're feeling after this meditation?"
     );
@@ -406,7 +431,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     }
   };
 
-  // 🎭 FIREBASE-ONLY: Handle emotion selection from shared component
+  // 🎭 SINGLE-POINT: Handle emotion selection from shared component with profile-based stage update
   const handleEmotionFromShared = async (emotion: string, note: string) => {
     try {
       setIsSaving(true);
@@ -418,7 +443,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
       const finalNote = note.trim() || 
         `After my ${practiceDuration}-minute Stage ${stageLevel} meditation session. ${presentPercentage}% present-moment awareness today.`;
       
-      // ✅ FIREBASE-ONLY: Save emotional note via WellnessContext
+      // ✅ PRESERVED: Save emotional note via WellnessContext
       await addEmotionalNote({
         content: finalNote,
         emotion: emotion,
@@ -427,13 +452,8 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
         tags: ['meditation', `stage-${stageLevel}`]
       });
 
-      // ✅ FIREBASE-ONLY: Update stage progress via UserContext
-      await updateStageProgress({
-        currentStage: Math.max(stageLevel, stageLevel + 1),
-        stageCompletionFlags: {
-          [`stage${stageLevel}Complete`]: true
-        }
-      });
+      // ✅ SINGLE-POINT: Update stage progress via profile management
+      await updateStageProgressViaPractice();
 
       onComplete();
     } catch (error) {
@@ -444,6 +464,7 @@ const UniversalPAHMReflection: React.FC<UniversalPAHMReflectionProps> = ({
     }
   };
 
+  // ✅ PRESERVED: Same shared component usage
   return (
     <PAHMReflectionShared
       stageLevel={`Stage ${stageLevel}`}

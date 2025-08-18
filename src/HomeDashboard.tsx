@@ -1,24 +1,18 @@
 // ===============================================
-// 🔧 COMPLETE FIXED HomeDashboard.tsx - PHASE 3 AUDIT COMPLIANT
+// 🔧 TRUE SINGLE-POINT HomeDashboard.tsx - All Functionality Preserved
 // ===============================================
-
 // FILE: src/HomeDashboard.tsx
-// ✅ FIXED: Complete Firebase integration through PracticeContext
-// ✅ FIXED: Hours-based stage progression (3,5,10,20,25,30 hours)
-// ✅ FIXED: Real-time updates from Firebase listeners
-// ✅ FIXED: Complete 6-stage system with correct unlock logic
-// ✅ FIXED: Data sanitization to prevent DataCloneError
-// ✅ FIXED: Authentication guards for all operations
-// ✅ FIXED: Stage 1 progress display shows correct T-level counts
+// 🎯 SINGLE-POINT: ALL session tracking handled by PracticeContext ONLY
+// ✅ PRESERVED: ALL user interface and functionality intact
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { usePractice } from './contexts/practice/PracticeContext';
-import { useUser } from './contexts/user/UserContext';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: For ALL session tracking
+import { useUser } from './contexts/user/UserContext'; // ✅ ONLY for profile management
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 
-// ✅ FIXED: Create a safe wrapper hook to avoid conditional calls
+// ✅ PRESERVED: Safe wrapper hook to avoid conditional calls
 const useSafeHappinessCalculation = () => {
   try {
     // Try to import the hook dynamically
@@ -38,6 +32,7 @@ const useSafeHappinessCalculation = () => {
   };
 };
 
+// ✅ PRESERVED: Same interface (no changes)
 interface HomeDashboardProps {
   onStartPractice: () => void;
   onViewProgress: () => void;
@@ -85,7 +80,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ CRITICAL: Use PracticeContext for ALL stage progression data
+  // ✅ SINGLE-POINT: Use ONLY PracticeContext for ALL stage progression data
   const { 
     sessions,
     isLoading: practiceLoading,
@@ -96,23 +91,22 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     calculateStats
   } = usePractice();
 
+  // ✅ SINGLE-POINT: Use UserContext ONLY for profile management
   const { 
     userProfile,
-    isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
-    getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
-    markStageComplete
+    markStageComplete // Keep only profile-related methods
   } = useUser();
   
   // ✅ Note: OnboardingContext available if needed in future
   useOnboarding();
 
-  // ✅ FIXED: Always call the safe happiness hook
+  // ✅ PRESERVED: Always call the safe happiness hook
   const happinessHookData = useSafeHappinessCalculation();
   const userProgress = happinessHookData.userProgress || { happiness_points: 0, user_level: 'Beginning Seeker' };
   const isCalculating = happinessHookData.isCalculating || false;
   const forceRecalculation = happinessHookData.forceRecalculation || (() => {});
 
-  // ✅ Component state
+  // ✅ PRESERVED: Component state (no changes)
   const [currentDisplayStage, setCurrentDisplayStage] = useState<number>(propCurrentStage || 1);
   const [streak, setStreak] = useState<number>(0);
   const [showT1T5Dropdown, setShowT1T5Dropdown] = useState<boolean>(false);
@@ -122,7 +116,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   });
   const [forceRefreshKey, setForceRefreshKey] = useState<number>(0);
 
-  // ✅ CRITICAL: Get current stage from PracticeContext (hours-based)
+  // ✅ SINGLE-POINT: Get current stage from PracticeContext (hours-based)
   const actualCurrentStage = useMemo(() => {
     try {
       const stage = getCurrentStage();
@@ -134,7 +128,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [getCurrentStage]);
 
-  // ✅ CRITICAL: Get total practice hours from PracticeContext
+  // ✅ SINGLE-POINT: Get total practice hours from PracticeContext
   const actualTotalHours = useMemo(() => {
     try {
       const hours = getTotalPracticeHours();
@@ -146,7 +140,60 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [getTotalPracticeHours]);
 
-  // ✅ CRITICAL: Check stage unlock using PracticeContext methods
+  // ✅ SINGLE-POINT: Helper functions to get T-level session counts from PracticeContext
+  const getT1Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T1' || s.level === 't1') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT2Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T2' || s.level === 't2') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT3Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T3' || s.level === 't3') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT4Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T4' || s.level === 't4') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT5Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T5' || s.level === 't5') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  // ✅ SINGLE-POINT: Helper functions to check T-level completion from PracticeContext
+  const isT1Complete = useCallback((): boolean => getT1Sessions() >= 3, [getT1Sessions]);
+  const isT2Complete = useCallback((): boolean => getT2Sessions() >= 3, [getT2Sessions]);
+  const isT3Complete = useCallback((): boolean => getT3Sessions() >= 3, [getT3Sessions]);
+  const isT4Complete = useCallback((): boolean => getT4Sessions() >= 3, [getT4Sessions]);
+  const isT5Complete = useCallback((): boolean => getT5Sessions() >= 3, [getT5Sessions]);
+
+  // ✅ SINGLE-POINT: Check stage unlock using PracticeContext methods
   const checkStageUnlocked = useCallback((targetStage: number): boolean => {
     try {
       console.log(`🔓 Checking if Stage ${targetStage} is unlocked...`);
@@ -167,11 +214,11 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [canAdvanceToStage]);
 
-  // ✅ FIXED: Correct Stage 1 progress calculation showing all T-levels
+  // ✅ SINGLE-POINT: Correct Stage 1 progress calculation showing all T-levels
   const getStageDisplayProgress = useCallback((stageNumber: number) => {
     try {
       if (stageNumber === 1) {
-        // ✅ FIXED: Count ALL T-level sessions, not just T5
+        // ✅ SINGLE-POINT: Count ALL T-level sessions from PracticeContext
         const t1Sessions = getT1Sessions();
         const t2Sessions = getT2Sessions(); 
         const t3Sessions = getT3Sessions();
@@ -205,7 +252,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           current: totalTSessions,
           required: 15, // 3 sessions × 5 T-levels = 15 total sessions
           isComplete: stage1Complete,
-          displayText: `T-Levels: ${totalTSessions}/15 sessions` // ✅ FIXED: Shows real progress
+          displayText: `T-Levels: ${totalTSessions}/15 sessions` // ✅ Shows real progress
         };
       }
       
@@ -231,7 +278,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   }, [getStageProgress, getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions, 
       isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete]);
 
-  // ✅ Get stage display info with correct unlock requirements
+  // ✅ PRESERVED: Get stage display info with correct unlock requirements (same logic)
   const getStageDisplayInfo = useCallback((stageNumber: number) => {
     const isUnlocked = checkStageUnlocked(stageNumber);
     const isCurrentOrCompleted = actualCurrentStage >= stageNumber;
@@ -274,7 +321,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
   }, [checkStageUnlocked, actualCurrentStage, getStageDisplayProgress, getStageProgress]);
 
-  // ✅ Calculate user statistics
+  // ✅ PRESERVED: Calculate user statistics (same logic, now using PracticeContext sessions)
   const calculateUserStats = useCallback(() => {
     if (!currentUser || practiceLoading) {
       setStreak(0);
@@ -323,13 +370,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [currentUser, practiceLoading, sessions]);
 
-  // ✅ Progress summary for debugging  
+  // ✅ SINGLE-POINT: Progress summary for debugging using PracticeContext only
   const getProgressSummary = useCallback(() => {
     try {
       const currentStage = actualCurrentStage;
       const totalHours = actualTotalHours;
       
-      // T-Level progress
+      // T-Level progress from PracticeContext sessions
       const tProgress = {
         t1: { sessions: getT1Sessions(), complete: isT1Complete() },
         t2: { sessions: getT2Sessions(), complete: isT2Complete() },
@@ -338,7 +385,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
         t5: { sessions: getT5Sessions(), complete: isT5Complete() }
       };
       
-      // Stage progress
+      // Stage progress from PracticeContext
       const stageProgress = {
         stage2: getStageProgress(2),
         stage3: getStageProgress(3),
@@ -375,7 +422,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       getT4Sessions, getT5Sessions, isT1Complete, isT2Complete, isT3Complete, 
       isT4Complete, isT5Complete, getStageProgress, sessions]);
 
-  // ✅ Force data refresh
+  // ✅ PRESERVED: Force data refresh (same logic)
   const refreshDashboardData = useCallback(() => {
     console.log('🔄 Refreshing dashboard data...');
     
@@ -406,14 +453,14 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     
   }, [actualCurrentStage, currentDisplayStage, calculateUserStats, forceRecalculation, getProgressSummary]);
 
-  // ✅ Get happiness data safely  
+  // ✅ PRESERVED: Get happiness data safely (same logic)
   const happinessData = useMemo(() => ({
     happiness_points: userProgress.happiness_points || 0,
     current_level: userProgress.user_level || 'Beginning Seeker',
     isCalculating: isCalculating
   }), [userProgress.happiness_points, userProgress.user_level, isCalculating]);
 
-  // ✅ Performance optimized static data
+  // ✅ PRESERVED: Performance optimized static data (same logic)
   const tLevels = useMemo(() => [
     { level: 'T1', duration: 10, title: 'T1: Physical Stillness for 10 minutes' },
     { level: 'T2', duration: 15, title: 'T2: Physical Stillness for 15 minutes' },
@@ -451,7 +498,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   ], [currentDisplayStage, onViewLearning, onShowPostureGuide, onShowPAHMExplanation]);
 
-  // ✅ Event handlers
+  // ✅ PRESERVED: All event handlers (same logic with profile-only UserContext usage)
   const handleHappinessPointsClick = useCallback(() => {
     if (onShowHappinessTracker) {
       onShowHappinessTracker();
@@ -491,7 +538,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     setCurrentDisplayStage(stageNumber);
     
     try {
-      // Update via UserContext methods
+      // Update via UserContext methods (profile management only)
       if (markStageComplete && typeof markStageComplete === 'function') {
         await markStageComplete(stageNumber);
         console.log('✅ Stage marked complete in Firebase:', stageNumber);
@@ -548,6 +595,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     });
   }, [navigate, userProfile]);
 
+  // ✅ PRESERVED: All other handlers (same logic)
   const handleNavigateToNotes = useCallback(() => {
     navigate('/notes');
   }, [navigate]);
@@ -572,7 +620,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [navigate, onShowAnalytics]);
 
-  // ✅ Hover handlers
+  // ✅ PRESERVED: Hover handlers (same logic)
   const createHoverHandler = useCallback((transform: string, boxShadow?: string) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
       e.currentTarget.style.transform = transform;
@@ -591,7 +639,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const buttonHoverProps = useMemo(() => createHoverHandler('translateY(-2px)'), [createHoverHandler]);
   const happinessHoverProps = useMemo(() => createHoverHandler('translateY(-2px) scale(1.05)', '0 12px 30px rgba(0, 0, 0, 0.3)'), [createHoverHandler]);
 
-  // ✅ Styles
+  // ✅ PRESERVED: All styles (same)
   const styles = useMemo(() => ({
     container: {
       minHeight: '100vh',
@@ -672,7 +720,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     } as React.CSSProperties
   }), []);
 
-  // ✅ Get happiness button style
+  // ✅ PRESERVED: Get happiness button style (same logic)
   const getHappinessButtonStyle = useCallback((happiness_points: number) => {
     const baseStyle: React.CSSProperties = {
       padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 24px)',
@@ -699,13 +747,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     return { ...baseStyle, background };
   }, []);
 
-  // ✅ Effects for data synchronization
+  // ✅ PRESERVED: All effects (same logic with updated dependencies)
   useEffect(() => {
     calculateUserStats();
   }, [calculateUserStats]);
 
   useEffect(() => {
-    // Update display stage when actual stage changes
     if (actualCurrentStage !== currentDisplayStage) {
       console.log(`🔄 Updating display stage: ${currentDisplayStage} → ${actualCurrentStage}`);
       setCurrentDisplayStage(actualCurrentStage);
@@ -734,7 +781,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
   }, [refreshDashboardData]);
 
-  // ✅ Listen for navigation state changes
   useEffect(() => {
     console.log('🔄 Location changed, checking for updates...', location.pathname, location.state);
     
@@ -750,31 +796,28 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       }
     }
     
-    // Always refresh when returning to home
     if (location.pathname === '/home') {
       setTimeout(refreshDashboardData, 100);
     }
   }, [location.pathname, location.state, refreshDashboardData]);
 
-  // ✅ Listen for sessions data changes (real-time Firebase updates)
   useEffect(() => {
     if (sessions && sessions.length > 0) {
       console.log(`🔄 Sessions updated: ${sessions.length} total sessions`);
       calculateUserStats();
       
-      // Force refresh to ensure UI is synchronized
       setTimeout(() => {
         setForceRefreshKey(prev => prev + 1);
       }, 100);
     }
   }, [sessions, calculateUserStats]);
 
-  // ✅ Display name calculation
+  // ✅ PRESERVED: Display name calculation (same logic)
   const displayName = useMemo(() => {
     return currentUser?.displayName ? `, ${currentUser.displayName.split(' ')[0]}` : '';
   }, [currentUser?.displayName]);
 
-  // ✅ Loading state
+  // ✅ PRESERVED: Loading state (same logic)
   if (isCalculating && !sessions) {
     return (
       <div style={styles.container}>
@@ -803,6 +846,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     );
   }
 
+  // ✅ PRESERVED: Same UI JSX structure (only T-level session counts now come from PracticeContext)
   return (
     <div style={styles.container} key={forceRefreshKey}>
       <header style={styles.header}>
@@ -913,7 +957,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
       </header>
 
       <main style={styles.main}>
-        {/* Welcome Section */}
+        {/* ✅ PRESERVED: Same Welcome Section */}
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>
             Your Mindfulness Journey
@@ -962,7 +1006,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* Stages Section */}
+        {/* ✅ PRESERVED: Same Stages Section with T-level counts from PracticeContext */}
         <section style={styles.section}>
           <h2 style={{ ...styles.sectionTitle, marginBottom: '8px' }}>
             Practice Stages
@@ -982,7 +1026,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             gap: '16px',
             marginBottom: '20px'
           }}>
-            {/* Stage 1 - Special handling with T-levels dropdown */}
+            {/* ✅ SINGLE-POINT: Stage 1 with T-levels dropdown using PracticeContext data */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => handleStageClick(1)}
@@ -1012,7 +1056,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     <div style={{ fontSize: '14px', opacity: 0.8 }}>
                       Physical Stillness (T1-T5)
                     </div>
-                    {/* ✅ FIXED: Show total T-level progress instead of just T5 */}
+                    {/* ✅ SINGLE-POINT: Show total T-level progress from PracticeContext */}
                     <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
                       T-Levels: {getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()}/15 sessions
                     </div>
@@ -1023,7 +1067,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 </div>
               </button>
 
-              {/* T-Levels Dropdown */}
+              {/* ✅ SINGLE-POINT: T-Levels Dropdown with PracticeContext data */}
               {showT1T5Dropdown && (
                 <div style={{
                   position: 'absolute',
@@ -1087,7 +1131,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
               )}
             </div>
 
-            {/* Stages 2-6 with real-time progress from PracticeContext */}
+            {/* ✅ PRESERVED: Stages 2-6 with real-time progress from PracticeContext (same JSX) */}
             {stageData.map((stage) => {
               const stageInfo = getStageDisplayInfo(stage.num);
               
@@ -1176,7 +1220,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             })}
           </div>
 
-          {/* Quick Actions */}
+          {/* ✅ PRESERVED: Same Quick Actions */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -1234,7 +1278,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* Resources Section */}
+        {/* ✅ PRESERVED: Same Resources Section */}
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>
             Learning Resources
@@ -1284,7 +1328,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* Access Modal for locked stages */}
+        {/* ✅ PRESERVED: Same Access Modal with PracticeContext data */}
         {showAccessModal.show && (
           <div style={{
             position: 'fixed',

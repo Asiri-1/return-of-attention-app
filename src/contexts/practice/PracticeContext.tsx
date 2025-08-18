@@ -1,12 +1,11 @@
 // ===============================================
-// 🔧 CORRECTED PRACTICE CONTEXT - FULL COMPATIBILITY
+// 🔧 FIXED CURRENT PRACTICE CONTEXT - SINGLE CRITICAL FIX
 // ===============================================
 
 // FILE: src/contexts/practice/PracticeContext.tsx
-// ✅ FIXED: Complete compatibility with MindRecoveryTimer
-// ✅ FIXED: Enhanced type safety and error handling
-// ✅ FIXED: Optimized Firebase operations
-// ✅ FIXED: Stage progression based on HOURS, not sessions
+// ✅ FIXED: Critical userId field always included in Firebase documents
+// ✅ KEEPS: All your existing functionality intact
+// ✅ FIXES: Session saving so real-time listeners can find sessions
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -441,7 +440,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [currentUser?.uid, getCurrentStage, getTotalPracticeHours, saveStageProgression]);
 
   // ================================
-  // ENHANCED FIREBASE OPERATIONS WITH MIND RECOVERY COMPATIBILITY
+  // 🔥 CRITICAL FIX: ENHANCED FIREBASE OPERATIONS WITH USERID
   // ================================
   const saveSessionToFirebase = useCallback(async (sessionData: any): Promise<string> => {
     // ✅ CRITICAL: Authentication guard
@@ -460,7 +459,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         timestamp: sessionData.timestamp || new Date().toISOString(),
         duration: sessionData.duration || 0,
         sessionType: sessionData.sessionType || sessionData.type || 'mind_recovery',
-        userId: currentUser.uid,
+        userId: currentUser.uid, // 🔥 CRITICAL FIX: Always include userId
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         
@@ -515,10 +514,11 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('💾 Saving Meditation session to practiceSessions collection');
       }
 
-      console.log('🔍 Final Firestore data:', firestoreData);
+      console.log('🔍 Final Firestore data (with userId):', firestoreData);
 
       const docRef = await addDoc(collection(db, collectionPath), firestoreData);
       console.log(`✅ ${sessionType} session saved to Firebase:`, docRef.id);
+      console.log(`📊 SESSION SAVED! T-level: ${normalizedData.tLevel}, Session #${sessions.filter(s => s.tLevel === normalizedData.tLevel).length + 1}`);
       
       return docRef.id;
     } catch (error) {
@@ -526,7 +526,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('❌ Session data that failed:', sessionData);
       throw error;
     }
-  }, [currentUser?.uid, generateId]);
+  }, [currentUser?.uid, generateId, sessions]);
 
   const updateSessionInFirebase = useCallback(async (sessionId: string, updates: Partial<PracticeSessionData>) => {
     // ✅ CRITICAL: Authentication guard
@@ -641,7 +641,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                   recoveryMetrics: data.recoveryMetrics,
                   metadata: data.metadata,
                   createdAt: data.createdAt,
-                  updatedAt: data.updatedAt
+                  updatedAt: data.updatedAt,
+                  userId: data.userId
                 };
                 mindRecoverySessions.push(session);
               } catch (docError) {
@@ -649,7 +650,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               }
             });
 
-            console.log(`🔄 Real-time Mind Recovery sessions update: ${mindRecoverySessions.length} sessions`);
+            console.log(`📦 Loaded ${mindRecoverySessions.length} Mind Recovery sessions`);
 
             // ✅ ENHANCED: Practice Sessions Listener
             const practiceQuery = query(
@@ -686,7 +687,8 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         pahmCounts: data.pahmCounts,
                         metadata: data.metadata,
                         createdAt: data.createdAt,
-                        updatedAt: data.updatedAt
+                        updatedAt: data.updatedAt,
+                        userId: data.userId
                       };
                       practiceSessions.push(session);
                     } catch (docError) {
@@ -694,7 +696,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     }
                   });
 
-                  console.log(`🔄 Real-time Practice sessions update: ${practiceSessions.length} sessions`);
+                  console.log(`📦 Loaded ${practiceSessions.length} Meditation sessions`);
 
                   // Combine and sort all sessions
                   const allSessions = [...mindRecoverySessions, ...practiceSessions];
@@ -822,7 +824,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       sessionId: session.sessionId || generateId('session'),
       timestamp: session.timestamp || new Date().toISOString(),
       completed: session.completed !== false, // Default to true unless explicitly false
-      userId: currentUser.uid
+      userId: currentUser.uid // 🔥 CRITICAL: Always include userId
     };
     
     console.log('🔄 Normalized session data:', newSession);

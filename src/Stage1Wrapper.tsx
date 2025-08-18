@@ -1,10 +1,10 @@
-// ✅ FIXED Stage1Wrapper.tsx - Complete T-Level Practice UI
+// ✅ FIXED Stage1Wrapper.tsx - TRUE SINGLE-POINT Implementation
 // File: src/Stage1Wrapper.tsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePractice } from './contexts/practice/PracticeContext';
-import { useUser } from './contexts/user/UserContext';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: For ALL session data
+import { useUser } from './contexts/user/UserContext'; // ✅ ONLY for profile management
 import { useAuth } from './contexts/auth/AuthContext';
 import MainNavigation from './MainNavigation';
 
@@ -44,22 +44,78 @@ const Stage1Wrapper: React.FC = () => {
   // ✅ ALL HOOKS AT TOP LEVEL - NO CONDITIONAL CALLS
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const userContext = useUser();
-  const { addPracticeSession, getCurrentStage, sessions } = usePractice();
+  const { userProfile } = useUser(); // ✅ ONLY for profile management
+  const { sessions, isLoading, getCurrentStage, getTotalPracticeHours } = usePractice(); // ✅ SINGLE-POINT
   
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ STAGE PROGRESS CALCULATIONS (MEMOIZED VALUES)
+  // ✅ SINGLE-POINT: T-level session counts from PracticeContext ONLY
+  const getT1Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T1' || s.level === 't1') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT2Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T2' || s.level === 't2') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT3Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T3' || s.level === 't3') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT4Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T4' || s.level === 't4') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const getT5Sessions = useCallback((): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === 'T5' || s.level === 't5') && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  // ✅ SINGLE-POINT: Stage 1 progress from PracticeContext ONLY
   const stage1Progress = useMemo(() => {
-    if (!sessions) return { sessions: 0, hours: 0, isComplete: false, source: 'fallback' };
+    if (!sessions) return { sessions: 0, hours: 0, isComplete: false, source: 'loading' };
     
     try {
+      // Count ALL T-level sessions for Stage 1
+      const t1Count = getT1Sessions();
+      const t2Count = getT2Sessions();
+      const t3Count = getT3Sessions();
+      const t4Count = getT4Sessions();
+      const t5Count = getT5Sessions();
+      
+      const totalTSessions = t1Count + t2Count + t3Count + t4Count + t5Count;
+      
+      // Calculate hours from T-level sessions
       const stage1Sessions = sessions.filter((session: any) => 
+        session.tLevel || 
+        session.level?.startsWith('t') ||
         session.stageLevel === 1 || 
         session.stage === 1 ||
-        (session.metadata && session.metadata.stage === 1) ||
-        session.tLevel ||
-        session.level?.startsWith('t')
+        (session.metadata && session.metadata.stage === 1)
       );
       
       const totalMinutes = stage1Sessions.reduce((total: number, session: any) => {
@@ -68,43 +124,50 @@ const Stage1Wrapper: React.FC = () => {
       
       const totalHours = totalMinutes / 60;
       
+      console.log('🎯 Stage 1 Progress Calculation:', {
+        t1Sessions: t1Count,
+        t2Sessions: t2Count,
+        t3Sessions: t3Count,
+        t4Sessions: t4Count,
+        t5Sessions: t5Count,
+        totalTSessions,
+        totalMinutes,
+        totalHours: totalHours.toFixed(2)
+      });
+      
       return {
-        sessions: stage1Sessions.length,
+        sessions: totalTSessions,
         hours: totalHours,
         isComplete: totalHours >= 3, // Stage 1 requires 3 hours
-        source: 'sessions'
+        source: 'practicecontext'
       };
     } catch (error) {
       console.error('❌ Error calculating Stage 1 progress:', error);
-      return { sessions: 0, hours: 0, isComplete: false, source: 'fallback' };
+      return { sessions: 0, hours: 0, isComplete: false, source: 'error' };
     }
-  }, [sessions]);
+  }, [sessions, getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions]);
 
-  // ✅ T-LEVEL PROGRESS CALCULATIONS - USING USERCONTEXT METHODS
+  // ✅ SINGLE-POINT: T-level progress from PracticeContext ONLY
   const tLevelProgress = useMemo(() => {
     try {
-      // Use UserContext methods that pull from Firebase
-      const t1Sessions = userContext.getT1Sessions ? userContext.getT1Sessions() : 0;
-      const t2Sessions = userContext.getT2Sessions ? userContext.getT2Sessions() : 0;
-      const t3Sessions = userContext.getT3Sessions ? userContext.getT3Sessions() : 0;
-      const t4Sessions = userContext.getT4Sessions ? userContext.getT4Sessions() : 0;
-      const t5Sessions = userContext.getT5Sessions ? userContext.getT5Sessions() : 0;
-      
-      return {
-        T1: t1Sessions,
-        T2: t2Sessions,
-        T3: t3Sessions,
-        T4: t4Sessions,
-        T5: t5Sessions,
-        source: 'usercontext'
+      const progress = {
+        T1: getT1Sessions(),
+        T2: getT2Sessions(),
+        T3: getT3Sessions(),
+        T4: getT4Sessions(),
+        T5: getT5Sessions(),
+        source: 'practicecontext'
       };
+      
+      console.log('🎯 T-Level Progress:', progress);
+      return progress;
     } catch (error) {
       console.error('❌ Error calculating T-level progress:', error);
-      return { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0, source: 'fallback' };
+      return { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0, source: 'error' };
     }
-  }, [userContext]);
+  }, [getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions]);
 
-  // ✅ T-LEVEL STATUS CALCULATION - THIS GENERATES THE PRACTICE BUTTONS
+  // ✅ T-LEVEL STATUS CALCULATION - GENERATES THE PRACTICE BUTTONS
   const tStages = useMemo(() => {
     const stages = [];
     const levels = ['T1', 'T2', 'T3', 'T4', 'T5'];
@@ -142,9 +205,9 @@ const Stage1Wrapper: React.FC = () => {
   const handleStartPractice = useCallback((tLevel: string, duration: number) => {
     console.log(`🧘 Starting ${tLevel} practice (${duration} minutes)`);
     
-    // Check T1 introduction
+    // Check T1 introduction using UserContext (profile management)
     if (tLevel === 'T1') {
-      const hasSeenT1Intro = (userContext.userProfile as any)?.stageProgress?.completedStageIntros?.includes('t1-intro') || false;
+      const hasSeenT1Intro = (userProfile as any)?.stageProgress?.completedStageIntros?.includes('t1-intro') || false;
       
       if (!hasSeenT1Intro) {
         // ✅ Sanitize navigation state data
@@ -174,7 +237,36 @@ const Stage1Wrapper: React.FC = () => {
     });
     
     navigate('/universal-posture-selection', { state: navigationState });
-  }, [navigate, userContext]);
+  }, [navigate, userProfile]);
+
+  // ✅ Loading state
+  if (isLoading) {
+    return (
+      <MainNavigation>
+        <div style={{
+          minHeight: '60vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '3px solid rgba(102, 126, 234, 0.3)',
+              borderTop: '3px solid #667eea',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 16px'
+            }} />
+            <div style={{ color: '#374151', fontSize: '16px' }}>
+              Loading Stage 1 progress...
+            </div>
+          </div>
+        </div>
+      </MainNavigation>
+    );
+  }
 
   // ✅ Authentication check
   if (!currentUser) {
@@ -256,7 +348,7 @@ const Stage1Wrapper: React.FC = () => {
             opacity: '0.8',
             color: '#6b7280'
           }}>
-            Data source: {stage1Progress.source}
+            ✅ Single-point data source: {stage1Progress.source}
           </div>
           
           {stage1Progress.isComplete && (
@@ -441,32 +533,45 @@ const Stage1Wrapper: React.FC = () => {
             })}
           </div>
 
-          {/* ✅ DEBUG INFO */}
+          {/* ✅ SINGLE-POINT COMPLIANCE DEBUG INFO */}
           {process.env.NODE_ENV === 'development' && (
             <div style={{
               marginTop: '40px',
               padding: '20px',
-              background: '#f8f9fa',
+              background: '#f0fdf4',
+              border: '2px solid #10b981',
               borderRadius: '12px',
-              fontSize: '14px',
-              color: '#666'
+              fontSize: '14px'
             }}>
-              <h4>Debug Info:</h4>
-              <div>T1: {tLevelProgress.T1}/3 ({tLevelProgress.T1 >= 3 ? 'Complete' : 'Incomplete'})</div>
-              <div>T2: {tLevelProgress.T2}/3 ({tLevelProgress.T2 >= 3 ? 'Complete' : 'Incomplete'})</div>
-              <div>T3: {tLevelProgress.T3}/3 ({tLevelProgress.T3 >= 3 ? 'Complete' : 'Incomplete'})</div>
-              <div>T4: {tLevelProgress.T4}/3 ({tLevelProgress.T4 >= 3 ? 'Complete' : 'Incomplete'})</div>
-              <div>T5: {tLevelProgress.T5}/3 ({tLevelProgress.T5 >= 3 ? 'Complete' : 'Incomplete'})</div>
-              <div><strong>Stage 1 Hours: {stage1Progress.hours.toFixed(2)}/3.0</strong></div>
-              <div><strong>Stage 1 Complete: {stage1Progress.isComplete ? 'Yes' : 'No'}</strong></div>
-              <div><strong>Current Stage: {getCurrentStage()}</strong></div>
-              <div>Progress Source: {stage1Progress.source}</div>
-              <div>T-Level Source: {tLevelProgress.source}</div>
-              <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
-              <div>Total T-stages generated: {tStages.length}</div>
+              <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+                ✅ Single-Point Compliance Debug:
+              </h4>
+              <div style={{ color: '#065f46' }}>
+                <div><strong>✅ Data Source: PracticeContext ONLY</strong></div>
+                <div>T1: {tLevelProgress.T1}/3 ({tLevelProgress.T1 >= 3 ? 'Complete' : 'Incomplete'})</div>
+                <div>T2: {tLevelProgress.T2}/3 ({tLevelProgress.T2 >= 3 ? 'Complete' : 'Incomplete'})</div>
+                <div>T3: {tLevelProgress.T3}/3 ({tLevelProgress.T3 >= 3 ? 'Complete' : 'Incomplete'})</div>
+                <div>T4: {tLevelProgress.T4}/3 ({tLevelProgress.T4 >= 3 ? 'Complete' : 'Incomplete'})</div>
+                <div>T5: {tLevelProgress.T5}/3 ({tLevelProgress.T5 >= 3 ? 'Complete' : 'Incomplete'})</div>
+                <div><strong>Stage 1 Hours: {stage1Progress.hours.toFixed(2)}/3.0</strong></div>
+                <div><strong>Stage 1 Complete: {stage1Progress.isComplete ? 'Yes' : 'No'}</strong></div>
+                <div><strong>Current Stage: {getCurrentStage()}</strong></div>
+                <div><strong>Progress Source: {stage1Progress.source}</strong></div>
+                <div><strong>T-Level Source: {tLevelProgress.source}</strong></div>
+                <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+                <div>Total Sessions: {sessions?.length || 0}</div>
+                <div>Total T-stages: {tStages.length}</div>
+              </div>
             </div>
           )}
         </div>
+
+        <style>{`
+          @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+          }
+        `}</style>
       </div>
     </MainNavigation>
   );

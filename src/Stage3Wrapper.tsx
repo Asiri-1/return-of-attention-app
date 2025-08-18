@@ -1,10 +1,10 @@
-// ✅ ENHANCED Stage3Wrapper.tsx - Phase 3 Robust Integration
+// ✅ FIXED Stage3Wrapper.tsx - TRUE SINGLE-POINT Implementation
 // File: src/Stage3Wrapper.tsx
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { usePractice } from './contexts/practice/PracticeContext';
-import { useUser } from './contexts/user/UserContext';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: For ALL session data
+import { useUser } from './contexts/user/UserContext'; // ✅ ONLY for profile management
 import { useAuth } from './contexts/auth/AuthContext';
 import Stage3Introduction from './Stage3Introduction';
 import UniversalPostureSelection from './components/shared/UI/UniversalPostureSelection';
@@ -28,39 +28,25 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
-  const userContext = useUser();
-  const { addPracticeSession, getCurrentStage, canAdvanceToStage, sessions } = usePractice();
+  const { userProfile, markStageIntroComplete, markStageComplete } = useUser(); // ✅ ONLY profile management
+  const { addPracticeSession, getCurrentStage, canAdvanceToStage, sessions, getStageProgress } = usePractice(); // ✅ SINGLE-POINT
   
   const [currentPhase, setCurrentPhase] = useState<PhaseType>('introduction');
   const [selectedPosture, setSelectedPosture] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ SAFE USER CONTEXT FUNCTION (NOT A HOOK)
-  const callUserContextMethod = async (method: string, fallbackValue: any, ...args: any[]) => {
-    try {
-      const userContextMethod = (userContext as any)[method];
-      if (typeof userContextMethod === 'function') {
-        return await userContextMethod(...args);
-      } else {
-        console.warn(`⚠️ UserContext method '${method}' not available, using fallback`);
-        return fallbackValue;
-      }
-    } catch (error) {
-      console.error(`❌ Error calling UserContext method '${method}':`, error);
-      return fallbackValue;
-    }
-  };
-
-  // ✅ STAGE PROGRESS CALCULATIONS (MEMOIZED VALUES)
+  // ✅ SINGLE-POINT: Stage 3 progress from PracticeContext ONLY
   const stage3Progress = useMemo(() => {
-    if (!sessions) return { sessions: 0, hours: 0, isComplete: false, source: 'fallback' };
+    if (!sessions) return { sessions: 0, hours: 0, isComplete: false, source: 'loading' };
     
     try {
+      // Count all Stage 3 sessions from PracticeContext
       const stage3Sessions = sessions.filter((session: any) => 
         session.stageLevel === 3 || 
         session.stage === 3 ||
-        (session.metadata && session.metadata.stage === 3)
+        (session.metadata && session.metadata.stage === 3) ||
+        session.stageLabel?.includes('Stage 3')
       );
       
       const totalMinutes = stage3Sessions.reduce((total: number, session: any) => {
@@ -69,33 +55,33 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
       
       const totalHours = totalMinutes / 60;
       
+      console.log('🎯 Stage 3 Progress Calculation:', {
+        stage3Sessions: stage3Sessions.length,
+        totalMinutes,
+        totalHours: totalHours.toFixed(2),
+        isComplete: totalHours >= 10
+      });
+      
       return {
         sessions: stage3Sessions.length,
         hours: totalHours,
         isComplete: totalHours >= 10, // Stage 3 requires 10 hours
-        source: 'sessions'
+        source: 'practicecontext'
       };
     } catch (error) {
       console.error('❌ Error calculating Stage 3 progress:', error);
-      return { sessions: 0, hours: 0, isComplete: false, source: 'fallback' };
+      return { sessions: 0, hours: 0, isComplete: false, source: 'error' };
     }
   }, [sessions]);
 
+  // ✅ SINGLE-POINT: Stage 2 progress from PracticeContext ONLY
   const stage2Progress = useMemo(() => {
     if (!sessions) return { hours: 0, isComplete: false };
     
     try {
-      const stage2Sessions = sessions.filter((session: any) => 
-        session.stageLevel === 2 || 
-        session.stage === 2 ||
-        (session.metadata && session.metadata.stage === 2)
-      );
-      
-      const totalMinutes = stage2Sessions.reduce((total: number, session: any) => {
-        return total + (session.duration || 0);
-      }, 0);
-      
-      const totalHours = totalMinutes / 60;
+      // Use getStageProgress for consistent calculation
+      const stage2Data = getStageProgress(2);
+      const totalHours = stage2Data.completed;
       
       return {
         hours: totalHours,
@@ -105,14 +91,29 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
       console.error('❌ Error calculating Stage 2 progress:', error);
       return { hours: 0, isComplete: false };
     }
-  }, [sessions]);
+  }, [sessions, getStageProgress]);
 
+  // ✅ SINGLE-POINT: Access control using PracticeContext methods
   const hasStage3Access = useMemo(() => {
-    const currentStage = getCurrentStage();
-    const canAdvance = canAdvanceToStage(3);
-    const stage2Complete = stage2Progress.isComplete;
-    
-    return currentStage >= 3 || canAdvance || stage2Complete;
+    try {
+      const currentStage = getCurrentStage();
+      const canAdvance = canAdvanceToStage(3);
+      const stage2Complete = stage2Progress.isComplete;
+      
+      const hasAccess = currentStage >= 3 || canAdvance || stage2Complete;
+      
+      console.log('🔓 Stage 3 Access Check:', {
+        currentStage,
+        canAdvance,
+        stage2Complete,
+        hasAccess
+      });
+      
+      return hasAccess;
+    } catch (error) {
+      console.error('❌ Error checking Stage 3 access:', error);
+      return false;
+    }
   }, [getCurrentStage, canAdvanceToStage, stage2Progress.isComplete]);
 
   const locationState = useMemo((): LocationState => {
@@ -179,13 +180,16 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await callUserContextMethod('markStageIntroComplete', null, 'stage3');
-      console.log('✅ Stage 3 introduction marked as completed');
+      // ✅ Use UserContext ONLY for profile management (marking intro as seen)
+      if (markStageIntroComplete && typeof markStageIntroComplete === 'function') {
+        await markStageIntroComplete('stage3');
+        console.log('✅ Stage 3 introduction marked as completed');
+      }
       setCurrentPhase('posture');
     } catch (error) {
       console.error('❌ Error marking Stage 3 intro as completed:', error);
       setError('Failed to save introduction progress');
-      setCurrentPhase('posture');
+      setCurrentPhase('posture'); // Continue anyway
     } finally {
       setIsLoading(false);
     }
@@ -203,6 +207,7 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     }
   };
 
+  // ✅ SINGLE-POINT: Session completion using PracticeContext ONLY
   const handleTimerComplete = async (completedDuration: number = 30) => {
     if (!currentUser?.uid) {
       console.error('❌ No authenticated user');
@@ -215,19 +220,13 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
     try {
       console.log(`🎯 Stage 3 session completed! Duration: ${completedDuration} minutes`);
       
-      // Try UserContext methods with fallbacks
-      const newSessionCount = await callUserContextMethod('incrementStage3Sessions', stage3Progress.sessions + 1);
-      console.log(`📊 Stage 3 Sessions: ${newSessionCount}`);
-      
-      const hoursToAdd = completedDuration / 60;
-      const newTotalHours = await callUserContextMethod('addStageHoursDirect', stage3Progress.hours + hoursToAdd, 3, hoursToAdd);
-      console.log(`⏱️ Stage 3 Hours: ${newTotalHours}/10 (${Math.round((newTotalHours/10)*100)}%)`);
-      
+      // ✅ SINGLE-POINT: Create session data and let PracticeContext handle ALL counting
       const enhancedSessionData = {
         timestamp: new Date().toISOString(),
         duration: completedDuration,
         sessionType: 'meditation' as const,
         stageLevel: 3,
+        stage: 3, // Ensure stage field is set
         stageLabel: 'Stage 3: Sustained Attention',
         rating: 5,
         notes: `Stage 3 sustained attention session - ${selectedPosture} posture`,
@@ -245,20 +244,30 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
         },
         metadata: {
           stage: 3,
-          sessionCount: newSessionCount,
-          hoursAdded: hoursToAdd,
-          totalStage3Hours: newTotalHours,
           posture: selectedPosture,
-          userContextAvailable: typeof (userContext as any).incrementStage3Sessions === 'function'
+          sessionSource: 'stage3wrapper',
+          architecture: 'single-point-v3'
         }
       };
 
+      // ✅ SINGLE-POINT: Add session via PracticeContext - it handles all counting
       await addPracticeSession(enhancedSessionData);
+      console.log('✅ Session added to PracticeContext successfully');
       
+      // Calculate new totals from the updated sessions
+      const newTotalHours = stage3Progress.hours + (completedDuration / 60);
       const isStageComplete = newTotalHours >= 10;
-      if (isStageComplete) {
-        console.log('🎉 Stage 3 completed! 10+ hours reached');
-        await callUserContextMethod('markStageComplete', null, 3);
+      
+      console.log(`📊 Updated Stage 3 Progress: ${newTotalHours.toFixed(2)}/10 hours`);
+      
+      // ✅ Use UserContext ONLY for profile management (marking stage complete)
+      if (isStageComplete && markStageComplete && typeof markStageComplete === 'function') {
+        try {
+          await markStageComplete(3);
+          console.log('🎉 Stage 3 marked as complete in profile!');
+        } catch (profileError) {
+          console.warn('⚠️ Failed to update profile, but session saved:', profileError);
+        }
       }
       
       setCurrentPhase('reflection');
@@ -273,11 +282,12 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
 
   const handleReflectionComplete = async () => {
     try {
+      // ✅ SINGLE-POINT: Get current progress from PracticeContext
       const currentHours = stage3Progress.hours;
       const currentSessions = stage3Progress.sessions;
       const isComplete = currentHours >= 10;
       
-      console.log(`📊 Stage 3 Progress: ${currentSessions} sessions, ${currentHours}/10 hours`);
+      console.log(`📊 Stage 3 Final Progress: ${currentSessions} sessions, ${currentHours.toFixed(2)}/10 hours`);
       
       if (isComplete) {
         navigate('/home', {
@@ -286,7 +296,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             unlockedStage: 4,
             message: `🎉 Congratulations! Stage 3 completed (${currentHours.toFixed(1)}/10 hours)! Stage 4 is now unlocked!`,
             totalHours: currentHours,
-            currentStage: 3
+            currentStage: 3,
+            sessionCompleted: true
           }
         });
       } else {
@@ -298,7 +309,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             stage3InProgress: true,
             message: `Stage 3 Progress: ${percentComplete}% complete (${hoursRemaining.toFixed(1)} hours remaining)`,
             totalHours: currentHours,
-            currentStage: 3
+            currentStage: 3,
+            sessionCompleted: true
           }
         });
       }
@@ -307,7 +319,8 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
       console.error('❌ Error processing Stage 3 completion:', error);
       navigate('/home', {
         state: {
-          message: 'Stage 3 session recorded! (Sync pending)'
+          message: 'Stage 3 session recorded!',
+          sessionCompleted: true
         }
       });
     }
@@ -349,7 +362,7 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             Hours Remaining: {Math.max(0, 5 - stage2Hours).toFixed(1)}
           </div>
           <button
-            onClick={() => navigate('/stage/2')}
+            onClick={() => navigate('/stage2')}
             style={{
               padding: '12px 24px',
               background: '#3b82f6',
@@ -393,6 +406,15 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
           justifyContent: 'center',
           minHeight: '60vh'
         }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(102, 126, 234, 0.3)',
+            borderTop: '3px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 16px'
+          }} />
           <div style={{ fontSize: '18px', marginBottom: '12px' }}>
             Saving your session...
           </div>
@@ -536,43 +558,47 @@ const Stage3Wrapper: React.FC<Stage3WrapperProps> = () => {
             opacity: '0.8',
             color: '#6b7280'
           }}>
-            Data source: {stage3Progress.source}
+            ✅ Single-point data source: {stage3Progress.source}
           </div>
         </div>
         
         {renderCurrentPhase()}
         
-        {/* ✅ DEBUG INFO */}
+        {/* ✅ SINGLE-POINT COMPLIANCE DEBUG INFO */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '20px',
             padding: '16px',
-            background: '#f8f9fa',
+            background: '#f0fdf4',
+            border: '2px solid #10b981',
             borderRadius: '8px',
-            fontSize: '12px',
-            color: '#666'
+            fontSize: '12px'
           }}>
-            <h4>Debug Info:</h4>
-            <div>Stage 3 Sessions: {stage3Progress.sessions}</div>
-            <div>Stage 3 Hours: {stage3Progress.hours.toFixed(2)}/10</div>
-            <div>Stage 2 Hours: {stage2Progress.hours.toFixed(2)}/5 (Required for access)</div>
-            <div>Current Stage: {getCurrentStage()}</div>
-            <div>Can Access Stage 3: {hasStage3Access ? 'Yes' : 'No'}</div>
-            <div>Stage 3 Complete: {stage3Progress.isComplete ? 'Yes' : 'No'}</div>
-            <div>Progress Source: {stage3Progress.source}</div>
-            <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
-            <div>Available UserContext Methods:</div>
-            <div style={{ fontSize: '10px', marginLeft: '8px' }}>
-              - incrementStage3Sessions: {typeof (userContext as any).incrementStage3Sessions === 'function' ? '✅' : '❌'}
-            </div>
-            <div style={{ fontSize: '10px', marginLeft: '8px' }}>
-              - addStageHoursDirect: {typeof (userContext as any).addStageHoursDirect === 'function' ? '✅' : '❌'}
-            </div>
-            <div style={{ fontSize: '10px', marginLeft: '8px' }}>
-              - markStageComplete: {typeof (userContext as any).markStageComplete === 'function' ? '✅' : '❌'}
+            <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+              ✅ Single-Point Compliance Debug:
+            </h4>
+            <div style={{ color: '#065f46' }}>
+              <div><strong>✅ Data Source: PracticeContext ONLY</strong></div>
+              <div>Stage 3 Sessions: {stage3Progress.sessions}</div>
+              <div>Stage 3 Hours: {stage3Progress.hours.toFixed(2)}/10</div>
+              <div>Stage 2 Hours: {stage2Progress.hours.toFixed(2)}/5 (Required for access)</div>
+              <div>Current Stage: {getCurrentStage()}</div>
+              <div>Can Access Stage 3: {hasStage3Access ? 'Yes' : 'No'}</div>
+              <div>Stage 3 Complete: {stage3Progress.isComplete ? 'Yes' : 'No'}</div>
+              <div><strong>Progress Source: {stage3Progress.source}</strong></div>
+              <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+              <div>Total Sessions: {sessions?.length || 0}</div>
+              <div><strong>Architecture: Single-Point v3</strong></div>
             </div>
           </div>
         )}
+
+        <style>{`
+          @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+          }
+        `}</style>
       </div>
     </MainNavigation>
   );

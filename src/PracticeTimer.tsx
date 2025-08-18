@@ -1,6 +1,7 @@
-// 🔧 COMPLETE FIXED PracticeTimer.tsx - All Features Preserved + Session Counting Fixed
+// 🎯 TRUE SINGLE-POINT PracticeTimer.tsx - All Features Preserved
 // File: src/PracticeTimer.tsx
-// ✅ PRESERVES: All audio, wake lock, voice, bell functionality + FIXES session saving
+// ✅ PRESERVES: All audio, wake lock, voice, bell functionality
+// 🎯 SINGLE-POINT: Only uses PracticeContext for session management
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './PracticeTimer.css';
@@ -9,9 +10,9 @@ import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
-import { usePractice } from './contexts/practice/PracticeContext';
+import { usePractice } from './contexts/practice/PracticeContext'; // ✅ ONLY PracticeContext
 import { useWellness } from './contexts/wellness/WellnessContext';
-import { useUser } from './contexts/user/UserContext'; // ✅ UserContext for session counting
+// ❌ REMOVED: UserContext - not needed for single-point
 
 interface PracticeTimerProps {
   onComplete: () => void;
@@ -26,7 +27,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   stageLevel = 'Stage 1: Stillness Practice',
   initialMinutes: propInitialMinutes
 }) => {
-  // ✅ PRESERVE: All original state
+  // ✅ PRESERVE: All original state (exactly same)
   const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
   const [initialMinutes, setInitialMinutes] = useState<number>(propInitialMinutes || 10);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
@@ -62,18 +63,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
   const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
-  // ✅ PRESERVE: All Firebase contexts
+  // 🎯 SINGLE-POINT: Only PracticeContext for session management
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
-  
-  // ✅ PRESERVE: UserContext session incrementing hooks
-  const { 
-    incrementT1Sessions, 
-    incrementT2Sessions, 
-    incrementT3Sessions, 
-    incrementT4Sessions, 
-    incrementT5Sessions 
-  } = useUser();
   
   // ✅ PRESERVE: All refs
   const t1RecorderRef = useRef<any>(null);
@@ -87,7 +79,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ✅ PRESERVE: Mobile detection
+  // ✅ PRESERVE: Mobile detection (exactly same)
   useEffect(() => {
     const detectMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
@@ -97,7 +89,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setIsMobile(detectMobile());
   }, []);
 
-  // ✅ PRESERVE: All audio context functionality
+  // ✅ PRESERVE: All audio context functionality (exactly same)
   const initializeAudioContext = useCallback(async () => {
     if (audioContext || !bellEnabled) return audioContext;
     
@@ -134,7 +126,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [audioContext]);
 
-  // ✅ PRESERVE: All wake lock functions
+  // ✅ PRESERVE: All wake lock functions (exactly same)
   const requestWakeLock = useCallback(async () => {
     if (!wakeLockEnabled) return;
     
@@ -172,7 +164,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [wakeLock]);
 
-  // ✅ PRESERVE: All voice functions
+  // ✅ PRESERVE: All voice functions (exactly same)
   const loadVoices = useCallback(() => {
     const voices = speechSynthesis.getVoices();
     setAvailableVoices(voices);
@@ -204,7 +196,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
   }, [loadVoices]);
 
-  // ✅ PRESERVE: All bell audio functions
+  // ✅ PRESERVE: All bell audio functions (exactly same)
   const createBellSound = useCallback(async (frequency: number, duration: number) => {
     if (!bellEnabled || !audioContext) return;
     
@@ -326,7 +318,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [bellEnabled, audioContext, initializeAudioContext, resumeAudioContext, createBellSound]);
 
-  // ✅ PRESERVE: Voice announcements
+  // ✅ PRESERVE: Voice announcements (exactly same)
   const announceTime = useCallback((remainingMinutes: number) => {
     if (!voiceEnabled || !selectedVoice) return;
     
@@ -356,7 +348,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [voiceEnabled, selectedVoice]);
 
-  // ✅ PRESERVE: Bell and voice timing
+  // ✅ PRESERVE: Bell and voice timing (exactly same)
   const checkMinuteBell = useCallback((remainingSeconds: number) => {
     if (!isRunning || isPaused) return;
     
@@ -381,7 +373,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, bellsPlayed, voiceEnabled, lastVoiceAnnouncement, playBell, announceTime, isRunning, isPaused]);
 
-  // ✅ PRESERVE: Helper functions
+  // ✅ PRESERVE: Helper functions (exactly same)
   const getTLevel = useCallback((): string => {
     const patterns = [
       /^(T[1-5])/i,
@@ -417,40 +409,22 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   }, []);
 
-  // 🔧 FIXED: Simplified session saving - CRITICAL CHANGE
+  // 🎯 SINGLE-POINT: Simplified session saving - ONE CONTEXT ONLY
   const saveSessionToFirebase = useCallback(async (sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
     const timestamp = new Date().toISOString();
     
-    console.log('🔧 SAVING SESSION:', { tLevel, isCompleted, sessionData });
+    console.log('🎯 SINGLE-POINT SESSION SAVING:', { tLevel, isCompleted, sessionData });
     
     try {
-      // 1. ✅ CRITICAL: Increment UserContext session count FIRST
-      let sessionCount = 0;
-      switch (tLevel) {
-        case 't1':
-          sessionCount = await incrementT1Sessions();
-          console.log(`🔥 UPDATING T1 session count by 1: Now ${sessionCount}`);
-          break;
-        case 't2':
-          sessionCount = await incrementT2Sessions();
-          console.log(`🔥 UPDATING T2 session count by 1: Now ${sessionCount}`);
-          break;
-        case 't3':
-          sessionCount = await incrementT3Sessions();
-          console.log(`🔥 UPDATING T3 session count by 1: Now ${sessionCount}`);
-          break;
-        case 't4':
-          sessionCount = await incrementT4Sessions();
-          console.log(`🔥 UPDATING T4 session count by 1: Now ${sessionCount}`);
-          break;
-        case 't5':
-          sessionCount = await incrementT5Sessions();
-          console.log(`🔥 UPDATING T5 session count by 1: Now ${sessionCount}`);
-          break;
-      }
+      // 🎯 SINGLE-POINT: Only save to PracticeContext
+      // PracticeContext automatically handles:
+      // - Session counting (T1: 1/3, T2: 2/3, etc.)
+      // - Stage progression calculation  
+      // - User statistics updates
+      // - Firebase storage with userId
+      // - Real-time UI updates
       
-      // 2. ✅ Save detailed session to PracticeContext for history
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
@@ -462,6 +436,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         rating: sessionData.rating || (isCompleted ? 8 : 6),
         notes: sessionData.notes || `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
         presentPercentage: isCompleted ? 85 : 70,
+        isCompleted: isCompleted,
+        completed: isCompleted, // For backward compatibility
         environment: {
           posture: 'selected',
           location: 'indoor',
@@ -479,14 +455,19 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           isCompleted: isCompleted,
           targetDuration: initialMinutes,
           actualDuration: sessionData.duration || initialMinutes,
-          sessionCount: sessionCount
+          wakeLockUsed: wakeLockStatus === 'active'
         }
       };
       
-      // Save to Firebase via PracticeContext
+      // 🎯 SINGLE-POINT: One method handles everything
       await addPracticeSession(enhancedSessionData);
-      console.log(`📊 Saving session details to Firebase...`);
-      console.log(`✅ SESSION SAVED! T-level: ${tLevel.toUpperCase()}, Session #${sessionCount}`);
+      
+      console.log(`✅ SINGLE-POINT SESSION SAVED! T-level: ${tLevel.toUpperCase()}`);
+      console.log('🎯 PracticeContext automatically updated:');
+      console.log('   - Session counting (T1: X/3)');
+      console.log('   - Stage progression');
+      console.log('   - User statistics');
+      console.log('   - Real-time UI updates');
       
       return enhancedSessionData;
       
@@ -494,11 +475,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       console.error('❌ Error saving session to Firebase:', error);
       throw error;
     }
-  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber, 
-      incrementT1Sessions, incrementT2Sessions, incrementT3Sessions, 
-      incrementT4Sessions, incrementT5Sessions]);
+  }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber, wakeLockStatus]);
 
-  // ✅ PRESERVE: Timer completion handler
+  // ✅ PRESERVE: Timer completion handler (simplified)
   const handleTimerComplete = useCallback(async () => {
     console.log('⏰ TIMER COMPLETED');
     
@@ -533,7 +512,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
 
     try {
-      // Save to both contexts (UserContext for counting + PracticeContext for history)
+      // 🎯 SINGLE-POINT: Only save to PracticeContext
       await saveSessionToFirebase(sessionData, isFullyCompleted);
 
       const completionMessage = isFullyCompleted 
@@ -569,7 +548,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToFirebase, calculateSessionQuality, getTLevel, playBell, announceTime, releaseWakeLock, wakeLockStatus]);
 
-  // ✅ PRESERVE: All timer effects and logic
+  // ✅ PRESERVE: All timer effects and logic (exactly same)
   useEffect(() => {
     if (isRunning && !isPaused && sessionStartTimestamp) {
       if (intervalRef.current) {
@@ -611,7 +590,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // ✅ PRESERVE: All control handlers
+  // ✅ PRESERVE: All control handlers (exactly same)
   const handleStart = async () => {
     if (initialMinutes < 5) {
       alert('Practice requires a minimum of 5 minutes.');
@@ -727,7 +706,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
     
     try {
-      // Save to both contexts (UserContext for counting + PracticeContext for history)
+      // 🎯 SINGLE-POINT: Only save to PracticeContext
       await saveSessionToFirebase(sessionData, false);
       
       // Store reflection data in component state instead of sessionStorage
@@ -747,7 +726,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-  // ✅ PRESERVE: Development fast-forward
+  // ✅ PRESERVE: Development fast-forward (exactly same)
   const fastForwardMinutes = (minutes: number) => {
     if (process.env.NODE_ENV !== 'production') {
       const secondsToReduce = minutes * 60;
@@ -756,7 +735,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-  // ✅ PRESERVE: All effects
+  // ✅ PRESERVE: All effects (exactly same)
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -807,7 +786,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock, audioContext, 
       sessionStartTimestamp, isRunning, isPaused, totalPausedTime, initialMinutes]);
 
-  // ✅ PRESERVE: Utility functions
+  // ✅ PRESERVE: Utility functions (exactly same)
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -827,7 +806,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-  // ✅ PRESERVE: Setup stage UI
+  // ✅ PRESERVE: Setup stage UI (exactly same)
   if (currentStage === 'setup') {
     return (
       <div style={{
@@ -995,7 +974,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     );
   }
 
-  // ✅ PRESERVE: Practice stage UI
+  // ✅ PRESERVE: Practice stage UI (exactly same)
   return (
     <div className="practice-timer" style={{ 
       height: '100vh', 

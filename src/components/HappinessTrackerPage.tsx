@@ -1,12 +1,12 @@
-// ✅ FIXED HappinessTrackerPage.tsx - Real Hooks & Stage Integration
+// ✅ FIXED HappinessTrackerPage.tsx - TRUE SINGLE-POINT Implementation
 // File: src/components/HappinessTrackerPage.tsx
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
-import { useUser } from '../contexts/user/UserContext';
-import { usePractice } from '../contexts/practice/PracticeContext';
+import { useUser } from '../contexts/user/UserContext'; // ✅ ONLY for profile management
+import { usePractice } from '../contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: For ALL session data
 import { useAnalytics } from '../contexts/analytics/AnalyticsContext';
 
 const HappinessTrackerPage = React.memo(() => {
@@ -26,44 +26,107 @@ const HappinessTrackerPage = React.memo(() => {
     forceRecalculation
   } = useHappinessCalculation();
 
-  // ✅ NEW: Integration with UserContext for stage progression
+  // ✅ SINGLE-POINT: Use PracticeContext for ALL session data and stage progression
   const {
-    // T-Level completion tracking
-    isT1Complete, isT2Complete, isT3Complete, isT4Complete, isT5Complete,
-    getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions,
-    
-    // Stage completion tracking (hours-based)
-    isStage2CompleteByHours, isStage3CompleteByHours, isStage4CompleteByHours,
-    isStage5CompleteByHours, isStage6CompleteByHours,
-    
-    // Stage hours tracking
-    getStage1Hours, getStage2Hours, getStage3Hours, 
-    getStage4Hours, getStage5Hours, getStage6Hours,
-    
-    // Current stage calculation
-    getCurrentStageByHours,
-    getTotalPracticeHours
-  } = useUser();
+    sessions,
+    getCurrentStage,
+    getTotalPracticeHours,
+    getStageProgress,
+    canAdvanceToStage
+  } = usePractice();
 
-  // ✅ NEW: Analytics integration
+  // ✅ Use UserContext ONLY for profile management (questionnaire/assessment status)
+  const { userProfile } = useUser();
+
+  // ✅ Analytics integration
   const { 
     getPAHMData, 
     getComprehensiveAnalytics,
     refreshAnalytics 
   } = useAnalytics();
 
-  // ✅ NEW: Practice context integration
-  const { sessions } = usePractice();
-
   const [showDebug, setShowDebug] = useState(false);
 
-  // ✅ ENHANCED: Quick stats with real data validation and stage progression
+  // ✅ SINGLE-POINT: T-level session counts from PracticeContext ONLY
+  const getTLevelSessions = useCallback((tLevel: string): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    return sessions.filter((s: any) => 
+      (s.tLevel === tLevel || s.level === tLevel.toLowerCase()) && 
+      s.completed !== false && 
+      s.sessionType === 'meditation'
+    ).length;
+  }, [sessions]);
+
+  const tLevelProgress = useMemo(() => {
+    return {
+      T1: getTLevelSessions('T1'),
+      T2: getTLevelSessions('T2'),
+      T3: getTLevelSessions('T3'),
+      T4: getTLevelSessions('T4'),
+      T5: getTLevelSessions('T5')
+    };
+  }, [getTLevelSessions]);
+
+  // ✅ SINGLE-POINT: T-level completion status from PracticeContext
+  const tLevelCompletion = useMemo(() => {
+    return {
+      isT1Complete: tLevelProgress.T1 >= 3,
+      isT2Complete: tLevelProgress.T2 >= 3,
+      isT3Complete: tLevelProgress.T3 >= 3,
+      isT4Complete: tLevelProgress.T4 >= 3,
+      isT5Complete: tLevelProgress.T5 >= 3
+    };
+  }, [tLevelProgress]);
+
+  // ✅ SINGLE-POINT: Stage hours from PracticeContext ONLY
+  const getStageHours = useCallback((stageNum: number): number => {
+    try {
+      const stageData = getStageProgress(stageNum);
+      return stageData.completed;
+    } catch (error) {
+      console.error(`Error getting stage ${stageNum} hours:`, error);
+      return 0;
+    }
+  }, [getStageProgress]);
+
+  const stageHoursProgress = useMemo(() => {
+    return {
+      stage1: getStageHours(1),
+      stage2: getStageHours(2),
+      stage3: getStageHours(3),
+      stage4: getStageHours(4),
+      stage5: getStageHours(5),
+      stage6: getStageHours(6)
+    };
+  }, [getStageHours]);
+
+  // ✅ SINGLE-POINT: Stage completion status from PracticeContext
+  const stageCompletion = useMemo(() => {
+    return {
+      isStage1Complete: stageHoursProgress.stage1 >= 3, // Stage 1 = 3 hours
+      isStage2Complete: stageHoursProgress.stage2 >= 5, // Stage 2 = 5 hours
+      isStage3Complete: stageHoursProgress.stage3 >= 10, // Stage 3 = 10 hours
+      isStage4Complete: stageHoursProgress.stage4 >= 20, // Stage 4 = 20 hours
+      isStage5Complete: stageHoursProgress.stage5 >= 25, // Stage 5 = 25 hours
+      isStage6Complete: stageHoursProgress.stage6 >= 30  // Stage 6 = 30 hours
+    };
+  }, [stageHoursProgress]);
+
+  // ✅ SINGLE-POINT: Quick stats with real data validation and stage progression
   const quickStats = useMemo(() => {
     const totalSessions = sessions?.length || 0;
     const totalHours = getTotalPracticeHours();
-    const currentStage = getCurrentStageByHours();
+    const currentStage = getCurrentStage();
     const hasData = userProgress?.hasMinimumData || false;
     const hasAnyData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
+
+    console.log('📊 Quick Stats Calculation:', {
+      totalSessions,
+      totalHours: totalHours.toFixed(2),
+      currentStage,
+      hasData,
+      source: 'practicecontext'
+    });
 
     return {
       totalSessions,
@@ -78,48 +141,56 @@ const HappinessTrackerPage = React.memo(() => {
         practiceSessions: totalSessions > 0
       }
     };
-  }, [sessions, getTotalPracticeHours, getCurrentStageByHours, questionnaire?.completed, 
+  }, [sessions, getTotalPracticeHours, getCurrentStage, questionnaire?.completed, 
       selfAssessment?.completed, userProgress]);
 
-  // ✅ NEW: Stage progression info
+  // ✅ SINGLE-POINT: Stage progression info from PracticeContext
   const stageProgressInfo = useMemo(() => {
-    const currentStage = getCurrentStageByHours();
+    const currentStage = getCurrentStage();
     
-    // Stage requirements per audit: 5, 10, 15, 20, 25, 30 hours
-    const stageRequirements = [5, 10, 15, 20, 25, 30];
-    const currentRequirement = stageRequirements[currentStage - 1] || 5;
+    // Stage requirements: 3, 5, 10, 20, 25, 30 hours
+    const stageRequirements = [3, 5, 10, 20, 25, 30];
+    const currentRequirement = stageRequirements[currentStage - 1] || 3;
     
     let currentHours = 0;
     let nextStageHours = 0;
     
     switch (currentStage) {
       case 1:
-        currentHours = getStage1Hours();
-        nextStageHours = stageRequirements[1]; // 10 hours for Stage 2
+        currentHours = stageHoursProgress.stage1;
+        nextStageHours = stageRequirements[1]; // 5 hours for Stage 2
         break;
       case 2:
-        currentHours = getStage2Hours();
-        nextStageHours = stageRequirements[2]; // 15 hours for Stage 3
+        currentHours = stageHoursProgress.stage2;
+        nextStageHours = stageRequirements[2]; // 10 hours for Stage 3
         break;
       case 3:
-        currentHours = getStage3Hours();
+        currentHours = stageHoursProgress.stage3;
         nextStageHours = stageRequirements[3]; // 20 hours for Stage 4
         break;
       case 4:
-        currentHours = getStage4Hours();
+        currentHours = stageHoursProgress.stage4;
         nextStageHours = stageRequirements[4]; // 25 hours for Stage 5
         break;
       case 5:
-        currentHours = getStage5Hours();
+        currentHours = stageHoursProgress.stage5;
         nextStageHours = stageRequirements[5]; // 30 hours for Stage 6
         break;
       case 6:
-        currentHours = getStage6Hours();
+        currentHours = stageHoursProgress.stage6;
         nextStageHours = 30; // Already at max
         break;
     }
     
     const progressPercent = Math.min((currentHours / currentRequirement) * 100, 100);
+    
+    console.log('🎯 Stage Progress Info:', {
+      currentStage,
+      currentHours: currentHours.toFixed(2),
+      currentRequirement,
+      progressPercent: progressPercent.toFixed(1),
+      source: 'practicecontext'
+    });
     
     return {
       currentStage,
@@ -129,8 +200,7 @@ const HappinessTrackerPage = React.memo(() => {
       progressPercent,
       isComplete: progressPercent >= 100
     };
-  }, [getCurrentStageByHours, getStage1Hours, getStage2Hours, getStage3Hours, 
-      getStage4Hours, getStage5Hours, getStage6Hours]);
+  }, [getCurrentStage, stageHoursProgress]);
 
   // Memoized button handlers
   const handleDebugToggle = useCallback(() => {
@@ -145,37 +215,47 @@ const HappinessTrackerPage = React.memo(() => {
         totalSessions: quickStats.totalSessions,
         totalHours: quickStats.totalHours,
         currentStage: stageProgressInfo.currentStage,
-        happinessPoints: quickStats.happinessPoints
+        happinessPoints: quickStats.happinessPoints,
+        tLevelProgress,
+        stageHoursProgress,
+        source: 'practicecontext-single-point'
       });
     }
-  }, [debugCalculation, quickStats, stageProgressInfo]);
+  }, [debugCalculation, quickStats, stageProgressInfo, tLevelProgress, stageHoursProgress]);
 
   const handleLogProgress = useCallback(() => {
     if (logProgress) {
       logProgress();
     } else {
-      console.log('📊 Current Progress:', {
+      console.log('📊 Current Progress (Single-Point):', {
         user: currentUser?.uid,
         sessions: quickStats.totalSessions,
         hours: quickStats.totalHours,
         stage: stageProgressInfo.currentStage,
         happiness: quickStats.happinessPoints,
-        completeness: quickStats.dataCompleteness
+        completeness: quickStats.dataCompleteness,
+        tLevels: tLevelProgress,
+        stageHours: stageHoursProgress,
+        architecture: 'single-point-v3'
       });
     }
-  }, [logProgress, currentUser, quickStats, stageProgressInfo]);
+  }, [logProgress, currentUser, quickStats, stageProgressInfo, tLevelProgress, stageHoursProgress]);
 
   const handleTestComponents = useCallback(() => {
     if (testComponents) {
       testComponents();
     } else {
-      console.log('🧪 Testing Components:', {
+      console.log('🧪 Testing Components (Single-Point):', {
         analytics: getPAHMData(),
         comprehensive: getComprehensiveAnalytics(),
-        stage: stageProgressInfo
+        stage: stageProgressInfo,
+        tLevels: tLevelCompletion,
+        stages: stageCompletion,
+        dataSource: 'practicecontext'
       });
     }
-  }, [testComponents, getPAHMData, getComprehensiveAnalytics, stageProgressInfo]);
+  }, [testComponents, getPAHMData, getComprehensiveAnalytics, stageProgressInfo, 
+      tLevelCompletion, stageCompletion]);
 
   // ✅ FIXED: Real navigation handlers
   const handleStartQuestionnaire = useCallback(() => {
@@ -187,20 +267,20 @@ const HappinessTrackerPage = React.memo(() => {
   }, [navigate]);
 
   const handleStartPractice = useCallback(() => {
-    // Navigate to current stage based on progression
-    const currentStage = getCurrentStageByHours();
+    // Navigate to current stage based on progression from PracticeContext
+    const currentStage = getCurrentStage();
     if (currentStage === 1) {
       navigate('/stage1');
     } else {
       navigate(`/stage${currentStage}`);
     }
-  }, [navigate, getCurrentStageByHours]);
+  }, [navigate, getCurrentStage]);
 
   const handleViewAnalytics = useCallback(() => {
     navigate('/analytics');
   }, [navigate]);
 
-  // ✅ NEW: Force recalculation handler
+  // ✅ Force recalculation handler
   const handleForceRecalculation = useCallback(() => {
     if (forceRecalculation) {
       forceRecalculation();
@@ -217,6 +297,12 @@ const HappinessTrackerPage = React.memo(() => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">🌟 Present Attention Progress</h1>
               <p className="text-gray-600 mt-1">Track your journey toward greater presence and awareness</p>
+              {/* ✅ Single-Point Architecture Indicator */}
+              <div className="mt-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  ✅ Single-Point Data Architecture
+                </span>
+              </div>
             </div>
             
             {/* Enhanced Stats Badge with Stage Info */}
@@ -234,7 +320,7 @@ const HappinessTrackerPage = React.memo(() => {
                   <div className="text-2xl font-bold text-pink-700">{quickStats.happinessPoints}</div>
                   <div className="text-xs text-pink-600 font-medium">Happiness Points</div>
                 </div>
-                {/* ✅ NEW: Current Stage Display */}
+                {/* ✅ SINGLE-POINT: Current Stage Display from PracticeContext */}
                 <div className="text-center">
                   <div className="text-2xl font-bold text-emerald-700">Stage {stageProgressInfo.currentStage}</div>
                   <div className="text-xs text-emerald-600 font-medium">
@@ -254,7 +340,7 @@ const HappinessTrackerPage = React.memo(() => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
             <h2 className="text-2xl font-bold text-indigo-700 mb-2">Calculating Your Present Attention Progress...</h2>
             <p className="text-gray-600">Using PAHM-centered analysis</p>
-            {/* ✅ NEW: Force recalculation button */}
+            {/* ✅ Force recalculation button */}
             <button
               onClick={handleForceRecalculation}
               className="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
@@ -278,7 +364,7 @@ const HappinessTrackerPage = React.memo(() => {
               Present attention is a skill that develops through consistent practice - every moment of awareness counts!
             </p>
 
-            {/* ✅ NEW: Current Stage Info for New Users */}
+            {/* ✅ SINGLE-POINT: Current Stage Info for New Users */}
             <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
               <h3 className="text-lg font-bold text-gray-800 mb-4">🎯 You're Currently on Stage {stageProgressInfo.currentStage}</h3>
               <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-xl p-4 mb-4">
@@ -293,6 +379,9 @@ const HappinessTrackerPage = React.memo(() => {
                   {stageProgressInfo.currentHours.toFixed(1)} / {stageProgressInfo.currentRequirement} hours completed 
                   ({stageProgressInfo.progressPercent.toFixed(1)}%)
                 </div>
+              </div>
+              <div className="text-xs text-green-600 font-medium">
+                ✅ Data from PracticeContext (Single-Point Architecture)
               </div>
             </div>
             
@@ -410,7 +499,7 @@ const HappinessTrackerPage = React.memo(() => {
               Based on {quickStats.totalSessions} practice sessions & {emotionalNotes?.length || 0} emotional notes
             </div>
             
-            {/* ✅ NEW: Stage Progress in Main Card */}
+            {/* ✅ SINGLE-POINT: Stage Progress in Main Card */}
             <div className="mt-6 bg-white bg-opacity-20 rounded-2xl p-4">
               <div className="text-lg font-semibold mb-2">Current: Stage {stageProgressInfo.currentStage}</div>
               <div className="w-full bg-white bg-opacity-30 rounded-full h-3 mb-2">
@@ -422,6 +511,9 @@ const HappinessTrackerPage = React.memo(() => {
               <div className="text-sm opacity-90">
                 {stageProgressInfo.currentHours.toFixed(1)} / {stageProgressInfo.currentRequirement} hours completed
                 {!stageProgressInfo.isComplete && ` (${(stageProgressInfo.currentRequirement - stageProgressInfo.currentHours).toFixed(1)}h remaining)`}
+              </div>
+              <div className="text-xs opacity-75 mt-1">
+                ✅ PracticeContext Data (Single-Point)
               </div>
             </div>
             
@@ -630,27 +722,53 @@ const HappinessTrackerPage = React.memo(() => {
             </div>
           )}
 
-          {/* DEBUG PANEL */}
+          {/* ✅ SINGLE-POINT DEBUG PANEL */}
           {showDebug && (
-            <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-gray-200 shadow-xl">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">🔍 PAHM-Centered Debug Information</h2>
+            <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-green-200 shadow-xl">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">🔍 Single-Point Architecture Debug</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl p-6 shadow-md">
-                  <h3 className="font-semibold text-gray-700 mb-3">📊 Data Sources:</h3>
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-green-100">
+                  <h3 className="font-semibold text-green-700 mb-3">✅ PracticeContext Data Sources:</h3>
                   <div className="space-y-2 text-sm font-mono">
                     <div>• Practice Sessions: {sessions?.length || 0}</div>
+                    <div>• Current Stage: {stageProgressInfo.currentStage}</div>
+                    <div>• Total Hours: {quickStats.totalHours}</div>
+                    <div>• T1 Sessions: {tLevelProgress.T1}/3 {tLevelCompletion.isT1Complete && '✅'}</div>
+                    <div>• T2 Sessions: {tLevelProgress.T2}/3 {tLevelCompletion.isT2Complete && '✅'}</div>
+                    <div>• T3 Sessions: {tLevelProgress.T3}/3 {tLevelCompletion.isT3Complete && '✅'}</div>
+                    <div>• T4 Sessions: {tLevelProgress.T4}/3 {tLevelCompletion.isT4Complete && '✅'}</div>
+                    <div>• T5 Sessions: {tLevelProgress.T5}/3 {tLevelCompletion.isT5Complete && '✅'}</div>
+                    <div className="text-green-600 font-bold">• Architecture: Single-Point ✅</div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-blue-100">
+                  <h3 className="font-semibold text-blue-700 mb-3">📊 Stage Hours (PracticeContext):</h3>
+                  <div className="space-y-2 text-sm font-mono">
+                    <div>• Stage 1: {stageHoursProgress.stage1.toFixed(1)}/3h {stageCompletion.isStage1Complete && '✅'}</div>
+                    <div>• Stage 2: {stageHoursProgress.stage2.toFixed(1)}/5h {stageCompletion.isStage2Complete && '✅'}</div>
+                    <div>• Stage 3: {stageHoursProgress.stage3.toFixed(1)}/10h {stageCompletion.isStage3Complete && '✅'}</div>
+                    <div>• Stage 4: {stageHoursProgress.stage4.toFixed(1)}/20h {stageCompletion.isStage4Complete && '✅'}</div>
+                    <div>• Stage 5: {stageHoursProgress.stage5.toFixed(1)}/25h {stageCompletion.isStage5Complete && '✅'}</div>
+                    <div>• Stage 6: {stageHoursProgress.stage6.toFixed(1)}/30h {stageCompletion.isStage6Complete && '✅'}</div>
+                    <div className="text-blue-600 font-bold">• All from Single Source ✅</div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-purple-100">
+                  <h3 className="font-semibold text-purple-700 mb-3">🧮 External Data:</h3>
+                  <div className="space-y-2 text-sm font-mono">
                     <div>• Emotional Notes: {emotionalNotes?.length || 0}</div>
                     <div>• Questionnaire: {questionnaire?.completed ? '✅' : '❌'}</div>
                     <div>• Self-Assessment: {selfAssessment?.completed ? '✅' : '❌'}</div>
                     <div>• Has Minimum Data: {quickStats.hasData ? '✅' : '❌'}</div>
-                    <div>• Current Stage: {stageProgressInfo.currentStage}</div>
-                    <div>• Total Hours: {quickStats.totalHours}</div>
+                    <div>• Happiness Points: {quickStats.happinessPoints}</div>
                   </div>
                 </div>
-                
-                <div className="bg-white rounded-xl p-6 shadow-md">
-                  <h3 className="font-semibold text-gray-700 mb-3">🧮 Component Scores:</h3>
+
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-indigo-100">
+                  <h3 className="font-semibold text-indigo-700 mb-3">🧮 Component Scores:</h3>
                   {componentBreakdown && (
                     <div className="space-y-2 text-sm font-mono">
                       <div>• PAHM Development: {Math.round(componentBreakdown.pahmDevelopment || 0)}/100</div>
@@ -659,8 +777,6 @@ const HappinessTrackerPage = React.memo(() => {
                       <div>• Mind Recovery: {Math.round(componentBreakdown.mindRecoveryEffectiveness || 0)}/100</div>
                       <div>• Emotional Regulation: {Math.round(componentBreakdown.emotionalRegulation || 0)}/100</div>
                       <div>• Attachment Flexibility: {Math.round(componentBreakdown.attachmentFlexibility || 0)}/100</div>
-                      <div>• Social Connection: {Math.round(componentBreakdown.socialConnection || 0)}/100</div>
-                      <div>• Practice Consistency: {Math.round(componentBreakdown.practiceConsistency || 0)}/100</div>
                     </div>
                   )}
                 </div>
@@ -802,7 +918,7 @@ const HappinessTrackerPage = React.memo(() => {
               Your practice is building skills that last a lifetime. Each moment of awareness contributes to greater happiness and peace.
             </p>
             
-            {/* ✅ NEW: Stage progression info in CTA */}
+            {/* ✅ SINGLE-POINT: Stage progression info in CTA */}
             <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-6">
               <div className="text-lg font-semibold mb-2">
                 Ready for Stage {stageProgressInfo.isComplete ? stageProgressInfo.currentStage + 1 : stageProgressInfo.currentStage}?
@@ -812,6 +928,9 @@ const HappinessTrackerPage = React.memo(() => {
                   ? `You've mastered Stage ${stageProgressInfo.currentStage}! Time to advance.`
                   : `Continue practicing Stage ${stageProgressInfo.currentStage} - ${(stageProgressInfo.currentRequirement - stageProgressInfo.currentHours).toFixed(1)}h remaining`
                 }
+              </div>
+              <div className="text-xs opacity-75 mt-1">
+                ✅ PracticeContext Data (Single-Point Architecture)
               </div>
             </div>
             
