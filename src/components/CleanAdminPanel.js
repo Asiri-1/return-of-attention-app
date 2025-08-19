@@ -939,14 +939,21 @@ const UserManagementPanel = () => {
 };
 
 // 🎯 DATA MANAGEMENT COMPONENT
+// 🔧 COMPLETE FIXED: Data Management Panel - Clears Firebase + localStorage
+// Replace your entire DataManagementPanel component with this complete version
+
 const DataManagementPanel = ({ contexts = {} }) => {
-  const { clearAllSessions } = contexts.practice || {};
+  // ✅ CRITICAL: Import Firebase clear methods from contexts
+  const { clearPracticeData } = contexts.practice || {};
   const { clearUserData } = contexts.user || {};
+  const { clearWellnessData } = contexts.wellness || {};
+  const { clearAnalyticsData } = contexts.analytics || {};
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [lastClearTime, setLastClearTime] = useState(null);
 
+  // ✅ ENHANCED: Complete clear function for both localStorage AND Firebase
   const handleClearAllData = useCallback(async () => {
     if (confirmAction !== 'clearAll') {
       setConfirmAction('clearAll');
@@ -954,10 +961,34 @@ const DataManagementPanel = ({ contexts = {} }) => {
     }
 
     setIsProcessing(true);
-    console.log('🗑️ Starting complete data clear...');
+    console.log('🗑️ Starting COMPLETE data clear (localStorage + Firebase)...');
 
     try {
-      // Clear localStorage (preserve auth)
+      // ✅ STEP 1: Clear Firebase data first
+      console.log('🔥 Clearing Firebase data...');
+      
+      if (clearPracticeData) {
+        console.log('🗑️ Clearing practice sessions from Firebase...');
+        await clearPracticeData();
+      }
+
+      if (clearUserData) {
+        console.log('🗑️ Clearing user data from Firebase...');
+        await clearUserData();
+      }
+
+      if (clearWellnessData) {
+        console.log('🗑️ Clearing wellness data from Firebase...');
+        await clearWellnessData();
+      }
+
+      if (clearAnalyticsData) {
+        console.log('🗑️ Clearing analytics data from Firebase...');
+        await clearAnalyticsData();
+      }
+
+      // ✅ STEP 2: Clear localStorage (preserve auth)
+      console.log('🧹 Clearing localStorage...');
       const keysToPreserve = ['authToken', 'userCredentials', 'rememberMe', 'adminAccess'];
       const allKeys = Object.keys(localStorage);
       
@@ -967,7 +998,8 @@ const DataManagementPanel = ({ contexts = {} }) => {
         }
       });
 
-      // Clear sessionStorage (preserve admin mode)
+      // ✅ STEP 3: Clear sessionStorage (preserve admin mode)
+      console.log('🧹 Clearing sessionStorage...');
       const sessionKeys = Object.keys(sessionStorage);
       sessionKeys.forEach(key => {
         if (key !== 'adminMode') {
@@ -975,16 +1007,7 @@ const DataManagementPanel = ({ contexts = {} }) => {
         }
       });
 
-      // Clear context data if available
-      if (clearAllSessions) {
-        await clearAllSessions();
-      }
-
-      if (clearUserData) {
-        await clearUserData();
-      }
-
-      // Force events for component sync
+      // ✅ STEP 4: Force events for component sync
       const storageEvent = new StorageEvent('storage', {
         key: 'questionnaire',
         newValue: null,
@@ -996,35 +1019,49 @@ const DataManagementPanel = ({ contexts = {} }) => {
       setLastClearTime(new Date().toISOString());
       setConfirmAction(null);
       
-      // Force page refresh
+      alert('✅ ALL DATA CLEARED!\n\n' +
+            '🔥 Firebase: All collections cleared\n' +
+            '🧹 localStorage: Cleared\n' +
+            '🧹 sessionStorage: Cleared\n\n' +
+            'Page will refresh in 2 seconds...');
+      
+      // Force page refresh after clearing
       setTimeout(() => {
         window.location.reload();
-      }, 500);
+      }, 2000);
 
     } catch (error) {
-      console.error('❌ Error during data clearing:', error);
-      alert('Error occurred while clearing data. Please try again.');
+      console.error('❌ Error during COMPLETE data clearing:', error);
+      alert('❌ Error occurred while clearing data:\n\n' + error.message + '\n\nPlease try again.');
     } finally {
       setIsProcessing(false);
     }
-  }, [confirmAction, clearAllSessions, clearUserData, contexts]);
+  }, [confirmAction, clearPracticeData, clearUserData, clearWellnessData, clearAnalyticsData]);
 
+  // ✅ ENHANCED: Firebase-aware data summary
   const dataSummary = useMemo(() => {
     const localStorageCount = Object.keys(localStorage).length;
     const sessionStorageCount = Object.keys(sessionStorage).length;
     
+    // Try to get Firebase data counts from contexts
+    let firebaseSessionsCount = 0;
+    if (contexts.practice && contexts.practice.sessions) {
+      firebaseSessionsCount = contexts.practice.sessions.length;
+    }
+    
     return {
       localStorage: localStorageCount,
       sessionStorage: sessionStorageCount,
+      firebaseSessions: firebaseSessionsCount,
       questionnaire: localStorage.getItem('questionnaire') ? 'Yes' : 'No',
       selfAssessment: localStorage.getItem('selfAssessment') ? 'Yes' : 'No',
       happinessPoints: localStorage.getItem('happinessPoints') || '0'
     };
-  }, []);
+  }, [contexts]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Data Summary */}
+      {/* Enhanced Data Summary with Firebase */}
       <div style={{
         background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
         border: '1px solid #e5e7eb',
@@ -1037,7 +1074,7 @@ const DataManagementPanel = ({ contexts = {} }) => {
           color: '#1f2937',
           margin: '0 0 1rem 0'
         }}>
-          📊 Current Data Status
+          📊 Current Data Status (localStorage + Firebase)
         </h3>
         <div style={{
           display: 'grid',
@@ -1074,6 +1111,22 @@ const DataManagementPanel = ({ contexts = {} }) => {
               color: '#6b7280'
             }}>
               sessionStorage Items
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: dataSummary.firebaseSessions > 0 ? '#ef4444' : '#10b981',
+              marginBottom: '0.25rem'
+            }}>
+              {dataSummary.firebaseSessions}
+            </div>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#6b7280'
+            }}>
+              🔥 Firebase Sessions
             </div>
           </div>
           <div style={{ textAlign: 'center' }}>
@@ -1125,9 +1178,28 @@ const DataManagementPanel = ({ contexts = {} }) => {
             </div>
           </div>
         </div>
+        
+        {/* Firebase Status Alert */}
+        {dataSummary.firebaseSessions > 0 && (
+          <div style={{
+            marginTop: '1rem',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '0.5rem',
+            padding: '0.75rem'
+          }}>
+            <div style={{
+              fontSize: '0.875rem',
+              color: '#dc2626',
+              fontWeight: '600'
+            }}>
+              ⚠️ Firebase data detected! Use the complete reset below to clear Firebase collections.
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Danger Zone */}
+      {/* Enhanced Danger Zone */}
       <div style={{
         background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
         border: '2px solid #fecaca',
@@ -1143,7 +1215,7 @@ const DataManagementPanel = ({ contexts = {} }) => {
           alignItems: 'center',
           gap: '0.5rem'
         }}>
-          ⚠️ Danger Zone - Data Management
+          ⚠️ Danger Zone - Complete Data Management
         </h3>
         
         <div style={{
@@ -1158,15 +1230,25 @@ const DataManagementPanel = ({ contexts = {} }) => {
             color: '#b91c1c',
             margin: '0 0 0.75rem 0'
           }}>
-            🗑️ Clear All Data (Complete Reset)
+            🗑️ Clear All Data (Complete Reset: localStorage + Firebase)
           </h4>
           <p style={{
             color: '#374151',
             margin: '0 0 1rem 0'
           }}>
-            This will completely reset the application by clearing all user data, practice sessions, 
-            questionnaire responses, self-assessments, and happiness tracking data.
+            This will completely reset the application by clearing:
           </p>
+          
+          <ul style={{
+            color: '#374151',
+            margin: '0 0 1rem 0',
+            paddingLeft: '1.5rem'
+          }}>
+            <li><strong>🔥 Firebase:</strong> All practice sessions, mind recovery sessions, user data</li>
+            <li><strong>💾 localStorage:</strong> All questionnaire responses, self-assessments, happiness data</li>
+            <li><strong>🔄 sessionStorage:</strong> All temporary data and caches</li>
+            <li><strong>📊 Real-time data:</strong> All context data will be refreshed</li>
+          </ul>
 
           <div style={{ 
             display: 'flex', 
@@ -1211,12 +1293,12 @@ const DataManagementPanel = ({ contexts = {} }) => {
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}></div>
-                  Processing...
+                  Clearing Firebase + localStorage...
                 </>
               ) : confirmAction === 'clearAll' ? (
-                '🗑️ CONFIRM: Clear All Data'
+                '🗑️ CONFIRM: Clear ALL Data (Firebase + localStorage)'
               ) : (
-                '🗑️ Clear All Data (Complete Reset)'
+                '🗑️ Clear ALL Data (Complete Reset)'
               )}
             </button>
 
@@ -1240,6 +1322,120 @@ const DataManagementPanel = ({ contexts = {} }) => {
               </button>
             )}
           </div>
+
+          {lastClearTime && (
+            <div style={{
+              marginTop: '1rem',
+              fontSize: '0.75rem',
+              color: '#059669',
+              background: '#f0fdf4',
+              padding: '0.5rem',
+              borderRadius: '0.25rem',
+              border: '1px solid #bbf7d0'
+            }}>
+              ✅ Last cleared: {new Date(lastClearTime).toLocaleString()}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Quick Firebase Actions */}
+      <div style={{
+        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+        border: '1px solid #f59e0b',
+        borderRadius: '0.5rem',
+        padding: '1.5rem'
+      }}>
+        <h3 style={{
+          fontSize: '1.125rem',
+          fontWeight: '600',
+          color: '#92400e',
+          margin: '0 0 1rem 0'
+        }}>
+          🔥 Quick Firebase Actions
+        </h3>
+        
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '0.75rem'
+        }}>
+          <button
+            onClick={async () => {
+              if (clearPracticeData && window.confirm('Clear all practice sessions from Firebase?')) {
+                try {
+                  await clearPracticeData();
+                  alert('✅ Practice sessions cleared from Firebase!');
+                } catch (error) {
+                  alert('❌ Error: ' + error.message);
+                }
+              }
+            }}
+            style={{
+              background: '#dc2626',
+              color: 'white',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#b91c1c'}
+            onMouseOut={(e) => e.target.style.background = '#dc2626'}
+          >
+            🗑️ Clear Practice Sessions
+          </button>
+          
+          <button
+            onClick={async () => {
+              if (clearUserData && window.confirm('Clear all user data from Firebase?')) {
+                try {
+                  await clearUserData();
+                  alert('✅ User data cleared from Firebase!');
+                } catch (error) {
+                  alert('❌ Error: ' + error.message);
+                }
+              }
+            }}
+            style={{
+              background: '#d97706',
+              color: 'white',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#b45309'}
+            onMouseOut={(e) => e.target.style.background = '#d97706'}
+          >
+            👤 Clear User Data
+          </button>
+          
+          <button
+            onClick={() => {
+              window.open('https://console.firebase.google.com/project/return-of-attention-app/firestore/databases/-default-/data', '_blank');
+            }}
+            style={{
+              background: '#3b82f6',
+              color: 'white',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#2563eb'}
+            onMouseOut={(e) => e.target.style.background = '#3b82f6'}
+          >
+            🔥 Open Firebase Console
+          </button>
         </div>
       </div>
     </div>

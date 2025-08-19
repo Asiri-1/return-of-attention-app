@@ -1,8 +1,8 @@
 // ===============================================
-// 🔧 TRUE SINGLE-POINT HomeDashboard.tsx - All Functionality Preserved
+// 🔧 FIXED HomeDashboard.tsx - Option 1: Always Navigate to Introduction
 // ===============================================
 // FILE: src/HomeDashboard.tsx
-// 🎯 SINGLE-POINT: ALL session tracking handled by PracticeContext ONLY
+// 🎯 FIXED: Stage 1 now always navigates to introduction on single click
 // ✅ PRESERVED: ALL user interface and functionality intact
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -507,24 +507,18 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [navigate, onShowHappinessTracker]);
 
+  // 🎯 FIXED: Stage 1 always navigates to introduction
   const handleStageClick = useCallback(async (stageNumber: number) => {
     if (stageNumber === 1) {
-      // Check if user has seen Stage 1 introduction
-      const completedIntros = userProfile?.stageProgress?.completedStageIntros || [];
-      const hasSeenIntroduction = completedIntros.includes('1') || completedIntros.includes('stage1-intro');
-      
-      if (!hasSeenIntroduction) {
-        navigate('/stage1-introduction', { 
-          state: { 
-            hasSeenBefore: false,
-            returnToHome: true
-          } 
-        });
-        return;
-      } else {
-        setShowT1T5Dropdown(prev => !prev);
-        return;
-      }
+      // 🎯 OPTION 1: Always navigate to Stage 1 introduction on single click
+      console.log('🎯 Stage 1 clicked - navigating to introduction');
+      navigate('/stage1-introduction', { 
+        state: { 
+          hasSeenBefore: true, // User has been to dashboard before
+          returnToHome: true
+        } 
+      });
+      return;
     }
 
     const stageInfo = getStageDisplayInfo(stageNumber);
@@ -846,7 +840,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     );
   }
 
-  // ✅ PRESERVED: Same UI JSX structure (only T-level session counts now come from PracticeContext)
+  // ✅ PRESERVED: Same UI JSX structure (Stage 1 now navigates immediately, no dropdown toggle)
   return (
     <div style={styles.container} key={forceRefreshKey}>
       <header style={styles.header}>
@@ -1006,7 +1000,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </section>
 
-        {/* ✅ PRESERVED: Same Stages Section with T-level counts from PracticeContext */}
+        {/* ✅ FIXED: Stages Section - Stage 1 now navigates immediately */}
         <section style={styles.section}>
           <h2 style={{ ...styles.sectionTitle, marginBottom: '8px' }}>
             Practice Stages
@@ -1026,7 +1020,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             gap: '16px',
             marginBottom: '20px'
           }}>
-            {/* ✅ SINGLE-POINT: Stage 1 with T-levels dropdown using PracticeContext data */}
+            {/* 🎯 FIXED: Stage 1 - now navigates immediately on single click */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => handleStageClick(1)}
@@ -1060,75 +1054,15 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
                       T-Levels: {getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()}/15 sessions
                     </div>
+                    <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px', fontStyle: 'italic' }}>
+                      Click to start practice →
+                    </div>
                   </div>
                   <div style={{ fontSize: '18px' }}>
-                    {showT1T5Dropdown ? '🔽' : '▶️'}
+                    ▶️
                   </div>
                 </div>
               </button>
-
-              {/* ✅ SINGLE-POINT: T-Levels Dropdown with PracticeContext data */}
-              {showT1T5Dropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  background: 'white',
-                  borderRadius: '12px',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
-                  zIndex: 10,
-                  marginTop: '8px',
-                  border: '1px solid rgba(102, 126, 234, 0.2)',
-                  animation: 'slideDown 0.3s ease'
-                }}>
-                  {tLevels.map((tLevel, index) => {
-                    const tLevelNum = parseInt(tLevel.level.charAt(1));
-                    const tSessions = tLevelNum === 1 ? getT1Sessions() :
-                                     tLevelNum === 2 ? getT2Sessions() :
-                                     tLevelNum === 3 ? getT3Sessions() :
-                                     tLevelNum === 4 ? getT4Sessions() :
-                                     getT5Sessions();
-                    const tComplete = tLevelNum === 1 ? isT1Complete() :
-                                     tLevelNum === 2 ? isT2Complete() :
-                                     tLevelNum === 3 ? isT3Complete() :
-                                     tLevelNum === 4 ? isT4Complete() :
-                                     isT5Complete();
-                    
-                    return (
-                      <button
-                        key={tLevel.level}
-                        onClick={() => handleTLevelClick(tLevel.level, tLevel.duration)}
-                        style={{
-                          width: '100%',
-                          background: 'transparent',
-                          border: 'none',
-                          padding: '12px 16px',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          color: '#333',
-                          borderBottom: index < tLevels.length - 1 ? '1px solid #f0f0f0' : 'none',
-                          borderRadius: index === 0 ? '12px 12px 0 0' : index === tLevels.length - 1 ? '0 0 12px 12px' : '0',
-                          transition: 'background-color 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <div style={{ fontWeight: '600', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {tLevel.level}: {tLevel.duration} minutes
-                          <span style={{ fontSize: '11px', color: tComplete ? '#10b981' : '#666' }}>
-                            ({tSessions}/3 {tComplete && '✅'})
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          Physical Stillness Practice
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
             {/* ✅ PRESERVED: Stages 2-6 with real-time progress from PracticeContext (same JSX) */}
