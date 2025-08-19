@@ -106,8 +106,8 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const isCalculating = happinessHookData.isCalculating || false;
   const forceRecalculation = happinessHookData.forceRecalculation || (() => {});
 
-  // ✅ FIXED: Add navigation debouncing state
-  const [isNavigating, setIsNavigating] = useState(false);
+  // ✅ REMOVED: Navigation debouncing state (not needed)
+  // const [isNavigating, setIsNavigating] = useState(false);
 
   // ✅ PRESERVED: Component state (no changes)
   const [currentDisplayStage, setCurrentDisplayStage] = useState<number>(propCurrentStage || 1);
@@ -510,32 +510,18 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [navigate, onShowHappinessTracker]);
 
-  // 🎯 FIXED: Stage 1 navigation with proper debouncing
+  // 🎯 SIMPLIFIED: Stage navigation - Same behavior for all stages
   const handleStageClick = useCallback(async (stageNumber: number) => {
-    // ✅ DEBOUNCE CHECK - Prevent multiple clicks
-    if (isNavigating) {
-      console.log('🚫 Navigation in progress, ignoring click');
-      return;
-    }
-    
-    setIsNavigating(true);
     console.log('🎯 handleStageClick CALLED with stage:', stageNumber);
     
     if (stageNumber === 1) {
-      console.log('🎯 Stage 1 detected - navigating to introduction');
-      
-      try {
-        navigate('/stage1-introduction', { 
-          state: { 
-            hasSeenBefore: true,
-            returnToHome: true
-          } 
-        });
-        console.log('✅ navigate() called successfully');
-      } catch (error) {
-        console.error('❌ Navigation error:', error);
-        setIsNavigating(false); // Reset on error
-      }
+      console.log('🎯 Stage 1 clicked - navigating to introduction');
+      navigate('/stage1-introduction', { 
+        state: { 
+          hasSeenBefore: true,
+          returnToHome: true
+        } 
+      });
       return;
     }
 
@@ -544,7 +530,6 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     
     if (!stageInfo.isUnlocked) {
       setShowAccessModal({ show: true, stage: stageNumber });
-      setIsNavigating(false); // Reset since we're not navigating
       return;
     }
 
@@ -560,39 +545,31 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
 
     // Navigate to stage
-    try {
-      switch (stageNumber) {
-        case 2:
-          if (onStartStage2) onStartStage2();
-          else navigate('/stage2');
-          break;
-        case 3:
-          if (onStartStage3) onStartStage3();
-          else navigate('/stage3');
-          break;
-        case 4:
-          if (onStartStage4) onStartStage4();
-          else navigate('/stage4');
-          break;
-        case 5:
-          if (onStartStage5) onStartStage5();
-          else navigate('/stage5');
-          break;
-        case 6:
-          if (onStartStage6) onStartStage6();
-          else navigate('/stage6');
-          break;
-        default:
-          navigate(`/stage${stageNumber}`);
-      }
-    } catch (error) {
-      console.error('❌ Navigation error:', error);
+    switch (stageNumber) {
+      case 2:
+        if (onStartStage2) onStartStage2();
+        else navigate('/stage2');
+        break;
+      case 3:
+        if (onStartStage3) onStartStage3();
+        else navigate('/stage3');
+        break;
+      case 4:
+        if (onStartStage4) onStartStage4();
+        else navigate('/stage4');
+        break;
+      case 5:
+        if (onStartStage5) onStartStage5();
+        else navigate('/stage5');
+        break;
+      case 6:
+        if (onStartStage6) onStartStage6();
+        else navigate('/stage6');
+        break;
+      default:
+        navigate(`/stage${stageNumber}`);
     }
-    
-    // ✅ RESET NAVIGATION STATE AFTER DELAY
-    setTimeout(() => setIsNavigating(false), 1000);
-    
-  }, [navigate, getStageDisplayInfo, markStageComplete, isNavigating,
+  }, [navigate, getStageDisplayInfo, markStageComplete,
       onStartStage2, onStartStage3, onStartStage4, onStartStage5, onStartStage6]);
 
   const handleTLevelClick = useCallback(async (level: string, duration: number) => {
@@ -1052,51 +1029,49 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             gap: '16px',
             marginBottom: '20px'
           }}>
-            {/* 🎯 FIXED: Stage 1 Button with Debouncing */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => handleStageClick(1)}
-                disabled={isNavigating}
-                style={{
-                  width: '100%',
-                  background: actualCurrentStage === 1 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                    : 'rgba(102, 126, 234, 0.1)',
-                  color: actualCurrentStage === 1 ? 'white' : '#667eea',
-                  border: '2px solid rgba(102, 126, 234, 0.2)',
-                  borderRadius: '16px',
-                  padding: '20px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: isNavigating ? 'wait' : 'pointer',
-                  transition: 'all 0.3s ease',
-                  textAlign: 'left',
-                  position: 'relative',
-                  opacity: isNavigating ? 0.7 : 1
-                }}
-                {...(!isNavigating ? createHoverHandler('translateY(-2px)', '0 8px 25px rgba(102, 126, 234, 0.3)') : {})}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>
-                      🧘‍♂️ Stage 1: Seeker
+            {/* 🎯 FIXED: Stage 1 - Uses SAME styling logic as Stages 2-6 */}
+            {(() => {
+              const stageInfo = getStageDisplayInfo(1);
+              return (
+                <button
+                  onClick={() => handleStageClick(1)}
+                  style={{
+                    background: stageInfo.isCurrentOrCompleted
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                      : 'rgba(102, 126, 234, 0.1)',
+                    color: stageInfo.isCurrentOrCompleted ? 'white' : '#667eea',
+                    border: `2px solid ${stageInfo.isCurrentOrCompleted ? 'transparent' : 'rgba(102, 126, 234, 0.2)'}`,
+                    borderRadius: '16px',
+                    padding: '20px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'left',
+                    opacity: 1,
+                    position: 'relative'
+                  }}
+                  {...createHoverHandler('translateY(-2px)', '0 8px 25px rgba(102, 126, 234, 0.3)')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '20px', marginBottom: '4px' }}>
+                        🧘‍♂️ Stage 1: Seeker
+                      </div>
+                      <div style={{ fontSize: '14px', opacity: 0.8 }}>
+                        Physical Stillness (T1-T5)
+                      </div>
+                      <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
+                        {stageInfo.progress.displayText} {stageInfo.progress.isComplete && '✅'}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '14px', opacity: 0.8 }}>
-                      Physical Stillness (T1-T5)
-                    </div>
-                    <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
-                      T-Levels: {getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()}/15 sessions
-                    </div>
-                    <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px', fontStyle: 'italic' }}>
-                      {isNavigating ? 'Navigating...' : 'Click to start practice →'}
+                    <div style={{ fontSize: '18px' }}>
+                      {stageInfo.icon}
                     </div>
                   </div>
-                  <div style={{ fontSize: '18px' }}>
-                    {isNavigating ? '⏳' : '▶️'}
-                  </div>
-                </div>
-              </button>
-            </div>
+                </button>
+              );
+            })()}
 
             {/* ✅ PRESERVED: Stages 2-6 with real-time progress from PracticeContext (same JSX) */}
             {stageData.map((stage) => {

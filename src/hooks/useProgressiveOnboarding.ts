@@ -2,6 +2,7 @@
 // src/hooks/useProgressiveOnboarding.ts
 // ✅ FIREBASE-ONLY: Progressive Onboarding Hook - FIXED SESSION FILTERING
 // 🔥 FIXED: Session filtering logic to properly match T-level identifiers
+// 🔥 FIXED: Data loading issues for Stage 1 display
 // ============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -26,6 +27,7 @@ interface FirebasePracticeSession {
   userId?: string;
   sessionType?: 'meditation' | 'mind_recovery';
   firebaseSource?: boolean;
+  completed?: boolean;
   [key: string]: any;
 }
 
@@ -179,7 +181,17 @@ export const useProgressiveOnboarding = () => {
       console.log('🔥 Firebase Practice Sessions:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         totalSessions: firebaseSessions.length,
-        sessionTypes: firebaseSessions.map(s => s.sessionType).filter(Boolean)
+        sessionTypes: firebaseSessions.map(s => s.sessionType).filter(Boolean),
+        firstFewSessions: firebaseSessions.slice(0, 3).map(s => ({
+          stageLabel: s.stageLabel,
+          stageLevel: s.stageLevel,
+          level: s.level,
+          tLevel: s.tLevel,
+          sessionType: s.sessionType,
+          completed: s.completed,
+          rating: s.rating,
+          duration: s.duration
+        }))
       });
       
       return firebaseSessions;
@@ -256,7 +268,7 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, isFirebaseQuestionnaireCompleted, isFirebaseSelfAssessmentCompleted, achievements, userProfile]);
   
-  // 🔥 FIXED: Get T-stage progress from Firebase sessions with CORRECTED FILTERING
+  // 🔥 FIXED: Get T-stage progress from Firebase sessions with SUPER AGGRESSIVE FILTERING
   const getFirebaseTStageProgress = useCallback((): TStageProgress => {
     const defaultProgress: TStageProgress = {
       t1: { completed: false, sessions: [] as FirebasePracticeSession[], completedSessions: 0 },
@@ -267,6 +279,7 @@ export const useProgressiveOnboarding = () => {
     };
     
     if (!currentUser?.uid) {
+      console.warn('🚨 No authenticated user for T-stage progress');
       return defaultProgress;
     }
     
@@ -276,80 +289,150 @@ export const useProgressiveOnboarding = () => {
       
       console.log('🔥 Processing Firebase T-Stage Progress:', {
         userId: currentUser.uid.substring(0, 8) + '...',
-        totalSessions: allSessions.length
+        totalSessions: allSessions.length,
+        sessionSample: allSessions.slice(0, 5).map(s => ({
+          stageLabel: s.stageLabel,
+          stageLevel: s.stageLevel,
+          level: s.level,
+          tLevel: s.tLevel,
+          sessionType: s.sessionType,
+          completed: s.completed,
+          rating: s.rating
+        }))
       });
       
       stages.forEach(stage => {
         try {
-          // 🔥 FIXED: More robust filtering logic that handles case mismatches
+          // 🔥 FIXED: SUPER AGGRESSIVE filtering logic that handles ALL possible variations
           const stageSessions = allSessions.filter((session: FirebasePracticeSession) => {
-            const stageLabel = session.stageLabel?.toLowerCase();
+            // Get all possible identifiers (with safety checks)
+            const stageLabel = (session.stageLabel || '').toLowerCase().trim();
             const stageLevel = session.stageLevel;
-            const level = session.level?.toLowerCase();
-            const tLevel = session.tLevel?.toLowerCase();
+            const level = (session.level || '').toLowerCase().trim();
+            const tLevel = (session.tLevel || '').toLowerCase().trim();
             const stageNumber = parseInt(stage.substring(1)); // t1 -> 1, t2 -> 2, etc.
+            const sessionType = (session.sessionType || '').toLowerCase();
             
-            // Check all possible variations
-            const matchesStageLabel = stageLabel === stage || stageLabel === stage.toUpperCase();
-            const matchesStageLevel = stageLevel === stageNumber;
-            const matchesLevel = level === stage;
-            const matchesTLevel = tLevel === stage || tLevel === stage.toUpperCase();
+            // ✅ FIXED: Check ALL possible variations and combinations
+            const possibleMatches = [
+              // Direct exact matches
+              stageLabel === stage,
+              stageLabel === stage.toUpperCase(),
+              level === stage,
+              level === stage.toUpperCase(),
+              tLevel === stage,
+              tLevel === stage.toUpperCase(),
+              
+              // Number-based matches
+              stageLevel === stageNumber,
+              parseInt(stageLabel) === stageNumber,
+              parseInt(level) === stageNumber,
+              parseInt(tLevel) === stageNumber,
+              
+              // Prefixed matches
+              stageLabel === `t${stageNumber}`,
+              stageLabel === `T${stageNumber}`,
+              level === `t${stageNumber}`,
+              level === `T${stageNumber}`,
+              tLevel === `t${stageNumber}`,
+              tLevel === `T${stageNumber}`,
+              
+              // Stage-based matches
+              stageLabel === `stage${stageNumber}`,
+              stageLabel === `Stage${stageNumber}`,
+              level === `stage${stageNumber}`,
+              level === `Stage${stageNumber}`,
+              
+              // Contains matches (more permissive)
+              stageLabel.includes(stage),
+              stageLabel.includes(stage.toUpperCase()),
+              level.includes(stage),
+              level.includes(stage.toUpperCase()),
+              tLevel.includes(stage),
+              tLevel.includes(stage.toUpperCase()),
+              
+              // Pattern matches
+              stageLabel.includes(`t${stageNumber}`),
+              stageLabel.includes(`T${stageNumber}`),
+              level.includes(`t${stageNumber}`),
+              level.includes(`T${stageNumber}`),
+              tLevel.includes(`t${stageNumber}`),
+              tLevel.includes(`T${stageNumber}`)
+            ];
             
-            const isMatch = matchesStageLabel || matchesStageLevel || matchesLevel || matchesTLevel;
+            // Check if any match is true
+            const isMatch = possibleMatches.some(match => match === true);
             
-            if (isMatch) {
+            // Additional filter: must be meditation type (if sessionType exists)
+            const isMeditation = !sessionType || sessionType === 'meditation' || sessionType === 'practice';
+            
+            // Final match condition
+            const finalMatch = isMatch && isMeditation;
+            
+            if (finalMatch) {
               console.log(`🎯 Found ${stage} session:`, {
                 stageLabel: session.stageLabel,
                 stageLevel: session.stageLevel,
                 level: session.level,
                 tLevel: session.tLevel,
-                matchedBy: {
-                  stageLabel: matchesStageLabel,
-                  stageLevel: matchesStageLevel,
-                  level: matchesLevel,
-                  tLevel: matchesTLevel
-                }
+                sessionType: session.sessionType,
+                matchedBy: possibleMatches.map((match, index) => match ? index : null).filter(i => i !== null)
               });
             }
             
-            return isMatch;
+            return finalMatch;
           });
           
-          // Check Firebase user profile for completion status (using available properties)
-          const profileCompleted = userProfile?.preferences?.favoriteStages?.includes(parseInt(stage.substring(1))) || false;
+          // ✅ FIXED: More liberal completion checking
+          const completedSessions = stageSessions.filter((session: FirebasePracticeSession) => {
+            // Consider completed if:
+            // 1. Has rating > 0
+            // 2. completed !== false (handles undefined as completed)
+            // 3. Has duration > 0
+            return (session.rating && session.rating > 0) || 
+                   session.completed !== false || 
+                   (session.duration && session.duration > 0);
+          });
           
-          // Or derive completion from Firebase session ratings
-          const completedFromSessions = stageSessions.filter((s: FirebasePracticeSession) => 
-            s.rating && s.rating > 0
-          ).length >= 3;
-          
-          const completed = profileCompleted || completedFromSessions;
-          
-          const completedSessions = stageSessions.filter((session: FirebasePracticeSession) => 
-            session.rating && session.rating > 0
-          ).length;
+          // Check completion: need at least 3 completed sessions for each T-level
+          const isCompleted = completedSessions.length >= 3;
           
           defaultProgress[stage] = {
-            completed,
+            completed: isCompleted,
             sessions: stageSessions,
-            completedSessions
+            completedSessions: completedSessions.length
           };
 
           console.log(`🔥 Firebase ${stage.toUpperCase()} Progress:`, {
             userId: currentUser.uid.substring(0, 8) + '...',
-            sessions: stageSessions.length,
-            completedSessions,
-            completed,
+            totalSessions: stageSessions.length,
+            completedSessions: completedSessions.length,
+            isCompleted,
             sessionDetails: stageSessions.map(s => ({
               stageLabel: s.stageLabel,
               tLevel: s.tLevel,
               level: s.level,
-              rating: s.rating
+              rating: s.rating,
+              completed: s.completed,
+              duration: s.duration
             }))
           });
+          
         } catch (stageError) {
           console.warn(`Error processing Firebase ${stage} progress:`, stageError);
         }
+      });
+      
+      // 🔥 DEBUG: Log final progress summary
+      console.log('🎯 FINAL T-Stage Progress Summary:', {
+        userId: currentUser.uid.substring(0, 8) + '...',
+        t1: `${defaultProgress.t1.completedSessions}/3 sessions (${defaultProgress.t1.completed ? 'COMPLETE' : 'incomplete'})`,
+        t2: `${defaultProgress.t2.completedSessions}/3 sessions (${defaultProgress.t2.completed ? 'COMPLETE' : 'incomplete'})`,
+        t3: `${defaultProgress.t3.completedSessions}/3 sessions (${defaultProgress.t3.completed ? 'COMPLETE' : 'incomplete'})`,
+        t4: `${defaultProgress.t4.completedSessions}/3 sessions (${defaultProgress.t4.completed ? 'COMPLETE' : 'incomplete'})`,
+        t5: `${defaultProgress.t5.completedSessions}/3 sessions (${defaultProgress.t5.completed ? 'COMPLETE' : 'incomplete'})`,
+        totalSessions: Object.values(defaultProgress).reduce((sum, stage) => sum + stage.sessions.length, 0),
+        totalCompleted: Object.values(defaultProgress).reduce((sum, stage) => sum + stage.completedSessions, 0)
       });
       
       return defaultProgress;
@@ -769,7 +852,9 @@ export const useProgressiveOnboarding = () => {
         stage1Completed,
         pahmCompletedStages,
         currentLevel,
-        totalPracticeHours: totalPracticeHours.toFixed(1)
+        totalPracticeHours: totalPracticeHours.toFixed(1),
+        stage1Sessions: stage1TotalSessions,
+        stage1CompletedSessions
       });
 
       return summary;
@@ -860,7 +945,9 @@ export const useProgressiveOnboarding = () => {
       console.log('🔥 Firebase Session Complete:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         sessionType: sessionData.sessionType || 'unspecified',
-        duration: sessionData.duration || 0
+        duration: sessionData.duration || 0,
+        stageLabel: sessionData.stageLabel,
+        tLevel: sessionData.tLevel
       });
       
       // Recheck status after Firebase data updates
