@@ -120,7 +120,7 @@ class AudioManager {
   }
 }
 
-// 🔋 ENHANCED WAKE LOCK MANAGER
+// 🔋 FIXED WAKE LOCK MANAGER
 class WakeLockManager {
   private wakeLock: WakeLockSentinel | null = null;
   private _isSupported: boolean = false;
@@ -142,6 +142,7 @@ class WakeLockManager {
       
       console.log('✅ Wake Lock acquired - screen will stay on');
       
+      // Add release listener
       if (this.wakeLock.addEventListener) {
         this.wakeLock.addEventListener('release', () => {
           console.log('🔓 Wake Lock released by system');
@@ -389,13 +390,16 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     };
 
     try {
-      // ✅ AUDIT COMPLIANT: Complete Firebase session object
+      // ✅ FIXED: Complete Firebase session object with all required fields
       const sessionData: any = {
         timestamp: endTime,
         duration: actualDuration,
-        sessionType: 'mind_recovery' as const,
+        sessionType: 'mind_recovery',
+        level: 'mind_recovery',
+        tLevel: 'MR', // Mind Recovery identifier
+        stageLevel: 0, // Mind recovery is stage-independent
         mindRecoveryContext: practiceType,
-        mindRecoveryPurpose: 'stress-relief' as const,
+        mindRecoveryPurpose: 'stress-relief',
         rating: rating,
         notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments, ${presentPercentage}% present awareness`,
         presentPercentage: presentPercentage,
@@ -406,7 +410,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           sounds: 'unknown'
         },
         pahmCounts: formattedPahmCounts,
-        // ✅ AUDIT COMPLIANT: Additional tracking fields
         totalObservations: totalInteractions,
         sessionQuality: rating,
         practiceType: practiceType,
@@ -416,7 +419,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
       console.log('💾 Saving Mind Recovery session to Firebase:', sessionData);
 
-      // ✅ AUDIT COMPLIANT: Save to Firebase via PracticeContext
+      // ✅ FIXED: Save to Firebase via PracticeContext
       await addPracticeSession(sessionData);
 
       // ✅ AUDIT COMPLIANT: Enhanced emotional note
@@ -443,7 +446,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
         sessionData: {
           timestamp: endTime,
           duration: actualDuration,
-          sessionType: 'mind_recovery' as const,
+          sessionType: 'mind_recovery',
           mindRecoveryContext: practiceType,
           rating: rating,
           notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments`,
@@ -478,13 +481,26 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // ✅ AUDIT COMPLIANT: Enhanced session start handler
+  // ✅ FIXED: Enhanced session start handler with aggressive wake lock request
   const handleStart = async () => {
     console.log('🚀 Starting Mind Recovery session:', { practiceType, posture, duration });
 
-    // 🔋 Request wake lock
-    const wakeLockSuccess = await wakeLockManager.requestWakeLock();
-    setIsWakeLockActive(wakeLockSuccess);
+    // 🔋 AGGRESSIVE: Request wake lock immediately with user interaction
+    let wakeLockSuccess = false;
+    try {
+      wakeLockSuccess = await wakeLockManager.requestWakeLock();
+      setIsWakeLockActive(wakeLockSuccess);
+      
+      if (wakeLockSuccess) {
+        console.log('✅ Wake lock ACTIVE - screen will stay on');
+      } else {
+        console.warn('⚠️ Wake lock FAILED - screen may turn off');
+      }
+    } catch (error) {
+      console.error('❌ Wake lock request failed:', error);
+      setIsWakeLockActive(false);
+      wakeLockSuccess = false;
+    }
 
     // 🔊 Request audio permission
     const audioSuccess = await audioManager.requestPermission();
@@ -755,7 +771,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   if (currentStage === 'setup') {
     return (
       <div style={styles.container}>
-        {/* Status Bar */}
+        {/* FIXED: Status Bar */}
         <div style={styles.statusBar}>
           {wakeLockManager.isSupported() && (
             <div style={{
@@ -763,6 +779,14 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
               background: 'rgba(76, 175, 80, 0.8)'
             }}>
               🔋 Ready
+            </div>
+          )}
+          {!wakeLockManager.isSupported() && (
+            <div style={{
+              ...styles.statusBadge,
+              background: 'rgba(255, 152, 0, 0.8)'
+            }}>
+              ⚠️ No Lock
             </div>
           )}
         </div>
@@ -840,14 +864,21 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
   return (
     <div style={styles.container}>
-      {/* Status Bar */}
+      {/* FIXED: Status Bar with proper wake lock display */}
       <div style={styles.statusBar}>
-        {isWakeLockActive && (
+        {isWakeLockActive ? (
           <div style={{
             ...styles.statusBadge,
             background: 'rgba(76, 175, 80, 0.8)'
           }}>
-            🔋 On
+            🔒 Screen Locked OFF
+          </div>
+        ) : (
+          <div style={{
+            ...styles.statusBadge,
+            background: 'rgba(255, 152, 0, 0.8)'
+          }}>
+            ⚠️ May Sleep
           </div>
         )}
         
@@ -881,7 +912,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           📝 <strong>Mind Recovery:</strong> Notice where your attention goes, tap when you recognize thoughts
         </div>
 
-        {/* ✅ AUDIT COMPLIANT: Perfectly centered 3×3 PAHM MATRIX */}
+        {/* ✅ FIXED: PAHM MATRIX - REMOVED NUMBER DISPLAY */}
         <div style={styles.matrix}>
           {/* Row 1: ATTACHMENT */}
           <button
@@ -894,7 +925,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>NOSTALGIA</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.nostalgia}</div>
           </button>
 
           <button
@@ -908,7 +938,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>LIKES</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.likes}</div>
           </button>
 
           <button
@@ -921,7 +950,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>ANTICIPATION</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.anticipation}</div>
           </button>
 
           {/* Row 2: NEUTRAL */}
@@ -935,7 +963,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>PAST</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.past}</div>
           </button>
 
           <button
@@ -949,7 +976,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>PRESENT</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.present}</div>
           </button>
 
           <button
@@ -962,7 +988,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>FUTURE</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.future}</div>
           </button>
 
           {/* Row 3: AVERSION */}
@@ -976,7 +1001,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>REGRET</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.regret}</div>
           </button>
 
           <button
@@ -990,7 +1014,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>DISLIKES</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.dislikes}</div>
           </button>
 
           <button
@@ -1003,7 +1026,6 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             }}
           >
             <div>WORRY</div>
-            <div style={{ fontSize: '8px', opacity: 0.7 }}>{pahmCounts.worry}</div>
           </button>
         </div>
 
@@ -1032,7 +1054,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           </button>
         </div>
 
-        {/* ✅ AUDIT COMPLIANT: Enhanced Session Stats */}
+        {/* ✅ FIXED: Session Stats - Keep functionality but clean display */}
         <div style={styles.sessionStats}>
           <div style={{ marginBottom: '4px' }}>
             Observations: {Object.values(pahmCounts).reduce((a, b) => a + b, 0)}
