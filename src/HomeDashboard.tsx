@@ -144,7 +144,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const getT1Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 'T1' || s.level === 't1') && 
+      (s.tLevel === 't1' || s.level === 't1') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -153,7 +153,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const getT2Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 'T2' || s.level === 't2') && 
+      (s.tLevel === 't2' || s.level === 't2') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -162,7 +162,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const getT3Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 'T3' || s.level === 't3') && 
+      (s.tLevel === 't3' || s.level === 't3') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -171,7 +171,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const getT4Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 'T4' || s.level === 't4') && 
+      (s.tLevel === 't4' || s.level === 't4') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -180,7 +180,7 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const getT5Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 'T5' || s.level === 't5') && 
+      (s.tLevel === 't5' || s.level === 't5') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
