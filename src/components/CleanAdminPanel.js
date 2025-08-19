@@ -943,11 +943,11 @@ const UserManagementPanel = () => {
 // Replace your entire DataManagementPanel component with this complete version
 
 const DataManagementPanel = ({ contexts = {} }) => {
-  // ✅ CRITICAL: Import Firebase clear methods from contexts
-  const { clearPracticeData } = contexts.practice || {};
-  const { clearUserData } = contexts.user || {};
-  const { clearWellnessData } = contexts.wellness || {};
-  const { clearAnalyticsData } = contexts.analytics || {};
+ // ✅ CORRECT: Use the actual method names from your contexts
+const { clearAllSessions, clearPracticeData } = contexts.practice || {};
+const { clearUserData } = contexts.user || {};
+const { clearAllData: clearWellnessData } = contexts.wellness || {};
+const { clearData: clearAnalyticsData } = contexts.analytics || {};
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);

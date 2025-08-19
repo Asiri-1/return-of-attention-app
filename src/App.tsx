@@ -520,6 +520,9 @@ const AppContent: React.FC = React.memo(() => {
     userProfile, 
     markStageIntroComplete
   } = useUser();
+  const practiceContext = usePractice();
+  const userContext = useUser(); 
+  const wellnessContext = useWellness();
   
   // ✅ PRESERVED: State management (same logic)
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -930,15 +933,15 @@ const AppContent: React.FC = React.memo(() => {
                 } />
                 
                 {/* ✅ PRESERVED: All other routes (same logic) */}
-                <Route path="/admin" element={
-                  <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
-                    <CleanAdminPanel contexts={{
-                      practice: {},
-                      user: {},
-                      wellness: {}
-                    }} />
-                  </Suspense>
-                } />
+<Route path="/admin" element={
+  <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
+    <CleanAdminPanel contexts={{
+      practice: practiceContext,    // ✅ Real context with methods
+      user: userContext,           // ✅ Real context with methods
+      wellness: wellnessContext    // ✅ Real context with methods
+    }} />
+  </Suspense>
+} />
                 
                 <Route path="/stage1/*" element={
                   <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>
