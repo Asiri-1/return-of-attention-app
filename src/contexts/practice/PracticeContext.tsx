@@ -1,11 +1,10 @@
 // ============================================================================
-// 🔧 COMPLETE FIXED PracticeContext.tsx - All Session Saving Issues Resolved
+// 🔧 ENHANCED DEBUG PracticeContext.tsx - All Functionality Preserved + Debug Logging
 // ============================================================================
 // FILE: src/contexts/practice/PracticeContext.tsx
-// ✅ FIXED: Sessions now save to Firebase properly with userId
-// ✅ FIXED: Real-time listeners work correctly
-// ✅ FIXED: Stage progression based on hours
-// ✅ PRESERVED: All existing functionality
+// ✅ PRESERVED: All existing functionality intact
+// 🔍 ENHANCED: Added comprehensive debug logging for Firebase operations
+// 🎯 PURPOSE: Identify why clearPracticeData isn't clearing Firebase
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -214,7 +213,7 @@ interface PracticeContextType {
   getProgressTrend: () => 'improving' | 'stable' | 'declining';
   
   // Utility
-  clearPracticeData: () => void;
+  clearPracticeData: () => Promise<void>;
   exportPracticeData: () => any;
   
   // Legacy compatibility
@@ -949,46 +948,171 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [sessions]);
 
   // ================================
-  // UTILITY METHODS
+  // 🔍 ENHANCED DEBUG: CLEAR PRACTICE DATA WITH COMPREHENSIVE LOGGING
   // ================================
-  const clearPracticeData = useCallback(async () => {
-    console.log('🧹 Clearing all practice data...');
+  const clearPracticeData = useCallback(async (): Promise<void> => {
+    console.log('🧹 ============================================');
+    console.log('🧹 STARTING COMPLETE DATA CLEAR OPERATION');
+    console.log('🧹 ============================================');
     
-    // Clear Firebase data from both collections
-    if (currentUser?.uid) {
-      try {
-        const batch = writeBatch(db);
-        
-        // Clear mind recovery sessions
-        const mindRecoveryQuery = query(
-          collection(db, 'mindRecoverySessions'),
-          where('userId', '==', currentUser.uid)
-        );
-        const mindRecoverySnapshot = await getDocs(mindRecoveryQuery);
-        mindRecoverySnapshot.forEach((docSnapshot) => {
+    // ✅ CRITICAL: Authentication guard  
+    if (!currentUser?.uid) {
+      console.error('❌ CRITICAL ERROR: No authenticated user for clearing');
+      console.error('❌ Current user object:', currentUser);
+      throw new Error('User not authenticated');
+    }
+
+    console.log('🔍 AUTHENTICATION STATUS:');
+    console.log('   ✅ User authenticated:', !!currentUser);
+    console.log('   🆔 User UID:', currentUser.uid);
+    console.log('   📧 User email:', currentUser.email);
+    console.log('   🕐 User exists:', !!currentUser);
+
+    try {
+      console.log('🔍 FIREBASE CONNECTION STATUS:');
+      console.log('   🔥 Database instance:', !!db);
+      console.log('   🔧 Firebase config loaded:', !!db.app);
+
+      // ✅ ENHANCED: Create batch with detailed logging
+      const batch = writeBatch(db);
+      let totalDocsToDelete = 0;
+
+      console.log('🧹 STEP 1: CLEARING MIND RECOVERY SESSIONS');
+      console.log('   🔍 Building query for mindRecoverySessions...');
+      
+      const mindRecoveryQuery = query(
+        collection(db, 'mindRecoverySessions'),
+        where('userId', '==', currentUser.uid)
+      );
+
+      console.log('   📡 Executing mindRecoverySessions query...');
+      const mindRecoverySnapshot = await getDocs(mindRecoveryQuery);
+      console.log(`   📊 Query result: ${mindRecoverySnapshot.docs.length} mind recovery sessions found`);
+
+      if (mindRecoverySnapshot.docs.length > 0) {
+        console.log('   🔍 Mind recovery sessions to delete:');
+        mindRecoverySnapshot.docs.forEach((docSnapshot, index) => {
+          const data = docSnapshot.data();
+          console.log(`      ${index + 1}. Doc ID: ${docSnapshot.id}, UserId: ${data.userId}, Created: ${data.createdAt?.toDate?.()?.toISOString() || 'N/A'}`);
           batch.delete(docSnapshot.ref);
+          totalDocsToDelete++;
         });
-        
-        // Clear practice sessions
-        const practiceQuery = query(
-          collection(db, 'practiceSessions'),
-          where('userId', '==', currentUser.uid)
-        );
-        const practiceSnapshot = await getDocs(practiceQuery);
-        practiceSnapshot.forEach((docSnapshot) => {
+      } else {
+        console.log('   ℹ️ No mind recovery sessions found for this user');
+      }
+
+      console.log('🧹 STEP 2: CLEARING PRACTICE SESSIONS');
+      console.log('   🔍 Building query for practiceSessions...');
+      
+      const practiceQuery = query(
+        collection(db, 'practiceSessions'),
+        where('userId', '==', currentUser.uid)
+      );
+
+      console.log('   📡 Executing practiceSessions query...');
+      const practiceSnapshot = await getDocs(practiceQuery);
+      console.log(`   📊 Query result: ${practiceSnapshot.docs.length} practice sessions found`);
+
+      if (practiceSnapshot.docs.length > 0) {
+        console.log('   🔍 Practice sessions to delete:');
+        practiceSnapshot.docs.forEach((docSnapshot, index) => {
+          const data = docSnapshot.data();
+          console.log(`      ${index + 1}. Doc ID: ${docSnapshot.id}, UserId: ${data.userId}, Created: ${data.createdAt?.toDate?.()?.toISOString() || 'N/A'}`);
           batch.delete(docSnapshot.ref);
+          totalDocsToDelete++;
         });
-        
-        // Clear stage progression data
-        const userProgressRef = doc(db, 'userProgress', currentUser.uid);
+      } else {
+        console.log('   ℹ️ No practice sessions found for this user');
+      }
+
+      console.log('🧹 STEP 3: CLEARING USER PROGRESS');
+      const userProgressRef = doc(db, 'userProgress', currentUser.uid);
+      console.log(`   🔍 Checking userProgress document: ${currentUser.uid}`);
+      
+      const userProgressDoc = await getDoc(userProgressRef);
+      if (userProgressDoc.exists()) {
+        console.log('   ✅ UserProgress document exists, adding to batch delete');
         batch.delete(userProgressRef);
+        totalDocsToDelete++;
+      } else {
+        console.log('   ℹ️ No userProgress document found');
+      }
+
+      console.log('🧹 STEP 4: EXECUTING BATCH DELETE');
+      console.log(`   📊 Total documents to delete: ${totalDocsToDelete}`);
+      
+      if (totalDocsToDelete > 0) {
+        console.log('   🔥 Executing batch commit...');
+        const startTime = Date.now();
         
         await batch.commit();
-        console.log(`🧹 Practice data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
-        console.log('🔄 Real-time listener will update UI automatically...');
-      } catch (error) {
-        console.error('❌ Error clearing practice data in Firebase:', error);
+        
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.log('🎉 ============================================');
+        console.log('🎉 DATA CLEARING COMPLETED SUCCESSFULLY!');
+        console.log('🎉 ============================================');
+        console.log(`   ✅ Documents deleted: ${totalDocsToDelete}`);
+        console.log(`   ⏱️ Operation duration: ${duration}ms`);
+        console.log(`   🆔 User: ${currentUser.uid.substring(0, 8)}...`);
+        console.log('   🔄 Real-time listeners will update UI automatically...');
+        
+        // ✅ ENHANCED: Wait a moment for real-time listeners to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log('📊 CLEARING VERIFICATION:');
+        console.log('   🔍 Re-checking Firebase collections...');
+        
+        // Verify clearing worked
+        const verifyMindRecovery = await getDocs(mindRecoveryQuery);
+        const verifyPractice = await getDocs(practiceQuery);
+        
+        console.log(`   ✅ Mind recovery sessions remaining: ${verifyMindRecovery.docs.length}`);
+        console.log(`   ✅ Practice sessions remaining: ${verifyPractice.docs.length}`);
+        
+        if (verifyMindRecovery.docs.length === 0 && verifyPractice.docs.length === 0) {
+          console.log('   🎯 PERFECT! All user data successfully cleared from Firebase');
+        } else {
+          console.warn('   ⚠️ Warning: Some documents may still exist after clearing');
+        }
+        
+      } else {
+        console.log('   ℹ️ No documents found to delete');
+        console.log('🎯 CLEARING COMPLETED - NO DATA TO CLEAR');
       }
+
+    } catch (error: any) {
+      console.error('🚨 ============================================');
+      console.error('🚨 CRITICAL ERROR DURING DATA CLEARING');
+      console.error('🚨 ============================================');
+      console.error('❌ Error object:', error);
+      console.error('❌ Error name:', error?.name);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error code:', error?.code);
+      console.error('❌ Error stack:', error?.stack);
+      
+      if (error?.code) {
+        console.error('🔍 FIREBASE ERROR DETAILS:');
+        console.error('   📋 Error code:', error.code);
+        console.error('   📝 Error message:', error.message);
+        
+        switch (error.code) {
+          case 'permission-denied':
+            console.error('   🚫 Permission denied - check Firestore security rules');
+            break;
+          case 'unauthenticated':
+            console.error('   🔐 User not authenticated properly');
+            break;
+          case 'unavailable':
+            console.error('   🌐 Firebase service unavailable');
+            break;
+          default:
+            console.error('   ❓ Unknown Firebase error');
+        }
+      }
+      
+      throw error;
     }
   }, [currentUser?.uid]);
 
