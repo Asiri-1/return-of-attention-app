@@ -6,6 +6,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/auth/AuthContext';
 import AdminBypassTester from './AdminBypassTester';
+import DirectFirebaseAdmin from './admin/DirectFirebaseAdmin';
 
 // 🚀 REAL TEST SUITES: Complete Testing Framework Integration
 // ⚡ PerformanceTestSuite - Memory, stress, and performance testing
@@ -2188,7 +2189,7 @@ const StyledAdminPanel = ({ contexts }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth() || {};
   
-  const [activeTab, setActiveTab] = useState('user-management');
+  const [activeTab, setActiveTab] = useState('firebase-data'); // ✅ CHANGE THIS
 
   // CSS keyframes for animations
   const styleSheet = document.createElement('style');
@@ -2223,13 +2224,13 @@ const StyledAdminPanel = ({ contexts }) => {
           }}>
             <div>
               <h1 style={{
-                fontSize: '1.875rem',
-                fontWeight: '700',
-                color: '#1f2937',
-                margin: '0 0 0.5rem 0'
-              }}>
-                🔧 Complete Enhanced Admin Panel + Real Performance Testing
-              </h1>
+  fontSize: '1.875rem',
+  fontWeight: '700',
+  color: '#1f2937',
+  margin: '0 0 0.5rem 0'
+}}>
+  🔧 Complete Enhanced Admin Panel + Real Firebase Dashboard
+</h1>
               <p style={{
                 color: '#6b7280',
                 margin: '0'
@@ -2283,6 +2284,7 @@ const StyledAdminPanel = ({ contexts }) => {
               gap: '2rem'
             }}>
               {[
+                { id: 'firebase-data', label: '🔥 Real Firebase Data', color: '#dc2626' },
                 { id: 'user-management', label: '👥 User Management', color: '#ef4444' },
                 { id: 'data-management', label: '🗑️ Data Management', color: '#f97316' },
                 { id: 'real-app-testing', label: '🎯 Real App Testing', color: '#3b82f6' },
@@ -2332,6 +2334,8 @@ const StyledAdminPanel = ({ contexts }) => {
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
           padding: '1.5rem'
         }}>
+          {activeTab === 'firebase-data' && <DirectFirebaseAdmin />}
+
           {activeTab === 'user-management' && <UserManagementPanel />}
           
           {activeTab === 'data-management' && (
