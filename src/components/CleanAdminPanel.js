@@ -943,8 +943,8 @@ const UserManagementPanel = () => {
 // Replace your entire DataManagementPanel component with this complete version
 
 const DataManagementPanel = ({ contexts = {} }) => {
- // ✅ CORRECT: Use the actual method names from your contexts
-const { clearAllSessions, clearPracticeData } = contexts.practice || {};
+// ✅ CORRECT: Only use the method that actually exists
+const { clearPracticeData } = contexts.practice || {};
 const { clearUserData } = contexts.user || {};
 const { clearAllData: clearWellnessData } = contexts.wellness || {};
 const { clearData: clearAnalyticsData } = contexts.analytics || {};
@@ -965,22 +965,17 @@ const { clearData: clearAnalyticsData } = contexts.analytics || {};
 
     try {
       // ✅ STEP 1: Clear Firebase data first
-      console.log('🔥 Clearing Firebase data...');
       
-      if (clearPracticeData) {
-        console.log('🗑️ Clearing practice sessions from Firebase...');
-        await clearPracticeData();
+      
+     if (clearPracticeData) {
+  console.log('🗑️ Clearing practice sessions from Firebase...');
+  await clearPracticeData();
       }
 
       if (clearUserData) {
-        console.log('🗑️ Clearing user data from Firebase...');
-        await clearUserData();
-      }
-
-      if (clearWellnessData) {
-        console.log('🗑️ Clearing wellness data from Firebase...');
-        await clearWellnessData();
-      }
+  console.log('🗑️ Clearing user data from Firebase...');
+  await clearUserData();
+}
 
       if (clearAnalyticsData) {
         console.log('🗑️ Clearing analytics data from Firebase...');
