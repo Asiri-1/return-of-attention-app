@@ -909,19 +909,6 @@ const AppContent: React.FC = React.memo(() => {
             <MainNavigation>
               <Routes>
                 <Route path="/" element={<Navigate to="/home" replace />} />
-                        <Route 
-          path="/stage1-introduction" 
-          element={
-            <Stage1Introduction 
-              onComplete={async () => {
-                await markStageIntroCompleteHandler(1);
-                navigate('/stage1');
-              }}
-              onBack={() => navigate('/home')}
-              hasSeenBefore={userProfile?.stageProgress?.completedStageIntros?.includes('stage1-intro') || false}
-            />
-          } 
-        />
                 
                 {/* 🎯 SINGLE-POINT: HOME DASHBOARD with PracticeContext data */}
                 <Route path="/home" element={

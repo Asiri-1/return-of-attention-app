@@ -1,8 +1,9 @@
 // ============================================================================
 // src/hooks/useProgressiveOnboarding.ts
-// ✅ FIREBASE-ONLY: Progressive Onboarding Hook - FIXED SESSION FILTERING
+// ✅ FIREBASE-ONLY: Progressive Onboarding Hook - FIXED SESSION FILTERING + STAGE 1 BYPASS
 // 🔥 FIXED: Session filtering logic to properly match T-level identifiers
 // 🔥 FIXED: Data loading issues for Stage 1 display
+// 🔥 FIXED: Stage 1 navigation conflicts - HomeDashboard controls navigation
 // ============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +13,30 @@ import { useOnboarding } from '../contexts/onboarding/OnboardingContext';
 import { usePractice } from '../contexts/practice/PracticeContext';
 import { useUser } from '../contexts/user/UserContext';
 import { useContent } from '../contexts/content/ContentContext';
+
+// ✅ CONFIGURATION: Stage 1 handling mode + Lazy Processing
+const STAGE1_HANDLING_MODE = {
+  // Set to 'PASSTHROUGH' to let HomeDashboard handle Stage 1 completely
+  mode: 'PASSTHROUGH', // Options: 'PASSTHROUGH' | 'PROGRESSIVE'
+  
+  // If true, progressive onboarding will NOT interfere with Stage 1 navigation
+  allowHomeDashboardControl: true,
+  
+  // Still provide data but don't handle clicks/navigation
+  provideDataOnly: true
+};
+
+// ✅ LAZY PROCESSING CONFIGURATION
+const ONBOARDING_CONFIG = {
+  // Don't auto-process T-stage data on every render
+  lazyTStageProcessing: true,
+  
+  // Only calculate when user requests it
+  calculateOnDemand: true,
+  
+  // Skip heavy processing for homepage display
+  skipHomepageProcessing: true
+};
 
 // ✅ FIREBASE-ONLY: Enhanced session interface with Firebase metadata
 interface FirebasePracticeSession {
@@ -45,6 +70,7 @@ interface TStageAccess {
   requirement?: string;
   missingRequirement?: 'progression' | 'sessions';
   firebaseVerified: boolean;
+  handledBy?: string; // ✅ NEW: Indicator for debugging
 }
 
 interface TStageProgress {
@@ -268,8 +294,8 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, isFirebaseQuestionnaireCompleted, isFirebaseSelfAssessmentCompleted, achievements, userProfile]);
   
-  // 🔥 FIXED: Get T-stage progress from Firebase sessions with SUPER AGGRESSIVE FILTERING
-  const getFirebaseTStageProgress = useCallback((): TStageProgress => {
+  // 🔥 FIXED: Get T-stage progress from Firebase sessions with LAZY + SUPER AGGRESSIVE FILTERING
+  const getFirebaseTStageProgress = useCallback((forceCalculation: boolean = false): TStageProgress => {
     const defaultProgress: TStageProgress = {
       t1: { completed: false, sessions: [] as FirebasePracticeSession[], completedSessions: 0 },
       t2: { completed: false, sessions: [] as FirebasePracticeSession[], completedSessions: 0 },
@@ -283,14 +309,28 @@ export const useProgressiveOnboarding = () => {
       return defaultProgress;
     }
     
+    // ✅ LAZY PROCESSING: Only run heavy calculation when forced
+    if (!forceCalculation && ONBOARDING_CONFIG.lazyTStageProcessing) {
+      console.log('⏸️ Lazy mode: Skipping T-stage processing until needed');
+      return defaultProgress;
+    }
+    
     try {
       const allSessions = getFirebasePracticeSessions();
+      
+      // Quick exit if no sessions
+      if (!allSessions || allSessions.length === 0) {
+        console.log('📭 No sessions found');
+        return defaultProgress;
+      }
+      
       const stages = ['t1', 't2', 't3', 't4', 't5'] as const;
       
-      console.log('🔥 Processing Firebase T-Stage Progress:', {
+      console.log('🔥 FORCED T-Stage Processing:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         totalSessions: allSessions.length,
-        sessionSample: allSessions.slice(0, 5).map(s => ({
+        forceCalculation,
+        sessionSample: allSessions.slice(0, 3).map(s => ({
           stageLabel: s.stageLabel,
           stageLevel: s.stageLevel,
           level: s.level,
@@ -523,7 +563,18 @@ export const useProgressiveOnboarding = () => {
     }
   }, []);
   
+  // 🔧 MODIFIED: T-Stage Access Check - Bypass Stage 1
   const checkTStageAccess = useCallback((tStage: string): TStageAccess => {
+    // ✅ BYPASS: Let HomeDashboard handle Stage 1 completely
+    if (tStage.toLowerCase() === 't1' && STAGE1_HANDLING_MODE.allowHomeDashboardControl) {
+      console.log('🎯 T1 access check bypassed - HomeDashboard handles this');
+      return { 
+        allowed: true, 
+        firebaseVerified: true,
+        handledBy: 'HomeDashboard' // ✅ Indicator for debugging
+      };
+    }
+
     if (!currentUser?.uid) {
       return { 
         allowed: false, 
@@ -532,13 +583,7 @@ export const useProgressiveOnboarding = () => {
       };
     }
 
-    if (tStage.toLowerCase() === 't1') {
-      return { 
-        allowed: true, 
-        firebaseVerified: true 
-      };
-    }
-
+    // ✅ CONTINUE: Handle T2-T5 normally
     try {
       const tStageProgress = getFirebaseTStageProgress();
       const previousStage = getPreviousStage(tStage);
@@ -564,12 +609,14 @@ export const useProgressiveOnboarding = () => {
       console.log('🔥 Firebase T-Stage Access Check:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         tStage: tStage.toUpperCase(),
-        allowed: true
+        allowed: true,
+        handledBy: 'ProgressiveOnboarding'
       });
 
       return { 
         allowed: true, 
-        firebaseVerified: true 
+        firebaseVerified: true,
+        handledBy: 'ProgressiveOnboarding'
       };
     } catch (error) {
       console.error('Error checking Firebase T-stage access:', error);
@@ -581,7 +628,18 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, getFirebaseTStageProgress, getPreviousStage]);
 
+  // 🔧 MODIFIED: PAHM Stage Access Check - Handle Stage 1 Bypass
   const checkPAHMStageAccess = useCallback((stage: number): TStageAccess => {
+    // ✅ BYPASS: Stage 1 is always handled by HomeDashboard
+    if (stage === 1 && STAGE1_HANDLING_MODE.allowHomeDashboardControl) {
+      console.log('🎯 Stage 1 access check bypassed - HomeDashboard handles this');
+      return { 
+        allowed: true, 
+        firebaseVerified: true,
+        handledBy: 'HomeDashboard'
+      };
+    }
+
     if (!currentUser?.uid) {
       return { 
         allowed: false, 
@@ -590,13 +648,7 @@ export const useProgressiveOnboarding = () => {
       };
     }
 
-    if (stage === 1) {
-      return { 
-        allowed: true, 
-        firebaseVerified: true 
-      };
-    }
-
+    // ✅ CONTINUE: Handle Stages 2-6 normally
     try {
       const tStageProgress = getFirebaseTStageProgress();
       const pahmProgress = getFirebasePAHMStageProgress();
@@ -633,12 +685,14 @@ export const useProgressiveOnboarding = () => {
       console.log('🔥 Firebase PAHM Stage Access Check:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         stage,
-        allowed: true
+        allowed: true,
+        handledBy: 'ProgressiveOnboarding'
       });
 
       return { 
         allowed: true, 
-        firebaseVerified: true 
+        firebaseVerified: true,
+        handledBy: 'ProgressiveOnboarding'
       };
     } catch (error) {
       console.error('Error checking Firebase PAHM stage access:', error);
@@ -908,6 +962,59 @@ export const useProgressiveOnboarding = () => {
     }
   }, [currentUser, getFirebaseCompletionStatus, getFirebaseTStageProgress, getFirebasePAHMStageProgress, getCurrentAccessibleStage]);
 
+  // ✅ NEW: Lightweight Stage 1 info for homepage (no heavy processing)
+  const getStage1DisplayInfo = useCallback(() => {
+    if (!currentUser?.uid) {
+      return {
+        title: 'Stage 1: Seeker',
+        description: 'Physical Stillness (T1-T5)',
+        isUnlocked: true,
+        isCurrentStage: true
+      };
+    }
+    
+    // Simple display info without heavy processing
+    return {
+      title: 'Stage 1: Seeker', 
+      description: 'Physical Stillness (T1-T5)',
+      isUnlocked: true,
+      isCurrentStage: true,
+      handledBy: 'OnboardingLightweight'
+    };
+  }, [currentUser]);
+
+  // ✅ NEW: Provide Stage 1 data WITHOUT interfering with navigation
+  const getStage1DataOnly = useCallback(() => {
+    try {
+      const tStageProgress = getFirebaseTStageProgress();
+      
+      return {
+        t1Sessions: tStageProgress.t1.sessions.length,
+        t2Sessions: tStageProgress.t2.sessions.length,
+        t3Sessions: tStageProgress.t3.sessions.length,
+        t4Sessions: tStageProgress.t4.sessions.length,
+        t5Sessions: tStageProgress.t5.sessions.length,
+        t1Completed: tStageProgress.t1.completedSessions,
+        t2Completed: tStageProgress.t2.completedSessions,
+        t3Completed: tStageProgress.t3.completedSessions,
+        t4Completed: tStageProgress.t4.completedSessions,
+        t5Completed: tStageProgress.t5.completedSessions,
+        totalSessions: Object.values(tStageProgress).reduce((sum, t) => sum + t.sessions.length, 0),
+        totalCompleted: Object.values(tStageProgress).reduce((sum, t) => sum + t.completedSessions, 0),
+        isStage1Complete: tStageProgress.t5.completed,
+        handledBy: 'ProgressiveOnboarding-DataOnly'
+      };
+    } catch (error) {
+      console.error('Error getting Stage 1 data:', error);
+      return {
+        t1Sessions: 0, t2Sessions: 0, t3Sessions: 0, t4Sessions: 0, t5Sessions: 0,
+        t1Completed: 0, t2Completed: 0, t3Completed: 0, t4Completed: 0, t5Completed: 0,
+        totalSessions: 0, totalCompleted: 0, isStage1Complete: false,
+        handledBy: 'ProgressiveOnboarding-DataOnly-Error'
+      };
+    }
+  }, [getFirebaseTStageProgress]);
+
   // ✅ FIREBASE-ONLY: Enhanced utility methods (unchanged)
   const recheckFirebaseStatus = useCallback(async () => {
     if (!currentUser?.uid) {
@@ -1045,7 +1152,7 @@ export const useProgressiveOnboarding = () => {
     };
   }, [currentUser, recheckFirebaseStatus]);
 
-  // ✅ FIREBASE-ONLY: Return interface with Firebase enhancements (unchanged)
+  // ✅ FIREBASE-ONLY: Return interface with Firebase enhancements + Stage 1 data methods
   return {
     // Modal state management (unchanged)
     showQuestionnaireModal,
@@ -1065,7 +1172,7 @@ export const useProgressiveOnboarding = () => {
     progressRequirement,
     lastSessionData,
     
-    // Access checking (Firebase-enhanced)
+    // Access checking (Firebase-enhanced with Stage 1 bypass)
     checkTStageAccess,
     checkPAHMStageAccess,
     
@@ -1075,6 +1182,11 @@ export const useProgressiveOnboarding = () => {
     getCompleteProgressSummary,
     getCurrentAccessibleStage,
     getNextAccessibleStage,
+    
+    // ✅ NEW: Stage 1 display methods for HomeDashboard
+    getStage1DisplayInfo,                        // ✅ Lightweight for display
+    getStage1DataWithProcessing: () => getFirebaseTStageProgress(true), // ✅ Heavy processing when needed
+    getStage1DataOnly,
     
     // Data validation (Firebase-only)
     hasMinimumDataForHappiness,
@@ -1092,7 +1204,10 @@ export const useProgressiveOnboarding = () => {
     currentUser,
     isAuthenticated: !!currentUser,
     dataSource: 'Firebase Cloud Storage',
-    crossDeviceSync: true
+    crossDeviceSync: true,
+    
+    // ✅ NEW: Stage 1 handling configuration
+    stage1Config: STAGE1_HANDLING_MODE
   };
 };
 
