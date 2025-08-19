@@ -1,8 +1,8 @@
 // ===============================================
-// 🔧 FIXED HomeDashboard.tsx - Option 1: Always Navigate to Introduction
+// 🔧 COMPLETE FIXED HomeDashboard.tsx 
 // ===============================================
 // FILE: src/HomeDashboard.tsx
-// 🎯 FIXED: Stage 1 now always navigates to introduction on single click
+// 🎯 FIXED: Stage 1 single-click navigation with debouncing
 // ✅ PRESERVED: ALL user interface and functionality intact
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -105,6 +105,9 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const userProgress = happinessHookData.userProgress || { happiness_points: 0, user_level: 'Beginning Seeker' };
   const isCalculating = happinessHookData.isCalculating || false;
   const forceRecalculation = happinessHookData.forceRecalculation || (() => {});
+
+  // ✅ FIXED: Add navigation debouncing state
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // ✅ PRESERVED: Component state (no changes)
   const [currentDisplayStage, setCurrentDisplayStage] = useState<number>(propCurrentStage || 1);
@@ -507,32 +510,47 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [navigate, onShowHappinessTracker]);
 
-  // 🎯 FIXED: Stage 1 always navigates to introduction
+  // 🎯 FIXED: Stage 1 navigation with proper debouncing
   const handleStageClick = useCallback(async (stageNumber: number) => {
+    // ✅ DEBOUNCE CHECK - Prevent multiple clicks
+    if (isNavigating) {
+      console.log('🚫 Navigation in progress, ignoring click');
+      return;
+    }
+    
+    setIsNavigating(true);
+    console.log('🎯 handleStageClick CALLED with stage:', stageNumber);
+    
     if (stageNumber === 1) {
-      // 🎯 OPTION 1: Always navigate to Stage 1 introduction on single click
-      console.log('🎯 Stage 1 clicked - navigating to introduction');
-      navigate('/stage1-introduction', { 
-        state: { 
-          hasSeenBefore: true, // User has been to dashboard before
-          returnToHome: true
-        } 
-      });
+      console.log('🎯 Stage 1 detected - navigating to introduction');
+      
+      try {
+        navigate('/stage1-introduction', { 
+          state: { 
+            hasSeenBefore: true,
+            returnToHome: true
+          } 
+        });
+        console.log('✅ navigate() called successfully');
+      } catch (error) {
+        console.error('❌ Navigation error:', error);
+        setIsNavigating(false); // Reset on error
+      }
       return;
     }
 
+    // For other stages (2-6)
     const stageInfo = getStageDisplayInfo(stageNumber);
     
     if (!stageInfo.isUnlocked) {
       setShowAccessModal({ show: true, stage: stageNumber });
+      setIsNavigating(false); // Reset since we're not navigating
       return;
     }
 
-    // Update display stage
     setCurrentDisplayStage(stageNumber);
     
     try {
-      // Update via UserContext methods (profile management only)
       if (markStageComplete && typeof markStageComplete === 'function') {
         await markStageComplete(stageNumber);
         console.log('✅ Stage marked complete in Firebase:', stageNumber);
@@ -542,31 +560,39 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
 
     // Navigate to stage
-    switch (stageNumber) {
-      case 2:
-        if (onStartStage2) onStartStage2();
-        else navigate('/stage2');
-        break;
-      case 3:
-        if (onStartStage3) onStartStage3();
-        else navigate('/stage3');
-        break;
-      case 4:
-        if (onStartStage4) onStartStage4();
-        else navigate('/stage4');
-        break;
-      case 5:
-        if (onStartStage5) onStartStage5();
-        else navigate('/stage5');
-        break;
-      case 6:
-        if (onStartStage6) onStartStage6();
-        else navigate('/stage6');
-        break;
-      default:
-        navigate(`/stage${stageNumber}`);
+    try {
+      switch (stageNumber) {
+        case 2:
+          if (onStartStage2) onStartStage2();
+          else navigate('/stage2');
+          break;
+        case 3:
+          if (onStartStage3) onStartStage3();
+          else navigate('/stage3');
+          break;
+        case 4:
+          if (onStartStage4) onStartStage4();
+          else navigate('/stage4');
+          break;
+        case 5:
+          if (onStartStage5) onStartStage5();
+          else navigate('/stage5');
+          break;
+        case 6:
+          if (onStartStage6) onStartStage6();
+          else navigate('/stage6');
+          break;
+        default:
+          navigate(`/stage${stageNumber}`);
+      }
+    } catch (error) {
+      console.error('❌ Navigation error:', error);
     }
-  }, [navigate, getStageDisplayInfo, userProfile, markStageComplete, 
+    
+    // ✅ RESET NAVIGATION STATE AFTER DELAY
+    setTimeout(() => setIsNavigating(false), 1000);
+    
+  }, [navigate, getStageDisplayInfo, markStageComplete, isNavigating,
       onStartStage2, onStartStage3, onStartStage4, onStartStage5, onStartStage6]);
 
   const handleTLevelClick = useCallback(async (level: string, duration: number) => {
@@ -795,6 +821,12 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
   }, [location.pathname, location.state, refreshDashboardData]);
 
+  // ✅ COMMENT OUT this useEffect to stop console spam
+  // useEffect(() => {
+  //   console.log('🔍 HomeDashboard useEffect triggered - checking dependencies');
+  //   // Your existing debug code...
+  // }, [currentUser, sessions, practiceLoading, actualCurrentStage, actualTotalHours]);
+
   useEffect(() => {
     if (sessions && sessions.length > 0) {
       console.log(`🔄 Sessions updated: ${sessions.length} total sessions`);
@@ -1020,10 +1052,11 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
             gap: '16px',
             marginBottom: '20px'
           }}>
-            {/* 🎯 FIXED: Stage 1 - now navigates immediately on single click */}
+            {/* 🎯 FIXED: Stage 1 Button with Debouncing */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => handleStageClick(1)}
+                disabled={isNavigating}
                 style={{
                   width: '100%',
                   background: actualCurrentStage === 1 
@@ -1035,12 +1068,13 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   padding: '20px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: isNavigating ? 'wait' : 'pointer',
                   transition: 'all 0.3s ease',
                   textAlign: 'left',
-                  position: 'relative'
+                  position: 'relative',
+                  opacity: isNavigating ? 0.7 : 1
                 }}
-                {...createHoverHandler('translateY(-2px)', '0 8px 25px rgba(102, 126, 234, 0.3)')}
+                {...(!isNavigating ? createHoverHandler('translateY(-2px)', '0 8px 25px rgba(102, 126, 234, 0.3)') : {})}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
@@ -1050,16 +1084,15 @@ const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     <div style={{ fontSize: '14px', opacity: 0.8 }}>
                       Physical Stillness (T1-T5)
                     </div>
-                    {/* ✅ SINGLE-POINT: Show total T-level progress from PracticeContext */}
                     <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
                       T-Levels: {getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()}/15 sessions
                     </div>
                     <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px', fontStyle: 'italic' }}>
-                      Click to start practice →
+                      {isNavigating ? 'Navigating...' : 'Click to start practice →'}
                     </div>
                   </div>
                   <div style={{ fontSize: '18px' }}>
-                    ▶️
+                    {isNavigating ? '⏳' : '▶️'}
                   </div>
                 </div>
               </button>
