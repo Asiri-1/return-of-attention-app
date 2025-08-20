@@ -291,13 +291,13 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
   
-  // ✅ AUDIT COMPLIANT: PAHM matrix state (Universal Architecture format)
+  // ✅ PAHM matrix state with same structure but renamed 'present' to 'present/neutral'
   const [pahmCounts, setPahmCounts] = useState({
     nostalgia: 0,      // Row 1, Col 1: Attachment + Past
     likes: 0,          // Row 1, Col 2: Attachment + Present  
     anticipation: 0,   // Row 1, Col 3: Attachment + Future
     past: 0,           // Row 2, Col 1: Neutral + Past
-    present: 0,        // Row 2, Col 2: Neutral + Present
+    present: 0,        // Row 2, Col 2: Neutral + Present (displayed as "Present/Neutral")
     future: 0,         // Row 2, Col 3: Neutral + Future
     regret: 0,         // Row 3, Col 1: Aversion + Past
     dislikes: 0,       // Row 3, Col 2: Aversion + Present
@@ -311,87 +311,102 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   const [isWakeLockActive, setIsWakeLockActive] = useState(false);
   const [hasAudioPermission, setHasAudioPermission] = useState(false);
   
-  // ✅ AUDIT COMPLIANT: Firebase context integration
+  // 🛡️ FIXED: Add save deduplication protection
+  const isSessionSaved = useRef(false);
+  const saveInProgress = useRef(false);
+  
+  // ✅ Firebase context integration
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { currentUser } = useAuth();
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
 
-  // ✅ AUDIT COMPLIANT: Enhanced Firebase session saving
+  // 🔧 FIXED: Enhanced Firebase session saving with single save protection
   const handleTimerComplete = useCallback(async () => {
-    const endTime = new Date().toISOString();
-    const actualDuration = duration;
-    
-    // 🔊 Play completion sound
-    if (hasAudioPermission) {
-      await audioManager.playCompletionSound();
-    }
-
-    // 🔋 Release wake lock
-    await wakeLockManager.releaseWakeLock();
-    setIsWakeLockActive(false);
-
-    // ⏰ Stop robust timer
-    if (robustTimer) {
-      robustTimer.stop();
+    // 🛡️ PREVENT DUPLICATE SAVES
+    if (isSessionSaved.current || saveInProgress.current) {
+      console.log('⚠️ Session save already in progress or completed, skipping');
+      return;
     }
     
-    // ✅ AUDIT COMPLIANT: Calculate session quality and metrics
-    const totalInteractions = Object.values(pahmCounts).reduce((a, b) => a + b, 0);
-    const calculatePresentPercentage = (counts: typeof pahmCounts) => {
-      if (totalInteractions === 0) return 95;
-      
-      const presentMomentCounts = counts.present + counts.likes + counts.dislikes;
-      return Math.round((presentMomentCounts / totalInteractions) * 100);
-    };
-
-    const presentPercentage = calculatePresentPercentage(pahmCounts);
-
-    // ✅ AUDIT COMPLIANT: Convert PAHM counts to Universal Architecture format
-    const formattedPahmCounts = {
-      present_attachment: pahmCounts.likes,
-      present_neutral: pahmCounts.present,
-      present_aversion: pahmCounts.dislikes,
-      past_attachment: pahmCounts.nostalgia,
-      past_neutral: pahmCounts.past,
-      past_aversion: pahmCounts.regret,
-      future_attachment: pahmCounts.anticipation,
-      future_neutral: pahmCounts.future,
-      future_aversion: pahmCounts.worry
-    };
-
-    // ✅ AUDIT COMPLIANT: Enhanced rating calculation
-    const calculateRating = () => {
-      const engagementScore = totalInteractions > 15 ? 9 : 
-                             totalInteractions > 10 ? 8 : 
-                             totalInteractions > 5 ? 7 : 6;
-      
-      // Bonus for higher present-moment awareness
-      const presentBonus = presentPercentage >= 80 ? 1 : 
-                          presentPercentage >= 60 ? 0.5 : 0;
-      
-      return Math.min(10, engagementScore + presentBonus);
-    };
-
-    const rating = calculateRating();
-
-    // ✅ AUDIT COMPLIANT: Enhanced practice title mapping
-    const getPracticeTitle = (): string => {
-      const titleMap: Record<string, string> = {
-        'morning-recharge': 'Morning Recharge',
-        'emotional-reset': 'Emotional Reset',
-        'work-home-transition': 'Work-Home Transition',
-        'bedtime-winddown': 'Bedtime Wind Down',
-        'mid-day-reset': 'Mid-Day Reset',
-        'stress-relief': 'Stress Relief',
-        'focus-enhancement': 'Focus Enhancement',
-        'anxiety-management': 'Anxiety Management'
-      };
-      return titleMap[practiceType] || 'Mind Recovery Practice';
-    };
-
+    saveInProgress.current = true;
+    
     try {
-      // ✅ FIXED: Complete Firebase session object with all required fields
-      const sessionData: any = {
+      const endTime = new Date().toISOString();
+      const actualDuration = duration;
+      
+      // 🔊 Play completion sound
+      if (hasAudioPermission) {
+        await audioManager.playCompletionSound();
+      }
+
+      // 🔋 Release wake lock
+      await wakeLockManager.releaseWakeLock();
+      setIsWakeLockActive(false);
+
+      // ⏰ Stop robust timer
+      if (robustTimer) {
+        robustTimer.stop();
+      }
+      
+      // Calculate session quality and metrics
+      const totalInteractions = Object.values(pahmCounts).reduce((a, b) => a + b, 0);
+      const calculatePresentPercentage = (counts: typeof pahmCounts) => {
+        if (totalInteractions === 0) return 95;
+        
+        const presentMomentCounts = counts.present + counts.likes + counts.dislikes;
+        return Math.round((presentMomentCounts / totalInteractions) * 100);
+      };
+
+      const presentPercentage = calculatePresentPercentage(pahmCounts);
+
+      // Convert PAHM counts to Firebase format
+      const formattedPahmCounts = {
+        present_attachment: pahmCounts.likes,
+        present_neutral: pahmCounts.present,
+        present_aversion: pahmCounts.dislikes,
+        past_attachment: pahmCounts.nostalgia,
+        past_neutral: pahmCounts.past,
+        past_aversion: pahmCounts.regret,
+        future_attachment: pahmCounts.anticipation,
+        future_neutral: pahmCounts.future,
+        future_aversion: pahmCounts.worry
+      };
+
+      // Enhanced rating calculation
+      const calculateRating = () => {
+        const engagementScore = totalInteractions > 15 ? 9 : 
+                               totalInteractions > 10 ? 8 : 
+                               totalInteractions > 5 ? 7 : 6;
+        
+        // Bonus for higher present-moment awareness
+        const presentBonus = presentPercentage >= 80 ? 1 : 
+                            presentPercentage >= 60 ? 0.5 : 0;
+        
+        return Math.min(10, engagementScore + presentBonus);
+      };
+
+      const rating = calculateRating();
+
+      // Enhanced practice title mapping
+      const getPracticeTitle = (): string => {
+        const titleMap: Record<string, string> = {
+          'morning-recharge': 'Morning Recharge',
+          'emotional-reset': 'Emotional Reset',
+          'work-home-transition': 'Work-Home Transition',
+          'bedtime-winddown': 'Bedtime Wind Down',
+          'mid-day-reset': 'Mid-Day Reset',
+          'stress-relief': 'Stress Relief',
+          'focus-enhancement': 'Focus Enhancement',
+          'anxiety-management': 'Anxiety Management'
+        };
+        return titleMap[practiceType] || 'Mind Recovery Practice';
+      };
+
+      console.log('💾 Saving Mind Recovery session to Firebase (SINGLE SAVE):');
+
+      // 🎯 SINGLE SESSION DATA OBJECT
+      const sessionData = {
         timestamp: endTime,
         duration: actualDuration,
         sessionType: 'mind_recovery',
@@ -414,24 +429,35 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
         sessionQuality: rating,
         practiceType: practiceType,
         completed: true,
-        type: 'mind_recovery'
+        isCompleted: true,
+        type: 'mind_recovery',
+        userId: currentUser?.uid,
+        createdAt: { _methodName: 'serverTimestamp' }
       };
 
-      console.log('💾 Saving Mind Recovery session to Firebase:', sessionData);
+      console.log('Session data:', sessionData);
 
-      // ✅ FIXED: Save to Firebase via PracticeContext
+      // 🎯 SINGLE SAVE OPERATION ONLY
       await addPracticeSession(sessionData);
-
-      // ✅ AUDIT COMPLIANT: Enhanced emotional note
-      await addEmotionalNote({
-        content: `Completed ${actualDuration}-minute ${getPracticeTitle()} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness. Quality rating: ${rating}/10. Quick mindfulness reset successful!`,
-        emotion: rating >= 8 ? 'accomplished' : rating >= 6 ? 'content' : 'neutral',
-        energyLevel: Math.min(10, Math.max(1, Math.round(rating))),
-        intensity: Math.min(10, Math.max(1, Math.round(rating))),
-        tags: ['mind-recovery', practiceType, posture, 'quick-session', `rating-${Math.round(rating)}`]
-      });
-
+      
+      // ✅ Mark as successfully saved
+      isSessionSaved.current = true;
       console.log('✅ SESSION SAVED TO FIREBASE! - Mind Recovery 🎉');
+      
+      // 🎯 OPTIONAL: Add wellness note separately (but DON'T duplicate session)
+      try {
+        await addEmotionalNote({
+          content: `Completed ${actualDuration}-minute ${getPracticeTitle()} session with ${totalInteractions} mindful observations and ${presentPercentage}% present-moment awareness. Quality rating: ${rating}/10. Quick mindfulness reset successful!`,
+          emotion: rating >= 8 ? 'accomplished' : rating >= 6 ? 'content' : 'neutral',
+          energyLevel: Math.min(10, Math.max(1, Math.round(rating))),
+          intensity: Math.min(10, Math.max(1, Math.round(rating))),
+          tags: ['mind-recovery', practiceType, posture, 'quick-session', `rating-${Math.round(rating)}`]
+        });
+        console.log('✅ Wellness note added');
+      } catch (wellnessError) {
+        console.warn('⚠️ Wellness note failed (non-critical):', wellnessError);
+      }
+
       console.log(`✅ Quality Rating: ${rating}/10, Present Awareness: ${presentPercentage}%`);
       
       // Complete with PAHM counts
@@ -440,30 +466,37 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     } catch (error) {
       console.error('❌ Error saving Mind Recovery session:', error);
       
-      // ✅ AUDIT COMPLIANT: Backup to localStorage for retry
-      const backupKey = `mind_recovery_backup_${Date.now()}`;
-      const backupData = {
-        sessionData: {
-          timestamp: endTime,
-          duration: actualDuration,
-          sessionType: 'mind_recovery',
-          mindRecoveryContext: practiceType,
-          rating: rating,
-          notes: `${getPracticeTitle()} - ${totalInteractions} mindful moments`,
-          presentPercentage: presentPercentage,
-          pahmCounts: formattedPahmCounts,
-          completed: true,
-          type: 'mind_recovery'
-        },
-        pahmCounts: formattedPahmCounts,
-        timestamp: endTime
-      };
-      localStorage.setItem(backupKey, JSON.stringify(backupData));
+      // 🔄 RESET FLAGS ON ERROR (allow retry)
+      isSessionSaved.current = false;
+      saveInProgress.current = false;
       
-      alert('Session completed but failed to save. Will retry when connection is restored.');
-      onComplete(pahmCounts);
+      // 🔄 FALLBACK: Local storage backup (single save)
+      try {
+        const backupData = {
+          type: 'mind_recovery_session',
+          timestamp: new Date().toISOString(),
+          duration: duration,
+          pahmCounts: pahmCounts,
+          practiceType: practiceType,
+          userId: currentUser?.uid,
+          savedOffline: true
+        };
+        
+        const existingBackups = JSON.parse(localStorage.getItem('offline_sessions') || '[]');
+        existingBackups.push(backupData);
+        localStorage.setItem('offline_sessions', JSON.stringify(existingBackups));
+        
+        console.log('💾 Session backed up locally');
+        alert('Session saved locally. Will sync when connection restored.');
+        onComplete(pahmCounts);
+      } catch (backupError) {
+        console.error('❌ Backup save failed:', backupError);
+        alert('Failed to save session. Please try again.');
+      }
+    } finally {
+      saveInProgress.current = false;
     }
-  }, [duration, practiceType, posture, pahmCounts, onComplete, addPracticeSession, addEmotionalNote, hasAudioPermission, audioManager, wakeLockManager, robustTimer]);
+  }, [duration, practiceType, posture, pahmCounts, onComplete, addPracticeSession, addEmotionalNote, hasAudioPermission, audioManager, wakeLockManager, robustTimer, currentUser]);
 
   // Remove old timer logic
   useEffect(() => {
@@ -481,11 +514,11 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // ✅ FIXED: Enhanced session start handler with aggressive wake lock request
+  // Enhanced session start handler with aggressive wake lock request
   const handleStart = async () => {
     console.log('🚀 Starting Mind Recovery session:', { practiceType, posture, duration });
 
-    // 🔋 AGGRESSIVE: Request wake lock immediately with user interaction
+    // 🔋 Request wake lock immediately with user interaction
     let wakeLockSuccess = false;
     try {
       wakeLockSuccess = await wakeLockManager.requestWakeLock();
@@ -526,7 +559,11 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     setIsRunning(true);
     setIsPaused(false);
     
-    // ✅ AUDIT COMPLIANT: Reset PAHM counts
+    // 🛡️ RESET SAVE FLAGS for new session
+    isSessionSaved.current = false;
+    saveInProgress.current = false;
+    
+    // Reset PAHM counts
     setPahmCounts({
       nostalgia: 0,
       likes: 0,
@@ -554,7 +591,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     setIsPaused(!isPaused);
   };
 
-  // ✅ AUDIT COMPLIANT: Enhanced PAHM interaction with audio feedback
+  // Enhanced PAHM interaction with audio feedback
   const handleQuadrantClick = async (quadrant: keyof typeof pahmCounts) => {
     setPahmCounts(prev => {
       const newCounts = { ...prev };
@@ -625,7 +662,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
     return postureMap[posture] || posture;
   };
 
-  // ✅ Ultra-compact responsive styles for perfect one-screen fit
+  // Ultra-compact responsive styles for perfect one-screen fit
   const styles = {
     container: {
       display: 'flex',
@@ -771,7 +808,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
   if (currentStage === 'setup') {
     return (
       <div style={styles.container}>
-        {/* FIXED: Status Bar */}
+        {/* Status Bar */}
         <div style={styles.statusBar}>
           {wakeLockManager.isSupported() && (
             <div style={{
@@ -864,7 +901,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
 
   return (
     <div style={styles.container}>
-      {/* FIXED: Status Bar with proper wake lock display */}
+      {/* Status Bar with proper wake lock display */}
       <div style={styles.statusBar}>
         {isWakeLockActive ? (
           <div style={{
@@ -912,7 +949,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           📝 <strong>Mind Recovery:</strong> Notice where your attention goes, tap when you recognize thoughts
         </div>
 
-        {/* ✅ FIXED: PAHM MATRIX - REMOVED NUMBER DISPLAY */}
+        {/* ✅ PAHM MATRIX - Same layout, just renamed "PRESENT" to "PRESENT/NEUTRAL" */}
         <div style={styles.matrix}>
           {/* Row 1: ATTACHMENT */}
           <button
@@ -965,6 +1002,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
             <div>PAST</div>
           </button>
 
+          {/* ✅ RENAMED: "PRESENT" → "PRESENT/NEUTRAL" */}
           <button
             onClick={() => handleQuadrantClick('present')}
             style={{
@@ -975,7 +1013,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
               boxShadow: flashingButton === 'present' ? '0 0 20px rgba(74, 144, 164, 0.9)' : '0 4px 8px rgba(74, 144, 164, 0.3)'
             }}
           >
-            <div>PRESENT</div>
+            <div>PRESENT/NEUTRAL</div>
           </button>
 
           <button
@@ -1054,7 +1092,7 @@ const MindRecoveryTimer: React.FC<MindRecoveryTimerProps> = ({
           </button>
         </div>
 
-        {/* ✅ FIXED: Session Stats - Keep functionality but clean display */}
+        {/* Session Stats */}
         <div style={styles.sessionStats}>
           <div style={{ marginBottom: '4px' }}>
             Observations: {Object.values(pahmCounts).reduce((a, b) => a + b, 0)}
