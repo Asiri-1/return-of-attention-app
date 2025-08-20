@@ -1,7 +1,5 @@
-// 🔧 TRUE SINGLE-POINT App.tsx - All Functionality Preserved
+// 🔧 FIXED App.tsx - Single AuthProvider Only
 // File: src/App.tsx
-// 🎯 SINGLE-POINT: ALL session tracking handled by PracticeContext ONLY
-// ✅ PRESERVED: ALL functionality intact
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -10,17 +8,17 @@ import './App.css';
 // ✅ ESSENTIAL: All imports at the top
 import PageViewTracker from './components/PageViewTracker';
 import PAHMProgressTracker from './PAHMProgressTracker';
-import { AuthProvider, useAuth } from './contexts/auth/AuthContext';
+import { useAuth } from './contexts/auth/AuthContext'; // ✅ REMOVED AuthProvider import
 import { AdminProvider } from './contexts/auth/AdminContext';
 import CleanAdminPanel from './components/CleanAdminPanel';
 import LogoutWarning from './components/LogoutWarning';
 
 // ✅ SINGLE-POINT: Import the contexts properly
-import { AppProvider } from './contexts/AppProvider';
+import { AppProvider } from './contexts/AppProvider'; // ✅ This contains AuthProvider
 import { useUser } from './contexts/user/UserContext';
 import { useOnboarding } from './contexts/onboarding/OnboardingContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
-import { usePractice } from './contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: Import PracticeContext
+import { usePractice } from './contexts/practice/PracticeContext';
 
 // ✅ CRITICAL COMPONENTS: Import normally to avoid chunk loading errors
 import SignIn from './SignIn';
@@ -1073,17 +1071,15 @@ const AppContent: React.FC = React.memo(() => {
   );
 });
 
-// ✅ PRESERVED: Provider chain (same logic)
+// ✅ FIXED: AdminProvider inside AppProvider to access AuthContext
 const App: React.FC = React.memo(() => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AdminProvider>
-          <AppProvider>
-            <AppContent />
-          </AppProvider>
+      <AppProvider>  {/* ✅ This contains AuthProvider */}
+        <AdminProvider>  {/* ✅ Now AdminProvider can use useAuth */}
+          <AppContent />
         </AdminProvider>
-      </AuthProvider>
+      </AppProvider>
     </BrowserRouter>
   );
 });

@@ -52,12 +52,23 @@ const Stage1Wrapper: React.FC = () => {
   // ✅ SINGLE-POINT: T-level session counts from PracticeContext ONLY
   const getT1Sessions = useCallback((): number => {
   if (!sessions || sessions.length === 0) return 0;
+
+    console.log('🔍 DEBUG T1 Sessions:', sessions.map(s => ({
+    tLevel: s.tLevel,
+    level: s.level,
+    completed: s.completed,
+    sessionType: s.sessionType,
+    matchesT1: (s.tLevel || '').toLowerCase() === 't1' || (s.level || '').toLowerCase() === 't1',
+    completedCheck: s.completed !== false,
+    typeCheck: s.sessionType === 'meditation'
+  })));
+
   return sessions.filter((s: any) => {
-    const tLevel = (s.tLevel || '').toLowerCase();
-    const level = (s.level || '').toLowerCase();
+    const tLevel = (s.tLevel || '').toUpperCase();
+    const level = (s.level || '').toUpperCase();
     
     return (
-      (tLevel === 't1' || level === 't1') &&
+      (tLevel === 'T1' || level === 'T1') &&
       s.completed !== false && 
       s.sessionType === 'meditation'
     );
@@ -67,7 +78,7 @@ const Stage1Wrapper: React.FC = () => {
   const getT2Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 't2' || s.level === 't2') && 
+      (s.tLevel === 'T2' || s.level === 'T2') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -76,7 +87,7 @@ const Stage1Wrapper: React.FC = () => {
   const getT3Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 't3' || s.level === 't3') && 
+      (s.tLevel === 'T3' || s.level === 'T3') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -85,7 +96,7 @@ const Stage1Wrapper: React.FC = () => {
   const getT4Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 't4' || s.level === 't4') && 
+      (s.tLevel === 'T4' || s.level === 'T4') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;
@@ -94,7 +105,7 @@ const Stage1Wrapper: React.FC = () => {
   const getT5Sessions = useCallback((): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
-      (s.tLevel === 't5' || s.level === 't5') && 
+      (s.tLevel === 'T5' || s.level === 'T5') && 
       s.completed !== false && 
       s.sessionType === 'meditation'
     ).length;

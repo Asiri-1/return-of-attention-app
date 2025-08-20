@@ -418,27 +418,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser, userProfile?.membershipType, checkAdvancedTokenValidity]);
 
-  // ✅ FIXED: Auth state change listener with GUARANTEED loading resolution
+  // ✅ FIXED: Auth state change listener with proper loading resolution
   useEffect(() => {
     let mounted = true;
     
-    // ✅ CRITICAL: Set a maximum timeout to prevent infinite loading
-    const maxLoadingTimeout = setTimeout(() => {
-      if (mounted) {
-        console.warn('🚨 Auth loading timeout - forcing loading to false');
-        setIsLoading(false);
-      }
-    }, 8000); // 8 second maximum loading time
+    console.log('🔐 Setting up auth state listener...');
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (isFeatureEnabled('debugging')) {
-        console.log('🔐 Auth state changed:', user ? 'User logged in' : 'User logged out');
-      }
+      console.log('🔐 Auth state changed:', user ? `User: ${user.email}` : 'No user');
       
       if (!mounted) return;
       
       try {
         if (user) {
+          console.log('✅ User authenticated, loading profile...');
+          
           // ✅ FIREBASE-ONLY: Clean cache but preserve essential app settings
           cleanupUserCache();
           
@@ -501,6 +495,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
           }
         } else {
+          console.log('❌ No user authenticated');
           if (mounted) {
             // ✅ FIREBASE-ONLY: Clean up cache on logout
             cleanupUserCache();
@@ -519,16 +514,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } finally {
         // ✅ CRITICAL: ALWAYS set loading to false
         if (mounted) {
-          clearTimeout(maxLoadingTimeout);
           setIsLoading(false);
-          console.log('✅ Auth loading completed');
+          console.log('✅ Auth loading completed - User:', user ? 'Authenticated' : 'Not authenticated');
         }
       }
     });
 
     return () => {
       mounted = false;
-      clearTimeout(maxLoadingTimeout);
       unsubscribe();
     };
   }, [auth, db, loadUserProfile, cleanupUserCache]);

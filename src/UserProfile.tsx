@@ -1,98 +1,20 @@
+// ============================================================================
+// 🎯 UNIVERSAL UserProfile - Real Firebase Context Integration
+// ============================================================================
+// File: src/components/ModernUserProfile.tsx
+// ✅ UNIVERSAL: Uses real contexts instead of mocks
+// ✅ SINGLE-POINT: All session data from PracticeContext
+// ✅ FIREBASE-ONLY: Real-time data from Firebase
+
 import React, { useState, useEffect, useMemo } from 'react';
 
-// Mock hooks for demonstration - replace with your actual implementations
-const useAuth = () => ({ 
-  currentUser: { 
-    uid: 'demo-user-123',
-    email: 'demo@example.com',
-    displayName: 'Demo User'
-  } 
-});
-
-const useUser = () => ({
-  userProfile: {
-    totalSessions: 25,
-    totalMinutes: 450,
-    currentStreak: 5,
-    longestStreak: 12
-  },
-  isLoading: false
-});
-
-const usePractice = () => ({
-  sessions: [
-    { duration: 15, rating: 4, timestamp: '2025-01-01T10:00:00Z' },
-    { duration: 20, rating: 5, timestamp: '2025-01-02T10:00:00Z' },
-    { duration: 10, rating: 3, timestamp: '2025-01-03T10:00:00Z' }
-  ]
-});
-
-const useWellness = () => ({
-  emotionalNotes: [
-    { note: 'Feeling peaceful after practice' },
-    { note: 'More aware of thoughts today' }
-  ]
-});
-
-const useOnboarding = () => ({
-  questionnaire: {
-    responses: {
-      experience_level: 7,
-      goals: ['Reduce stress', 'Improve focus'],
-      age_range: '25-34',
-      location: 'San Francisco',
-      occupation: 'Software Developer',
-      education_level: 'Bachelor\'s Degree',
-      meditation_background: 'Some experience with apps',
-      sleep_pattern: 6,
-      physical_activity: 'moderate',
-      stress_triggers: ['Work deadlines', 'Traffic'],
-      daily_routine: 'Morning meditation, evening reflection',
-      diet_pattern: 'Balanced',
-      screen_time: '6-8 hours',
-      social_connections: 'Good',
-      work_life_balance: 'Improving',
-      emotional_awareness: 8,
-      stress_response: 'Usually calm',
-      decision_making: 'Thoughtful',
-      self_reflection: 'Daily',
-      thought_patterns: 'Generally positive',
-      mindfulness_in_daily_life: 'Practicing awareness',
-      mindfulness_experience: 6,
-      meditation_background_detail: 'Started 2 years ago',
-      practice_goals: 'Consistency and depth',
-      preferred_duration: '15-20',
-      biggest_challenges: 'Finding time',
-      motivation: 'Personal growth'
-    },
-    completedAt: '2025-01-01T10:00:00Z'
-  },
-  selfAssessment: {
-    categories: {
-      taste: { level: 'some', details: 'Enjoy variety but not picky', category: 'taste' },
-      smell: { level: 'none', details: 'No strong preferences', category: 'smell' },
-      sound: { level: 'strong', details: 'Love certain music genres', category: 'sound' },
-      sight: { level: 'some', details: 'Appreciate beauty moderately', category: 'sight' },
-      touch: { level: 'none', details: 'Comfortable with most textures', category: 'touch' },
-      mind: { level: 'some', details: 'Working on reducing mental attachments', category: 'mind' }
-    },
-    metrics: {
-      nonAttachmentCount: 2,
-      attachmentScore: 65,
-      attachmentLevel: 'Moderate'
-    },
-    completedAt: '2025-01-01T10:00:00Z'
-  },
-  getCompletionStatus: () => ({ questionnaire: true, assessment: true })
-});
-
-const useHappinessCalculation = () => ({
-  userProgress: {
-    happiness_points: 85,
-    user_level: 'Developing Practitioner'
-  },
-  isCalculating: false
-});
+// ✅ REAL CONTEXTS - Corrected import paths
+import { useAuth } from './contexts/auth/AuthContext';
+import { useUser } from './contexts/user/UserContext';
+import { usePractice } from './contexts/practice/PracticeContext';
+import { useWellness } from './contexts/wellness/WellnessContext';
+import { useOnboarding } from './contexts/onboarding/OnboardingContext';
+import { useHappinessCalculation } from './hooks/useHappinessCalculation';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -107,15 +29,31 @@ interface CategoryData {
   category: string;
 }
 
-const ModernUserProfile: React.FC<UserProfileProps> = ({ 
+const UniversalUserProfile: React.FC<UserProfileProps> = ({ 
   onBack, 
   onLogout, 
   onNavigateToQuestionnaire, 
   onNavigateToSelfAssessment 
 }) => {
+  // ================================
+  // 🎯 UNIVERSAL CONTEXTS - REAL DATA
+  // ================================
   const { currentUser } = useAuth();
-  const { userProfile, isLoading: userLoading } = useUser();
-  const { sessions } = usePractice();
+  const { 
+    isLoading: userLoading,
+    getT1Sessions,
+    getT2Sessions,
+    getT3Sessions,
+    getT4Sessions,
+    getT5Sessions,
+    getTotalPracticeHours,
+    getCurrentStage
+  } = useUser();
+  const { 
+    sessions, 
+    stats, 
+    isLoading: practiceLoading
+  } = usePractice();
   const { emotionalNotes } = useWellness();
   const { 
     questionnaire, 
@@ -130,12 +68,48 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   
-  // Get happiness data from the hook with proper fallbacks
+  // ================================
+  // 🎯 UNIVERSAL DATA PROCESSING
+  // ================================
+  
+  // Get happiness data with proper fallbacks
   const happinessData = useMemo(() => ({
     happiness_points: userProgress?.happiness_points || 0,
     user_level: userProgress?.user_level || 'Beginning Seeker'
   }), [userProgress?.happiness_points, userProgress?.user_level]);
 
+  // Universal session statistics (SINGLE-POINT from PracticeContext)
+  const universalStats = useMemo(() => {
+    console.log('🎯 UNIVERSAL STATS CALCULATION:', {
+      sessionsCount: sessions?.length || 0,
+      statsFromContext: stats,
+      totalHours: getTotalPracticeHours(),
+      currentStage: getCurrentStage()
+    });
+
+    return {
+      totalSessions: sessions?.length || 0,
+      totalHours: getTotalPracticeHours(),
+      totalMinutes: (getTotalPracticeHours() * 60) || 0,
+      currentStreak: stats?.currentStreak || 0,
+      longestStreak: stats?.longestStreak || 0,
+      currentStage: getCurrentStage(),
+      lastSessionDate: sessions && sessions.length > 0 ? 
+        sessions[sessions.length - 1]?.timestamp : null,
+      // T-Level session counts (UNIVERSAL SINGLE-POINT)
+      t1Sessions: getT1Sessions(),
+      t2Sessions: getT2Sessions(),
+      t3Sessions: getT3Sessions(),
+      t4Sessions: getT4Sessions(),
+      t5Sessions: getT5Sessions(),
+      totalTLevelSessions: getT1Sessions() + getT2Sessions() + getT3Sessions() + getT4Sessions() + getT5Sessions()
+    };
+  }, [sessions, stats, getTotalPracticeHours, getCurrentStage, getT1Sessions, getT2Sessions, getT3Sessions, getT4Sessions, getT5Sessions]);
+
+  // ================================
+  // 🎯 LOADING STATES
+  // ================================
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoading(false);
@@ -144,6 +118,10 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // ================================
+  // 🎯 EVENT HANDLERS
+  // ================================
+  
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(sectionId)) {
@@ -189,16 +167,11 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
       return { questionnaire: false, assessment: false };
     }
   }, [getCompletionStatus]);
-  
-  // Firebase-only user statistics with proper fallbacks
-  const userStats = useMemo(() => ({
-    totalSessions: userProfile?.totalSessions || sessions?.length || 0,
-    totalHours: Math.round(((userProfile?.totalMinutes || 0) / 60) * 10) / 10,
-    currentStreak: userProfile?.currentStreak || 0,
-    longestStreak: userProfile?.longestStreak || 0,
-    lastSessionDate: sessions && sessions.length > 0 ? sessions[sessions.length - 1]?.timestamp : null
-  }), [userProfile, sessions]);
 
+  // ================================
+  // 🎯 RENDER SECTIONS
+  // ================================
+  
   // Enhanced questionnaire section with all 27 fields displayed
   const renderQuestionnaireSection = () => {
     if (!completionStatus.questionnaire || !questionnaire?.responses) {
@@ -612,15 +585,25 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     );
   };
 
-  // Show loading state when happiness is being calculated OR component is loading
-  if (loading || userLoading || isCalculating) {
+  // ================================
+  // 🎯 LOADING STATES
+  // ================================
+  
+  // Show loading state when any context is loading
+  if (loading || userLoading || practiceLoading || isCalculating) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-2xl text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
           <h3 className="text-lg font-semibold text-gray-700">
-            {isCalculating ? 'Calculating your happiness...' : 'Loading your profile...'}
+            {isCalculating ? 'Calculating your happiness...' : 
+             practiceLoading ? 'Loading your practice data...' :
+             userLoading ? 'Loading your profile...' : 
+             'Loading your profile...'}
           </h3>
+          <div className="text-sm text-gray-500 mt-2">
+            🎯 Universal Architecture Loading...
+          </div>
         </div>
       </div>
     );
@@ -636,11 +619,16 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
     );
   }
 
+  // ================================
+  // 🎯 MAIN RENDER
+  // ================================
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden">
           
+          {/* Profile Header */}
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-8 text-center">
             <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">
               👤
@@ -652,29 +640,34 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
             <p className="text-sm opacity-80">
               Member since {new Date().toLocaleDateString()}
             </p>
+            <div className="text-xs opacity-70 mt-2 bg-white bg-opacity-10 rounded-lg p-2">
+              🎯 Universal Architecture • Real-time Firebase Data
+            </div>
           </div>
 
+          {/* Universal Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-200">
             <div className="bg-white p-6 text-center hover:bg-gray-50 transition-colors duration-200">
               <div className="text-2xl font-bold text-indigo-600">{happinessData.happiness_points}</div>
               <div className="text-xs text-gray-600 uppercase tracking-wide">Happiness Points</div>
             </div>
             <div className="bg-white p-6 text-center hover:bg-gray-50 transition-colors duration-200">
-              <div className="text-2xl font-bold text-green-600">{userStats.totalSessions}</div>
+              <div className="text-2xl font-bold text-green-600">{universalStats.totalSessions}</div>
               <div className="text-xs text-gray-600 uppercase tracking-wide">Sessions</div>
             </div>
             <div className="bg-white p-6 text-center hover:bg-gray-50 transition-colors duration-200">
-              <div className="text-2xl font-bold text-yellow-600">{userStats.currentStreak}</div>
+              <div className="text-2xl font-bold text-yellow-600">{universalStats.currentStreak}</div>
               <div className="text-xs text-gray-600 uppercase tracking-wide">Day Streak</div>
             </div>
             <div className="bg-white p-6 text-center hover:bg-gray-50 transition-colors duration-200">
-              <div className="text-2xl font-bold text-red-600">{userStats.totalHours}h</div>
+              <div className="text-2xl font-bold text-red-600">{universalStats.totalHours}h</div>
               <div className="text-xs text-gray-600 uppercase tracking-wide">Total Practice</div>
             </div>
           </div>
 
           <div className="p-8 space-y-8">
             
+            {/* Account Information */}
             <div>
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
                 <span className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">👤</span>
@@ -703,6 +696,52 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               </div>
             </div>
 
+            {/* Universal T-Level Progress (SINGLE-POINT from PracticeContext) */}
+            <div>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">🎯</span>
+                Universal T-Level Progress
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-4 text-center shadow-md">
+                  <div className="text-2xl font-bold text-blue-600 mb-1">{universalStats.t1Sessions}</div>
+                  <div className="text-sm text-blue-700">T1 Sessions</div>
+                  <div className="text-xs text-gray-500 mt-1">Physical Stillness</div>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-4 text-center shadow-md">
+                  <div className="text-2xl font-bold text-green-600 mb-1">{universalStats.t2Sessions}</div>
+                  <div className="text-sm text-green-700">T2 Sessions</div>
+                  <div className="text-xs text-gray-500 mt-1">Thought Awareness</div>
+                </div>
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-200 rounded-xl p-4 text-center shadow-md">
+                  <div className="text-2xl font-bold text-yellow-600 mb-1">{universalStats.t3Sessions}</div>
+                  <div className="text-sm text-yellow-700">T3 Sessions</div>
+                  <div className="text-xs text-gray-500 mt-1">Present Moment</div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-4 text-center shadow-md">
+                  <div className="text-2xl font-bold text-purple-600 mb-1">{universalStats.t4Sessions}</div>
+                  <div className="text-sm text-purple-700">T4 Sessions</div>
+                  <div className="text-xs text-gray-500 mt-1">Sustained Attention</div>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl p-4 text-center shadow-md">
+                  <div className="text-2xl font-bold text-red-600 mb-1">{universalStats.t5Sessions}</div>
+                  <div className="text-sm text-red-700">T5 Sessions</div>
+                  <div className="text-xs text-gray-500 mt-1">Deep Practice</div>
+                </div>
+              </div>
+
+              <div className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 text-center border-2 border-purple-200">
+                <div className="text-lg font-semibold text-purple-700">
+                  Total T-Level Sessions: {universalStats.totalTLevelSessions}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  🎯 Data from Universal PracticeContext • Real-time Firebase
+                </div>
+              </div>
+            </div>
+
+            {/* Questionnaire Section */}
             <div>
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
                 <span className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">📝</span>
@@ -711,6 +750,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               {renderQuestionnaireSection()}
             </div>
             
+            {/* Self-Assessment Section */}
             <div>
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
                 <span className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">🧠</span>
@@ -719,6 +759,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               {renderSelfAssessmentSection()}
             </div>
 
+            {/* Practice Statistics */}
             <div>
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
                 <span className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">📊</span>
@@ -727,15 +768,15 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-shadow duration-200">
-                  <div className="text-2xl font-bold text-green-600 mb-1">{userStats.totalSessions}</div>
+                  <div className="text-2xl font-bold text-green-600 mb-1">{universalStats.totalSessions}</div>
                   <div className="text-sm text-green-700">Total Sessions</div>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-shadow duration-200">
-                  <div className="text-2xl font-bold text-blue-600 mb-1">{userStats.totalHours}h</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-1">{universalStats.totalHours}h</div>
                   <div className="text-sm text-blue-700">Total Practice Time</div>
                 </div>
                 <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-200 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-shadow duration-200">
-                  <div className="text-2xl font-bold text-yellow-600 mb-1">{userStats.currentStreak}</div>
+                  <div className="text-2xl font-bold text-yellow-600 mb-1">{universalStats.currentStreak}</div>
                   <div className="text-sm text-yellow-700">Current Streak</div>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-shadow duration-200">
@@ -744,13 +785,14 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
                 </div>
               </div>
               
-              {userStats.lastSessionDate && (
+              {universalStats.lastSessionDate && (
                 <div className="text-center text-sm text-gray-600 mt-4 bg-gray-50 rounded-lg p-3">
-                  Last practice session: {new Date(userStats.lastSessionDate).toLocaleDateString()}
+                  Last practice session: {new Date(universalStats.lastSessionDate).toLocaleDateString()}
                 </div>
               )}
             </div>
 
+            {/* Happiness Summary */}
             <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl p-6 text-center shadow-lg border-2 border-purple-200">
               <h3 className="text-xl font-bold text-gray-800 mb-2">Current Happiness Points</h3>
               <div className="text-4xl font-bold text-purple-600 mb-2">{happinessData.happiness_points}</div>
@@ -760,6 +802,7 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
               </div>
             </div>
 
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-gray-200">
               <button
                 onClick={onBack}
@@ -782,4 +825,4 @@ const ModernUserProfile: React.FC<UserProfileProps> = ({
   );
 };
 
-export default ModernUserProfile;
+export default UniversalUserProfile;

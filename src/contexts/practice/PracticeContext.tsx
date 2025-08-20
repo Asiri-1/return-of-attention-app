@@ -1,10 +1,9 @@
 // ============================================================================
-// 🔧 ENHANCED DEBUG PracticeContext.tsx - All Functionality Preserved + Debug Logging
+// 🔧 FIXED PracticeContext.tsx - orderBy REMOVED to fix Firebase index errors
 // ============================================================================
 // FILE: src/contexts/practice/PracticeContext.tsx
-// ✅ PRESERVED: All existing functionality intact
+// ✅ FIXED: Removed orderBy from both Firebase queries
 // 🔍 ENHANCED: Added comprehensive debug logging for Firebase operations
-// 🎯 PURPOSE: Identify why clearPracticeData isn't clearing Firebase
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -19,7 +18,6 @@ import {
   getDoc,
   setDoc,
   query, 
-  orderBy, 
   where,
   onSnapshot, 
   serverTimestamp,
@@ -385,7 +383,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('❌ Failed to save stage progression:', error);
       throw error;
     }
-  }, [currentUser?.uid]);
+ }, [currentUser]);
 
   const loadStageProgression = useCallback(async (): Promise<StageProgressionData | null> => {
     // ✅ CRITICAL: Authentication guard
@@ -587,10 +585,47 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [currentUser?.uid, sessions]);
 
   // ================================
-  // ✅ ENHANCED: REAL-TIME LISTENERS WITH ROBUST ERROR HANDLING
+  // ✅ FIXED: REAL-TIME LISTENERS WITH orderBy REMOVED
   // ================================
   useEffect(() => {
-    // ✅ CRITICAL: Authentication guard - Exit early if no user
+    // Add this right at the start of your PracticeContext useEffect
+console.log('🔍 AUTH DEBUG COMPARISON:', {
+  currentUserFromAuthContext: currentUser?.uid,
+  currentUserEmail: currentUser?.email,
+  adminPanelWorks: true, // Admin panel can read data
+  mainAppFails: true     // Main app can't read data
+});
+
+// Test if we can read ANY sessions (like admin panel does)
+const testDirectRead = async () => {
+  try {
+    const allSessions = await getDocs(collection(db, 'practiceSessions'));
+    console.log('🔥 DIRECT READ TEST:', {
+      totalSessions: allSessions.docs.length,
+      canReadDirectly: true,
+      firstSessionUserId: allSessions.docs[0]?.data()?.userId,
+      currentUserMatches: allSessions.docs[0]?.data()?.userId === currentUser?.uid
+    });
+  } catch (error) {
+    console.error('❌ Direct read failed:', error);
+  }
+};
+
+if (currentUser?.uid) {
+  testDirectRead();
+}
+    console.log('🔍 USEEFFECT TRIGGERED');
+    console.log('   Current User:', currentUser);
+    console.log('   User UID:', currentUser?.uid);
+    console.log('   User Email:', currentUser?.email);
+    console.log('   Auth State:', !!currentUser);
+    
+    // ✅ NEW: Check if auth is still loading
+    if (currentUser === undefined) {
+      console.log('⏳ Auth still loading, waiting...');
+      return;
+    }
+    
     if (!currentUser?.uid) {
       console.log('❌ No authenticated user in PracticeContext - clearing sessions');
       setSessions([]);
@@ -602,19 +637,37 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsLoading(true);
 
     const unsubscribers: (() => void)[] = [];
+    let mindRecoverySessions: PracticeSessionData[] = [];
+    let practiceSessions: PracticeSessionData[] = [];
+
+    // Function to combine and update sessions
+    const updateAllSessions = () => {
+      const allSessions = [...mindRecoverySessions, ...practiceSessions];
+      allSessions.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.()?.getTime() || new Date(a.timestamp).getTime();
+        const timeB = b.createdAt?.toDate?.()?.getTime() || new Date(b.timestamp).getTime();
+        return timeB - timeA;
+      });
+
+      setSessions(allSessions);
+      setIsLoading(false);
+      console.log(`✅ Total sessions loaded: ${allSessions.length} (Mind Recovery: ${mindRecoverySessions.length}, Practice: ${practiceSessions.length})`);
+    };
 
     try {
-      // ✅ ENHANCED: Mind Recovery Sessions Listener with Error Handling
+      // 🔥 LISTENER 1: Mind Recovery Sessions - orderBy REMOVED
       const mindRecoveryQuery = query(
         collection(db, 'mindRecoverySessions'),
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', currentUser.uid)
+        // ✅ REMOVED: orderBy('createdAt', 'desc') - No more index required!
       );
 
       const unsubscribeMindRecovery = onSnapshot(
         mindRecoveryQuery,
         (snapshot) => {
-          const mindRecoverySessions: PracticeSessionData[] = [];
+          console.log(`🔥 Mind Recovery Listener: ${snapshot.docs.length} documents found`);
+          
+          mindRecoverySessions = [];
           snapshot.forEach((doc) => {
             const data = doc.data();
             mindRecoverySessions.push({
@@ -638,62 +691,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
 
           console.log(`📦 Mind Recovery sessions loaded: ${mindRecoverySessions.length}`);
-
-          // Listen to Practice/Meditation Sessions
-          const practiceQuery = query(
-            collection(db, 'practiceSessions'),
-            where('userId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc')
-          );
-
-          const unsubscribePractice = onSnapshot(
-            practiceQuery,
-            (practiceSnapshot) => {
-              const practiceSessions: PracticeSessionData[] = [];
-              practiceSnapshot.forEach((doc) => {
-                const data = doc.data();
-                practiceSessions.push({
-                  sessionId: data.sessionId || doc.id,
-                  firestoreId: doc.id,
-                  timestamp: data.timestamp || data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-                  duration: data.duration || 0,
-                  sessionType: data.sessionType || 'meditation',
-                  userId: data.userId,
-                  completed: data.completed !== false,
-                  rating: data.rating || 0,
-                  notes: data.notes || '',
-                  stageLevel: data.stageLevel,
-                  stageLabel: data.stageLabel,
-                  tLevel: data.tLevel,
-                  level: data.level,
-                  presentPercentage: data.presentPercentage,
-                  environment: data.environment,
-                  createdAt: data.createdAt,
-                  updatedAt: data.updatedAt
-                });
-              });
-
-              console.log(`📦 Practice sessions loaded: ${practiceSessions.length}`);
-
-              // Combine all sessions
-              const allSessions = [...mindRecoverySessions, ...practiceSessions];
-              allSessions.sort((a, b) => {
-                const timeA = a.createdAt?.toDate?.()?.getTime() || new Date(a.timestamp).getTime();
-                const timeB = b.createdAt?.toDate?.()?.getTime() || new Date(b.timestamp).getTime();
-                return timeB - timeA;
-              });
-
-              setSessions(allSessions);
-              setIsLoading(false);
-              console.log(`✅ Total sessions loaded: ${allSessions.length}`);
-            },
-            (error) => {
-              console.error('❌ Practice sessions listener error:', error);
-              setIsLoading(false);
-            }
-          );
-
-          unsubscribers.push(unsubscribePractice);
+          updateAllSessions();
         },
         (error) => {
           console.error('❌ Mind recovery sessions listener error:', error);
@@ -701,7 +699,62 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       );
 
+      // 🔥 LISTENER 2: Practice Sessions - orderBy REMOVED
+      const practiceQuery = query(
+        collection(db, 'practiceSessions'),
+        where('userId', '==', currentUser.uid)
+        // ✅ REMOVED: orderBy('createdAt', 'desc') - No more index required!
+      );
+
+      const unsubscribePractice = onSnapshot(
+        practiceQuery,
+        (practiceSnapshot) => {
+          console.log(`🔥 Practice Listener: ${practiceSnapshot.docs.length} documents found`);
+          console.log('🔍 User queried:', currentUser.uid);
+          
+          practiceSessions = [];
+          practiceSnapshot.forEach((doc) => {
+            const data = doc.data();
+            console.log(`📄 Practice session: ${doc.id}`, {
+              userId: data.userId,
+              tLevel: data.tLevel,
+              sessionType: data.sessionType,
+              duration: data.duration
+            });
+            
+            practiceSessions.push({
+              sessionId: data.sessionId || doc.id,
+              firestoreId: doc.id,
+              timestamp: data.timestamp || data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              duration: data.duration || 0,
+              sessionType: data.sessionType || 'meditation',
+              userId: data.userId,
+              completed: data.completed !== false,
+              rating: data.rating || 0,
+              notes: data.notes || '',
+              stageLevel: data.stageLevel,
+              stageLabel: data.stageLabel,
+              tLevel: data.tLevel,
+              level: data.level,
+              presentPercentage: data.presentPercentage,
+              environment: data.environment,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt
+            });
+          });
+
+          console.log(`📦 Practice sessions loaded: ${practiceSessions.length}`);
+          updateAllSessions();
+        },
+        (error) => {
+          console.error('❌ Practice sessions listener error:', error);
+          console.error('❌ Error details:', error.code, error.message);
+          setIsLoading(false);
+        }
+      );
+
       unsubscribers.push(unsubscribeMindRecovery);
+      unsubscribers.push(unsubscribePractice);
 
     } catch (error) {
       console.error('❌ Error setting up Firebase listeners:', error);
@@ -717,7 +770,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       });
     };
-  }, [currentUser?.uid]);
+  }, [currentUser]); // ✅ FIXED: Use [currentUser] instead of [currentUser?.uid]
 
   // ================================
   // STATISTICS AND SESSION MANAGEMENT
