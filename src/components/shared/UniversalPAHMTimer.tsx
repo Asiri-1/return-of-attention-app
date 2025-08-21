@@ -18,7 +18,7 @@ interface PAHMCounts {
   likes: number;          // Present + Attachment  
   anticipation: number;   // Future + Attachment
   past: number;           // Past + Neutral
-  present: number;        // Present + Neutral
+  present: number;        // Present + Neutral (displayed as "Present/Neutral")
   future: number;         // Future + Neutral
   regret: number;         // Past + Aversion
   dislikes: number;       // Present + Aversion
@@ -566,7 +566,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     likes: 0,          // Present + Attachment  
     anticipation: 0,   // Future + Attachment
     past: 0,           // Past + Neutral
-    present: 0,        // Present + Neutral
+    present: 0,        // Present + Neutral (displayed as "Present/Neutral")
     future: 0,         // Future + Neutral
     regret: 0,         // Past + Aversion
     dislikes: 0,       // Present + Aversion
@@ -1120,11 +1120,10 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           <h4 style={{ marginBottom: '10px', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>3×3 PAHM Matrix Instructions:</h4>
           <p>During meditation, tap the appropriate button when you notice your attention:</p>
           <ul style={{ textAlign: 'left', marginTop: '10px', paddingLeft: '20px' }}>
-            <li><strong>Present:</strong> Aware of current moment (breath, body, sounds)</li>
+            <li><strong>Present/Neutral:</strong> Aware of current moment with balanced, equanimous observation</li>
             <li><strong>Past:</strong> Thinking about memories, past events</li>
             <li><strong>Future:</strong> Planning, anticipating, worrying about future</li>
             <li><strong>Attachment:</strong> Wanting, liking, craving</li>
-            <li><strong>Neutral:</strong> Balanced, equanimous observation</li>
             <li><strong>Aversion:</strong> Disliking, resisting, avoiding</li>
           </ul>
         </div>
@@ -1265,6 +1264,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           <div>PAST</div>
         </button>
 
+        {/* ✅ RENAMED: "PRESENT" → "PRESENT/NEUTRAL" */}
         <button
           onClick={() => handleQuadrantClick('present')}
           style={{
@@ -1275,7 +1275,7 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
             boxShadow: flashingButton === 'present' ? '0 0 25px rgba(74, 144, 164, 0.9)' : '0 6px 12px rgba(74, 144, 164, 0.3)'
           }}
         >
-          <div>PRESENT</div>
+          <div>PRESENT/NEUTRAL</div>
         </button>
 
         <button

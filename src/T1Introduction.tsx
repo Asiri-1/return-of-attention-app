@@ -1,9 +1,7 @@
-// ✅ ENHANCED T1Introduction.tsx - FIREBASE INTEGRATION
+// ✅ FIXED T1Introduction.tsx - CONSISTENT SESSION COUNTING
 // File: src/T1Introduction.tsx
-// ✅ ENHANCED: Complete Firebase context integration
-// ✅ ENHANCED: Real-time progress tracking and validation
-// ✅ ENHANCED: Hours-based progression awareness
-// ✅ ENHANCED: Completion status tracking
+// ✅ FIXED: Uses identical T1 session counting logic as Stage1Wrapper
+// ✅ FIXED: Single-point data consistency maintained
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -16,14 +14,15 @@ const T1Introduction: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ✅ ENHANCED: Firebase context integration
+  // ✅ FIXED: Firebase context integration with sessions access
   const { currentUser } = useAuth();
   const { userProfile } = useUser();
   const { 
     getCurrentStage, 
     getTotalPracticeHours,
     getStageProgress,
-    calculateStats
+    calculateStats,
+    sessions // ✅ ADDED: Direct access to sessions for consistent counting
   } = usePractice();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -41,33 +40,58 @@ const T1Introduction: React.FC = () => {
 
   console.log('🔥 T1Introduction - Received state:', state);
 
-  // ✅ ENHANCED: Real-time progress calculation using available methods
+  // ✅ FIXED: Use identical T1 session counting logic as Stage1Wrapper
   const t1ProgressInfo = useMemo(() => {
     try {
-      // Use available methods from your PracticeContext
-      const currentStage = getCurrentStage();
-      const totalHours = getTotalPracticeHours();
-      const stats = calculateStats();
-      const stage1Progress = getStageProgress(1);
+      // ✅ Use IDENTICAL filtering logic as Stage1Wrapper
+      const getT1Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        console.log('🔍 T1Introduction DEBUG - All sessions:', sessions.map(s => ({
+          tLevel: s.tLevel,
+          level: s.level,
+          completed: s.completed,
+          sessionType: s.sessionType,
+          matchesT1: (s.tLevel || '').toLowerCase() === 't1' || (s.level || '').toLowerCase() === 't1',
+          completedCheck: s.completed !== false,
+          typeCheck: s.sessionType === 'meditation'
+        })));
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T1' || level === 'T1') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const t1Sessions = getT1Sessions();
+      const t1Required = 3;
+      const isT1Complete = t1Sessions >= 3;
+      const t1Percentage = Math.min((t1Sessions / t1Required) * 100, 100);
       
-      // Calculate T1 specific progress from stats
-      // Assuming T1 sessions are tracked in stats
-      const t1Sessions = stats.totalSessions || 0; // Total sessions completed
-      const t1Required = 3; // T1 requires 3 sessions
-      const t1Completed = Math.min(t1Sessions, t1Required);
-      const t1Percentage = Math.min((t1Completed / t1Required) * 100, 100);
-      const isT1Complete = t1Completed >= t1Required;
+      console.log('🎯 T1Introduction Progress Calculation:', {
+        t1Sessions,
+        t1Required,
+        isT1Complete,
+        t1Percentage,
+        source: 'practicecontext-sessions'
+      });
       
       return {
-        sessionsCompleted: t1Completed,
+        sessionsCompleted: t1Sessions, // ✅ Now correctly counts only T1 sessions
         totalRequired: t1Required,
         percentage: Math.round(t1Percentage),
         isComplete: isT1Complete,
-        currentStage,
-        totalHours,
-        canPractice: currentStage >= 1,
+        currentStage: getCurrentStage(),
+        totalHours: getTotalPracticeHours(),
+        canPractice: true,
         t1Sessions: t1Sessions,
-        estimatedTime: `${t1Completed * (state?.duration || 10)} minutes completed`
+        estimatedTime: `${t1Sessions * (state?.duration || 10)} minutes completed`
       };
     } catch (error) {
       console.error('Error calculating T1 progress:', error);
@@ -83,7 +107,7 @@ const T1Introduction: React.FC = () => {
         estimatedTime: '0 minutes completed'
       };
     }
-  }, [getCurrentStage, getTotalPracticeHours, calculateStats, getStageProgress, state?.duration]);
+  }, [getCurrentStage, getTotalPracticeHours, sessions, state?.duration]);
 
   // ✅ ENHANCED: Authentication and access validation
   useEffect(() => {
@@ -259,7 +283,7 @@ const T1Introduction: React.FC = () => {
           <h1 className="stage-title">{stageTitle}</h1>
         </div>
 
-        {/* ✅ ENHANCED: Real-time Progress Display */}
+        {/* ✅ FIXED: Real-time Progress Display with correct T1 counting */}
         <div className="progress-summary" style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
@@ -299,6 +323,16 @@ const T1Introduction: React.FC = () => {
               borderRadius: '3px',
               transition: 'width 0.3s ease'
             }} />
+          </div>
+          
+          {/* ✅ Data source indicator */}
+          <div style={{
+            marginTop: '8px',
+            fontSize: '12px',
+            opacity: '0.8',
+            color: 'rgba(255,255,255,0.9)'
+          }}>
+            ✅ Single-point data source: practicecontext-sessions
           </div>
         </div>
 
@@ -417,16 +451,19 @@ const T1Introduction: React.FC = () => {
           )}
         </div>
 
-        {/* ✅ ENHANCED: Debug Info (development only) */}
+        {/* ✅ FIXED: Debug Info with consistent data source */}
         {process.env.NODE_ENV === 'development' && (
           <div className="debug-info" style={{
             marginTop: '24px',
             padding: '16px',
-            background: '#f8f9fa',
+            background: '#f0fdf4',
+            border: '2px solid #10b981',
             borderRadius: '8px',
             fontSize: '12px'
           }}>
-            <h4>Debug Info:</h4>
+            <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+              ✅ Single-Point Compliance Debug:
+            </h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <strong>Navigation State:</strong>
@@ -435,10 +472,15 @@ const T1Introduction: React.FC = () => {
                 </pre>
               </div>
               <div>
-                <strong>T1 Progress:</strong>
-                <pre style={{ fontSize: '11px', margin: '4px 0' }}>
-                  {JSON.stringify(t1ProgressInfo, null, 2)}
-                </pre>
+                <strong>T1 Progress (Fixed):</strong>
+                <div style={{ color: '#065f46' }}>
+                  <div>T1 Sessions: {t1ProgressInfo.sessionsCompleted}/3</div>
+                  <div>Complete: {t1ProgressInfo.isComplete ? 'Yes' : 'No'}</div>
+                  <div>Percentage: {t1ProgressInfo.percentage}%</div>
+                  <div>Data Source: practicecontext-sessions</div>
+                  <div>Total Sessions in DB: {sessions?.length || 0}</div>
+                  <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from './contexts/auth/AuthContext';
-import { usePractice } from './contexts/practice/PracticeContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
-import { useNavigate } from 'react-router-dom';
 
 interface MindRecoveryReflectionProps {
   practiceType: string;
@@ -23,9 +21,8 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
   const [mentalState, setMentalState] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
-  // ✅ FIREBASE-ONLY: Use contexts instead of localStorage
+  // ✅ FIXED: Only use WellnessContext (PracticeContext already saved session in Timer)
   const { currentUser } = useAuth();
-  const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
 
   const mentalStateOptions = [
@@ -36,7 +33,7 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
     { value: 'worse', label: 'Worse', emoji: '😞', color: '#f44336' }
   ];
 
-  // ✅ FIREBASE-ONLY: Enhanced submission handler
+  // ✅ FIXED: Only save reflection notes (session already saved by MindRecoveryTimer)
   const handleSubmit = async () => {
     if (!mentalState) {
       alert('Please select how you feel after the practice.');
@@ -51,12 +48,11 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Get practice title for context
       const practiceTitle = getPracticeTitle();
       const pahmStats = calculatePAHMStats();
       
-      // Convert mental state to rating
-      const getRatingFromMentalState = (state: string): number => {
+      // Convert mental state to energy/intensity levels
+      const getEnergyFromMentalState = (state: string): number => {
         switch (state) {
           case 'much-better': return 9;
           case 'better': return 8;
@@ -67,43 +63,6 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
         }
       };
 
-      const rating = getRatingFromMentalState(mentalState);
-
-      // Convert PAHM counts to Universal Architecture format
-      const formattedPahmCounts = pahmCounts ? {
-        present_attachment: pahmCounts.likes || 0,
-        present_neutral: pahmCounts.present || 0,
-        present_aversion: pahmCounts.dislikes || 0,
-        past_attachment: pahmCounts.nostalgia || 0,
-        past_neutral: pahmCounts.past || 0,
-        past_aversion: pahmCounts.regret || 0,
-        future_attachment: pahmCounts.anticipation || 0,
-        future_neutral: pahmCounts.future || 0,
-        future_aversion: pahmCounts.worry || 0
-      } : undefined;
-
-      // ✅ FIREBASE-ONLY: Save reflection as a practice session (without reflection property)
-      await addPracticeSession({
-        timestamp: new Date().toISOString(),
-        duration: 5, // Mind Recovery is always 5 minutes
-        sessionType: 'mind_recovery' as const,
-        mindRecoveryContext: practiceType as any,
-        mindRecoveryPurpose: 'stress-relief' as any,
-        rating: rating,
-        notes: reflectionText 
-          ? `${practiceTitle} session completed with ${mentalState} outcome. Reflection: ${reflectionText}`
-          : `${practiceTitle} session completed with ${mentalState} outcome`,
-        presentPercentage: pahmStats?.presentPercentage || 95,
-        environment: {
-          posture: posture,
-          location: 'unknown',
-          lighting: 'unknown',
-          sounds: 'unknown'
-        },
-        pahmCounts: formattedPahmCounts
-      });
-
-      // ✅ FIREBASE-ONLY: Add emotional note for wellness tracking
       const getEmotionFromMentalState = (state: string): string => {
         switch (state) {
           case 'much-better': return 'refreshed';
@@ -115,19 +74,23 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
         }
       };
 
+      const energyLevel = getEnergyFromMentalState(mentalState);
       const emotion = getEmotionFromMentalState(mentalState);
-      const energyLevel = rating;
-      const intensity = Math.max(rating - 2, 3); // Intensity slightly lower than energy
+      const intensity = Math.max(energyLevel - 2, 3); // Intensity slightly lower than energy
 
+      // ✅ SINGLE SAVE: Only save wellness reflection note (session was already saved by Timer)
       await addEmotionalNote({
-        content: `Completed ${practiceTitle} Mind Recovery session. Feeling ${mentalState} after practice. ${reflectionText ? `Reflection: ${reflectionText}` : 'Quick mindfulness reset successful!'}`,
+        content: reflectionText 
+          ? `Completed ${practiceTitle} Mind Recovery session. Feeling ${mentalState} after practice. Reflection: ${reflectionText}`
+          : `Completed ${practiceTitle} Mind Recovery session. Feeling ${mentalState} after practice. Quick mindfulness reset successful!`,
         emotion: emotion,
         energyLevel: energyLevel,
         intensity: intensity,
         tags: ['mind-recovery', practiceType, posture, mentalState, 'reflection']
       });
 
-      console.log('✅ Mind Recovery reflection saved to Firebase');
+      console.log('✅ Mind Recovery reflection note saved to Firebase');
+      console.log('ℹ️ Session was already saved by MindRecoveryTimer - no duplicate save needed');
       
       // Brief delay for user feedback
       setTimeout(() => {
@@ -143,35 +106,26 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
   };
 
   const getPracticeTitle = (): string => {
-    switch (practiceType) {
-      case 'morning-recharge':
-        return 'Morning Recharge';
-      case 'emotional-reset':
-        return 'Emotional Reset';
-      case 'work-home-transition':
-        return 'Work-Home Transition';
-      case 'evening-wind-down':
-        return 'Evening Wind-Down';
-      case 'bedtime-winddown':
-        return 'Bedtime Wind Down';
-      case 'mid-day-reset':
-        return 'Mid-Day Reset';
-      default:
-        return 'Mind Recovery Practice';
-    }
+    const titleMap: Record<string, string> = {
+      'morning-recharge': 'Morning Recharge',
+      'emotional-reset': 'Emotional Reset',
+      'work-home-transition': 'Work-Home Transition',
+      'bedtime-winddown': 'Bedtime Wind Down', // ✅ FIXED: Updated ID
+      'mid-day-reset': 'Mid-Day Reset'
+    };
+    return titleMap[practiceType] || 'Mind Recovery Practice';
   };
 
   const getPostureDisplayName = (): string => {
-    switch (posture) {
-      case 'seated':
-        return 'Seated';
-      case 'standing':
-        return 'Standing';
-      case 'lying':
-        return 'Lying Down';
-      default:
-        return posture;
-    }
+    const postureMap: Record<string, string> = {
+      'seated': 'Seated',
+      'standing': 'Standing',
+      'lying': 'Lying Down',
+      'chair': 'Chair',
+      'cushion': 'Cushion',
+      'bench': 'Bench'
+    };
+    return postureMap[posture] || posture;
   };
 
   // Calculate PAHM stats for display
@@ -196,6 +150,20 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
   };
 
   const pahmStats = calculatePAHMStats();
+
+  // ✅ Get practice duration based on type
+  const getPracticeDuration = (): number => {
+    const durationMap: Record<string, number> = {
+      'morning-recharge': 5,
+      'mid-day-reset': 3,
+      'emotional-reset': 5,
+      'work-home-transition': 5,
+      'bedtime-winddown': 8
+    };
+    return durationMap[practiceType] || 5;
+  };
+
+  const duration = getPracticeDuration();
 
   return (
     <div style={{
@@ -250,7 +218,7 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
           fontSize: '16px',
           opacity: 0.9
         }}>
-          <span>{getPracticeTitle()}</span> • <span>{getPostureDisplayName()}</span> • <span>5 minutes</span>
+          <span>{getPracticeTitle()}</span> • <span>{getPostureDisplayName()}</span> • <span>{duration} minutes</span>
         </div>
 
         {/* PAHM Stats Display */}
@@ -373,6 +341,19 @@ const MindRecoveryReflection: React.FC<MindRecoveryReflectionProps> = ({
         >
           {isSubmitting ? 'Saving...' : 'Complete Reflection'}
         </button>
+
+        {/* ✅ INFO: Session save explanation */}
+        <div style={{
+          marginTop: '20px',
+          padding: '12px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '10px',
+          fontSize: '12px',
+          textAlign: 'center',
+          opacity: 0.8
+        }}>
+          ℹ️ Your session was automatically saved. This reflection adds a wellness note to track your progress.
+        </div>
       </div>
     </div>
   );

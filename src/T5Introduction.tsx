@@ -1,9 +1,7 @@
-// ✅ ENHANCED T5Introduction.tsx - FIREBASE INTEGRATION
+// ✅ FIXED T5Introduction.tsx - CONSISTENT SESSION COUNTING
 // File: src/T5Introduction.tsx
-// ✅ ENHANCED: Complete Firebase context integration
-// ✅ ENHANCED: Real-time progress tracking and validation
-// ✅ ENHANCED: Hours-based progression awareness
-// ✅ ENHANCED: T1, T2, T3, and T4 prerequisite validation
+// ✅ FIXED: Uses identical T-level session counting logic as Stage1Wrapper
+// ✅ FIXED: Single-point data consistency maintained
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -24,14 +22,14 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ✅ ENHANCED: Firebase context integration
+  // ✅ FIXED: Firebase context integration with sessions access
   const { currentUser } = useAuth();
   const { 
     getCurrentStage, 
     getTotalPracticeHours,
     getStageProgress,
     calculateStats,
-    sessions
+    sessions // ✅ ADDED: Direct access to sessions for consistent counting
   } = usePractice();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -50,55 +48,112 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
 
   console.log('🔥 T5Introduction - Received state:', state);
 
-  // ✅ ENHANCED: Real-time T1, T2, T3, T4, and T5 progress calculation
+  // ✅ FIXED: Use identical T-level session counting logic as Stage1Wrapper
   const progressInfo = useMemo(() => {
     try {
-      const allSessions = sessions || [];
-      const stats = calculateStats();
-      const currentStage = getCurrentStage();
-      const totalHours = getTotalPracticeHours();
-      
-      // Calculate T1 progress
-      const t1Sessions = allSessions.filter(session => 
-        session.tLevel === 'T1' || 
-        session.level === 't1' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration <= 12)
-      ).length;
-      
-      // Calculate T2 progress
-      const t2Sessions = allSessions.filter(session => 
-        session.tLevel === 'T2' || 
-        session.level === 't2' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 12 && session.duration <= 17)
-      ).length;
-      
-      // Calculate T3 progress
-      const t3Sessions = allSessions.filter(session => 
-        session.tLevel === 'T3' || 
-        session.level === 't3' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 17 && session.duration <= 22)
-      ).length;
-      
-      // Calculate T4 progress
-      const t4Sessions = allSessions.filter(session => 
-        session.tLevel === 'T4' || 
-        session.level === 't4' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 22 && session.duration <= 27)
-      ).length;
-      
-      // Calculate T5 progress
-      const t5Sessions = allSessions.filter(session => 
-        session.tLevel === 'T5' || 
-        session.level === 't5' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 27 && session.duration <= 32)
-      ).length;
+      // ✅ Use IDENTICAL filtering logic as Stage1Wrapper for ALL T-levels
+      const getT1Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T1' || level === 'T1') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT2Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T2' || level === 'T2') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT3Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T3' || level === 'T3') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT4Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T4' || level === 'T4') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT5Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T5' || level === 'T5') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const t1Sessions = getT1Sessions();
+      const t2Sessions = getT2Sessions();
+      const t3Sessions = getT3Sessions();
+      const t4Sessions = getT4Sessions();
+      const t5Sessions = getT5Sessions();
       
       const isT1Complete = t1Sessions >= 3;
       const isT2Complete = t2Sessions >= 3;
       const isT3Complete = t3Sessions >= 3;
       const isT4Complete = t4Sessions >= 3;
       const isT5Complete = t5Sessions >= 3;
-      const canAccessT5 = isT1Complete && isT2Complete && isT3Complete && isT4Complete && currentStage >= 1;
+      const canAccessT5 = isT1Complete && isT2Complete && isT3Complete && isT4Complete && getCurrentStage() >= 1;
+      
+      console.log('🎯 T5Introduction Progress Calculation:', {
+        t1Sessions,
+        t2Sessions,
+        t3Sessions,
+        t4Sessions,
+        t5Sessions,
+        isT1Complete,
+        isT2Complete,
+        isT3Complete,
+        isT4Complete,
+        isT5Complete,
+        canAccessT5,
+        source: 'practicecontext-sessions'
+      });
       
       return {
         // T1 Data
@@ -132,10 +187,10 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
         t5Percentage: Math.min((t5Sessions / 3) * 100, 100),
         
         // General Data
-        currentStage,
-        totalHours,
+        currentStage: getCurrentStage(),
+        totalHours: getTotalPracticeHours(),
         canAccessT5,
-        totalSessions: stats.totalSessions,
+        totalSessions: sessions?.length || 0,
         estimatedT5Time: `${t5Sessions * 30} minutes completed`,
         
         // Prerequisites summary
@@ -168,7 +223,7 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
         stageOneComplete: false
       };
     }
-  }, [sessions, calculateStats, getCurrentStage, getTotalPracticeHours]);
+  }, [sessions, getCurrentStage, getTotalPracticeHours]);
 
   // ✅ ENHANCED: Authentication and access validation
   useEffect(() => {
@@ -434,6 +489,16 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
                   }} />
                 </div>
               </div>
+              
+              {/* ✅ Data source indicator */}
+              <div style={{
+                marginTop: '12px',
+                fontSize: '12px',
+                opacity: '0.8',
+                color: '#6b7280'
+              }}>
+                ✅ Single-point data source: practicecontext-sessions
+              </div>
             </div>
             
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -540,7 +605,7 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
         <h1>{stageTitle}</h1>
       </div>
       
-      {/* ✅ ENHANCED: Real-time Progress Display */}
+      {/* ✅ FIXED: Real-time Progress Display with correct T-level counting */}
       <div className="progress-summary" style={{
         background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', // Green gradient for final level
         color: 'white',
@@ -611,6 +676,16 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
             🎉 Stage 1: Physical Readiness COMPLETE! Ready for Stage 2!
           </div>
         )}
+        
+        {/* ✅ Data source indicator */}
+        <div style={{
+          marginTop: '8px',
+          fontSize: '12px',
+          opacity: '0.8',
+          color: 'rgba(255,255,255,0.9)'
+        }}>
+          ✅ Single-point data source: practicecontext-sessions
+        </div>
       </div>
       
       <div className="introduction-content">
@@ -782,16 +857,19 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
           </div>
         )}
 
-        {/* ✅ ENHANCED: Debug Info (development only) */}
+        {/* ✅ FIXED: Debug Info with consistent data source */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '24px',
             padding: '16px',
-            background: '#f8f9fa',
+            background: '#f0fdf4',
+            border: '2px solid #10b981',
             borderRadius: '8px',
             fontSize: '12px'
           }}>
-            <h4>Debug Info:</h4>
+            <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+              ✅ Single-Point Compliance Debug:
+            </h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <strong>Navigation State:</strong>
@@ -800,10 +878,20 @@ const T5Introduction: React.FC<T5IntroductionProps> = ({
                 </pre>
               </div>
               <div>
-                <strong>T5 Progress:</strong>
-                <pre style={{ fontSize: '11px', margin: '4px 0' }}>
-                  {JSON.stringify(progressInfo, null, 2)}
-                </pre>
+                <strong>T1/T2/T3/T4/T5 Progress (Fixed):</strong>
+                <div style={{ color: '#065f46' }}>
+                  <div>T1 Sessions: {progressInfo.t1Sessions}/3 ({progressInfo.t1Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T2 Sessions: {progressInfo.t2Sessions}/3 ({progressInfo.t2Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T3 Sessions: {progressInfo.t3Sessions}/3 ({progressInfo.t3Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T4 Sessions: {progressInfo.t4Sessions}/3 ({progressInfo.t4Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T5 Sessions: {progressInfo.t5Sessions}/3 ({progressInfo.t5Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>Prerequisites Met: {progressInfo.prerequisitesMet ? 'Yes' : 'No'}</div>
+                  <div>Can Access T5: {progressInfo.canAccessT5 ? 'Yes' : 'No'}</div>
+                  <div>Stage One Complete: {progressInfo.stageOneComplete ? 'Yes' : 'No'}</div>
+                  <div>Data Source: practicecontext-sessions</div>
+                  <div>Total Sessions in DB: {progressInfo.totalSessions}</div>
+                  <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+                </div>
               </div>
             </div>
           </div>

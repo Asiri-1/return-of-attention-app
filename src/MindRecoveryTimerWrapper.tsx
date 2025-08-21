@@ -11,84 +11,121 @@ const MindRecoveryTimerWrapper: React.FC = () => {
   const [selectedPosture, setSelectedPosture] = useState<string>('');
   const [sessionPahmCounts, setSessionPahmCounts] = useState<any>(null);
 
-  // ✅ FIREBASE-ONLY: Updated practice options to match MindRecoveryHub IDs exactly
+  // ✅ FIXED: Updated practice options to match all components exactly
   const practiceOptions = [
     { id: 'morning-recharge', duration: 5, title: 'Morning Recharge' },
     { id: 'mid-day-reset', duration: 3, title: 'Mid-Day Reset' },
     { id: 'emotional-reset', duration: 5, title: 'Emotional Reset' },
     { id: 'work-home-transition', duration: 5, title: 'Work-Home Transition' },
-    { id: 'bedtime-winddown', duration: 8, title: 'Bedtime Wind Down' },
+    { id: 'bedtime-winddown', duration: 8, title: 'Bedtime Wind Down' } // ✅ FIXED: Correct ID and duration
   ];
 
   const practiceOption = practiceOptions.find(opt => opt.id === practiceType);
 
   useEffect(() => {
-    console.log('🧘‍♀️ MindRecoveryTimerWrapper mounted. practiceType:', practiceType);
-    console.log('📋 practiceOption found:', practiceOption);
-    console.log('📋 Available practice IDs:', practiceOptions.map(opt => opt.id));
+    console.log('🧘‍♀️ MindRecoveryTimerWrapper mounted');
+    console.log('   🔍 practiceType received:', practiceType);
+    console.log('   📋 practiceOption found:', practiceOption);
+    console.log('   📋 Available practice IDs:', practiceOptions.map(opt => opt.id));
     
-    // ✅ FIREBASE-ONLY: Better error handling without localStorage
-    if (!practiceType || !practiceOption) {
-      console.log('❌ Redirecting to /mind-recovery due to missing practiceType or practiceOption');
-      console.log('❌ Received practiceType:', practiceType);
-      console.log('❌ Available options:', practiceOptions.map(opt => opt.id).join(', '));
-      
+    // ✅ Enhanced error handling and logging
+    if (!practiceType) {
+      console.error('❌ No practiceType provided in URL params');
+      console.log('🔄 Redirecting to /mind-recovery due to missing practiceType');
       navigate('/mind-recovery');
+      return;
     }
-  }, [practiceType, practiceOption, navigate]);
+    
+    if (!practiceOption) {
+      console.error('❌ practiceType not found in available options');
+      console.error('   📥 Received:', practiceType);
+      console.error('   📋 Available:', practiceOptions.map(opt => opt.id).join(', '));
+      console.log('🔄 Redirecting to /mind-recovery due to invalid practiceType');
+      navigate('/mind-recovery');
+      return;
+    }
+    
+    console.log('✅ Valid practice option found:', {
+      id: practiceOption.id,
+      title: practiceOption.title,
+      duration: practiceOption.duration
+    });
+  }, [practiceType, practiceOption, navigate, practiceOptions]);
 
-  // ✅ FIREBASE-ONLY: Session completion handling without localStorage
+  // ✅ Session completion handling
   const handleTimerComplete = (pahmCounts: any) => {
-    console.log('✅ Mind recovery timer completed with PAHM counts:', pahmCounts);
+    console.log('✅ Mind recovery timer completed');
+    console.log('   📊 PAHM counts received:', pahmCounts);
+    console.log('   🔄 Moving to reflection step');
+    
     setSessionPahmCounts(pahmCounts);
     setCurrentStep('reflection');
   };
 
-  // ✅ FIREBASE-ONLY: Navigation handling without localStorage
+  // ✅ Reflection completion handling
   const handleReflectionComplete = () => {
-    console.log('✅ Mind recovery reflection completed, navigating to home');
+    console.log('✅ Mind recovery reflection completed');
+    console.log('   🏠 Navigating back to home');
     navigate('/home');
   };
 
-  // ✅ FIREBASE-ONLY: Back navigation without localStorage cleanup
+  // ✅ Enhanced back navigation with step tracking
   const handleBack = () => {
+    console.log(`🔙 Back button pressed from step: ${currentStep}`);
+    
     if (currentStep === 'reflection') {
+      console.log('   🔄 Moving back to timer step');
       setCurrentStep('timer');
     } else if (currentStep === 'timer') {
+      console.log('   🔄 Moving back to posture step');
       setCurrentStep('posture');
     } else if (currentStep === 'posture') {
+      console.log('   🏠 Navigating back to mind recovery hub');
       navigate('/mind-recovery');
     }
   };
 
-  // ✅ FIREBASE-ONLY: Posture selection handling without localStorage
+  // ✅ Enhanced posture selection handling
   const handleStartPractice = (posture: string) => {
-    console.log('🧘‍♀️ Starting mind recovery practice with posture:', posture);
-    console.log('🧘‍♀️ Practice type:', practiceType);
-    console.log('🧘‍♀️ Practice details:', practiceOption);
+    console.log('🧘‍♀️ Starting mind recovery practice');
+    console.log('   🪑 Selected posture:', posture);
+    console.log('   🎯 Practice type:', practiceType);
+    console.log('   📋 Practice details:', practiceOption);
+    console.log('   🔄 Moving to timer step');
+    
     setSelectedPosture(posture);
     setCurrentStep('timer');
   };
 
-  // 🛡️ Error boundary
+  // 🛡️ Error boundary and validation
   if (!practiceOption) {
-    console.log('❌ No practice option found, returning null');
+    console.log('❌ No practice option available, rendering null');
     return null;
   }
 
   // 🎯 POSTURE SELECTION STEP
   if (currentStep === 'posture') {
+    console.log('🪑 Rendering posture selection step');
     return (
       <UniversalPostureSelection
         sessionType="mind_recovery"
         onStartPractice={handleStartPractice}
         onBack={handleBack}
+        currentTLevel="MR" // Mind Recovery identifier
+        stageNumber={0} // Independent practice
       />
     );
   }
 
   // 🎯 TIMER STEP
   if (currentStep === 'timer') {
+    console.log('⏱️ Rendering timer step');
+    console.log('   📋 Timer props:', {
+      practiceType: practiceOption.id,
+      posture: selectedPosture,
+      duration: practiceOption.duration
+    });
+    
     return (
       <MindRecoveryTimer
         practiceType={practiceOption.id}
@@ -102,6 +139,13 @@ const MindRecoveryTimerWrapper: React.FC = () => {
 
   // 🎯 REFLECTION STEP
   if (currentStep === 'reflection') {
+    console.log('📝 Rendering reflection step');
+    console.log('   📊 Reflection props:', {
+      practiceType: practiceOption.id,
+      posture: selectedPosture,
+      pahmCounts: sessionPahmCounts
+    });
+    
     return (
       <MindRecoveryReflection
         practiceType={practiceOption.id}
@@ -113,6 +157,8 @@ const MindRecoveryTimerWrapper: React.FC = () => {
     );
   }
 
+  // 🛡️ Fallback case
+  console.warn('⚠️ Unknown step:', currentStep);
   return null;
 };
 

@@ -9,6 +9,7 @@ interface MindRecoverySelectionProps {
 const MindRecoverySelection: React.FC<MindRecoverySelectionProps> = ({ onBack }) => {
   const navigate = useNavigate();
 
+  // ✅ FIXED: Updated practice IDs to match MindRecoveryHub exactly
   const practices = [
     {
       id: 'morning-recharge',
@@ -18,18 +19,18 @@ const MindRecoverySelection: React.FC<MindRecoverySelectionProps> = ({ onBack })
       icon: '🌅'
     },
     {
-      id: 'emotional-reset',
-      title: 'Emotional Reset',
-      description: 'Settle your emotions and find balance',
-      duration: 5,
-      icon: '🧘‍♀️'
-    },
-    {
       id: 'mid-day-reset',
       title: 'Mid-Day Reset',
       description: 'Quick refresh to maintain focus',
       duration: 3,
       icon: '☀️'
+    },
+    {
+      id: 'emotional-reset',
+      title: 'Emotional Reset',
+      description: 'Settle your emotions and find balance',
+      duration: 5,
+      icon: '🧘‍♀️'
     },
     {
       id: 'work-home-transition',
@@ -39,16 +40,25 @@ const MindRecoverySelection: React.FC<MindRecoverySelectionProps> = ({ onBack })
       icon: '🏠'
     },
     {
-      id: 'evening-wind-down',
-      title: 'Evening Wind-Down',
-      description: 'Prepare your mind for restful sleep',
-      duration: 5,
+      id: 'bedtime-winddown', // ✅ FIXED: Changed from 'evening-wind-down' to 'bedtime-winddown'
+      title: 'Bedtime Wind Down', // ✅ FIXED: Updated title to match
+      description: 'Gentle preparation for restful sleep', // ✅ FIXED: Updated description
+      duration: 8, // ✅ FIXED: Updated duration to match MindRecoveryHub
       icon: '🌙'
     }
   ];
 
   const handlePracticeSelect = (practiceId: string) => {
-    console.log(`MindRecoverySelection: Attempting to navigate to /mind-recovery/${practiceId}`);
+    console.log(`✅ MindRecoverySelection: Navigating to /mind-recovery/${practiceId}`);
+    
+    // ✅ VALIDATION: Ensure practiceId is valid
+    const validIds = practices.map(p => p.id);
+    if (!validIds.includes(practiceId)) {
+      console.error('❌ Invalid practice ID:', practiceId);
+      console.log('✅ Valid IDs:', validIds);
+      return;
+    }
+    
     navigate(`/mind-recovery/${practiceId}`);
   };
 
@@ -60,7 +70,7 @@ const MindRecoverySelection: React.FC<MindRecoverySelectionProps> = ({ onBack })
         </button>
         <h1>Mind Recovery</h1>
         <p className="selection-description">
-          Choose a 5-minute PAHM practice to reset and recover your mind
+          Choose a PAHM practice to reset and recover your mind
         </p>
       </header>
 
@@ -82,9 +92,9 @@ const MindRecoverySelection: React.FC<MindRecoverySelectionProps> = ({ onBack })
       <div className="info-section">
         <h3>About Mind Recovery</h3>
         <p>
-          Mind Recovery practices are independent 5-minute PAHM sessions designed to help you 
+          Mind Recovery practices are independent PAHM sessions designed to help you 
           reset and recover throughout your day. Each practice includes posture selection, 
-          guided PAHM phases, and reflection.
+          guided PAHM awareness, and optional reflection.
         </p>
       </div>
     </div>
@@ -92,5 +102,3 @@ const MindRecoverySelection: React.FC<MindRecoverySelectionProps> = ({ onBack })
 };
 
 export default MindRecoverySelection;
-
-

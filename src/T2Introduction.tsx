@@ -1,9 +1,7 @@
-// ✅ ENHANCED T2Introduction.tsx - FIREBASE INTEGRATION
+// ✅ FIXED T2Introduction.tsx - CONSISTENT SESSION COUNTING
 // File: src/T2Introduction.tsx
-// ✅ ENHANCED: Complete Firebase context integration
-// ✅ ENHANCED: Real-time progress tracking and validation
-// ✅ ENHANCED: Hours-based progression awareness
-// ✅ ENHANCED: T1 prerequisite validation
+// ✅ FIXED: Uses identical T-level session counting logic as Stage1Wrapper
+// ✅ FIXED: Single-point data consistency maintained
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -24,7 +22,7 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ✅ ENHANCED: Firebase context integration
+  // ✅ FIXED: Firebase context integration with sessions access
   const { currentUser } = useAuth();
   const { userProfile } = useUser();
   const { 
@@ -32,7 +30,7 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
     getTotalPracticeHours,
     getStageProgress,
     calculateStats,
-    sessions
+    sessions // ✅ ADDED: Direct access to sessions for consistent counting
   } = usePractice();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -51,31 +49,55 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
 
   console.log('🔥 T2Introduction - Received state:', state);
 
-  // ✅ ENHANCED: Real-time T1 and T2 progress calculation
+  // ✅ FIXED: Use identical T-level session counting logic as Stage1Wrapper
   const progressInfo = useMemo(() => {
     try {
-      const allSessions = sessions || [];
-      const stats = calculateStats();
-      const currentStage = getCurrentStage();
-      const totalHours = getTotalPracticeHours();
-      
-      // Calculate T1 progress
-      const t1Sessions = allSessions.filter(session => 
-        session.tLevel === 'T1' || 
-        session.level === 't1' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration <= 12)
-      ).length;
-      
-      // Calculate T2 progress
-      const t2Sessions = allSessions.filter(session => 
-        session.tLevel === 'T2' || 
-        session.level === 't2' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 12 && session.duration <= 17)
-      ).length;
+      // ✅ Use IDENTICAL filtering logic as Stage1Wrapper for ALL T-levels
+      const getT1Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T1' || level === 'T1') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT2Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T2' || level === 'T2') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const t1Sessions = getT1Sessions();
+      const t2Sessions = getT2Sessions();
       
       const isT1Complete = t1Sessions >= 3;
       const isT2Complete = t2Sessions >= 3;
-      const canAccessT2 = isT1Complete && currentStage >= 1;
+      const canAccessT2 = isT1Complete && getCurrentStage() >= 1;
+      
+      console.log('🎯 T2Introduction Progress Calculation:', {
+        t1Sessions,
+        t2Sessions,
+        isT1Complete,
+        isT2Complete,
+        canAccessT2,
+        source: 'practicecontext-sessions'
+      });
       
       return {
         // T1 Data
@@ -91,10 +113,10 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
         t2Percentage: Math.min((t2Sessions / 3) * 100, 100),
         
         // General Data
-        currentStage,
-        totalHours,
+        currentStage: getCurrentStage(),
+        totalHours: getTotalPracticeHours(),
         canAccessT2,
-        totalSessions: stats.totalSessions,
+        totalSessions: sessions?.length || 0,
         estimatedT2Time: `${t2Sessions * 15} minutes completed`
       };
     } catch (error) {
@@ -106,7 +128,7 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
         totalSessions: 0, estimatedT2Time: '0 minutes completed'
       };
     }
-  }, [sessions, calculateStats, getCurrentStage, getTotalPracticeHours]);
+  }, [sessions, getCurrentStage, getTotalPracticeHours]);
 
   // ✅ ENHANCED: Authentication and access validation
   useEffect(() => {
@@ -298,6 +320,16 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
                   transition: 'width 0.3s ease'
                 }} />
               </div>
+              
+              {/* ✅ Data source indicator */}
+              <div style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                opacity: '0.8',
+                color: '#6b7280'
+              }}>
+                ✅ Single-point data source: practicecontext-sessions
+              </div>
             </div>
             
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -348,7 +380,7 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
         <h1>{stageTitle}</h1>
       </div>
       
-      {/* ✅ ENHANCED: Real-time Progress Display */}
+      {/* ✅ FIXED: Real-time Progress Display with correct T-level counting */}
       <div className="progress-summary" style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
@@ -388,6 +420,16 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
             borderRadius: '3px',
             transition: 'width 0.3s ease'
           }} />
+        </div>
+        
+        {/* ✅ Data source indicator */}
+        <div style={{
+          marginTop: '8px',
+          fontSize: '12px',
+          opacity: '0.8',
+          color: 'rgba(255,255,255,0.9)'
+        }}>
+          ✅ Single-point data source: practicecontext-sessions
         </div>
       </div>
              
@@ -505,16 +547,19 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
           </div>
         )}
 
-        {/* ✅ ENHANCED: Debug Info (development only) */}
+        {/* ✅ FIXED: Debug Info with consistent data source */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '24px',
             padding: '16px',
-            background: '#f8f9fa',
+            background: '#f0fdf4',
+            border: '2px solid #10b981',
             borderRadius: '8px',
             fontSize: '12px'
           }}>
-            <h4>Debug Info:</h4>
+            <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+              ✅ Single-Point Compliance Debug:
+            </h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <strong>Navigation State:</strong>
@@ -523,10 +568,15 @@ const T2Introduction: React.FC<T2IntroductionProps> = ({
                 </pre>
               </div>
               <div>
-                <strong>T2 Progress:</strong>
-                <pre style={{ fontSize: '11px', margin: '4px 0' }}>
-                  {JSON.stringify(progressInfo, null, 2)}
-                </pre>
+                <strong>T1/T2 Progress (Fixed):</strong>
+                <div style={{ color: '#065f46' }}>
+                  <div>T1 Sessions: {progressInfo.t1Sessions}/3 ({progressInfo.t1Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T2 Sessions: {progressInfo.t2Sessions}/3 ({progressInfo.t2Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>Can Access T2: {progressInfo.canAccessT2 ? 'Yes' : 'No'}</div>
+                  <div>Data Source: practicecontext-sessions</div>
+                  <div>Total Sessions in DB: {progressInfo.totalSessions}</div>
+                  <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+                </div>
               </div>
             </div>
           </div>

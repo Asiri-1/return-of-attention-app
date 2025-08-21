@@ -1,9 +1,7 @@
-// ✅ ENHANCED T3Introduction.tsx - FIREBASE INTEGRATION
+// ✅ FIXED T3Introduction.tsx - CONSISTENT SESSION COUNTING
 // File: src/T3Introduction.tsx
-// ✅ ENHANCED: Complete Firebase context integration
-// ✅ ENHANCED: Real-time progress tracking and validation
-// ✅ ENHANCED: Hours-based progression awareness
-// ✅ ENHANCED: T1 and T2 prerequisite validation
+// ✅ FIXED: Uses identical T-level session counting logic as Stage1Wrapper
+// ✅ FIXED: Single-point data consistency maintained
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -24,7 +22,7 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ✅ ENHANCED: Firebase context integration
+  // ✅ FIXED: Firebase context integration with sessions access
   const { currentUser } = useAuth();
   const { userProfile } = useUser();
   const { 
@@ -32,7 +30,7 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
     getTotalPracticeHours,
     getStageProgress,
     calculateStats,
-    sessions
+    sessions // ✅ ADDED: Direct access to sessions for consistent counting
   } = usePractice();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -51,39 +49,74 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
 
   console.log('🔥 T3Introduction - Received state:', state);
 
-  // ✅ ENHANCED: Real-time T1, T2, and T3 progress calculation
+  // ✅ FIXED: Use identical T-level session counting logic as Stage1Wrapper
   const progressInfo = useMemo(() => {
     try {
-      const allSessions = sessions || [];
-      const stats = calculateStats();
-      const currentStage = getCurrentStage();
-      const totalHours = getTotalPracticeHours();
-      
-      // Calculate T1 progress
-      const t1Sessions = allSessions.filter(session => 
-        session.tLevel === 'T1' || 
-        session.level === 't1' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration <= 12)
-      ).length;
-      
-      // Calculate T2 progress
-      const t2Sessions = allSessions.filter(session => 
-        session.tLevel === 'T2' || 
-        session.level === 't2' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 12 && session.duration <= 17)
-      ).length;
-      
-      // Calculate T3 progress
-      const t3Sessions = allSessions.filter(session => 
-        session.tLevel === 'T3' || 
-        session.level === 't3' ||
-        (session.stageLevel === 1 && session.sessionType === 'meditation' && session.duration > 17 && session.duration <= 22)
-      ).length;
+      // ✅ Use IDENTICAL filtering logic as Stage1Wrapper for ALL T-levels
+      const getT1Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T1' || level === 'T1') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT2Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T2' || level === 'T2') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const getT3Sessions = (): number => {
+        if (!sessions || sessions.length === 0) return 0;
+
+        return sessions.filter((s: any) => {
+          const tLevel = (s.tLevel || '').toUpperCase();
+          const level = (s.level || '').toUpperCase();
+          
+          return (
+            (tLevel === 'T3' || level === 'T3') &&
+            s.completed !== false && 
+            s.sessionType === 'meditation'
+          );
+        }).length;
+      };
+
+      const t1Sessions = getT1Sessions();
+      const t2Sessions = getT2Sessions();
+      const t3Sessions = getT3Sessions();
       
       const isT1Complete = t1Sessions >= 3;
       const isT2Complete = t2Sessions >= 3;
       const isT3Complete = t3Sessions >= 3;
-      const canAccessT3 = isT1Complete && isT2Complete && currentStage >= 1;
+      const canAccessT3 = isT1Complete && isT2Complete && getCurrentStage() >= 1;
+      
+      console.log('🎯 T3Introduction Progress Calculation:', {
+        t1Sessions,
+        t2Sessions,
+        t3Sessions,
+        isT1Complete,
+        isT2Complete,
+        isT3Complete,
+        canAccessT3,
+        source: 'practicecontext-sessions'
+      });
       
       return {
         // T1 Data
@@ -105,10 +138,10 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
         t3Percentage: Math.min((t3Sessions / 3) * 100, 100),
         
         // General Data
-        currentStage,
-        totalHours,
+        currentStage: getCurrentStage(),
+        totalHours: getTotalPracticeHours(),
         canAccessT3,
-        totalSessions: stats.totalSessions,
+        totalSessions: sessions?.length || 0,
         estimatedT3Time: `${t3Sessions * 20} minutes completed`,
         
         // Prerequisites summary
@@ -129,7 +162,7 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
         prerequisitesMet: false, missingPrerequisites: ['T1', 'T2']
       };
     }
-  }, [sessions, calculateStats, getCurrentStage, getTotalPracticeHours]);
+  }, [sessions, getCurrentStage, getTotalPracticeHours]);
 
   // ✅ ENHANCED: Authentication and access validation
   useEffect(() => {
@@ -354,6 +387,16 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
                   }} />
                 </div>
               </div>
+              
+              {/* ✅ Data source indicator */}
+              <div style={{
+                marginTop: '12px',
+                fontSize: '12px',
+                opacity: '0.8',
+                color: '#6b7280'
+              }}>
+                ✅ Single-point data source: practicecontext-sessions
+              </div>
             </div>
             
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -424,7 +467,7 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
         <h1>{stageTitle}</h1>
       </div>
       
-      {/* ✅ ENHANCED: Real-time Progress Display */}
+      {/* ✅ FIXED: Real-time Progress Display with correct T-level counting */}
       <div className="progress-summary" style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
@@ -469,6 +512,16 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
             borderRadius: '3px',
             transition: 'width 0.3s ease'
           }} />
+        </div>
+        
+        {/* ✅ Data source indicator */}
+        <div style={{
+          marginTop: '8px',
+          fontSize: '12px',
+          opacity: '0.8',
+          color: 'rgba(255,255,255,0.9)'
+        }}>
+          ✅ Single-point data source: practicecontext-sessions
         </div>
       </div>
       
@@ -610,16 +663,19 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
           </div>
         )}
 
-        {/* ✅ ENHANCED: Debug Info (development only) */}
+        {/* ✅ FIXED: Debug Info with consistent data source */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             marginTop: '24px',
             padding: '16px',
-            background: '#f8f9fa',
+            background: '#f0fdf4',
+            border: '2px solid #10b981',
             borderRadius: '8px',
             fontSize: '12px'
           }}>
-            <h4>Debug Info:</h4>
+            <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+              ✅ Single-Point Compliance Debug:
+            </h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <strong>Navigation State:</strong>
@@ -628,10 +684,17 @@ const T3Introduction: React.FC<T3IntroductionProps> = ({
                 </pre>
               </div>
               <div>
-                <strong>T3 Progress:</strong>
-                <pre style={{ fontSize: '11px', margin: '4px 0' }}>
-                  {JSON.stringify(progressInfo, null, 2)}
-                </pre>
+                <strong>T1/T2/T3 Progress (Fixed):</strong>
+                <div style={{ color: '#065f46' }}>
+                  <div>T1 Sessions: {progressInfo.t1Sessions}/3 ({progressInfo.t1Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T2 Sessions: {progressInfo.t2Sessions}/3 ({progressInfo.t2Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>T3 Sessions: {progressInfo.t3Sessions}/3 ({progressInfo.t3Complete ? 'Complete' : 'Incomplete'})</div>
+                  <div>Prerequisites Met: {progressInfo.prerequisitesMet ? 'Yes' : 'No'}</div>
+                  <div>Can Access T3: {progressInfo.canAccessT3 ? 'Yes' : 'No'}</div>
+                  <div>Data Source: practicecontext-sessions</div>
+                  <div>Total Sessions in DB: {progressInfo.totalSessions}</div>
+                  <div>User ID: {currentUser?.uid?.substring(0, 8)}...</div>
+                </div>
               </div>
             </div>
           </div>
