@@ -1,614 +1,694 @@
-// ✅ COMPLETE DirectFirebaseAdmin - Real Firebase Data Dashboard
+// ✅ CLEAN Admin Panel - Analytics Completely Removed
 // File: src/components/admin/DirectFirebaseAdmin.js
-// 🔥 FIREBASE-DIRECT: Reads actual Firestore data, not context state
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, doc, deleteDoc, writeBatch, query, orderBy, limit } from 'firebase/firestore';
-import { db } from '../../firebase'; // Adjust path to your firebase config
-import { useAuth } from '../../contexts/auth/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { useWellness } from '../../contexts/wellness/WellnessContext';
 
 const DirectFirebaseAdmin = () => {
-  const { currentUser } = useAuth();
-  const [data, setData] = useState({
+  const { emotionalNotes, clearWellnessData } = useWellness();
+  
+  // ✅ REMOVED: analytics from stats
+  const [stats, setStats] = useState({
     practiceSessions: 0,
     mindRecoverySessions: 0,
+    dailyNotes: 0,
     userProgress: 0,
     users: 0,
-    analytics: 0,
-    loading: false,
-    lastUpdated: null
+    questionnaires: 0,
+    selfAssessments: 0,
+    total: 0
   });
-  const [clearing, setClearing] = useState(false);
-  const [sessionDetails, setSessionDetails] = useState([]);
+  
+  // ✅ REMOVED: analytics from recentData
+  const [recentData, setRecentData] = useState({
+    practiceSessions: [],
+    mindRecoverySessions: [],
+    dailyNotes: [],
+    userProgress: [],
+    users: [],
+    questionnaires: [],
+    selfAssessments: []
+  });
+  
+  const [isLoading, setIsLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
-  // ✅ STEP 1: Direct Firestore Query Function
-  const fetchRealFirebaseData = async () => {
-    setData(prev => ({ ...prev, loading: true }));
+  const loadData = async () => {
+    setIsLoading(true);
+    console.log('🔄 Loading Firebase data...');
     
     try {
-      console.log('🔥 DIRECT: Querying real Firestore data...');
-      
-      // Query all your main collections
+      // ✅ CLEAN: Only real collections that exist
       const collections = [
         'practiceSessions',
         'mindRecoverySessions', 
         'userProgress',
-        'users',
-        'analytics',
-        'questionnaires',
-        'selfAssessments'
+        'users'
+        // ✅ REMOVED: questionnaires, selfAssessments (don't exist)
       ];
       
-      const counts = {};
-      const sampleData = {};
+      const results = {};
+      let totalDocs = 0;
       
       for (const collectionName of collections) {
         try {
-          const snapshot = await getDocs(collection(db, collectionName));
-          counts[collectionName] = snapshot.size;
+          const querySnapshot = await getDocs(collection(db, collectionName));
+          const docs = [];
           
-          // Get sample documents
-          if (snapshot.size > 0) {
-            sampleData[collectionName] = snapshot.docs.slice(0, 3).map(doc => ({
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            docs.push({
               id: doc.id,
-              ...doc.data()
-            }));
-          }
+              ...data,
+              timestamp: data.timestamp || data.createdAt || data.lastPractice || 'Unknown'
+            });
+          });
           
-          console.log(`📊 ${collectionName}: ${snapshot.size} documents`);
+          results[collectionName] = docs;
+          totalDocs += docs.length;
+          console.log(`📊 ${collectionName}: ${docs.length} documents`);
         } catch (error) {
-          console.warn(`⚠️ Could not read ${collectionName}:`, error.message);
-          counts[collectionName] = 0;
+          console.error(`❌ Error loading ${collectionName}:`, error);
+          results[collectionName] = [];
         }
       }
       
-      // Get recent practice sessions for details
-      try {
-        const recentSessionsQuery = query(
-          collection(db, 'practiceSessions'), 
-          orderBy('createdAt', 'desc'), 
-          limit(10)
-        );
-        const recentSnapshot = await getDocs(recentSessionsQuery);
-        setSessionDetails(recentSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })));
-      } catch (error) {
-        console.warn('Could not fetch recent sessions:', error);
-        setSessionDetails([]);
-      }
+      // Use emotional notes from WellnessContext
+      console.log('📝 Getting emotional notes from WellnessContext...');
+      results.dailyNotes = emotionalNotes;
+      totalDocs += emotionalNotes.length;
       
-      setData({
-        practiceSessions: counts.practiceSessions || 0,
-        mindRecoverySessions: counts.mindRecoverySessions || 0,
-        userProgress: counts.userProgress || 0,
-        users: counts.users || 0,
-        analytics: counts.analytics || 0,
-        questionnaires: counts.questionnaires || 0,
-        selfAssessments: counts.selfAssessments || 0,
-        loading: false,
-        lastUpdated: new Date().toISOString(),
-        sampleData
-      });
+      // ✅ CLEAN: Only real collections in stats
+      const newStats = {
+        practiceSessions: results.practiceSessions?.length || 0,
+        mindRecoverySessions: results.mindRecoverySessions?.length || 0,
+        dailyNotes: results.dailyNotes?.length || 0,
+        userProgress: results.userProgress?.length || 0,
+        users: results.users?.length || 0,
+        questionnaires: 0, // Placeholder - doesn't exist
+        selfAssessments: 0, // Placeholder - doesn't exist
+        total: totalDocs
+      };
       
-      const totalDocs = Object.values(counts).reduce((sum, count) => sum + count, 0);
-      console.log(`✅ REAL FIREBASE DATA: ${totalDocs} total documents found`);
+      // ✅ CLEAN: Only real collections in recent data
+      const newRecentData = {
+        practiceSessions: results.practiceSessions?.slice(-5) || [],
+        mindRecoverySessions: results.mindRecoverySessions?.slice(-5) || [],
+        dailyNotes: results.dailyNotes?.slice(-5) || [],
+        userProgress: results.userProgress?.slice(-5) || [],
+        users: results.users?.slice(-5) || [],
+        questionnaires: [], // Placeholder - doesn't exist
+        selfAssessments: [] // Placeholder - doesn't exist
+      };
+      
+      setStats(newStats);
+      setRecentData(newRecentData);
+      
+      console.log('✅ Firebase data loaded successfully:', newStats);
       
     } catch (error) {
-      console.error('❌ Error fetching real Firebase data:', error);
-      setData(prev => ({ ...prev, loading: false }));
-      alert('Error connecting to Firebase: ' + error.message);
+      console.error('❌ Error loading Firebase data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ✅ STEP 2: Proper Batch Deletion Function
-  const clearAllFirebaseData = async () => {
-    if (!window.confirm('⚠️ DANGER: This will permanently delete ALL Firebase data!\n\nThis includes:\n• All practice sessions\n• All mind recovery sessions\n• All user progress\n• All analytics data\n\nThis CANNOT be undone!\n\nType "DELETE" in the next prompt to confirm.')) {
-      return;
+  const clearEmotionalNotes = async () => {
+    try {
+      setIsDeleting(true);
+      
+      if (!window.confirm('Are you sure you want to delete ALL emotional notes? This cannot be undone.')) {
+        setIsDeleting(false);
+        return;
+      }
+      
+      if (clearWellnessData) {
+        console.log('🗑️ Using WellnessContext clearWellnessData...');
+        await clearWellnessData();
+        console.log('✅ WellnessContext cleared successfully');
+      } else {
+        console.warn('⚠️ clearWellnessData function not available in WellnessContext');
+        alert('Clear function not available. Check WellnessContext implementation.');
+      }
+      
+      await loadData();
+      alert('✅ Emotional notes cleared successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error clearing emotional notes:', error);
+      alert(`❌ Error clearing emotional notes:\n\n${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const clearCollection = async (collectionName) => {
+    if (collectionName === 'dailyNotes') {
+      return await clearEmotionalNotes();
     }
     
-    const confirmText = prompt('Type "DELETE" to confirm permanent deletion of all Firebase data:');
-    if (confirmText !== 'DELETE') {
-      alert('Deletion cancelled - incorrect confirmation text');
+    // ✅ BLOCK: Don't allow clearing non-existent collections
+    if (collectionName === 'questionnaires' || collectionName === 'selfAssessments') {
+      alert(`${collectionName} collection doesn't exist in Firebase - nothing to clear.`);
       return;
     }
-    
-    setClearing(true);
     
     try {
-      console.log('🗑️ DANGER: Starting complete Firebase data deletion...');
+      setIsDeleting(true);
       
+      if (!window.confirm(`Are you sure you want to delete ALL ${collectionName}? This cannot be undone.`)) {
+        setIsDeleting(false);
+        return;
+      }
+      
+      const querySnapshot = await getDocs(collection(db, collectionName));
+      const deletePromises = [];
+      
+      querySnapshot.forEach((doc) => {
+        deletePromises.push(deleteDoc(doc.ref));
+      });
+      
+      await Promise.all(deletePromises);
+      console.log(`✅ Deleted ${deletePromises.length} documents from ${collectionName}`);
+      
+      alert(`✅ Successfully deleted ${deletePromises.length} documents from ${collectionName}`);
+      await loadData();
+      
+    } catch (error) {
+      console.error(`❌ Error clearing ${collectionName}:`, error);
+      alert(`❌ Failed to clear ${collectionName}:\n\n${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const deleteAllData = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      alert('Please type "DELETE" to confirm deletion of all data.');
+      return;
+    }
+    
+    try {
+      setIsDeleting(true);
+      
+      if (!window.confirm('🚨 FINAL WARNING!\n\nThis will delete ALL data from Firebase. This action CANNOT be undone!')) {
+        setIsDeleting(false);
+        return;
+      }
+      
+      // ✅ CLEAN: Only delete collections that actually exist
       const collections = [
         'practiceSessions',
-        'mindRecoverySessions', 
-        'userProgress',
-        'analytics',
-        'questionnaires',
-        'selfAssessments'
+        'mindRecoverySessions',
+        'userProgress', 
+        'users'
       ];
       
       let totalDeleted = 0;
       
       for (const collectionName of collections) {
         try {
-          const snapshot = await getDocs(collection(db, collectionName));
+          const querySnapshot = await getDocs(collection(db, collectionName));
+          const deletePromises = [];
           
-          if (snapshot.size > 0) {
-            // Delete in batches (Firestore batch limit is 500)
-            const batches = [];
-            let currentBatch = writeBatch(db);
-            let batchCount = 0;
-            
-            snapshot.forEach((doc) => {
-              currentBatch.delete(doc.ref);
-              batchCount++;
-              totalDeleted++;
-              
-              if (batchCount === 500) {
-                batches.push(currentBatch);
-                currentBatch = writeBatch(db);
-                batchCount = 0;
-              }
-            });
-            
-            // Add the last batch if it has documents
-            if (batchCount > 0) {
-              batches.push(currentBatch);
-            }
-            
-            // Commit all batches
-            for (const batch of batches) {
-              await batch.commit();
-            }
-            
-            console.log(`✅ Deleted ${snapshot.size} documents from ${collectionName}`);
-          }
+          querySnapshot.forEach((doc) => {
+            deletePromises.push(deleteDoc(doc.ref));
+          });
+          
+          await Promise.all(deletePromises);
+          totalDeleted += deletePromises.length;
+          console.log(`✅ Deleted ${deletePromises.length} documents from ${collectionName}`);
+          
         } catch (error) {
-          console.error(`❌ Error deleting from ${collectionName}:`, error);
+          console.error(`❌ Error deleting ${collectionName}:`, error);
         }
       }
       
-      console.log(`🗑️ COMPLETE: Deleted ${totalDeleted} documents from Firebase`);
-      alert(`✅ Firebase clearing complete!\n\n${totalDeleted} documents deleted from Firebase.\n\nRefreshing data to verify...`);
+      // Delete emotional notes
+      await clearEmotionalNotes();
       
-      // Refresh data to verify clearing worked
-      await fetchRealFirebaseData();
+      alert(`✅ Complete deletion summary:\n\nTotal Documents Deleted: ${totalDeleted}\n\nPage will refresh...`);
+      setDeleteConfirmation('');
       
-    } catch (error) {
-      console.error('❌ Error during Firebase clearing:', error);
-      alert('❌ Error clearing Firebase data: ' + error.message);
-    }
-    
-    setClearing(false);
-  };
-
-  // ✅ STEP 3: Clear specific collection
-  const clearSpecificCollection = async (collectionName) => {
-    if (!window.confirm(`Clear all documents from "${collectionName}" collection?`)) {
-      return;
-    }
-    
-    try {
-      const snapshot = await getDocs(collection(db, collectionName));
-      
-      if (snapshot.size === 0) {
-        alert(`Collection "${collectionName}" is already empty`);
-        return;
-      }
-      
-      const batch = writeBatch(db);
-      snapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      
-      await batch.commit();
-      
-      console.log(`✅ Cleared ${snapshot.size} documents from ${collectionName}`);
-      alert(`✅ Cleared ${snapshot.size} documents from "${collectionName}"`);
-      
-      // Refresh data
-      await fetchRealFirebaseData();
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
     } catch (error) {
-      console.error(`❌ Error clearing ${collectionName}:`, error);
-      alert(`❌ Error clearing ${collectionName}: ${error.message}`);
+      console.error('❌ Error deleting all data:', error);
+      alert(`❌ Error occurred during deletion:\n\n${error.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // ✅ STEP 4: Load real data on component mount
   useEffect(() => {
-    fetchRealFirebaseData();
-  }, []);
+    loadData();
+  }, [emotionalNotes]);
 
-  // ✅ STEP 5: Auto-refresh every 30 seconds
   useEffect(() => {
-    const interval = setInterval(fetchRealFirebaseData, 30000);
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!currentUser) {
+  if (isLoading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h3>🔐 Authentication Required</h3>
-        <p>Please sign in to access Firebase admin dashboard</p>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '200px',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        🔄 Loading Firebase data...
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'Arial, sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{
-        background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
-        border: '2px solid #f87171',
-        borderRadius: '0.5rem',
-        padding: '1.5rem',
-        marginBottom: '1.5rem'
+    <div style={{ 
+      maxWidth: '1200px', 
+      margin: '0 auto', 
+      padding: '20px',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      <div style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '30px',
+        borderRadius: '12px',
+        marginBottom: '30px',
+        textAlign: 'center'
       }}>
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: '700',
-          color: '#dc2626',
-          margin: '0 0 0.5rem 0'
-        }}>
-          🔥 Real Firebase Data Dashboard
-        </h2>
-        <p style={{
-          color: '#991b1b',
-          margin: '0 0 1rem 0'
-        }}>
-          Direct Firestore queries - shows actual database contents, not context state
+        <h1 style={{ margin: '0 0 10px 0', fontSize: '2.5em' }}>
+          🔥 Firebase Admin Dashboard
+        </h1>
+        <p style={{ margin: '0', fontSize: '1.2em', opacity: 0.9 }}>
+          Real-time database monitoring and management
         </p>
-        
         <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '1rem', 
-          flexWrap: 'wrap'
+          marginTop: '20px', 
+          padding: '15px', 
+          background: 'rgba(255,255,255,0.2)', 
+          borderRadius: '8px',
+          fontSize: '1.1em'
         }}>
-          <button 
-            onClick={fetchRealFirebaseData} 
-            disabled={data.loading}
-            style={{ 
-              padding: '0.75rem 1rem', 
-              backgroundColor: data.loading ? '#9ca3af' : '#2563eb', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '0.5rem',
-              cursor: data.loading ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            {data.loading ? '🔄 Loading...' : '🔄 Refresh Real Data'}
-          </button>
-          
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            style={{
-              padding: '0.75rem 1rem',
-              backgroundColor: '#7c3aed',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            {showDetails ? '📊 Hide Details' : '📊 Show Details'}
-          </button>
-          
-          <button
-            onClick={() => window.open('https://console.firebase.google.com/project/return-of-attention-app/firestore', '_blank')}
-            style={{
-              padding: '0.75rem 1rem',
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            🔥 Open Firebase Console
-          </button>
+          🔗 Connected to Firebase • {stats.total} total documents
         </div>
-
-        {data.lastUpdated && (
-          <p style={{
-            fontSize: '0.75rem',
-            color: '#dc2626',
-            margin: '0.5rem 0 0 0'
-          }}>
-            Last updated: {new Date(data.lastUpdated).toLocaleString()}
-          </p>
-        )}
       </div>
 
-      {/* Real Firebase Data Summary */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.5rem',
-        padding: '1.5rem',
-        marginBottom: '1.5rem'
+      {/* ✅ CLEAN: Stats Grid - Only Real Collections */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+        gap: '20px',
+        marginBottom: '30px'
       }}>
-        <h3 style={{
-          fontSize: '1.25rem',
-          fontWeight: '600',
-          color: '#1f2937',
-          margin: '0 0 1rem 0'
+        {/* Practice Sessions */}
+        <div style={{ 
+          background: '#e3f2fd', 
+          border: '2px solid #2196f3', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center'
         }}>
-          📊 Current Firestore Data (Real-Time)
-        </h3>
-        
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1rem'
-        }}>
-          {[
-            { key: 'practiceSessions', label: '🧘 Practice Sessions', color: '#059669' },
-            { key: 'mindRecoverySessions', label: '🌱 Mind Recovery Sessions', color: '#7c3aed' },
-            { key: 'userProgress', label: '📈 User Progress', color: '#2563eb' },
-            { key: 'users', label: '👥 Users', color: '#dc2626' },
-            { key: 'analytics', label: '📊 Analytics', color: '#f59e0b' },
-            { key: 'questionnaires', label: '📋 Questionnaires', color: '#ec4899' },
-            { key: 'selfAssessments', label: '🔍 Self Assessments', color: '#06b6d4' }
-          ].map(({ key, label, color }) => (
-            <div key={key} style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '0.5rem',
-              padding: '1rem',
-              textAlign: 'center'
-            }}>
-              <div style={{
-                fontSize: '1.75rem',
-                fontWeight: '700',
-                color: color,
-                marginBottom: '0.25rem'
-              }}>
-                {data[key]}
-              </div>
-              <div style={{
-                fontSize: '0.875rem',
-                color: '#64748b'
-              }}>
-                {label}
-              </div>
-              <button
-                onClick={() => clearSpecificCollection(key)}
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.25rem',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer'
-                }}
-              >
-                🗑️ Clear
-              </button>
-            </div>
-          ))}
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>🧘</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#1976d2' }}>
+            {stats.practiceSessions}
+          </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '15px' }}>
+            Practice Sessions
+          </div>
+          <button 
+            onClick={() => clearCollection('practiceSessions')}
+            disabled={isDeleting}
+            style={{
+              background: isDeleting ? '#ccc' : '#ff5722',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            {isDeleting ? '⏳' : 'Clear'}
+          </button>
         </div>
 
-        <div style={{
-          background: '#fef3c7',
-          border: '1px solid #fbbf24',
-          borderRadius: '0.5rem',
-          padding: '0.75rem'
+        {/* Mind Recovery Sessions */}
+        <div style={{ 
+          background: '#f3e5f5', 
+          border: '2px solid #9c27b0', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center'
         }}>
-          <div style={{
-            fontSize: '0.875rem',
-            color: '#92400e',
-            fontWeight: '600'
-          }}>
-            📊 Total Documents in Firebase: {
-              data.practiceSessions + data.mindRecoverySessions + data.userProgress + 
-              data.users + data.analytics + data.questionnaires + data.selfAssessments
-            }
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>🌱</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#7b1fa2' }}>
+            {stats.mindRecoverySessions}
           </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '15px' }}>
+            Mind Recovery Sessions
+          </div>
+          <button 
+            onClick={() => clearCollection('mindRecoverySessions')}
+            disabled={isDeleting}
+            style={{
+              background: isDeleting ? '#ccc' : '#ff5722',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            {isDeleting ? '⏳' : 'Clear'}
+          </button>
+        </div>
+
+        {/* Daily Emotional Notes */}
+        <div style={{ 
+          background: '#fff3e0', 
+          border: '2px solid #f59e0b', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>📝</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#f57c00' }}>
+            {stats.dailyNotes}
+          </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '10px' }}>
+            Daily Emotional Notes
+          </div>
+          <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
+            ✅ From WellnessContext (same as Daily Notes page)
+          </div>
+          <button 
+            onClick={() => clearCollection('dailyNotes')}
+            disabled={isDeleting}
+            style={{
+              background: isDeleting ? '#ccc' : '#ff5722',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            {isDeleting ? '⏳ Clearing...' : 'Clear'}
+          </button>
+        </div>
+
+        {/* User Progress */}
+        <div style={{ 
+          background: '#e8f5e8', 
+          border: '2px solid #4caf50', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>📈</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#388e3c' }}>
+            {stats.userProgress}
+          </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '15px' }}>
+            User Progress
+          </div>
+          <button 
+            onClick={() => clearCollection('userProgress')}
+            disabled={isDeleting}
+            style={{
+              background: isDeleting ? '#ccc' : '#ff5722',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            {isDeleting ? '⏳' : 'Clear'}
+          </button>
+        </div>
+
+        {/* Users */}
+        <div style={{ 
+          background: '#fce4ec', 
+          border: '2px solid #e91e63', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>👥</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#c2185b' }}>
+            {stats.users}
+          </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '15px' }}>
+            Users
+          </div>
+          <button 
+            onClick={() => clearCollection('users')}
+            disabled={isDeleting}
+            style={{
+              background: isDeleting ? '#ccc' : '#ff5722',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            {isDeleting ? '⏳' : 'Clear'}
+          </button>
+        </div>
+
+        {/* ✅ OPTIONAL: Keep placeholders for future features (show as disabled) */}
+        <div style={{ 
+          background: '#f1f8e9', 
+          border: '2px solid #8bc34a', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center',
+          opacity: 0.6
+        }}>
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>📋</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#689f38' }}>
+            {stats.questionnaires}
+          </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '10px' }}>
+            Questionnaires
+          </div>
+          <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
+            🚧 Feature coming soon
+          </div>
+          <button 
+            disabled
+            style={{
+              background: '#ccc',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'not-allowed',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            N/A
+          </button>
+        </div>
+
+        <div style={{ 
+          background: '#fff8e1', 
+          border: '2px solid #ffc107', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center',
+          opacity: 0.6
+        }}>
+          <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>🔍</div>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#f57c00' }}>
+            {stats.selfAssessments}
+          </div>
+          <div style={{ fontSize: '1.1em', color: '#424242', marginBottom: '10px' }}>
+            Self Assessments
+          </div>
+          <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
+            🚧 Feature coming soon
+          </div>
+          <button 
+            disabled
+            style={{
+              background: '#ccc',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'not-allowed',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            N/A
+          </button>
         </div>
       </div>
 
-      {/* Session Details */}
-      {showDetails && sessionDetails.length > 0 && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.5rem',
-          padding: '1.5rem',
-          marginBottom: '1.5rem'
-        }}>
-          <h3 style={{
-            fontSize: '1.125rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            margin: '0 0 1rem 0'
-          }}>
-            📋 Recent Practice Sessions
-          </h3>
-          
-          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {sessionDetails.map((session, index) => (
-              <div key={session.id} style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '0.25rem',
-                padding: '0.75rem',
-                marginBottom: '0.5rem'
-              }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: '600' }}>
-                  Session {index + 1}: {session.id}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  Created: {session.createdAt ? new Date(session.createdAt.seconds * 1000).toLocaleString() : 'Unknown'}
-                </div>
-                {session.userId && (
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    User: {session.userId}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Show Details Toggle */}
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          style={{
+            background: showDetails ? '#f44336' : '#2196f3',
+            color: 'white',
+            border: 'none',
+            padding: '15px 30px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }}
+        >
+          {showDetails ? '🙈 Hide Details' : '👁️ Show Details'}
+        </button>
+      </div>
 
-      {/* Sample Data Display */}
-      {showDetails && data.sampleData && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.5rem',
-          padding: '1.5rem',
-          marginBottom: '1.5rem'
+      {/* Recent Data Details */}
+      {showDetails && (
+        <div style={{ 
+          background: '#f5f5f5', 
+          borderRadius: '12px', 
+          padding: '30px',
+          marginBottom: '30px'
         }}>
-          <h3 style={{
-            fontSize: '1.125rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            margin: '0 0 1rem 0'
-          }}>
-            🔍 Sample Data from Collections
-          </h3>
+          <h2 style={{ marginBottom: '20px', color: '#333' }}>
+            📋 Recent Data Sample (Last 5 items per collection)
+          </h2>
           
-          {Object.entries(data.sampleData).map(([collection, samples]) => (
-            <div key={collection} style={{ marginBottom: '1rem' }}>
-              <h4 style={{
-                fontSize: '1rem',
-                fontWeight: '600',
-                color: '#374151',
-                margin: '0 0 0.5rem 0'
+          {/* Only show details for collections that have data */}
+          {recentData.dailyNotes.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ 
+                color: '#f57c00', 
+                borderBottom: '2px solid #f57c00', 
+                paddingBottom: '5px',
+                marginBottom: '15px'
               }}>
-                {collection} (showing {samples.length} of {data[collection]})
-              </h4>
-              <div style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '0.25rem',
-                padding: '0.5rem',
-                fontSize: '0.75rem',
-                fontFamily: 'monospace',
-                maxHeight: '150px',
-                overflowY: 'auto'
+                📝 Recent Daily Emotional Notes ({recentData.dailyNotes.length}) - From WellnessContext
+              </h3>
+              {recentData.dailyNotes.map((note, index) => (
+                <div key={index} style={{ 
+                  background: 'white', 
+                  padding: '15px', 
+                  borderRadius: '8px', 
+                  marginBottom: '10px',
+                  border: '1px solid #ddd'
+                }}>
+                  <div style={{ fontSize: '14px', color: '#666' }}>
+                    🆔 ID: {note.noteId || note.id || 'No ID'}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666' }}>
+                    🕒 Time: {note.timestamp || 'No timestamp'}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666' }}>
+                    😊 Emotion: {note.emotion || 'No emotion'}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666' }}>
+                    📝 Content: {note.content?.substring(0, 100) || 'No content'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {recentData.dailyNotes.length === 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ 
+                color: '#f57c00', 
+                borderBottom: '2px solid #f57c00', 
+                paddingBottom: '5px',
+                marginBottom: '15px'
               }}>
-                <pre>{JSON.stringify(samples, null, 2)}</pre>
+                📝 Daily Emotional Notes - From WellnessContext
+              </h3>
+              <div style={{ 
+                background: 'white', 
+                padding: '15px', 
+                borderRadius: '8px', 
+                border: '1px solid #ddd',
+                color: '#666',
+                fontStyle: 'italic'
+              }}>
+                No emotional notes found. Try adding some notes on the Daily Notes page!
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 
       {/* Danger Zone */}
-      <div style={{
-        background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-        border: '2px solid #fecaca',
-        borderRadius: '0.5rem',
-        padding: '1.5rem'
+      <div style={{ 
+        background: '#ffebee', 
+        border: '2px solid #f44336', 
+        borderRadius: '12px', 
+        padding: '30px',
+        textAlign: 'center'
       }}>
-        <h3 style={{
-          fontSize: '1.25rem',
-          fontWeight: '600',
-          color: '#991b1b',
-          margin: '0 0 1rem 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
-          ⚠️ Danger Zone - Complete Firebase Deletion
-        </h3>
+        <h2 style={{ color: '#d32f2f', marginBottom: '20px' }}>
+          ⚠️ Danger Zone
+        </h2>
+        <p style={{ color: '#666', marginBottom: '20px' }}>
+          This will permanently delete ALL data from Firebase. This action cannot be undone.
+        </p>
         
-        <div style={{
-          background: 'white',
-          border: '1px solid #fecaca',
-          borderRadius: '0.5rem',
-          padding: '1.5rem'
-        }}>
-          <h4 style={{
-            fontSize: '1.125rem',
-            fontWeight: '600',
-            color: '#b91c1c',
-            margin: '0 0 0.75rem 0'
-          }}>
-            🗑️ Clear ALL Firebase Data (Permanent Deletion)
-          </h4>
-          <p style={{
-            color: '#374151',
-            margin: '0 0 1rem 0'
-          }}>
-            This will permanently delete ALL documents from ALL Firebase collections:
-          </p>
-          
-          <ul style={{
-            color: '#374151',
-            margin: '0 0 1rem 0',
-            paddingLeft: '1.5rem'
-          }}>
-            <li><strong>🧘 Practice Sessions:</strong> All meditation and practice data</li>
-            <li><strong>🌱 Mind Recovery:</strong> All recovery session data</li>
-            <li><strong>📈 User Progress:</strong> All user advancement data</li>
-            <li><strong>📊 Analytics:</strong> All usage and performance data</li>
-            <li><strong>📋 Questionnaires & Assessments:</strong> All user responses</li>
-          </ul>
-
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1rem'
-          }}>
-            <div style={{
-              fontSize: '0.875rem',
-              color: '#dc2626',
-              fontWeight: '600'
-            }}>
-              ⚠️ WARNING: This action cannot be undone! All user data will be permanently lost!
-            </div>
-          </div>
-
-          <button
-            onClick={clearAllFirebaseData}
-            disabled={clearing}
+        <div style={{ marginBottom: '20px' }}>
+          <input
+            type="text"
+            placeholder='Type "DELETE" to confirm'
+            value={deleteConfirmation}
+            onChange={(e) => setDeleteConfirmation(e.target.value)}
             style={{
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.5rem',
-              border: 'none',
-              fontWeight: '600',
-              color: 'white',
-              cursor: clearing ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: clearing ? '#9ca3af' : '#dc2626',
-              opacity: clearing ? 0.5 : 1
+              padding: '12px',
+              borderRadius: '6px',
+              border: '2px solid #f44336',
+              fontSize: '16px',
+              width: '200px',
+              textAlign: 'center'
             }}
-          >
-            {clearing ? (
-              <>
-                <div style={{
-                  height: '1rem',
-                  width: '1rem',
-                  border: '2px solid white',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}></div>
-                Deleting Firebase Data...
-              </>
-            ) : (
-              '🗑️ DELETE ALL FIREBASE DATA'
-            )}
-          </button>
+          />
         </div>
+        
+        <button
+          onClick={deleteAllData}
+          disabled={isDeleting || deleteConfirmation !== 'DELETE'}
+          style={{
+            background: deleteConfirmation === 'DELETE' && !isDeleting ? '#d32f2f' : '#ccc',
+            color: 'white',
+            border: 'none',
+            padding: '15px 30px',
+            borderRadius: '8px',
+            cursor: deleteConfirmation === 'DELETE' && !isDeleting ? 'pointer' : 'not-allowed',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }}
+        >
+          {isDeleting ? '🔄 Deleting All Data...' : '🗑️ DELETE ALL DATA'}
+        </button>
       </div>
     </div>
   );

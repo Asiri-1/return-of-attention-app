@@ -16,7 +16,15 @@ declare global {
 }
 
 interface SignUpProps {
-  onSignUp: (email: string, password: string, name: string) => Promise<void>;
+  onSignUp: (userData: {
+    email: string;
+    password: string;
+    name: string;
+    age: number;
+    gender: string;
+    nationality: string;
+    livingCountry: string;
+  }) => Promise<void>;
   onGoogleSignUp: (googleUser: any) => Promise<void>;
   onSignIn: () => void;
 }
@@ -26,13 +34,27 @@ const SignUp: React.FC<SignUpProps> = ({
   onGoogleSignUp,
   onSignIn,
 }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
+  // ================================
+  // 🎯 FORM STATE - Multi-step collection
+  // ================================
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    // Step 1: Basic Account Info
+    email: '',
+    password: '',
+    confirmPassword: '',
+    name: '',
+    acceptTerms: false,
+    
+    // Step 2: Demographics
+    age: '',
+    gender: '',
+    nationality: '',
+    livingCountry: ''
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,12 +63,37 @@ const SignUp: React.FC<SignUpProps> = ({
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    age: '',
+    gender: '',
+    nationality: '',
+    livingCountry: ''
   });
 
-  // Initialize Google Sign-In
+  // ================================
+  // 🌍 COUNTRIES & GENDERS DATA
+  // ================================
+  const countries = [
+    'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',
+    'Bahrain', 'Bangladesh', 'Belarus', 'Belgium', 'Bolivia', 'Bosnia and Herzegovina', 'Brazil', 'Bulgaria',
+    'Cambodia', 'Canada', 'Chile', 'China', 'Colombia', 'Croatia', 'Czech Republic',
+    'Denmark', 'Ecuador', 'Egypt', 'Estonia', 'Ethiopia',
+    'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Guatemala',
+    'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy',
+    'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait',
+    'Latvia', 'Lebanon', 'Lithuania', 'Luxembourg', 'Malaysia', 'Mexico', 'Morocco', 'Netherlands',
+    'New Zealand', 'Nigeria', 'Norway', 'Pakistan', 'Peru', 'Philippines', 'Poland', 'Portugal',
+    'Qatar', 'Romania', 'Russia', 'Saudi Arabia', 'Singapore', 'Slovakia', 'Slovenia', 'South Africa',
+    'South Korea', 'Spain', 'Sri Lanka', 'Sweden', 'Switzerland', 'Thailand', 'Turkey',
+    'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay', 'Venezuela', 'Vietnam'
+  ];
+
+  const genders = ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'];
+
+  // ================================
+  // 🚀 GOOGLE SIGN-IN INITIALIZATION
+  // ================================
   useEffect(() => {
-    // Load Google Identity Services
     if (!window.google) {
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
@@ -70,7 +117,9 @@ const SignUp: React.FC<SignUpProps> = ({
     }
   };
 
-  // Password strength calculation
+  // ================================
+  // 🔒 PASSWORD VALIDATION
+  // ================================
   const calculatePasswordStrength = (pwd: string): number => {
     let strength = 0;
     if (pwd.length >= 8) strength += 25;
@@ -95,7 +144,9 @@ const SignUp: React.FC<SignUpProps> = ({
     return 'Strong';
   };
 
-  // Real-time validation
+  // ================================
+  // ✅ FIELD VALIDATION
+  // ================================
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors };
 
@@ -130,10 +181,47 @@ const SignUp: React.FC<SignUpProps> = ({
         break;
 
       case 'confirmPassword':
-        if (value !== password) {
+        if (value !== formData.password) {
           errors.confirmPassword = 'Passwords do not match';
         } else {
           errors.confirmPassword = '';
+        }
+        break;
+
+      case 'age':
+        const ageNum = parseInt(value);
+        if (!value || isNaN(ageNum)) {
+          errors.age = 'Please enter your age';
+        } else if (ageNum < 13) {
+          errors.age = 'You must be at least 13 years old';
+        } else if (ageNum > 120) {
+          errors.age = 'Please enter a valid age';
+        } else {
+          errors.age = '';
+        }
+        break;
+
+      case 'gender':
+        if (!value) {
+          errors.gender = 'Please select your gender';
+        } else {
+          errors.gender = '';
+        }
+        break;
+
+      case 'nationality':
+        if (!value) {
+          errors.nationality = 'Please select your nationality';
+        } else {
+          errors.nationality = '';
+        }
+        break;
+
+      case 'livingCountry':
+        if (!value) {
+          errors.livingCountry = 'Please select your living country';
+        } else {
+          errors.livingCountry = '';
         }
         break;
     }
@@ -141,35 +229,95 @@ const SignUp: React.FC<SignUpProps> = ({
     setFieldErrors(errors);
   };
 
-  // Handle password change
-  const handlePasswordChange = (value: string) => {
-    setPassword(value);
-    setPasswordStrength(calculatePasswordStrength(value));
-    validateField('password', value);
-    if (confirmPassword) {
-      validateField('confirmPassword', confirmPassword);
+  // ================================
+  // 📝 FORM HANDLERS
+  // ================================
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    validateField(field, value);
+    
+    if (field === 'password') {
+      setPasswordStrength(calculatePasswordStrength(value));
+      if (formData.confirmPassword) {
+        validateField('confirmPassword', formData.confirmPassword);
+      }
     }
   };
 
-  // Handle confirm password change
-  const handleConfirmPasswordChange = (value: string) => {
-    setConfirmPassword(value);
-    validateField('confirmPassword', value);
-  };
-
-  // Check if form is valid
-  const isFormValid = () => {
+  // ================================
+  // ✅ STEP VALIDATION
+  // ================================
+  const isStep1Valid = () => {
     return (
-      name.length >= 2 &&
-      email.includes('@') &&
-      password.length >= 8 &&
-      password === confirmPassword &&
-      acceptTerms &&
-      !Object.values(fieldErrors).some(error => error !== '')
+      formData.name.length >= 2 &&
+      formData.email.includes('@') &&
+      formData.password.length >= 8 &&
+      formData.password === formData.confirmPassword &&
+      formData.acceptTerms &&
+      !['name', 'email', 'password', 'confirmPassword'].some(field => fieldErrors[field as keyof typeof fieldErrors] !== '')
     );
   };
 
-  // Google Sign-In Handler
+  const isStep2Valid = () => {
+    return (
+      formData.age &&
+      parseInt(formData.age) >= 13 &&
+      formData.gender &&
+      formData.nationality &&
+      formData.livingCountry &&
+      !['age', 'gender', 'nationality', 'livingCountry'].some(field => fieldErrors[field as keyof typeof fieldErrors] !== '')
+    );
+  };
+
+  // ================================
+  // 🚀 FORM SUBMISSION
+  // ================================
+  const handleNextStep = () => {
+    if (currentStep === 1 && isStep1Valid()) {
+      setCurrentStep(2);
+      setError('');
+    } else {
+      setError('Please fix the errors above');
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep(1);
+    setError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!isStep2Valid()) {
+      setError('Please fix the errors above');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // ✅ ENHANCED: Send complete user data including demographics
+      await onSignUp({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        nationality: formData.nationality,
+        livingCountry: formData.livingCountry,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Sign up failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ================================
+  // 🌐 GOOGLE SIGN-UP HANDLERS
+  // ================================
   const handleGoogleSignUp = () => {
     if (window.google) {
       setIsGoogleLoading(true);
@@ -189,16 +337,17 @@ const SignUp: React.FC<SignUpProps> = ({
     setError('');
     
     try {
-      // Decode the JWT token
       const userInfo = parseJwt(response.credential);
       
-      // Call the parent component's Google sign-up handler
+      // ✅ ENHANCED: Google users will need to complete demographics later
       await onGoogleSignUp({
         email: userInfo.email,
         name: userInfo.name,
         googleId: userInfo.sub,
         picture: userInfo.picture,
-        token: response.credential
+        token: response.credential,
+        // Demographics will be collected in profile completion flow
+        requiresDemographics: true
       });
     } catch (err: any) {
       setError(err.message || 'Google sign-up failed. Please try again.');
@@ -221,28 +370,9 @@ const SignUp: React.FC<SignUpProps> = ({
     return JSON.parse(jsonPayload);
   };
 
-  // Regular form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!isFormValid()) {
-      setError('Please fix the errors above');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      await onSignUp(email, password, name);
-    } catch (err: any) {
-      setError(err.message || 'Sign up failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Eye icon component
+  // ================================
+  // 🎨 UI COMPONENTS
+  // ================================
   const EyeIcon: React.FC<{ show: boolean; onClick: () => void }> = ({ show, onClick }) => (
     <button
       type="button"
@@ -250,16 +380,7 @@ const SignUp: React.FC<SignUpProps> = ({
       className="password-toggle"
       aria-label={show ? 'Hide password' : 'Show password'}
     >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         {show ? (
           <>
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -275,29 +396,15 @@ const SignUp: React.FC<SignUpProps> = ({
     </button>
   );
 
-  // Google Icon component
   const GoogleIcon: React.FC = () => (
     <svg width="20" height="20" viewBox="0 0 24 24">
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-      />
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
     </svg>
   );
 
-  // Loading Spinner
   const LoadingSpinner: React.FC = () => (
     <div className="loading-spinner">
       <svg width="20" height="20" viewBox="0 0 24 24">
@@ -309,10 +416,248 @@ const SignUp: React.FC<SignUpProps> = ({
     </div>
   );
 
+  // ================================
+  // 📱 RENDER STEP 1: ACCOUNT INFO
+  // ================================
+  const renderStep1 = () => (
+    <>
+      <div className="signup-header">
+        <h1>Create Account</h1>
+        <p>Start your journey to lasting happiness</p>
+        <div className="step-indicator">
+          <span className="step active">1</span>
+          <span className="step-divider"></span>
+          <span className="step">2</span>
+        </div>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <form onSubmit={(e) => { e.preventDefault(); handleNextStep(); }} className="signup-form">
+        {/* Name Field */}
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="Enter your full name"
+            value={formData.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            required
+            className={fieldErrors.name ? 'error' : ''}
+          />
+          {fieldErrors.name && <div className="field-error">{fieldErrors.name}</div>}
+        </div>
+
+        {/* Email Field */}
+        <div className="form-group">
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={formData.email}
+            onChange={(e) => handleInputChange('email', e.target.value)}
+            required
+            className={fieldErrors.email ? 'error' : ''}
+          />
+          {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
+        </div>
+
+        {/* Password Field */}
+        <div className="form-group">
+          <div className="password-input-container">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Create a password"
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              required
+              className={fieldErrors.password ? 'error' : ''}
+            />
+            <EyeIcon show={showPassword} onClick={() => setShowPassword(!showPassword)} />
+          </div>
+          {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
+          
+          {formData.password.length > 0 && (
+            <div className="password-strength">
+              <div className="strength-bar">
+                <div
+                  className="strength-fill"
+                  style={{
+                    width: `${passwordStrength}%`,
+                    backgroundColor: getPasswordStrengthColor(passwordStrength)
+                  }}
+                />
+              </div>
+              <span
+                className="strength-text"
+                style={{ color: getPasswordStrengthColor(passwordStrength) }}
+              >
+                {getPasswordStrengthText(passwordStrength)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Confirm Password Field */}
+        <div className="form-group">
+          <div className="password-input-container">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirm your password"
+              value={formData.confirmPassword}
+              onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+              required
+              className={fieldErrors.confirmPassword ? 'error' : ''}
+            />
+            <EyeIcon show={showConfirmPassword} onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
+          </div>
+          {fieldErrors.confirmPassword && <div className="field-error">{fieldErrors.confirmPassword}</div>}
+        </div>
+
+        {/* Terms & Conditions */}
+        <div className="form-group checkbox-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={formData.acceptTerms}
+              onChange={(e) => handleInputChange('acceptTerms', e.target.checked.toString())}
+              required
+            />
+            <span className="checkmark"></span>
+            I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          className="primary-button"
+          disabled={!isStep1Valid()}
+        >
+          Continue to Demographics →
+        </button>
+      </form>
+
+      <div className="social-signup-options">
+        <p>Or sign up with</p>
+        <button
+          onClick={handleGoogleSignUp}
+          className="social-button google-button"
+          disabled={isGoogleLoading}
+        >
+          {isGoogleLoading ? <LoadingSpinner /> : <GoogleIcon />}
+          {isGoogleLoading ? 'Signing up...' : 'Continue with Google'}
+        </button>
+      </div>
+    </>
+  );
+
+  // ================================
+  // 👤 RENDER STEP 2: DEMOGRAPHICS
+  // ================================
+  const renderStep2 = () => (
+    <>
+      <div className="signup-header">
+        <h1>Personal Information</h1>
+        <p>Help us personalize your meditation experience</p>
+        <div className="step-indicator">
+          <span className="step completed">✓</span>
+          <span className="step-divider"></span>
+          <span className="step active">2</span>
+        </div>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <form onSubmit={handleSubmit} className="signup-form">
+        {/* Age Field */}
+        <div className="form-group">
+          <input
+            type="number"
+            placeholder="Enter your age"
+            value={formData.age}
+            onChange={(e) => handleInputChange('age', e.target.value)}
+            min="13"
+            max="120"
+            required
+            className={fieldErrors.age ? 'error' : ''}
+          />
+          {fieldErrors.age && <div className="field-error">{fieldErrors.age}</div>}
+        </div>
+
+        {/* Gender Field */}
+        <div className="form-group">
+          <select
+            value={formData.gender}
+            onChange={(e) => handleInputChange('gender', e.target.value)}
+            required
+            className={fieldErrors.gender ? 'error' : ''}
+          >
+            <option value="">Select your gender</option>
+            {genders.map(gender => (
+              <option key={gender} value={gender}>{gender}</option>
+            ))}
+          </select>
+          {fieldErrors.gender && <div className="field-error">{fieldErrors.gender}</div>}
+        </div>
+
+        {/* Nationality Field */}
+        <div className="form-group">
+          <select
+            value={formData.nationality}
+            onChange={(e) => handleInputChange('nationality', e.target.value)}
+            required
+            className={fieldErrors.nationality ? 'error' : ''}
+          >
+            <option value="">Select your nationality</option>
+            {countries.map(country => (
+              <option key={country} value={country}>{country}</option>
+            ))}
+          </select>
+          {fieldErrors.nationality && <div className="field-error">{fieldErrors.nationality}</div>}
+        </div>
+
+        {/* Living Country Field */}
+        <div className="form-group">
+          <select
+            value={formData.livingCountry}
+            onChange={(e) => handleInputChange('livingCountry', e.target.value)}
+            required
+            className={fieldErrors.livingCountry ? 'error' : ''}
+          >
+            <option value="">Select your current country</option>
+            {countries.map(country => (
+              <option key={country} value={country}>{country}</option>
+            ))}
+          </select>
+          {fieldErrors.livingCountry && <div className="field-error">{fieldErrors.livingCountry}</div>}
+        </div>
+
+        <div className="button-group">
+          <button
+            type="button"
+            onClick={handlePrevStep}
+            className="secondary-button"
+          >
+            ← Back
+          </button>
+          <button
+            type="submit"
+            className="primary-button"
+            disabled={isLoading || !isStep2Valid()}
+          >
+            {isLoading && <LoadingSpinner />}
+            {isLoading ? 'Creating Account...' : 'Complete Sign Up'}
+          </button>
+        </div>
+      </form>
+    </>
+  );
+
+  // ================================
+  // 🎨 MAIN RENDER
+  // ================================
   return (
     <div className="signup-container">
       <style>{`
-        /* ✅ IPHONE-OPTIMIZED SIGNUP CSS WITH ALL FEATURES */
+        /* ✅ ENHANCED SIGNUP CSS WITH MULTI-STEP & DEMOGRAPHICS */
         .signup-container {
           min-height: 100vh;
           min-height: 100dvh;
@@ -370,8 +715,47 @@ const SignUp: React.FC<SignUpProps> = ({
         .signup-header p {
           color: #6c757d;
           font-size: clamp(14px, 4vw, 16px);
-          margin: 0;
+          margin: 0 0 20px 0;
           line-height: 1.5;
+        }
+
+        /* ✅ STEP INDICATOR */
+        .step-indicator {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 15px;
+        }
+
+        .step {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: 600;
+          background: #e9ecef;
+          color: #6c757d;
+          transition: all 0.3s ease;
+        }
+
+        .step.active {
+          background: #667eea;
+          color: white;
+        }
+
+        .step.completed {
+          background: #28a745;
+          color: white;
+        }
+
+        .step-divider {
+          width: 40px;
+          height: 2px;
+          background: #e9ecef;
         }
 
         .error-message {
@@ -401,7 +785,8 @@ const SignUp: React.FC<SignUpProps> = ({
           position: relative;
         }
 
-        .form-group input {
+        .form-group input,
+        .form-group select {
           width: 100%;
           padding: 16px 20px;
           border: 2px solid #e9ecef;
@@ -416,7 +801,17 @@ const SignUp: React.FC<SignUpProps> = ({
           touch-action: manipulation;
         }
 
-        .form-group input:focus {
+        .form-group select {
+          cursor: pointer;
+          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+          background-position: right 12px center;
+          background-repeat: no-repeat;
+          background-size: 16px;
+          padding-right: 40px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
           outline: none;
           border-color: #667eea;
           background-color: #fff;
@@ -429,24 +824,16 @@ const SignUp: React.FC<SignUpProps> = ({
           font-weight: 400;
         }
 
-        .form-group input.error {
+        .form-group input.error,
+        .form-group select.error {
           border-color: #dc3545;
           background-color: #fff5f5;
         }
 
-        .form-group input.error:focus {
+        .form-group input.error:focus,
+        .form-group select.error:focus {
           border-color: #dc3545;
           box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
-        }
-
-        .form-group input.success {
-          border-color: #28a745;
-          background-color: #f8fff9;
-        }
-
-        .form-group input.success:focus {
-          border-color: #28a745;
-          box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
         }
 
         /* Password Input Container */
@@ -484,12 +871,6 @@ const SignUp: React.FC<SignUpProps> = ({
         .password-toggle:hover {
           color: #667eea;
           background-color: rgba(102, 126, 234, 0.1);
-        }
-
-        .password-toggle:focus {
-          outline: 2px solid #667eea;
-          outline-offset: 2px;
-          border-radius: 4px;
         }
 
         /* Field Error Messages */
@@ -590,11 +971,6 @@ const SignUp: React.FC<SignUpProps> = ({
           display: block;
         }
 
-        .checkbox-label input[type="checkbox"]:focus ~ .checkmark {
-          outline: 2px solid #667eea;
-          outline-offset: 2px;
-        }
-
         .checkbox-label a {
           color: #667eea;
           text-decoration: none;
@@ -606,6 +982,7 @@ const SignUp: React.FC<SignUpProps> = ({
           text-decoration: underline;
         }
 
+        /* ✅ BUTTON STYLES */
         .primary-button {
           width: 100%;
           padding: 16px;
@@ -630,28 +1007,9 @@ const SignUp: React.FC<SignUpProps> = ({
           touch-action: manipulation;
         }
 
-        .primary-button::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .primary-button:hover::before {
-          left: 100%;
-        }
-
         .primary-button:hover {
           transform: translateY(-2px);
           box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .primary-button:active {
-          transform: translateY(0);
         }
 
         .primary-button:disabled {
@@ -660,9 +1018,32 @@ const SignUp: React.FC<SignUpProps> = ({
           transform: none;
         }
 
-        .primary-button:disabled:hover {
-          transform: none;
-          box-shadow: none;
+        .secondary-button {
+          padding: 12px 24px;
+          background: #f8f9fa;
+          color: #6c757d;
+          border: 2px solid #e9ecef;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .secondary-button:hover {
+          background: #e9ecef;
+          border-color: #667eea;
+          color: #667eea;
+        }
+
+        .button-group {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .button-group .primary-button {
+          flex: 1;
         }
 
         .social-signup-options {
@@ -728,19 +1109,6 @@ const SignUp: React.FC<SignUpProps> = ({
           background-color: #fef7f7;
         }
 
-        .social-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .social-button:disabled:hover {
-          transform: none;
-          box-shadow: none;
-          border-color: #e9ecef;
-          background-color: #fff;
-        }
-
         .signin-link {
           text-align: center;
           color: #6c757d;
@@ -756,9 +1124,6 @@ const SignUp: React.FC<SignUpProps> = ({
           transition: color 0.3s ease;
           padding: 4px 8px;
           margin-left: 4px;
-          min-height: 32px;
-          display: inline-flex;
-          align-items: center;
         }
 
         .signin-link span:hover {
@@ -780,289 +1145,36 @@ const SignUp: React.FC<SignUpProps> = ({
           100% { transform: rotate(360deg); }
         }
 
-        /* ✅ IPHONE SE (375px and smaller) */
-        @media (max-width: 374px) {
+        /* ✅ RESPONSIVE DESIGN */
+        @media (max-width: 480px) {
           .signup-container {
-            padding: 10px 8px;
+            padding: 10px;
           }
           
           .signup-content {
             padding: 25px 20px;
           }
           
-          .password-toggle {
-            right: 12px;
-            min-width: 36px;
-            min-height: 36px;
+          .button-group {
+            flex-direction: column;
           }
           
-          .password-input-container input {
-            padding-right: 45px;
+          .button-group .primary-button {
+            order: 1;
           }
           
-          .checkbox-label {
-            font-size: 12px;
-          }
-          
-          .strength-text {
-            font-size: 10px;
-            min-width: 40px;
-          }
-          
-          .field-error {
-            font-size: 10px;
-          }
-        }
-
-        /* ✅ IPHONE STANDARD (375px - 414px) */
-        @media (min-width: 375px) and (max-width: 414px) {
-          .signup-container {
-            padding: 15px 12px;
-          }
-          
-          .signup-content {
-            padding: 30px 25px;
-          }
-        }
-
-        /* ✅ IPHONE PLUS/PRO MAX (415px+) */
-        @media (min-width: 415px) and (max-width: 768px) {
-          .signup-content {
-            padding: 35px 30px;
-          }
-        }
-
-        /* ✅ LANDSCAPE MODE */
-        @media (max-width: 768px) and (orientation: landscape) {
-          .signup-container {
-            padding: 10px 20px;
-            align-items: flex-start;
-            padding-top: max(10px, env(safe-area-inset-top));
-          }
-          
-          .signup-content {
-            padding: 20px 25px;
-          }
-          
-          .signup-header {
-            margin-bottom: 20px;
-          }
-          
-          .form-group {
-            margin-bottom: 15px;
-          }
-        }
-
-        /* ✅ SAFE AREA SUPPORT (iPhone X and newer) */
-        @supports (padding: max(0px)) {
-          .signup-container {
-            padding-left: max(20px, env(safe-area-inset-left));
-            padding-right: max(20px, env(safe-area-inset-right));
-            padding-top: max(20px, env(safe-area-inset-top));
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
-          }
-        }
-
-        /* ✅ ACCESSIBILITY IMPROVEMENTS */
-        @media (prefers-reduced-motion: reduce) {
-          .loading-spinner {
-            animation: none;
-          }
-          
-          .strength-fill {
-            transition: none;
-          }
-          
-          .primary-button::before {
-            transition: none;
-          }
-          
-          .signup-card {
-            animation: none;
-          }
-        }
-
-        /* ✅ HIGH CONTRAST MODE SUPPORT */
-        @media (prefers-contrast: high) {
-          .field-error {
-            border-left: 3px solid #dc3545;
-            padding-left: 10px;
-          }
-          
-          .strength-bar {
-            border: 1px solid #333;
-          }
-          
-          .checkmark {
-            border-width: 3px;
-          }
-          
-          .form-group input {
-            border-width: 3px;
-          }
-        }
-
-        /* ✅ DARK MODE SUPPORT */
-        @media (prefers-color-scheme: dark) {
-          .signup-card {
-            background: rgba(30, 30, 30, 0.95);
-          }
-          
-          .signup-header h1 {
-            color: #f8f9fa;
-          }
-          
-          .signup-header p {
-            color: #adb5bd;
-          }
-          
-          .form-group input {
-            background-color: #2c3e50;
-            color: #f8f9fa;
-            border-color: #495057;
-          }
-          
-          .form-group input::placeholder {
-            color: #6c757d;
-          }
-          
-          .checkbox-label {
-            color: #f8f9fa;
+          .secondary-button {
+            order: 2;
+            width: 100%;
+            margin-top: 8px;
           }
         }
       `}</style>
 
       <div className="signup-card">
         <div className="signup-content">
-          <div className="signup-header">
-            <h1>Create Account</h1>
-            <p>Sign up to start your journey to lasting happiness</p>
-          </div>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <form onSubmit={handleSubmit} className="signup-form">
-            {/* Name Field */}
-            <div className="form-group">
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  validateField('name', e.target.value);
-                }}
-                required
-                className={fieldErrors.name ? 'error' : ''}
-              />
-              {fieldErrors.name && <div className="field-error">{fieldErrors.name}</div>}
-            </div>
-
-            {/* Email Field */}
-            <div className="form-group">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  validateField('email', e.target.value);
-                }}
-                required
-                className={fieldErrors.email ? 'error' : ''}
-              />
-              {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
-            </div>
-
-            {/* Password Field */}
-            <div className="form-group">
-              <div className="password-input-container">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Create a password"
-                  value={password}
-                  onChange={(e) => handlePasswordChange(e.target.value)}
-                  required
-                  className={fieldErrors.password ? 'error' : ''}
-                />
-                <EyeIcon show={showPassword} onClick={() => setShowPassword(!showPassword)} />
-              </div>
-              {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
-              
-              {/* Password Strength Indicator */}
-              {password.length > 0 && (
-                <div className="password-strength">
-                  <div className="strength-bar">
-                    <div
-                      className="strength-fill"
-                      style={{
-                        width: `${passwordStrength}%`,
-                        backgroundColor: getPasswordStrengthColor(passwordStrength)
-                      }}
-                    />
-                  </div>
-                  <span
-                    className="strength-text"
-                    style={{ color: getPasswordStrengthColor(passwordStrength) }}
-                  >
-                    {getPasswordStrengthText(passwordStrength)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Confirm Password Field */}
-            <div className="form-group">
-              <div className="password-input-container">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => handleConfirmPasswordChange(e.target.value)}
-                  required
-                  className={fieldErrors.confirmPassword ? 'error' : ''}
-                />
-                <EyeIcon show={showConfirmPassword} onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
-              </div>
-              {fieldErrors.confirmPassword && <div className="field-error">{fieldErrors.confirmPassword}</div>}
-            </div>
-
-            {/* Terms & Conditions */}
-            <div className="form-group checkbox-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                  required
-                />
-                <span className="checkmark"></span>
-                I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={isLoading || !isFormValid()}
-            >
-              {isLoading && <LoadingSpinner />}
-              {isLoading ? 'Creating Account...' : 'Sign Up'}
-            </button>
-          </form>
-
-          <div className="social-signup-options">
-            <p>Or sign up with</p>
-            <button
-              onClick={handleGoogleSignUp}
-              className="social-button google-button"
-              disabled={isGoogleLoading}
-            >
-              {isGoogleLoading ? <LoadingSpinner /> : <GoogleIcon />}
-              {isGoogleLoading ? 'Signing up...' : 'Continue with Google'}
-            </button>
-          </div>
-
+          {currentStep === 1 ? renderStep1() : renderStep2()}
+          
           <p className="signin-link">
             Already have an account? <span onClick={onSignIn}>Sign In</span>
           </p>

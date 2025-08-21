@@ -1,4 +1,4 @@
-// 🔧 FIXED App.tsx - Single AuthProvider Only
+// 🔧 ENHANCED App.tsx - Enhanced Signup with Demographics Collection
 // File: src/App.tsx
 
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
@@ -499,7 +499,7 @@ const SelfAssessmentComponent: React.FC = () => {
   );
 };
 
-// ✅ SINGLE-POINT: Main app content with ONLY PracticeContext for session tracking
+// ✅ ENHANCED: Main app content with enhanced signup support
 const AppContent: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -629,7 +629,7 @@ const AppContent: React.FC = React.memo(() => {
     }
   }, [markStageIntroComplete]);
 
-  // ✅ PRESERVED: All handlers (same logic)
+  // ✅ ENHANCED: Updated handlers with demographics support
   const handlers = useMemo(() => ({
     startPractice: async () => {
       try {
@@ -682,17 +682,32 @@ const AppContent: React.FC = React.memo(() => {
       }
     },
     
-    signUp: async (email: string, password: string, name: string) => {
+    // ✅ ENHANCED: Updated signUp handler to accept demographics
+    signUp: async (userData: {
+      email: string;
+      password: string;
+      name: string;
+      age: number;
+      gender: string;
+      nationality: string;
+      livingCountry: string;
+    }) => {
       try {
-        console.log('🔐 Starting sign up process...');
+        console.log('🔐 Starting enhanced sign up process with demographics...');
         setIsSigningIn(true);
         
-        await signUp(email, password, name);
+        // ✅ ENHANCED: Pass complete user data to signUp function
+        await signUp(userData.email, userData.password, userData.name, {
+          age: userData.age,
+          gender: userData.gender,
+          nationality: userData.nationality,
+          livingCountry: userData.livingCountry
+        });
         
-        console.log('✅ Sign up successful, auth state will update automatically...');
+        console.log('✅ Enhanced sign up successful with demographics saved...');
         
       } catch (error: any) {
-        console.error('❌ Sign up failed:', error);
+        console.error('❌ Enhanced sign up failed:', error);
         setIsSigningIn(false);
         
         if (error?.code === 'auth/email-already-in-use') {
@@ -727,22 +742,21 @@ const AppContent: React.FC = React.memo(() => {
     googleSignUp: async (googleUser: any) => {
       try {
         setIsSigningIn(true);
-        const response = await fetch('/api/auth/google-signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: googleUser.email,
-            name: googleUser.name,
-            googleId: googleUser.googleId,
-            picture: googleUser.picture,
-            token: googleUser.token
-          })
+        
+        // ✅ ENHANCED: Google users need to complete demographics later
+        await signUp(googleUser.email, 'google-auth', googleUser.name, {
+          age: 0, // Will be updated in profile
+          gender: '',
+          nationality: '',
+          livingCountry: '',
+          requiresDemographics: true
         });
         
-        if (response.ok) {
-          navigate('/home');
-        }
+        console.log('✅ Google sign-up successful, user will complete profile later');
+        navigate('/home');
+        
       } catch (error: any) {
+        console.error('❌ Google sign-up failed:', error);
         alert(`Google sign-up failed: ${error?.message || 'Unknown error'}`);
       } finally {
         setIsSigningIn(false);
@@ -829,6 +843,7 @@ const AppContent: React.FC = React.memo(() => {
             />
           } />
           
+          {/* ✅ ENHANCED: SignUp with demographics collection */}
           <Route path="/signup" element={
             <SignUp 
               onSignUp={handlers.signUp}
@@ -931,15 +946,15 @@ const AppContent: React.FC = React.memo(() => {
                 } />
                 
                 {/* ✅ PRESERVED: All other routes (same logic) */}
-<Route path="/admin" element={
-  <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
-    <CleanAdminPanel contexts={{
-      practice: practiceContext,    // ✅ Real context with methods
-      user: userContext,           // ✅ Real context with methods
-      wellness: wellnessContext    // ✅ Real context with methods
-    }} />
-  </Suspense>
-} />
+                <Route path="/admin" element={
+                  <Suspense fallback={<FastLoader message="Loading clean admin panel..." />}>
+                    <CleanAdminPanel contexts={{
+                      practice: practiceContext,    // ✅ Real context with methods
+                      user: userContext,           // ✅ Real context with methods
+                      wellness: wellnessContext    // ✅ Real context with methods
+                    }} />
+                  </Suspense>
+                } />
                 
                 <Route path="/stage1/*" element={
                   <Suspense fallback={<FastLoader message="Preparing your stillness practice..." />}>

@@ -1,21 +1,9 @@
-import React, { useState, useCallback } from 'react';
+// ✅ FIXED DailyEmotionalNotes - Compatible with WellnessContext
+// File: src/DailyEmotionalNotes.tsx
+// 🔥 FIREBASE-CONNECTED: Now properly saves to Firebase via WellnessContext
 
-// Type definitions
-interface EmotionalNote {
-  noteId: string;
-  content: string;
-  emotion: string;
-  intensity: number;
-  timestamp: string;
-  trigger: string;
-}
-
-interface NewEmotionalNote {
-  content: string;
-  emotion: string;
-  intensity: number;
-  trigger: string;
-}
+import React, { useState, useCallback, useMemo } from 'react';
+import { useWellness } from './contexts/wellness/WellnessContext'; // ✅ REAL WellnessContext
 
 interface EmotionData {
   value: string;
@@ -24,48 +12,8 @@ interface EmotionData {
   color: string;
 }
 
-// Mock wellness context for demonstration
-const useWellness = () => {
-  const [emotionalNotes, setEmotionalNotes] = useState<EmotionalNote[]>([
-    {
-      noteId: '1',
-      content: 'Meeting went really well, feeling accomplished',
-      emotion: 'confident',
-      intensity: 7,
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-      trigger: 'work success'
-    },
-    {
-      noteId: '2',
-      content: 'Traffic jam made me late, feeling stressed',
-      emotion: 'frustrated',
-      intensity: 6,
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-      trigger: 'external circumstances'
-    },
-    {
-      noteId: '3',
-      content: 'Morning coffee and sunrise - peaceful start',
-      emotion: 'peaceful',
-      intensity: 8,
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      trigger: 'morning routine'
-    }
-  ]);
-  
-  const addEmotionalNote = useCallback((note: NewEmotionalNote) => {
-    const newNote: EmotionalNote = {
-      ...note,
-      noteId: Date.now().toString(),
-      timestamp: new Date().toISOString()
-    };
-    setEmotionalNotes(prev => [newNote, ...prev]);
-  }, []);
-  
-  return { emotionalNotes, addEmotionalNote, isLoading: false };
-};
-
 const DailyEmotionalNotes = () => {
+  // ✅ FIXED: Use real WellnessContext instead of mock
   const { emotionalNotes, addEmotionalNote, isLoading } = useWellness();
   
   const [content, setContent] = useState('');
@@ -75,8 +23,8 @@ const DailyEmotionalNotes = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showQuickLog, setShowQuickLog] = useState(true);
 
-  // Core emotions for daily fluctuations
-  const emotions: EmotionData[] = [
+  // ✅ FIXED: Move emotions to useMemo to avoid re-renders
+  const emotions: EmotionData[] = useMemo(() => [
     { value: 'happy', label: 'Happy', icon: '😊', color: '#27ae60' },
     { value: 'excited', label: 'Excited', icon: '🤩', color: '#e74c3c' },
     { value: 'calm', label: 'Calm', icon: '😌', color: '#3498db' },
@@ -95,39 +43,62 @@ const DailyEmotionalNotes = () => {
     { value: 'overwhelmed', label: 'Overwhelmed', icon: '🤯', color: '#c0392b' },
     { value: 'angry', label: 'Angry', icon: '😠', color: '#e74c3c' },
     { value: 'lonely', label: 'Lonely', icon: '😔', color: '#8e44ad' }
-  ];
+  ], []);
 
-  const commonTriggers = [
+  const commonTriggers = useMemo(() => [
     'work/career', 'relationships', 'health', 'family', 'finances', 
     'social situation', 'weather', 'news/media', 'personal achievement', 
-    'daily routine', 'unexpected event', 'physical state'
-  ];
+    'daily routine', 'unexpected event', 'physical state', 'quick check-in'
+  ], []);
 
   const getEmotionData = useCallback((emotionValue: string): EmotionData => {
     return emotions.find(e => e.value === emotionValue) || emotions[0];
   }, [emotions]);
 
-  const quickLog = useCallback((emotionValue: string) => {
-    const emotionData = getEmotionData(emotionValue);
-    addEmotionalNote({
-      content: `Quick emotional check-in: ${emotionData.label}`,
-      emotion: emotionValue,
-      intensity: 5,
-      trigger: 'quick check-in'
-    });
+  // ✅ FIXED: Quick log now uses WellnessContext with correct field names
+  const quickLog = useCallback(async (emotionValue: string) => {
+    try {
+      setIsSubmitting(true);
+      const emotionData = getEmotionData(emotionValue);
+      
+      // ✅ FIXED: Use the exact schema expected by WellnessContext
+      await addEmotionalNote({
+        content: `Quick emotional check-in: ${emotionData.label}`,
+        emotion: emotionValue,
+        intensity: 5,
+        energyLevel: 5,
+        triggers: ['quick check-in'], // ✅ FIXED: Array format
+        tags: ['quick-log'],
+        mood: emotionData.label.toLowerCase(),
+        gratitude: []
+      });
+      
+      console.log('✅ Quick emotion logged:', emotionValue);
+    } catch (error) {
+      console.error('❌ Error logging quick emotion:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [addEmotionalNote, getEmotionData]);
 
+  // ✅ FIXED: Detailed submit now uses WellnessContext with correct field names
   const handleSubmit = useCallback(async () => {
     if (!emotion) return;
 
     setIsSubmitting(true);
     try {
       const emotionData = getEmotionData(emotion);
+      
+      // ✅ FIXED: Use the exact schema expected by WellnessContext
       await addEmotionalNote({
         content: content.trim() || `Feeling ${emotionData.label.toLowerCase()}`,
         emotion,
         intensity,
-        trigger: trigger || 'unspecified'
+        energyLevel: intensity, // Sync both fields
+        triggers: trigger ? [trigger] : [], // ✅ FIXED: Array format
+        tags: [emotion, 'detailed-entry'],
+        mood: emotionData.label.toLowerCase(),
+        gratitude: []
       });
 
       // Reset form
@@ -135,8 +106,10 @@ const DailyEmotionalNotes = () => {
       setEmotion('');
       setIntensity(5);
       setTrigger('');
+      
+      console.log('✅ Detailed emotion logged:', emotion);
     } catch (error) {
-      console.error('Error adding emotional note:', error);
+      console.error('❌ Error adding emotional note:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,17 +129,25 @@ const DailyEmotionalNotes = () => {
     }
   };
 
-  const todayNotes = emotionalNotes.filter(note => {
-    const noteDate = new Date(note.timestamp).toDateString();
-    const today = new Date().toDateString();
-    return noteDate === today;
-  });
+  // ✅ FIXED: Filter today's notes from real Firebase data
+  const todayNotes = useMemo(() => {
+    return emotionalNotes.filter(note => {
+      const noteDate = new Date(note.timestamp).toDateString();
+      const today = new Date().toDateString();
+      return noteDate === today;
+    });
+  }, [emotionalNotes]);
 
   if (isLoading) {
     return (
       <div className="daily-emotional-notes">
         <div style={{ textAlign: 'center', padding: '40px' }}>
-          Loading emotional notes...
+          <div style={{ fontSize: '18px', marginBottom: '12px' }}>
+            Loading emotional notes...
+          </div>
+          <div style={{ fontSize: '14px', color: '#666' }}>
+            Connecting to Firebase...
+          </div>
         </div>
       </div>
     );
@@ -197,6 +178,17 @@ const DailyEmotionalNotes = () => {
         .notes-description {
           color: #666;
           font-size: 1.1em;
+          margin-bottom: 20px;
+        }
+
+        .firebase-status {
+          background: #d4edda;
+          border: 1px solid #c3e6cb;
+          color: #155724;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 14px;
+          display: inline-block;
           margin-bottom: 20px;
         }
 
@@ -268,11 +260,17 @@ const DailyEmotionalNotes = () => {
           font-size: 12px;
           font-weight: 500;
           color: var(--emotion-color);
+          position: relative;
         }
 
         .emotion-button:hover {
           background: var(--emotion-color);
           color: white;
+        }
+
+        .emotion-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .emotion-icon {
@@ -436,6 +434,12 @@ const DailyEmotionalNotes = () => {
           font-style: italic;
         }
 
+        .firebase-indicator {
+          font-size: 12px;
+          color: #28a745;
+          font-weight: 500;
+        }
+
         @media (max-width: 768px) {
           .note-header {
             flex-direction: column;
@@ -450,6 +454,9 @@ const DailyEmotionalNotes = () => {
         <p className="notes-description">
           Capture how you're feeling throughout the day
         </p>
+        <div className="firebase-status">
+          ✅ Connected to Firebase • {emotionalNotes.length} total notes
+        </div>
       </div>
 
       {/* Toggle between Quick and Detailed */}
@@ -480,11 +487,13 @@ const DailyEmotionalNotes = () => {
                 <button
                   key={emotion.value}
                   onClick={() => quickLog(emotion.value)}
+                  disabled={isSubmitting}
                   className="emotion-button"
                   style={{ '--emotion-color': emotion.color } as React.CSSProperties}
                 >
                   <span className="emotion-icon">{emotion.icon}</span>
                   {emotion.label}
+                  {isSubmitting && <div style={{ fontSize: '10px', marginTop: '4px' }}>Saving...</div>}
                 </button>
               ))}
             </div>
@@ -502,6 +511,7 @@ const DailyEmotionalNotes = () => {
               onChange={(e) => setContent(e.target.value)}
               placeholder="Describe what triggered this emotion or what's on your mind..."
               rows={3}
+              disabled={isSubmitting}
             />
           </div>
 
@@ -513,6 +523,7 @@ const DailyEmotionalNotes = () => {
                 value={emotion}
                 onChange={(e) => setEmotion(e.target.value)}
                 required
+                disabled={isSubmitting}
               >
                 <option value="">How are you feeling?</option>
                 {emotions.map(em => (
@@ -533,6 +544,7 @@ const DailyEmotionalNotes = () => {
                 value={intensity}
                 onChange={(e) => setIntensity(parseInt(e.target.value))}
                 className="intensity-slider"
+                disabled={isSubmitting}
               />
               <div className="intensity-labels">
                 <span>Mild</span>
@@ -547,6 +559,7 @@ const DailyEmotionalNotes = () => {
             <select
               value={trigger}
               onChange={(e) => setTrigger(e.target.value)}
+              disabled={isSubmitting}
             >
               <option value="">Select a trigger...</option>
               {commonTriggers.map(trig => (
@@ -561,7 +574,7 @@ const DailyEmotionalNotes = () => {
             disabled={isSubmitting || !emotion}
             className="save-note-button"
           >
-            {isSubmitting ? 'Saving...' : 'Log Emotion'}
+            {isSubmitting ? 'Saving to Firebase...' : 'Log Emotion'}
           </button>
         </div>
       )}
@@ -574,6 +587,9 @@ const DailyEmotionalNotes = () => {
           <div className="empty-history">
             <span className="emoji">💭</span>
             No emotions logged today yet. Start tracking your feelings above!
+            <div className="firebase-indicator" style={{ marginTop: '12px' }}>
+              All data saves automatically to Firebase
+            </div>
           </div>
         ) : (
           <div className="notes-list">
@@ -608,9 +624,16 @@ const DailyEmotionalNotes = () => {
                           {note.intensity}/10
                         </span>
                       </div>
-                      <span className="note-date">
-                        {getTimeDisplay(note.timestamp)}
-                      </span>
+                      <div style={{ textAlign: 'right' }}>
+                        <span className="note-date">
+                          {getTimeDisplay(note.timestamp)}
+                        </span>
+                        {note.noteId && (
+                          <div className="firebase-indicator">
+                            ✅ Saved to Firebase
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     {note.content && (
@@ -619,9 +642,9 @@ const DailyEmotionalNotes = () => {
                       </div>
                     )}
                     
-                    {note.trigger && note.trigger !== 'unspecified' && (
+                    {note.triggers && note.triggers.length > 0 && (
                       <div className="note-trigger">
-                        Triggered by: {note.trigger}
+                        Triggered by: {note.triggers.join(', ')}
                       </div>
                     )}
                   </div>

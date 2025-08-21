@@ -1,4 +1,4 @@
-// ✅ SIMPLIFIED AppProvider - Remove Analytics to Fix Auth Issues
+// ✅ FIXED AppProvider - Added AnalyticsProvider
 // File: src/contexts/AppProvider.tsx
 
 import React from 'react';
@@ -8,12 +8,13 @@ import { PracticeProvider } from './practice/PracticeContext';
 import { WellnessProvider } from './wellness/WellnessContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import { ContentProvider } from './content/ContentContext';
+import { AnalyticsProvider } from './analytics/AnalyticsContext'; // ✅ ADDED: Import AnalyticsProvider
 
 // ================================
-// SIMPLIFIED CONTEXT PROVIDER HIERARCHY (NO ANALYTICS)
+// COMPLETE CONTEXT PROVIDER HIERARCHY (WITH ANALYTICS)
 // ================================
 /**
- * Simplified App Provider - Analytics Removed Temporarily
+ * Complete App Provider - Now includes AnalyticsProvider
  * 
  * Provides all contexts in the optimal order:
  * 1. AuthProvider - Firebase authentication (foundation)
@@ -22,12 +23,13 @@ import { ContentProvider } from './content/ContentContext';
  * 4. PracticeProvider - Session management (depends on user and auth)
  * 5. WellnessProvider - Emotional notes and reflections (depends on auth)
  * 6. ContentProvider - Guided content and achievements (depends on auth)
+ * 7. AnalyticsProvider - Analytics and insights (depends on all above contexts)
  * 
  * Benefits:
  * - Single AuthProvider (no conflicts)
  * - Proper authentication flow
  * - Proper dependency order
- * - No analytics conflicts
+ * - AnalyticsProvider can access all other contexts
  * - User isolation across all contexts
  */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -38,7 +40,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           <PracticeProvider>
             <WellnessProvider>
               <ContentProvider>
-                {children}
+                <AnalyticsProvider>  {/* ✅ ADDED: AnalyticsProvider */}
+                  {children}
+                </AnalyticsProvider>
               </ContentProvider>
             </WellnessProvider>
           </PracticeProvider>
@@ -57,6 +61,7 @@ export { usePractice } from './practice/PracticeContext';
 export { useWellness } from './wellness/WellnessContext';
 export { useOnboarding } from './onboarding/OnboardingContext';
 export { useContent } from './content/ContentContext';
+export { useAnalytics } from './analytics/AnalyticsContext'; // ✅ ADDED: Export useAnalytics
 
 // ================================
 // PROVIDER STATUS HOOK  
@@ -68,7 +73,8 @@ export const useProviderStatus = () => {
     practice: false,
     wellness: false,
     onboarding: false,
-    content: false
+    content: false,
+    analytics: false // ✅ ADDED: Analytics status
   });
 
   React.useEffect(() => {
@@ -79,7 +85,8 @@ export const useProviderStatus = () => {
         practice: false,
         wellness: false,
         onboarding: false,
-        content: false
+        content: false,
+        analytics: false // ✅ ADDED: Analytics status
       };
 
       // Check if contexts are available
@@ -111,6 +118,12 @@ export const useProviderStatus = () => {
       try {
         require('./content/ContentContext');
         status.content = true;
+      } catch {}
+
+      // ✅ ADDED: Check AnalyticsContext
+      try {
+        require('./analytics/AnalyticsContext');
+        status.analytics = true;
       } catch {}
 
       setContextStatus(status);

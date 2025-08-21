@@ -1,4 +1,4 @@
-// ✅ FIREBASE-ONLY AuthContext - FIXED: Proper error handling & loading resolution
+// ✅ ENHANCED AuthContext - Added Demographics Support
 // File: src/contexts/auth/AuthContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -87,7 +87,16 @@ interface User extends FirebaseUser {
   assessmentCompleted?: boolean;
 }
 
-// ✅ CLEANED: Define the shape of the user profile (auth-only)
+// ✅ ENHANCED: User demographics interface
+interface UserDemographics {
+  age: number;
+  gender: string;
+  nationality: string;
+  livingCountry: string;
+  requiresDemographics?: boolean;
+}
+
+// ✅ ENHANCED: Define the shape of the user profile (auth + demographics)
 interface UserProfile {
   uid: string;
   email: string;
@@ -98,6 +107,14 @@ interface UserProfile {
   membershipType: 'free' | 'premium' | 'admin';
   memberSince: Date | null;
   membershipId: string;
+  
+  // ✅ ENHANCED: Demographics fields
+  age?: number;
+  gender?: string;
+  nationality?: string;
+  livingCountry?: string;
+  profileComplete?: boolean;
+  
   preferences: {
     theme: 'light' | 'dark' | 'system';
     notifications: boolean;
@@ -118,7 +135,7 @@ interface FirestoreUserProfile extends Omit<UserProfile, 'createdAt' | 'lastLogi
   memberSince: FieldValue | null;
 }
 
-// ✅ ENHANCED: AuthContext interface with Firebase-only approach
+// ✅ ENHANCED: AuthContext interface with demographics support
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -126,9 +143,9 @@ interface AuthContextType {
   error: string | null;
   isAuthenticated: boolean;
   
-  // Authentication methods
-  signup: (email: string, password: string, displayName: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  // ✅ ENHANCED: Authentication methods with demographics support
+  signup: (email: string, password: string, displayName: string, demographics?: UserDemographics) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, demographics?: UserDemographics) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -160,7 +177,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ FIREBASE-ONLY: Create a provider component with no localStorage conflicts
+// ✅ ENHANCED: Create a provider component with demographics support
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -261,8 +278,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, checkTokenValidity, auth]);
 
-  // ✅ FIXED: Create missing user document helper function with better error handling
-  const createUserDocument = useCallback(async (user: FirebaseUser): Promise<UserProfile> => {
+  // ✅ ENHANCED: Create user document with demographics support
+  const createUserDocument = useCallback(async (user: FirebaseUser, demographics?: UserDemographics): Promise<UserProfile> => {
     const membershipId = `SP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
     const newUserProfile: UserProfile = {
@@ -275,6 +292,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       membershipType: 'free',
       memberSince: new Date(),
       membershipId: membershipId,
+      
+      // ✅ ENHANCED: Include demographics if provided
+      age: demographics?.age || undefined,
+      gender: demographics?.gender || '',
+      nationality: demographics?.nationality || '',
+      livingCountry: demographics?.livingCountry || '',
+      profileComplete: demographics ? !demographics.requiresDemographics : false,
+      
       preferences: {
         theme: 'system',
         notifications: true,
@@ -296,7 +321,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         memberSince: serverTimestamp()
       } as FirestoreUserProfile);
       
-      console.log(`✅ User profile created in userProfiles for ${user.uid.substring(0, 8)}...`);
+      console.log(`✅ User profile created in userProfiles for ${user.uid.substring(0, 8)}... with demographics`);
     } catch (userProfilesError) {
       console.warn('Failed to save to userProfiles, trying users collection:', userProfilesError);
       
@@ -309,7 +334,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           memberSince: serverTimestamp()
         } as FirestoreUserProfile);
         
-        console.log(`✅ User profile created in users for ${user.uid.substring(0, 8)}...`);
+        console.log(`✅ User profile created in users for ${user.uid.substring(0, 8)}... with demographics`);
       } catch (usersError) {
         console.error('Failed to save user profile to both collections:', usersError);
         throw usersError;
@@ -343,13 +368,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           lastLoginAt: data.lastLoginAt?.toDate() || null,
           memberSince: data.memberSince?.toDate() || null,
           currentStage: data.currentStage || '0',
-          goals: data.goals || []
+          goals: data.goals || [],
+          // ✅ ENHANCED: Include demographics fields
+          age: data.age || undefined,
+          gender: data.gender || '',
+          nationality: data.nationality || '',
+          livingCountry: data.livingCountry || '',
+          profileComplete: data.profileComplete || false
         } as UserProfile;
         
         console.log(`📦 User profile loaded from Firebase for ${user.uid.substring(0, 8)}...`);
         return profile;
       } else {
-        // Create new user document
+        // Create new user document without demographics (will be added later)
         console.log(`🆕 Creating new user profile for ${user.uid.substring(0, 8)}...`);
         return await createUserDocument(user);
       }
@@ -526,8 +557,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [auth, db, loadUserProfile, cleanupUserCache]);
 
-  // ✅ FIREBASE-ONLY: Authentication methods with proper state management
-  const signup = useCallback(async (email: string, password: string, displayName: string) => {
+  // ✅ ENHANCED: Authentication methods with demographics support
+  const signup = useCallback(async (email: string, password: string, displayName: string, demographics?: UserDemographics) => {
     try {
       // ✅ FIREBASE-ONLY: Clean up cache before signup
       cleanupUserCache();
@@ -536,16 +567,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(null);
       
       if (isFeatureEnabled('debugging')) {
-        console.log('🔐 Starting sign up...');
+        console.log('🔐 Starting enhanced sign up with demographics...');
       }
+      
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(result.user, { displayName });
+      
+      // ✅ ENHANCED: Create user profile with demographics
+      if (demographics) {
+        try {
+          await createUserDocument(result.user, demographics);
+          console.log('✅ User profile created with demographics during signup');
+        } catch (profileError) {
+          console.warn('❌ Failed to create profile with demographics, will be created later:', profileError);
+        }
+      }
       
       // Send verification email
       await sendEmailVerification(result.user);
       
       if (isFeatureEnabled('debugging')) {
-        console.log(`✅ Sign up successful for ${result.user.uid.substring(0, 8)}... - waiting for auth state to update`);
+        console.log(`✅ Enhanced sign up successful for ${result.user.uid.substring(0, 8)}... - waiting for auth state to update`);
       }
       
     } catch (err: any) {
@@ -555,7 +597,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(errorMessage);
       throw err;
     }
-  }, [auth, cleanupUserCache]);
+  }, [auth, cleanupUserCache, createUserDocument]);
 
   // Alias for signup
   const signUp = signup;
@@ -589,7 +631,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Alias for login
   const signIn = login;
 
-  // ✅ FIREBASE-ONLY: Profile management methods
+  // ✅ ENHANCED: Profile management methods with demographics support
   const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
     try {
       if (!currentUser || !userProfile) {
@@ -808,7 +850,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   }, []);
 
-  // ✅ FIREBASE-ONLY: Create context value with no localStorage dependencies
+  // ✅ ENHANCED: Create context value with demographics support
   const value: AuthContextType = {
     currentUser,
     userProfile,
@@ -816,7 +858,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     error,
     isAuthenticated,
     
-    // Authentication methods
+    // ✅ ENHANCED: Authentication methods with demographics
     signup,
     signUp,
     login,
