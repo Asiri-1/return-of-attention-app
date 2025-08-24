@@ -1,12 +1,14 @@
 // ============================================================================
-// 🚀 ULTRA-FAST USER PROFILE - Performance Optimized
+// 🚀 ULTRA-FAST USER PROFILE - Performance Optimized + Password Change
 // ============================================================================
 // File: src/components/OptimizedUserProfile.tsx
 // ✅ INSTANT LOADING: No artificial delays, immediate data display
 // ✅ MINIMAL RE-RENDERS: Optimized state management
 // ✅ SMART CACHING: Reduces Firebase calls
+// ✅ PASSWORD CHANGE: Basic password update functionality
 
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 
 // ✅ YOUR REAL CONTEXTS - Replace with correct paths if needed
 import { useAuth } from './contexts/auth/AuthContext';
@@ -289,6 +291,267 @@ const FastAccountInfo = memo(({ currentUser, userProfile, updateUserProfile }: a
   );
 });
 
+// ✅ NEW: Basic Password Change Component
+const PasswordChangeSection = memo(({ currentUser }: any) => {
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePasswordChange = async () => {
+    // Basic validation
+    if (!passwordData.currentPassword) {
+      alert('Please enter your current password');
+      return;
+    }
+    if (!passwordData.newPassword) {
+      alert('Please enter a new password');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      alert('New password must be at least 6 characters long');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Re-authenticate user with current password
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        passwordData.currentPassword
+      );
+      
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update password
+      await updatePassword(currentUser, passwordData.newPassword);
+      
+      alert('Password updated successfully!');
+      
+      // Reset form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setIsChangingPassword(false);
+
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      
+      if (error.code === 'auth/wrong-password') {
+        alert('Current password is incorrect');
+      } else if (error.code === 'auth/weak-password') {
+        alert('New password is too weak');
+      } else if (error.code === 'auth/requires-recent-login') {
+        alert('Please log out and log back in, then try changing your password');
+      } else {
+        alert('Failed to change password. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setIsChangingPassword(false);
+  };
+
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '12px'
+      }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>Password & Security</h3>
+        <button
+          onClick={() => setIsChangingPassword(!isChangingPassword)}
+          style={{
+            background: isChangingPassword ? '#dc3545' : '#007bff',
+            color: 'white',
+            border: 'none',
+            padding: '4px 8px',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            fontSize: '11px'
+          }}
+        >
+          {isChangingPassword ? 'Cancel' : 'Change Password'}
+        </button>
+      </div>
+
+      <div style={{
+        background: '#f8f9fa',
+        borderRadius: '8px',
+        padding: '16px'
+      }}>
+        {!isChangingPassword ? (
+          <div style={{
+            padding: '8px',
+            background: 'white',
+            borderRadius: '4px',
+            textAlign: 'center',
+            fontSize: '13px'
+          }}>
+            🔒 Password is secure and encrypted
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {/* Current Password */}
+            <div>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '13px', 
+                fontWeight: '500', 
+                marginBottom: '4px',
+                color: '#555'
+              }}>
+                Current Password:
+              </label>
+              <input
+                type="password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="Enter current password"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '13px', 
+                fontWeight: '500', 
+                marginBottom: '4px',
+                color: '#555'
+              }}>
+                New Password:
+              </label>
+              <input
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="Enter new password (min 6 characters)"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '13px', 
+                fontWeight: '500', 
+                marginBottom: '4px',
+                color: '#555'
+              }}>
+                Confirm New Password:
+              </label>
+              <input
+                type="password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="Confirm new password"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                onClick={handlePasswordChange}
+                disabled={isLoading}
+                style={{
+                  flex: 1,
+                  background: isLoading ? '#6c757d' : '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '4px',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500'
+                }}
+              >
+                {isLoading ? '🔄 Updating...' : '✅ Update Password'}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={isLoading}
+                style={{
+                  flex: 1,
+                  background: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Help Text */}
+            <div style={{
+              padding: '8px',
+              background: '#e7f3ff',
+              border: '1px solid #b3d9ff',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#0056b3'
+            }}>
+              💡 Your new password must be at least 6 characters long
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 // ✅ ULTRA-FAST: Simplified completion status
 const FastCompletionStatus = memo(({ questionnaire, selfAssessment, onQuestionnaireNav, onAssessmentNav }: any) => (
   <div style={{ marginBottom: '20px' }}>
@@ -431,6 +694,9 @@ const OptimizedUserProfile: React.FC<UserProfileProps> = ({
             updateUserProfile={effectiveUpdateProfile}
           />
 
+          {/* ✅ NEW: Password Change Section */}
+          <PasswordChangeSection currentUser={currentUser} />
+
           {/* ✅ INSTANT: Completion status loads immediately */}
           <FastCompletionStatus
             questionnaire={questionnaire}
@@ -438,8 +704,6 @@ const OptimizedUserProfile: React.FC<UserProfileProps> = ({
             onQuestionnaireNav={onNavigateToQuestionnaire}
             onAssessmentNav={onNavigateToSelfAssessment}
           />
-
-
 
           {/* ✅ INSTANT: Action buttons */}
           <div style={{ display: 'flex', gap: '8px' }}>

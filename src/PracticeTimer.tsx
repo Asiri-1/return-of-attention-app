@@ -1,7 +1,6 @@
-// 🎯 TRUE SINGLE-POINT PracticeTimer.tsx - All Features Preserved
+// 🎯 COMPLETE PracticeTimer.tsx - All Features + Wake Lock Fixes
 // File: src/PracticeTimer.tsx
-// ✅ PRESERVES: All audio, wake lock, voice, bell functionality
-// 🎯 SINGLE-POINT: Only uses PracticeContext for session management
+// ✅ FIXED: Wake lock functionality with proper status handling
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './PracticeTimer.css';
@@ -10,9 +9,8 @@ import T2PracticeRecorder from './T2PracticeRecorder';
 import T3PracticeRecorder from './T3PracticeRecorder';
 import T4PracticeRecorder from './T4PracticeRecorder';
 import T5PracticeRecorder from './T5PracticeRecorder';
-import { usePractice } from './contexts/practice/PracticeContext'; // ✅ ONLY PracticeContext
+import { usePractice } from './contexts/practice/PracticeContext';
 import { useWellness } from './contexts/wellness/WellnessContext';
-// ❌ REMOVED: UserContext - not needed for single-point
 
 interface PracticeTimerProps {
   onComplete: () => void;
@@ -27,7 +25,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   stageLevel = 'Stage 1: Stillness Practice',
   initialMinutes: propInitialMinutes
 }) => {
-  // ✅ PRESERVE: All original state (exactly same)
+  // ✅ PRESERVE: All original state
   const [currentStage, setCurrentStage] = useState<'setup' | 'practice'>('setup');
   const [initialMinutes, setInitialMinutes] = useState<number>(propInitialMinutes || 10);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
@@ -39,31 +37,30 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const [totalPausedTime, setTotalPausedTime] = useState<number>(0);
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
   
-  // Store temporary data in component state instead of sessionStorage
   const [lastPracticeData, setLastPracticeData] = useState<any>(null);
   
-  // ✅ PRESERVE: All bell tracking states
+  // ✅ PRESERVE: Bell tracking states
   const [lastBellMinute, setLastBellMinute] = useState<number>(-1);
   const [bellsPlayed, setBellsPlayed] = useState<Set<number>>(new Set());
   
-  // ✅ PRESERVE: All voice settings
+  // ✅ PRESERVE: Voice settings
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
   const [lastVoiceAnnouncement, setLastVoiceAnnouncement] = useState<number>(-1);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   
-  // ✅ PRESERVE: All audio context management
+  // ✅ PRESERVE: Audio context management
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [bellEnabled, setBellEnabled] = useState<boolean>(true);
   const [isAudioInitialized, setIsAudioInitialized] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   
-  // ✅ PRESERVE: All wake lock functionality
+  // ✅ FIXED: Enhanced wake lock state management
   const [wakeLock, setWakeLock] = useState<any>(null);
   const [wakeLockEnabled, setWakeLockEnabled] = useState<boolean>(true);
   const [wakeLockStatus, setWakeLockStatus] = useState<string>('inactive');
   
-  // 🎯 SINGLE-POINT: Only PracticeContext for session management
+  // ✅ PRESERVE: Context usage
   const { addPracticeSession } = usePractice();
   const { addEmotionalNote } = useWellness();
   
@@ -79,7 +76,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ✅ PRESERVE: Mobile detection (exactly same)
+  // ✅ PRESERVE: Mobile detection
   useEffect(() => {
     const detectMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
@@ -89,7 +86,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setIsMobile(detectMobile());
   }, []);
 
-  // ✅ PRESERVE: All audio context functionality (exactly same)
+  // ✅ PRESERVE: Audio context functionality
   const initializeAudioContext = useCallback(async () => {
     if (audioContext || !bellEnabled) return audioContext;
     
@@ -126,28 +123,40 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [audioContext]);
 
-  // ✅ PRESERVE: All wake lock functions (exactly same)
+  // ✅ FIXED: Improved wake lock request with better error handling
   const requestWakeLock = useCallback(async () => {
-    if (!wakeLockEnabled) return;
+    if (!wakeLockEnabled) {
+      console.log('⚠️ Wake lock disabled by user');
+      setWakeLockStatus('disabled');
+      return;
+    }
     
     try {
       if ('wakeLock' in navigator) {
+        console.log('🔒 Requesting wake lock...');
         const lock = await (navigator as any).wakeLock.request('screen');
         setWakeLock(lock);
         setWakeLockStatus('active');
-        console.log('✅ Screen wake lock activated');
+        console.log('✅ Screen wake lock activated successfully');
         
         lock.addEventListener('release', () => {
           setWakeLockStatus('released');
-          console.log('⚠️ Screen wake lock released');
+          setWakeLock(null);
+          console.log('⚠️ Screen wake lock was released');
         });
       } else {
-        console.warn('⚠️ Wake Lock API not supported');
+        console.warn('⚠️ Wake Lock API not supported in this browser');
         setWakeLockStatus('unsupported');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Wake lock request failed:', error);
       setWakeLockStatus('failed');
+      
+      if (error.name === 'NotAllowedError') {
+        console.error('Wake lock denied - user might have denied permission');
+      } else if (error.name === 'AbortError') {
+        console.error('Wake lock request was aborted');
+      }
     }
   }, [wakeLockEnabled]);
 
@@ -164,7 +173,16 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [wakeLock]);
 
-  // ✅ PRESERVE: All voice functions (exactly same)
+  // ✅ FIXED: Add wake lock toggle for user control
+  const toggleWakeLock = useCallback(async () => {
+    if (wakeLock && wakeLockStatus === 'active') {
+      await releaseWakeLock();
+    } else if (wakeLockEnabled) {
+      await requestWakeLock();
+    }
+  }, [wakeLock, wakeLockStatus, wakeLockEnabled, releaseWakeLock, requestWakeLock]);
+
+  // ✅ PRESERVE: Voice functions
   const loadVoices = useCallback(() => {
     const voices = speechSynthesis.getVoices();
     setAvailableVoices(voices);
@@ -196,7 +214,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
   }, [loadVoices]);
 
-  // ✅ PRESERVE: All bell audio functions (exactly same)
+  // ✅ PRESERVE: Bell audio functions
   const createBellSound = useCallback(async (frequency: number, duration: number) => {
     if (!bellEnabled || !audioContext) return;
     
@@ -233,7 +251,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       }
       
       if (isMobile) {
-        // Simple mobile bell
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         
@@ -250,7 +267,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         oscillator.start(now);
         oscillator.stop(now + duration);
       } else {
-        // Desktop harmonic bell
         const fundamental = audioContext.createOscillator();
         const harmonic2 = audioContext.createOscillator();
         const harmonic3 = audioContext.createOscillator();
@@ -318,7 +334,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [bellEnabled, audioContext, initializeAudioContext, resumeAudioContext, createBellSound]);
 
-  // ✅ PRESERVE: Voice announcements (exactly same)
+  // ✅ PRESERVE: Voice announcements
   const announceTime = useCallback((remainingMinutes: number) => {
     if (!voiceEnabled || !selectedVoice) return;
     
@@ -348,7 +364,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [voiceEnabled, selectedVoice]);
 
-  // ✅ PRESERVE: Bell and voice timing (exactly same)
+  // ✅ PRESERVE: Bell and voice timing
   const checkMinuteBell = useCallback((remainingSeconds: number) => {
     if (!isRunning || isPaused) return;
     
@@ -373,7 +389,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, bellsPlayed, voiceEnabled, lastVoiceAnnouncement, playBell, announceTime, isRunning, isPaused]);
 
-  // ✅ PRESERVE: Helper functions (exactly same)
+  // ✅ PRESERVE: Helper functions
   const getTLevel = useCallback((): string => {
     const patterns = [
       /^(T[1-5])/i,
@@ -409,7 +425,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return Math.min(10, Math.max(1, Math.round(quality * 10) / 10));
   }, []);
 
-  // 🎯 SINGLE-POINT: Simplified session saving - ONE CONTEXT ONLY
+  // ✅ PRESERVE: Session saving
   const saveSessionToFirebase = useCallback(async (sessionData: any, isCompleted: boolean) => {
     const tLevel = getTLevel();
     const timestamp = new Date().toISOString();
@@ -417,27 +433,19 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     console.log('🎯 SINGLE-POINT SESSION SAVING:', { tLevel, isCompleted, sessionData });
     
     try {
-      // 🎯 SINGLE-POINT: Only save to PracticeContext
-      // PracticeContext automatically handles:
-      // - Session counting (T1: 1/3, T2: 2/3, etc.)
-      // - Stage progression calculation  
-      // - User statistics updates
-      // - Firebase storage with userId
-      // - Real-time UI updates
-      
       const enhancedSessionData = {
         timestamp: timestamp,
         duration: sessionData.duration || initialMinutes,
         sessionType: 'meditation' as const,
         stageLevel: getTLevelNumber(tLevel),
         stageLabel: `${tLevel.toUpperCase()}: Physical Stillness Training`,
-        tLevel: tLevel.toUpperCase(), // "T1", "T2", etc.
-        level: tLevel,                // "t1", "t2", etc.
+        tLevel: tLevel.toUpperCase(),
+        level: tLevel,
         rating: sessionData.rating || (isCompleted ? 8 : 6),
         notes: sessionData.notes || `${tLevel.toUpperCase()} physical stillness training (${initialMinutes} minutes)`,
         presentPercentage: isCompleted ? 85 : 70,
         isCompleted: isCompleted,
-        completed: isCompleted, // For backward compatibility
+        completed: isCompleted,
         environment: {
           posture: 'selected',
           location: 'indoor',
@@ -459,15 +467,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         }
       };
       
-      // 🎯 SINGLE-POINT: One method handles everything
       await addPracticeSession(enhancedSessionData);
       
       console.log(`✅ SINGLE-POINT SESSION SAVED! T-level: ${tLevel.toUpperCase()}`);
-      console.log('🎯 PracticeContext automatically updated:');
-      console.log('   - Session counting (T1: X/3)');
-      console.log('   - Stage progression');
-      console.log('   - User statistics');
-      console.log('   - Real-time UI updates');
       
       return enhancedSessionData;
       
@@ -477,7 +479,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [initialMinutes, addPracticeSession, getTLevel, getTLevelNumber, wakeLockStatus]);
 
-  // ✅ PRESERVE: Timer completion handler (simplified)
+  // ✅ FIXED: Don't release wake lock on timer completion
   const handleTimerComplete = useCallback(async () => {
     console.log('⏰ TIMER COMPLETED');
     
@@ -494,7 +496,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     const isFullyCompleted = timeRemaining === 0;
     const sessionQuality = calculateSessionQuality(actualDuration, isFullyCompleted);
 
-    await releaseWakeLock();
+    // ✅ FIXED: Don't release wake lock automatically - let user control it
+    // await releaseWakeLock(); // REMOVED
+
     await playBell('end');
     announceTime(0);
 
@@ -512,14 +516,12 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
 
     try {
-      // 🎯 SINGLE-POINT: Only save to PracticeContext
       await saveSessionToFirebase(sessionData, isFullyCompleted);
 
       const completionMessage = isFullyCompleted 
         ? `Completed full ${initialMinutes}-minute ${getTLevel().toUpperCase()} stillness session! 🎯`
         : `Completed ${Math.round(actualDuration / 60)}-minute ${getTLevel().toUpperCase()} stillness session.`;
 
-      // Add emotional note via WellnessContext
       await addEmotionalNote({
         content: `${completionMessage} Building foundation for deeper mindfulness practice. Quality rating: ${sessionQuality}/10.`,
         emotion: isFullyCompleted ? 'accomplished' : 'content',
@@ -529,7 +531,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         gratitude: ['meditation practice', 'inner stillness', isFullyCompleted ? 'session completion' : 'practice effort']
       });
 
-      // Store completion data in component state instead of sessionStorage
       const reflectionData = {
         level: getTLevel(),
         targetDuration: initialMinutes,
@@ -546,9 +547,9 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       console.error('❌ Error completing session:', error);
       alert('Failed to save session. Please try again.');
     }
-  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToFirebase, calculateSessionQuality, getTLevel, playBell, announceTime, releaseWakeLock, wakeLockStatus]);
+  }, [initialMinutes, timeRemaining, addEmotionalNote, onComplete, saveSessionToFirebase, calculateSessionQuality, getTLevel, playBell, announceTime, wakeLockStatus]);
 
-  // ✅ PRESERVE: All timer effects and logic (exactly same)
+  // ✅ PRESERVE: Timer effects
   useEffect(() => {
     if (isRunning && !isPaused && sessionStartTimestamp) {
       if (intervalRef.current) {
@@ -590,7 +591,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [timeRemaining, isRunning, handleTimerComplete]);
 
-  // ✅ PRESERVE: All control handlers (exactly same)
+  // ✅ PRESERVE: Control handlers
   const handleStart = async () => {
     if (initialMinutes < 5) {
       alert('Practice requires a minimum of 5 minutes.');
@@ -634,6 +635,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setSessionStartTime(nowISO);
   };
 
+  // ✅ FIXED: Enhanced handleBack to properly clean up wake lock
   const handleBack = async () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -644,6 +646,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       intervalRef.current = null;
     }
     
+    // Always release wake lock when leaving practice
     await releaseWakeLock();
     
     if ('speechSynthesis' in window) {
@@ -706,10 +709,8 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     };
     
     try {
-      // 🎯 SINGLE-POINT: Only save to PracticeContext
       await saveSessionToFirebase(sessionData, false);
       
-      // Store reflection data in component state instead of sessionStorage
       const reflectionData = {
         level: getTLevel(),
         targetDuration: initialMinutes,
@@ -726,7 +727,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-  // ✅ PRESERVE: Development fast-forward (exactly same)
+  // Development fast-forward
   const fastForwardMinutes = (minutes: number) => {
     if (process.env.NODE_ENV !== 'production') {
       const secondsToReduce = minutes * 60;
@@ -735,7 +736,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   };
 
-  // ✅ PRESERVE: All effects (exactly same)
+  // ✅ PRESERVE: Cleanup effects
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -755,6 +756,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     }
   }, [propInitialMinutes]);
 
+  // ✅ FIXED: Enhanced visibility change handler with wake lock recovery
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -764,9 +766,13 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         }
       } else if (!document.hidden && isActive) {
         console.log('🔄 Tab back to foreground, resyncing...');
-        if (wakeLockEnabled) {
+        
+        // Re-request wake lock if it was released
+        if (wakeLockEnabled && (!wakeLock || wakeLockStatus !== 'active')) {
+          console.log('🔒 Re-requesting wake lock after returning to foreground...');
           requestWakeLock();
         }
+        
         if (audioContext && audioContext.state === 'suspended') {
           audioContext.resume().catch(error => {
             console.warn('Failed to resume AudioContext:', error);
@@ -784,29 +790,49 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [wakeLock, isActive, wakeLockEnabled, requestWakeLock, audioContext, 
-      sessionStartTimestamp, isRunning, isPaused, totalPausedTime, initialMinutes]);
+      sessionStartTimestamp, isRunning, isPaused, totalPausedTime, initialMinutes, wakeLockStatus]);
 
-  // ✅ PRESERVE: Utility functions (exactly same)
+  // ✅ DEBUGGING: Wake lock status debugging
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔍 Wake Lock Status Changed:', {
+        wakeLockStatus,
+        wakeLockEnabled,
+        hasWakeLock: !!wakeLock,
+        isActive,
+        documentHidden: document.hidden
+      });
+    }
+  }, [wakeLockStatus, wakeLockEnabled, wakeLock, isActive]);
+
+  // ✅ PRESERVE: Utility functions
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ✅ FIXED: Clear and accurate wake lock status messages
   const getWakeLockIndicator = () => {
-    if (isActive) return '🔒 Screen lock disabled';
-    
     switch (wakeLockStatus) {
-      case 'active': return '🔒 Screen lock disabled';
-      case 'released': return '⚠️ Screen lock re-enabled';
-      case 'background': return '📱 App in background';
-      case 'unsupported': return '❌ Wake lock not supported';
-      case 'failed': return '❌ Wake lock failed';
-      default: return '🔓 Screen may turn off';
+      case 'active': 
+        return '🔒 Screen staying awake';
+      case 'released': 
+        return '⚠️ Screen may turn off (wake lock released)';
+      case 'background': 
+        return '📱 App in background (wake lock may be inactive)';
+      case 'unsupported': 
+        return '❌ Wake lock not supported on this device';
+      case 'failed': 
+        return '❌ Failed to keep screen awake';
+      case 'disabled':
+        return '🔓 Screen may turn off (wake lock disabled)';
+      default: 
+        return '🔓 Screen may turn off';
     }
   };
 
-  // ✅ PRESERVE: Setup stage UI (exactly same)
+  // ✅ PRESERVE: Setup stage UI
   if (currentStage === 'setup') {
     return (
       <div style={{
@@ -934,6 +960,14 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               />
               🔒 Keep screen awake during practice
             </label>
+
+            {/* ✅ FIXED: Show wake lock support status in setup */}
+            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '5px' }}>
+              {('wakeLock' in navigator) 
+                ? '✅ Wake lock supported on this device' 
+                : '❌ Wake lock not supported on this device'
+              }
+            </div>
           </div>
           
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -974,7 +1008,7 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     );
   }
 
-  // ✅ PRESERVE: Practice stage UI (exactly same)
+  // ✅ PRESERVE: Practice stage UI with wake lock toggle button
   return (
     <div className="practice-timer" style={{ 
       height: '100vh', 
@@ -1026,19 +1060,22 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         <div style={{ width: '65px' }}></div>
       </div>
       
-      {isActive && (
-        <div style={{
-          background: wakeLockStatus === 'active' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 165, 0, 0.1)',
-          padding: '8px',
-          borderRadius: '8px',
-          textAlign: 'center',
-          fontSize: '12px',
-          marginBottom: '10px',
-          border: `1px solid ${wakeLockStatus === 'active' ? '#00ff00' : '#ffa500'}`
-        }}>
-          {getWakeLockIndicator()}
-        </div>
-      )}
+      {/* ✅ FIXED: Enhanced wake lock status display */}
+      <div style={{
+        background: wakeLockStatus === 'active' ? 'rgba(0, 255, 0, 0.1)' : 
+                  wakeLockStatus === 'failed' || wakeLockStatus === 'unsupported' ? 'rgba(255, 0, 0, 0.1)' :
+                  'rgba(255, 165, 0, 0.1)',
+        padding: '8px',
+        borderRadius: '8px',
+        textAlign: 'center',
+        fontSize: '12px',
+        marginBottom: '10px',
+        border: `1px solid ${wakeLockStatus === 'active' ? '#00ff00' : 
+                            wakeLockStatus === 'failed' || wakeLockStatus === 'unsupported' ? '#ff0000' : 
+                            '#ffa500'}`
+      }}>
+        {getWakeLockIndicator()}
+      </div>
       
       <div style={{ 
         flex: 1, 
@@ -1128,6 +1165,26 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
           }}>
             Complete Practice
           </button>
+
+          {/* ✅ FIXED: Wake lock toggle button */}
+          {isActive && (
+            <button 
+              onClick={toggleWakeLock}
+              style={{
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                borderRadius: '25px',
+                border: 'none',
+                backgroundColor: wakeLockStatus === 'active' ? '#27ae60' : '#95a5a6',
+                color: 'white',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              {wakeLockStatus === 'active' ? '🔒 Screen Locked' : '🔓 Lock Screen'}
+            </button>
+          )}
         </div>
 
         {process.env.NODE_ENV !== 'production' && (
@@ -1171,6 +1228,20 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               >
                 +5min
               </button>
+            </div>
+            
+            {/* ✅ DEBUGGING: Development wake lock info */}
+            <div style={{ 
+              fontSize: '10px', 
+              color: '#ccc', 
+              marginTop: '10px',
+              textAlign: 'left' 
+            }}>
+              Wake Lock Debug:<br/>
+              Status: {wakeLockStatus}<br/>
+              Enabled: {wakeLockEnabled ? 'Yes' : 'No'}<br/>
+              Has Lock: {wakeLock ? 'Yes' : 'No'}<br/>
+              Supported: {('wakeLock' in navigator) ? 'Yes' : 'No'}
             </div>
           </div>
         )}
