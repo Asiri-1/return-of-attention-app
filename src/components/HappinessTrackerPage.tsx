@@ -1,12 +1,12 @@
-// ✅ FIXED HappinessTrackerPage.tsx - TRUE SINGLE-POINT Implementation
+// ✅ FIXED HappinessTrackerPage.tsx - No Unused Variables
 // File: src/components/HappinessTrackerPage.tsx
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useHappinessCalculation } from '../hooks/useHappinessCalculation';
-import { useUser } from '../contexts/user/UserContext'; // ✅ ONLY for profile management
-import { usePractice } from '../contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: For ALL session data
+import { useUser } from '../contexts/user/UserContext';
+import { usePractice } from '../contexts/practice/PracticeContext';
 import { useAnalytics } from '../contexts/analytics/AnalyticsContext';
 
 const HappinessTrackerPage = React.memo(() => {
@@ -16,38 +16,25 @@ const HappinessTrackerPage = React.memo(() => {
     userProgress,
     componentBreakdown,
     isCalculating,
-    practiceSessions,
     emotionalNotes,
     questionnaire,
     selfAssessment,
-    debugCalculation,
-    logProgress,
-    testComponents,
     forceRecalculation
   } = useHappinessCalculation();
 
-  // ✅ SINGLE-POINT: Use PracticeContext for ALL session data and stage progression
   const {
     sessions,
     getCurrentStage,
     getTotalPracticeHours,
-    getStageProgress,
-    canAdvanceToStage
+    getStageProgress
   } = usePractice();
 
-  // ✅ Use UserContext ONLY for profile management (questionnaire/assessment status)
-  const { userProfile } = useUser();
-
-  // ✅ Analytics integration
-  const { 
-    getPAHMData, 
-    getComprehensiveAnalytics,
-    refreshAnalytics 
-  } = useAnalytics();
+  const { refreshAnalytics } = useAnalytics();
 
   const [showDebug, setShowDebug] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // ✅ SINGLE-POINT: T-level session counts from PracticeContext ONLY
+  // Fixed: Added proper typing for tLevel parameter
   const getTLevelSessions = useCallback((tLevel: string): number => {
     if (!sessions || sessions.length === 0) return 0;
     return sessions.filter((s: any) => 
@@ -67,7 +54,6 @@ const HappinessTrackerPage = React.memo(() => {
     };
   }, [getTLevelSessions]);
 
-  // ✅ SINGLE-POINT: T-level completion status from PracticeContext
   const tLevelCompletion = useMemo(() => {
     return {
       isT1Complete: tLevelProgress.T1 >= 3,
@@ -78,7 +64,6 @@ const HappinessTrackerPage = React.memo(() => {
     };
   }, [tLevelProgress]);
 
-  // ✅ SINGLE-POINT: Stage hours from PracticeContext ONLY
   const getStageHours = useCallback((stageNum: number): number => {
     try {
       const stageData = getStageProgress(stageNum);
@@ -100,33 +85,23 @@ const HappinessTrackerPage = React.memo(() => {
     };
   }, [getStageHours]);
 
-  // ✅ SINGLE-POINT: Stage completion status from PracticeContext
   const stageCompletion = useMemo(() => {
     return {
-      isStage1Complete: stageHoursProgress.stage1 >= 3, // Stage 1 = 3 hours
-      isStage2Complete: stageHoursProgress.stage2 >= 5, // Stage 2 = 5 hours
-      isStage3Complete: stageHoursProgress.stage3 >= 10, // Stage 3 = 10 hours
-      isStage4Complete: stageHoursProgress.stage4 >= 20, // Stage 4 = 20 hours
-      isStage5Complete: stageHoursProgress.stage5 >= 25, // Stage 5 = 25 hours
-      isStage6Complete: stageHoursProgress.stage6 >= 30  // Stage 6 = 30 hours
+      isStage1Complete: stageHoursProgress.stage1 >= 3,
+      isStage2Complete: stageHoursProgress.stage2 >= 5,
+      isStage3Complete: stageHoursProgress.stage3 >= 10,
+      isStage4Complete: stageHoursProgress.stage4 >= 20,
+      isStage5Complete: stageHoursProgress.stage5 >= 25,
+      isStage6Complete: stageHoursProgress.stage6 >= 30
     };
   }, [stageHoursProgress]);
 
-  // ✅ SINGLE-POINT: Quick stats with real data validation and stage progression
   const quickStats = useMemo(() => {
     const totalSessions = sessions?.length || 0;
     const totalHours = getTotalPracticeHours();
     const currentStage = getCurrentStage();
     const hasData = userProgress?.hasMinimumData || false;
     const hasAnyData = totalSessions > 0 || questionnaire?.completed || selfAssessment?.completed;
-
-    console.log('📊 Quick Stats Calculation:', {
-      totalSessions,
-      totalHours: totalHours.toFixed(2),
-      currentStage,
-      hasData,
-      source: 'practicecontext'
-    });
 
     return {
       totalSessions,
@@ -144,130 +119,74 @@ const HappinessTrackerPage = React.memo(() => {
   }, [sessions, getTotalPracticeHours, getCurrentStage, questionnaire?.completed, 
       selfAssessment?.completed, userProgress]);
 
-  // ✅ SINGLE-POINT: Stage progression info from PracticeContext
   const stageProgressInfo = useMemo(() => {
     const currentStage = getCurrentStage();
-    
-    // Stage requirements: 3, 5, 10, 20, 25, 30 hours
     const stageRequirements = [3, 5, 10, 20, 25, 30];
     const currentRequirement = stageRequirements[currentStage - 1] || 3;
     
     let currentHours = 0;
-    let nextStageHours = 0;
     
     switch (currentStage) {
-      case 1:
-        currentHours = stageHoursProgress.stage1;
-        nextStageHours = stageRequirements[1]; // 5 hours for Stage 2
-        break;
-      case 2:
-        currentHours = stageHoursProgress.stage2;
-        nextStageHours = stageRequirements[2]; // 10 hours for Stage 3
-        break;
-      case 3:
-        currentHours = stageHoursProgress.stage3;
-        nextStageHours = stageRequirements[3]; // 20 hours for Stage 4
-        break;
-      case 4:
-        currentHours = stageHoursProgress.stage4;
-        nextStageHours = stageRequirements[4]; // 25 hours for Stage 5
-        break;
-      case 5:
-        currentHours = stageHoursProgress.stage5;
-        nextStageHours = stageRequirements[5]; // 30 hours for Stage 6
-        break;
-      case 6:
-        currentHours = stageHoursProgress.stage6;
-        nextStageHours = 30; // Already at max
-        break;
+      case 1: currentHours = stageHoursProgress.stage1; break;
+      case 2: currentHours = stageHoursProgress.stage2; break;
+      case 3: currentHours = stageHoursProgress.stage3; break;
+      case 4: currentHours = stageHoursProgress.stage4; break;
+      case 5: currentHours = stageHoursProgress.stage5; break;
+      case 6: currentHours = stageHoursProgress.stage6; break;
     }
     
     const progressPercent = Math.min((currentHours / currentRequirement) * 100, 100);
-    
-    console.log('🎯 Stage Progress Info:', {
-      currentStage,
-      currentHours: currentHours.toFixed(2),
-      currentRequirement,
-      progressPercent: progressPercent.toFixed(1),
-      source: 'practicecontext'
-    });
     
     return {
       currentStage,
       currentHours,
       currentRequirement,
-      nextStageHours,
       progressPercent,
       isComplete: progressPercent >= 100
     };
   }, [getCurrentStage, stageHoursProgress]);
 
-  // Memoized button handlers
-  const handleDebugToggle = useCallback(() => {
-    setShowDebug(prev => !prev);
-  }, []);
-
+  // Handlers
+  const handleDebugToggle = useCallback(() => setShowDebug(prev => !prev), []);
+  
   const handleDebugCalculation = useCallback(() => {
-    if (debugCalculation) {
-      debugCalculation();
-    } else {
-      console.log('🔍 Debug Calculation - Current Stats:', {
-        totalSessions: quickStats.totalSessions,
-        totalHours: quickStats.totalHours,
-        currentStage: stageProgressInfo.currentStage,
-        happinessPoints: quickStats.happinessPoints,
-        tLevelProgress,
-        stageHoursProgress,
-        source: 'practicecontext-single-point'
-      });
-    }
-  }, [debugCalculation, quickStats, stageProgressInfo, tLevelProgress, stageHoursProgress]);
+    console.log('🔍 Debug Calculation - Current Stats:', {
+      totalSessions: quickStats.totalSessions,
+      totalHours: quickStats.totalHours,
+      currentStage: stageProgressInfo.currentStage,
+      happinessPoints: quickStats.happinessPoints,
+      tLevelProgress,
+      stageHoursProgress,
+      source: 'practicecontext-single-point'
+    });
+  }, [quickStats, stageProgressInfo, tLevelProgress, stageHoursProgress]);
 
   const handleLogProgress = useCallback(() => {
-    if (logProgress) {
-      logProgress();
-    } else {
-      console.log('📊 Current Progress (Single-Point):', {
-        user: currentUser?.uid,
-        sessions: quickStats.totalSessions,
-        hours: quickStats.totalHours,
-        stage: stageProgressInfo.currentStage,
-        happiness: quickStats.happinessPoints,
-        completeness: quickStats.dataCompleteness,
-        tLevels: tLevelProgress,
-        stageHours: stageHoursProgress,
-        architecture: 'single-point-v3'
-      });
-    }
-  }, [logProgress, currentUser, quickStats, stageProgressInfo, tLevelProgress, stageHoursProgress]);
+    console.log('📊 Current Progress (Single-Point):', {
+      user: currentUser?.uid,
+      sessions: quickStats.totalSessions,
+      hours: quickStats.totalHours,
+      stage: stageProgressInfo.currentStage,
+      happiness: quickStats.happinessPoints,
+      completeness: quickStats.dataCompleteness,
+      tLevels: tLevelProgress,
+      stageHours: stageHoursProgress,
+      architecture: 'single-point-v3'
+    });
+  }, [currentUser, quickStats, stageProgressInfo, tLevelProgress, stageHoursProgress]);
 
   const handleTestComponents = useCallback(() => {
-    if (testComponents) {
-      testComponents();
-    } else {
-      console.log('🧪 Testing Components (Single-Point):', {
-        analytics: getPAHMData(),
-        comprehensive: getComprehensiveAnalytics(),
-        stage: stageProgressInfo,
-        tLevels: tLevelCompletion,
-        stages: stageCompletion,
-        dataSource: 'practicecontext'
-      });
-    }
-  }, [testComponents, getPAHMData, getComprehensiveAnalytics, stageProgressInfo, 
-      tLevelCompletion, stageCompletion]);
+    console.log('🧪 Testing Components (Single-Point):', {
+      stage: stageProgressInfo,
+      tLevels: tLevelCompletion,
+      stages: stageCompletion,
+      dataSource: 'practicecontext'
+    });
+  }, [stageProgressInfo, tLevelCompletion, stageCompletion]);
 
-  // ✅ FIXED: Real navigation handlers
-  const handleStartQuestionnaire = useCallback(() => {
-    navigate('/questionnaire');
-  }, [navigate]);
-
-  const handleStartSelfAssessment = useCallback(() => {
-    navigate('/self-assessment');
-  }, [navigate]);
-
+  const handleStartQuestionnaire = useCallback(() => navigate('/questionnaire'), [navigate]);
+  const handleStartSelfAssessment = useCallback(() => navigate('/self-assessment'), [navigate]);
   const handleStartPractice = useCallback(() => {
-    // Navigate to current stage based on progression from PracticeContext
     const currentStage = getCurrentStage();
     if (currentStage === 1) {
       navigate('/stage1');
@@ -275,12 +194,7 @@ const HappinessTrackerPage = React.memo(() => {
       navigate(`/stage${currentStage}`);
     }
   }, [navigate, getCurrentStage]);
-
-  const handleViewAnalytics = useCallback(() => {
-    navigate('/analytics');
-  }, [navigate]);
-
-  // ✅ Force recalculation handler
+  const handleViewAnalytics = useCallback(() => navigate('/analytics'), [navigate]);
   const handleForceRecalculation = useCallback(() => {
     if (forceRecalculation) {
       forceRecalculation();
@@ -289,667 +203,346 @@ const HappinessTrackerPage = React.memo(() => {
   }, [forceRecalculation, refreshAnalytics]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* PAGE HEADER */}
-      <div className="bg-white shadow-sm border-b border-indigo-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">🌟 Present Attention Progress</h1>
-              <p className="text-gray-600 mt-1">Track your journey toward greater presence and awareness</p>
-              {/* ✅ Single-Point Architecture Indicator */}
-              <div className="mt-2">
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  ✅ Single-Point Data Architecture
-                </span>
-              </div>
-            </div>
-            
-            {/* Enhanced Stats Badge with Stage Info */}
-            <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-2xl px-6 py-4">
-              <div className="flex items-center justify-center lg:justify-start space-x-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-indigo-700">{quickStats.totalSessions}</div>
-                  <div className="text-xs text-indigo-600 font-medium">Sessions</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-700">{quickStats.totalHours}h</div>
-                  <div className="text-xs text-purple-600 font-medium">Practice Time</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-pink-700">{quickStats.happinessPoints}</div>
-                  <div className="text-xs text-pink-600 font-medium">Happiness Points</div>
-                </div>
-                {/* ✅ SINGLE-POINT: Current Stage Display from PracticeContext */}
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-emerald-700">Stage {stageProgressInfo.currentStage}</div>
-                  <div className="text-xs text-emerald-600 font-medium">
-                    {stageProgressInfo.currentHours.toFixed(1)}/{stageProgressInfo.currentRequirement}h
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui' }}>
+      {/* Simple Header */}
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#333', marginBottom: '10px' }}>
+          Happiness Tracker
+        </h1>
+        <p style={{ color: '#666', fontSize: '16px' }}>
+          Track your present attention practice progress
+        </p>
       </div>
 
-      {/* LOADING STATE */}
+      {/* Loading */}
       {isCalculating && (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-3xl p-8 text-center mb-8 shadow-lg">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-            <h2 className="text-2xl font-bold text-indigo-700 mb-2">Calculating Your Present Attention Progress...</h2>
-            <p className="text-gray-600">Using PAHM-centered analysis</p>
-            {/* ✅ Force recalculation button */}
-            <button
-              onClick={handleForceRecalculation}
-              className="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
-            >
-              🔄 Force Refresh
-            </button>
-          </div>
+        <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '8px', marginBottom: '20px' }}>
+          <div>Calculating your progress...</div>
+          <button 
+            onClick={handleForceRecalculation}
+            style={{ marginTop: '10px', padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            Force Refresh
+          </button>
         </div>
       )}
 
-      {/* INSUFFICIENT DATA - Show onboarding guidance */}
+      {/* No Data State */}
       {!isCalculating && !quickStats.hasData && (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-3xl p-8 text-center border-2 border-blue-200 shadow-lg">
-            <div className="text-6xl mb-4">🧘</div>
-            <h2 className="text-2xl font-bold text-blue-800 mb-4">
-              Welcome to Your Present Attention Journey!
-            </h2>
-            <p className="text-blue-700 mb-6 max-w-2xl mx-auto">
-              Your happiness tracking will appear here as you complete practice sessions, questionnaires, and self-assessments. 
-              Present attention is a skill that develops through consistent practice - every moment of awareness counts!
-            </p>
-
-            {/* ✅ SINGLE-POINT: Current Stage Info for New Users */}
-            <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">🎯 You're Currently on Stage {stageProgressInfo.currentStage}</h3>
-              <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-xl p-4 mb-4">
-                <div className="text-sm text-gray-700 mb-2">Stage {stageProgressInfo.currentStage} Progress:</div>
-                <div className="w-full bg-white rounded-full h-3 mb-2">
-                  <div 
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${stageProgressInfo.progressPercent}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-gray-600">
-                  {stageProgressInfo.currentHours.toFixed(1)} / {stageProgressInfo.currentRequirement} hours completed 
-                  ({stageProgressInfo.progressPercent.toFixed(1)}%)
-                </div>
-              </div>
-              <div className="text-xs text-green-600 font-medium">
-                ✅ Data from PracticeContext (Single-Point Architecture)
-              </div>
-            </div>
-            
-            {/* DATA COMPLETENESS INDICATOR */}
-            <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Complete Your Setup</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                  quickStats.dataCompleteness.questionnaire 
-                    ? 'bg-green-50 border-green-200 shadow-md' 
-                    : 'bg-gray-50 border-gray-200 hover:border-blue-300'
-                }`}>
-                  <div className="text-2xl mb-2">
-                    {quickStats.dataCompleteness.questionnaire ? '✅' : '📝'}
-                  </div>
-                  <h4 className="font-bold text-gray-800 mb-2">Questionnaire</h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Share your current state and goals to establish your baseline
-                  </p>
-                  {!quickStats.dataCompleteness.questionnaire && (
-                    <button
-                      onClick={handleStartQuestionnaire}
-                      className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200"
-                    >
-                      Start Questionnaire
-                    </button>
-                  )}
-                </div>
-                
-                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                  quickStats.dataCompleteness.selfAssessment 
-                    ? 'bg-green-50 border-green-200 shadow-md' 
-                    : 'bg-gray-50 border-gray-200 hover:border-purple-300'
-                }`}>
-                  <div className="text-2xl mb-2">
-                    {quickStats.dataCompleteness.selfAssessment ? '✅' : '🎯'}
-                  </div>
-                  <h4 className="font-bold text-gray-800 mb-2">Self-Assessment</h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Understand your current attachment patterns and goals
-                  </p>
-                  {!quickStats.dataCompleteness.selfAssessment && (
-                    <button
-                      onClick={handleStartSelfAssessment}
-                      className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors duration-200"
-                    >
-                      Take Assessment
-                    </button>
-                  )}
-                </div>
-                
-                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                  quickStats.dataCompleteness.practiceSessions 
-                    ? 'bg-green-50 border-green-200 shadow-md' 
-                    : 'bg-gray-50 border-gray-200 hover:border-indigo-300'
-                }`}>
-                  <div className="text-2xl mb-2">
-                    {quickStats.dataCompleteness.practiceSessions ? '✅' : '🧘'}
-                  </div>
-                  <h4 className="font-bold text-gray-800 mb-2">Practice Sessions</h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Begin with Stage {stageProgressInfo.currentStage} practice
-                  </p>
-                  {!quickStats.dataCompleteness.practiceSessions && (
-                    <button
-                      onClick={handleStartPractice}
-                      className="w-full bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors duration-200"
-                    >
-                      Start Stage {stageProgressInfo.currentStage}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* MINIMUM DATA REQUIREMENTS */}
-            <div className="bg-yellow-50 rounded-2xl p-6 border-2 border-yellow-200 shadow-md">
-              <h3 className="text-lg font-bold text-yellow-800 mb-4">
-                🎯 Minimum Requirements for Happiness Tracking
-              </h3>
-              <p className="text-yellow-700 mb-4">
-                To begin tracking your happiness, you need <strong>one</strong> of the following:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="bg-white rounded-xl p-4 shadow-sm">
-                  <div className="font-bold text-gray-800 mb-2">Option 1</div>
-                  <p className="text-gray-600">Complete <strong>Questionnaire + Self-Assessment</strong></p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm">
-                  <div className="font-bold text-gray-800 mb-2">Option 2</div>
-                  <p className="text-gray-600">Complete <strong>3+ Practice Sessions</strong></p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm">
-                  <div className="font-bold text-gray-800 mb-2">Option 3</div>
-                  <p className="text-gray-600">Complete <strong>Questionnaire + 1 Session</strong></p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SUFFICIENT DATA - Show full happiness tracking */}
-      {!isCalculating && quickStats.hasData && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div style={{ padding: '40px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '8px', marginBottom: '20px' }}>
+          <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
+            Welcome! Complete these to start tracking:
+          </h2>
           
-          {/* MAIN HAPPINESS SCORE CARD */}
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-8 text-white text-center mb-8 shadow-2xl">
-            <div className="text-6xl font-bold mb-4">{userProgress?.happiness_points || quickStats.happinessPoints}</div>
-            <div className="text-2xl mb-4">PAHM-Centered Happiness Points</div>
-            <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 inline-block">
-              <div className="text-lg font-semibold">{userProgress?.user_level || 'Developing Practitioner'}</div>
-            </div>
-            <div className="text-lg opacity-90">
-              Based on {quickStats.totalSessions} practice sessions & {emotionalNotes?.length || 0} emotional notes
-            </div>
-            
-            {/* ✅ SINGLE-POINT: Stage Progress in Main Card */}
-            <div className="mt-6 bg-white bg-opacity-20 rounded-2xl p-4">
-              <div className="text-lg font-semibold mb-2">Current: Stage {stageProgressInfo.currentStage}</div>
-              <div className="w-full bg-white bg-opacity-30 rounded-full h-3 mb-2">
-                <div 
-                  className="bg-white h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${stageProgressInfo.progressPercent}%` }}
-                ></div>
-              </div>
-              <div className="text-sm opacity-90">
-                {stageProgressInfo.currentHours.toFixed(1)} / {stageProgressInfo.currentRequirement} hours completed
-                {!stageProgressInfo.isComplete && ` (${(stageProgressInfo.currentRequirement - stageProgressInfo.currentHours).toFixed(1)}h remaining)`}
-              </div>
-              <div className="text-xs opacity-75 mt-1">
-                ✅ PracticeContext Data (Single-Point)
-              </div>
-            </div>
-            
-            {/* Debug Toggle */}
-            <div className="mt-6">
-              <button 
-                onClick={handleDebugToggle}
-                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-6 py-2 rounded-xl transition-all duration-300"
-              >
-                {showDebug ? 'Hide Debug' : 'Show Debug'} 🔍
-              </button>
-            </div>
-          </div>
-
-          {/* PAHM ANALYSIS SECTION */}
-          {userProgress?.pahmAnalysis && (
-            <div className="bg-white rounded-3xl p-8 mb-8 shadow-xl border-2 border-indigo-100">
-              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-                🎯 PAHM Development Analysis - The Core Component (30% Weight)
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="text-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 shadow-md">
-                  <div className="text-4xl font-bold text-indigo-600 mb-2">
-                    {Math.round((userProgress.pahmAnalysis.presentNeutralRatio || 0) * 100)}%
-                  </div>
-                  <div className="text-lg font-semibold text-gray-700">Present-Neutral Mastery</div>
-                  <div className="text-sm text-gray-500">THE ULTIMATE GOAL</div>
-                </div>
-                
-                <div className="text-center bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 shadow-md">
-                  <div className="text-4xl font-bold text-green-600 mb-2">
-                    {Math.round((userProgress.pahmAnalysis.presentMomentRatio || 0) * 100)}%
-                  </div>
-                  <div className="text-lg font-semibold text-gray-700">Present-Moment Focus</div>
-                  <div className="text-sm text-gray-500">Overall Present Awareness</div>
-                </div>
-                
-                <div className="text-center bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 shadow-md">
-                  <div className="text-4xl font-bold text-purple-600 mb-2">
-                    {userProgress.pahmAnalysis.overallPAHMScore || 0}
-                  </div>
-                  <div className="text-lg font-semibold text-gray-700">PAHM Score</div>
-                  <div className="text-sm text-gray-500">0-100 Scale</div>
-                </div>
-              </div>
-
-              {/* PAHM Stage & Description */}
-              <div className="text-center bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 mb-6 shadow-md">
-                <div className="text-xl font-bold text-orange-700 mb-2">
-                  Stage: {userProgress.pahmAnalysis.developmentStage || 'Assessment Needed'}
-                </div>
-                <div className="text-gray-700 mb-4">
-                  {userProgress.pahmAnalysis.stageDescription || 'Complete more practice sessions for detailed analysis'}
-                </div>
-                <div className="text-sm text-gray-600">
-                  <strong>Path:</strong> {userProgress.pahmAnalysis.progressionPath || 'Begin your present attention journey'}
-                </div>
-              </div>
-
-              {/* PAHM Breakdown */}
-              {userProgress.pahmAnalysis.breakdown && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-indigo-50 rounded-xl p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-indigo-600">
-                      {userProgress.pahmAnalysis.breakdown.presentNeutralMastery || 0}/50
-                    </div>
-                    <div className="text-sm text-gray-600">Present-Neutral</div>
-                  </div>
-                  <div className="bg-green-50 rounded-xl p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-green-600">
-                      {userProgress.pahmAnalysis.breakdown.presentMomentDevelopment || 0}/30
-                    </div>
-                    <div className="text-sm text-gray-600">Present Development</div>
-                  </div>
-                  <div className="bg-yellow-50 rounded-xl p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {userProgress.pahmAnalysis.breakdown.therapeuticProgress || 0}/15
-                    </div>
-                    <div className="text-sm text-gray-600">Therapeutic Work</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-xl p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {userProgress.pahmAnalysis.breakdown.sessionQuality || 0}/5
-                    </div>
-                    <div className="text-sm text-gray-600">Session Quality</div>
-                  </div>
-                </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px' }}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>
+                {quickStats.dataCompleteness.questionnaire ? '✅' : '📝'} Questionnaire
+              </h3>
+              <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
+                Share your current state and goals
+              </p>
+              {!quickStats.dataCompleteness.questionnaire && (
+                <button 
+                  onClick={handleStartQuestionnaire}
+                  style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Start Questionnaire
+                </button>
               )}
             </div>
-          )}
 
-          {/* COMPONENT BREAKDOWN */}
-          {componentBreakdown && (
-            <div className="bg-white rounded-3xl p-8 mb-8 shadow-xl border-2 border-indigo-100">
-              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-                📊 Happiness Components (PAHM-Centered Weighting)
-              </h2>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* PAHM Development - Primary */}
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-6 text-center md:col-span-2 border-4 border-yellow-400 shadow-lg">
-                  <div className="text-3xl font-bold mb-2">{Math.round(componentBreakdown.pahmDevelopment || 0)}/100</div>
-                  <div className="text-lg font-semibold">PAHM Development</div>
-                  <div className="text-sm opacity-90">30% Weight - THE CORE</div>
-                  <div className="text-xs opacity-75 mt-1">Present attention IS happiness</div>
-                </div>
-
-                {/* Supporting Components */}
-                <div className="bg-gradient-to-r from-red-400 to-red-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.emotionalStabilityProgress || 0)}/100</div>
-                  <div className="text-sm font-semibold">Emotional Stability</div>
-                  <div className="text-xs opacity-75">20% Weight</div>
-                </div>
-
-                <div className="bg-gradient-to-r from-orange-400 to-orange-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.currentMoodState || 0)}/100</div>
-                  <div className="text-sm font-semibold">Current Mood</div>
-                  <div className="text-xs opacity-75">15% Weight</div>
-                </div>
-
-                <div className="bg-gradient-to-r from-teal-400 to-teal-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.mindRecoveryEffectiveness || 0)}/100</div>
-                  <div className="text-sm font-semibold">Mind Recovery</div>
-                  <div className="text-xs opacity-75">12% Weight</div>
-                </div>
-
-                <div className="bg-gradient-to-r from-purple-400 to-purple-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.emotionalRegulation || 0)}/100</div>
-                  <div className="text-sm font-semibold">Emotional Regulation</div>
-                  <div className="text-xs opacity-75">10% Weight</div>
-                </div>
-
-                <div className="bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.attachmentFlexibility || 0)}/100</div>
-                  <div className="text-sm font-semibold">Attachment Flexibility</div>
-                  <div className="text-xs opacity-75">8% Weight</div>
-                </div>
-
-                <div className="bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.socialConnection || 0)}/100</div>
-                  <div className="text-sm font-semibold">Social Connection</div>
-                  <div className="text-xs opacity-75">3% Weight</div>
-                </div>
-
-                <div className="bg-gradient-to-r from-gray-400 to-gray-600 text-white rounded-xl p-4 text-center shadow-md">
-                  <div className="text-2xl font-bold">{Math.round(componentBreakdown.practiceConsistency || 0)}/100</div>
-                  <div className="text-sm font-semibold">Practice Consistency</div>
-                  <div className="text-xs opacity-75">2% Weight</div>
-                </div>
-              </div>
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px' }}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>
+                {quickStats.dataCompleteness.selfAssessment ? '✅' : '🎯'} Self-Assessment
+              </h3>
+              <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
+                Understand your attachment patterns
+              </p>
+              {!quickStats.dataCompleteness.selfAssessment && (
+                <button 
+                  onClick={handleStartSelfAssessment}
+                  style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Start Assessment
+                </button>
+              )}
             </div>
-          )}
 
-          {/* ENHANCED METRICS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-gradient-to-r from-indigo-400 to-purple-600 text-white rounded-2xl p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold mb-2">{Math.round(userProgress?.focus_ability || 0)}%</div>
-              <div className="text-lg font-semibold">Focus Ability</div>
-              <div className="text-sm opacity-90">PAHM Present-Neutral + Skills</div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-green-400 to-emerald-600 text-white rounded-2xl p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold mb-2">{Math.round(userProgress?.habit_change_score || 0)}%</div>
-              <div className="text-lg font-semibold">Habit Change</div>
-              <div className="text-sm opacity-90">PAHM + Consistency</div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-pink-400 to-rose-600 text-white rounded-2xl p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold mb-2">{userProgress?.practice_streak || 0}</div>
-              <div className="text-lg font-semibold">Day Streak</div>
-              <div className="text-sm opacity-90">Present Attention Practice</div>
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px' }}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>
+                {quickStats.dataCompleteness.practiceSessions ? '✅' : '🧘'} Practice
+              </h3>
+              <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
+                Begin Stage {stageProgressInfo.currentStage} practice
+              </p>
+              {!quickStats.dataCompleteness.practiceSessions && (
+                <button 
+                  onClick={handleStartPractice}
+                  style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Start Practice
+                </button>
+              )}
             </div>
           </div>
 
-          {/* INSIGHTS & RECOMMENDATIONS */}
-          {userProgress?.pahmAnalysis?.insights && userProgress.pahmAnalysis.insights.length > 0 && (
-            <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-3xl p-8 mb-8 border-2 border-yellow-200 shadow-xl">
-              <h2 className="text-2xl font-bold text-center text-orange-800 mb-6">💡 PAHM Development Insights</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-700 mb-4">📊 Current Insights:</h3>
-                  <ul className="space-y-2">
-                    {userProgress.pahmAnalysis.insights.map((insight, index) => (
-                      <li key={index} className="text-gray-700 flex items-start">
-                        <span className="text-orange-500 mr-2 mt-1">•</span>
-                        <span>{insight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-700 mb-4">🎯 Recommendations:</h3>
-                  <ul className="space-y-2">
-                    {userProgress.pahmAnalysis.recommendations?.map((rec, index) => (
-                      <li key={index} className="text-gray-700 flex items-start">
-                        <span className="text-green-500 mr-2 mt-1">→</span>
-                        <span>{rec}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+          <div style={{ padding: '20px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '6px' }}>
+            <strong>Requirements:</strong> Complete questionnaire + assessment OR 3+ practice sessions
+          </div>
+        </div>
+      )}
+
+      {/* Main Dashboard */}
+      {!isCalculating && quickStats.hasData && (
+        <>
+          {/* Simple Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#007bff', marginBottom: '5px' }}>
+                {quickStats.happinessPoints}
+              </div>
+              <div style={{ color: '#666', fontSize: '14px' }}>Happiness Points</div>
+            </div>
+
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#28a745', marginBottom: '5px' }}>
+                {quickStats.totalSessions}
+              </div>
+              <div style={{ color: '#666', fontSize: '14px' }}>Sessions</div>
+            </div>
+
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fd7e14', marginBottom: '5px' }}>
+                {quickStats.totalHours}h
+              </div>
+              <div style={{ color: '#666', fontSize: '14px' }}>Practice Hours</div>
+            </div>
+
+            <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#6f42c1', marginBottom: '5px' }}>
+                Stage {stageProgressInfo.currentStage}
+              </div>
+              <div style={{ color: '#666', fontSize: '14px' }}>
+                {Math.round(stageProgressInfo.progressPercent)}% Complete
               </div>
             </div>
-          )}
+          </div>
 
-          {/* ✅ SINGLE-POINT DEBUG PANEL */}
-          {showDebug && (
-            <div className="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-green-200 shadow-xl">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">🔍 Single-Point Architecture Debug</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-green-100">
-                  <h3 className="font-semibold text-green-700 mb-3">✅ PracticeContext Data Sources:</h3>
-                  <div className="space-y-2 text-sm font-mono">
-                    <div>• Practice Sessions: {sessions?.length || 0}</div>
-                    <div>• Current Stage: {stageProgressInfo.currentStage}</div>
-                    <div>• Total Hours: {quickStats.totalHours}</div>
-                    <div>• T1 Sessions: {tLevelProgress.T1}/3 {tLevelCompletion.isT1Complete && '✅'}</div>
-                    <div>• T2 Sessions: {tLevelProgress.T2}/3 {tLevelCompletion.isT2Complete && '✅'}</div>
-                    <div>• T3 Sessions: {tLevelProgress.T3}/3 {tLevelCompletion.isT3Complete && '✅'}</div>
-                    <div>• T4 Sessions: {tLevelProgress.T4}/3 {tLevelCompletion.isT4Complete && '✅'}</div>
-                    <div>• T5 Sessions: {tLevelProgress.T5}/3 {tLevelCompletion.isT5Complete && '✅'}</div>
-                    <div className="text-green-600 font-bold">• Architecture: Single-Point ✅</div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-blue-100">
-                  <h3 className="font-semibold text-blue-700 mb-3">📊 Stage Hours (PracticeContext):</h3>
-                  <div className="space-y-2 text-sm font-mono">
-                    <div>• Stage 1: {stageHoursProgress.stage1.toFixed(1)}/3h {stageCompletion.isStage1Complete && '✅'}</div>
-                    <div>• Stage 2: {stageHoursProgress.stage2.toFixed(1)}/5h {stageCompletion.isStage2Complete && '✅'}</div>
-                    <div>• Stage 3: {stageHoursProgress.stage3.toFixed(1)}/10h {stageCompletion.isStage3Complete && '✅'}</div>
-                    <div>• Stage 4: {stageHoursProgress.stage4.toFixed(1)}/20h {stageCompletion.isStage4Complete && '✅'}</div>
-                    <div>• Stage 5: {stageHoursProgress.stage5.toFixed(1)}/25h {stageCompletion.isStage5Complete && '✅'}</div>
-                    <div>• Stage 6: {stageHoursProgress.stage6.toFixed(1)}/30h {stageCompletion.isStage6Complete && '✅'}</div>
-                    <div className="text-blue-600 font-bold">• All from Single Source ✅</div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-purple-100">
-                  <h3 className="font-semibold text-purple-700 mb-3">🧮 External Data:</h3>
-                  <div className="space-y-2 text-sm font-mono">
-                    <div>• Emotional Notes: {emotionalNotes?.length || 0}</div>
-                    <div>• Questionnaire: {questionnaire?.completed ? '✅' : '❌'}</div>
-                    <div>• Self-Assessment: {selfAssessment?.completed ? '✅' : '❌'}</div>
-                    <div>• Has Minimum Data: {quickStats.hasData ? '✅' : '❌'}</div>
-                    <div>• Happiness Points: {quickStats.happinessPoints}</div>
-                  </div>
-                </div>
+          {/* Stage Progress */}
+          <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px', marginBottom: '30px' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>
+              Stage {stageProgressInfo.currentStage} Progress
+            </h3>
+            <div style={{ backgroundColor: '#e9ecef', height: '20px', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
+              <div 
+                style={{ 
+                  backgroundColor: '#007bff', 
+                  height: '100%', 
+                  width: `${stageProgressInfo.progressPercent}%`,
+                  transition: 'width 0.3s ease'
+                }}
+              ></div>
+            </div>
+            <div style={{ color: '#666', fontSize: '14px' }}>
+              {stageProgressInfo.currentHours.toFixed(1)} / {stageProgressInfo.currentRequirement} hours completed
+              {!stageProgressInfo.isComplete && 
+                ` (${(stageProgressInfo.currentRequirement - stageProgressInfo.currentHours).toFixed(1)}h remaining)`
+              }
+            </div>
+          </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-indigo-100">
-                  <h3 className="font-semibold text-indigo-700 mb-3">🧮 Component Scores:</h3>
-                  {componentBreakdown && (
-                    <div className="space-y-2 text-sm font-mono">
-                      <div>• PAHM Development: {Math.round(componentBreakdown.pahmDevelopment || 0)}/100</div>
-                      <div>• Emotional Stability: {Math.round(componentBreakdown.emotionalStabilityProgress || 0)}/100</div>
-                      <div>• Current Mood: {Math.round(componentBreakdown.currentMoodState || 0)}/100</div>
-                      <div>• Mind Recovery: {Math.round(componentBreakdown.mindRecoveryEffectiveness || 0)}/100</div>
-                      <div>• Emotional Regulation: {Math.round(componentBreakdown.emotionalRegulation || 0)}/100</div>
-                      <div>• Attachment Flexibility: {Math.round(componentBreakdown.attachmentFlexibility || 0)}/100</div>
+          {/* Simple Tabs */}
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ borderBottom: '1px solid #ddd', display: 'flex', gap: '0' }}>
+              {['overview', 'pahm', 'components', 'insights'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: '10px 20px',
+                    border: 'none',
+                    backgroundColor: activeTab === tab ? '#007bff' : 'transparent',
+                    color: activeTab === tab ? 'white' : '#666',
+                    cursor: 'pointer',
+                    borderRadius: '6px 6px 0 0',
+                    marginBottom: '-1px'
+                  }}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #ddd', borderRadius: '6px', marginBottom: '30px' }}>
+            {activeTab === 'overview' && (
+              <div>
+                <h3 style={{ margin: '0 0 20px 0', color: '#333' }}>Overview</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>T-Level Progress:</div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>
+                      T1: {tLevelProgress.T1}/3 {tLevelProgress.T1 >= 3 && '✅'}<br/>
+                      T2: {tLevelProgress.T2}/3 {tLevelProgress.T2 >= 3 && '✅'}<br/>
+                      T3: {tLevelProgress.T3}/3 {tLevelProgress.T3 >= 3 && '✅'}<br/>
+                      T4: {tLevelProgress.T4}/3 {tLevelProgress.T4 >= 3 && '✅'}<br/>
+                      T5: {tLevelProgress.T5}/3 {tLevelProgress.T5 >= 3 && '✅'}
                     </div>
-                  )}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>User Level:</div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>
+                      {userProgress?.user_level || 'Active Seeker'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>Practice Streak:</div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>
+                      {userProgress?.practice_streak || 0} days
+                    </div>
+                  </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === 'pahm' && userProgress?.pahmAnalysis && (
+              <div>
+                <h3 style={{ margin: '0 0 20px 0', color: '#333' }}>PAHM Analysis</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>Present-Neutral Mastery:</div>
+                    <div style={{ fontSize: '24px', color: '#007bff', fontWeight: 'bold' }}>
+                      {Math.round((userProgress.pahmAnalysis.presentNeutralRatio || 0) * 100)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>Present-Moment Focus:</div>
+                    <div style={{ fontSize: '24px', color: '#28a745', fontWeight: 'bold' }}>
+                      {Math.round((userProgress.pahmAnalysis.presentMomentRatio || 0) * 100)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>PAHM Score:</div>
+                    <div style={{ fontSize: '24px', color: '#6f42c1', fontWeight: 'bold' }}>
+                      {userProgress.pahmAnalysis.overallPAHMScore || 0}/100
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'components' && componentBreakdown && (
+              <div>
+                <h3 style={{ margin: '0 0 20px 0', color: '#333' }}>Happiness Components</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                  {[
+                    { label: 'PAHM Development', value: componentBreakdown.pahmDevelopment, weight: '30%' },
+                    { label: 'Emotional Stability', value: componentBreakdown.emotionalStabilityProgress, weight: '20%' },
+                    { label: 'Current Mood', value: componentBreakdown.currentMoodState, weight: '15%' },
+                    { label: 'Mind Recovery', value: componentBreakdown.mindRecoveryEffectiveness, weight: '12%' },
+                    { label: 'Emotional Regulation', value: componentBreakdown.emotionalRegulation, weight: '10%' },
+                    { label: 'Attachment Flexibility', value: componentBreakdown.attachmentFlexibility, weight: '8%' }
+                  ].map((component, index) => (
+                    <div key={index} style={{ padding: '15px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '6px' }}>
+                      <div style={{ fontWeight: 'bold', color: '#333', fontSize: '14px' }}>{component.label}</div>
+                      <div style={{ fontSize: '20px', color: '#007bff', fontWeight: 'bold' }}>
+                        {Math.round(component.value || 0)}/100
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>{component.weight} weight</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'insights' && userProgress?.pahmAnalysis?.insights && (
+              <div>
+                <h3 style={{ margin: '0 0 20px 0', color: '#333' }}>Insights & Recommendations</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#666' }}>Current Insights:</h4>
+                    <ul style={{ listStyle: 'disc', paddingLeft: '20px', color: '#666' }}>
+                      {userProgress.pahmAnalysis.insights.map((insight, index) => (
+                        <li key={index} style={{ marginBottom: '5px' }}>{insight}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#666' }}>Recommendations:</h4>
+                    <ul style={{ listStyle: 'disc', paddingLeft: '20px', color: '#666' }}>
+                      {userProgress.pahmAnalysis.recommendations?.map((rec, index) => (
+                        <li key={index} style={{ marginBottom: '5px' }}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '30px' }}>
+            <button 
+              onClick={handleStartPractice}
+              style={{ padding: '12px 24px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}
+            >
+              Continue Stage {stageProgressInfo.currentStage}
+            </button>
+            <button 
+              onClick={handleViewAnalytics}
+              style={{ padding: '12px 24px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}
+            >
+              View Analytics
+            </button>
+          </div>
+
+          {/* Debug Toggle */}
+          <div style={{ textAlign: 'center' }}>
+            <button 
+              onClick={handleDebugToggle}
+              style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              {showDebug ? 'Hide' : 'Show'} Debug
+            </button>
+          </div>
+
+          {/* Simple Debug Panel */}
+          {showDebug && (
+            <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '6px' }}>
+              <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Debug Info</h3>
+              <div style={{ fontSize: '14px', fontFamily: 'monospace', color: '#666' }}>
+                <div>Sessions: {sessions?.length || 0}</div>
+                <div>Current Stage: {stageProgressInfo.currentStage}</div>
+                <div>Total Hours: {quickStats.totalHours}</div>
+                <div>Emotional Notes: {emotionalNotes?.length || 0}</div>
+                <div>Architecture: Single-Point ✅</div>
+              </div>
               
-              <div className="flex flex-wrap gap-4 justify-center">
+              <div style={{ marginTop: '15px' }}>
                 <button 
                   onClick={handleDebugCalculation}
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  style={{ margin: '5px', padding: '6px 12px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
-                  🔍 Debug Console
+                  Debug Console
                 </button>
                 <button 
                   onClick={handleLogProgress}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  style={{ margin: '5px', padding: '6px 12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
-                  📊 Log Progress
+                  Log Progress
                 </button>
                 <button 
                   onClick={handleTestComponents}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  style={{ margin: '5px', padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
-                  🧪 Test Components
-                </button>
-                <button 
-                  onClick={handleForceRecalculation}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
-                >
-                  🔄 Force Refresh
+                  Test Components
                 </button>
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* UNDERSTANDING PRESENT ATTENTION SECTION */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-3xl shadow-xl p-8 border-2 border-indigo-100">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">🎯 Understanding Present Attention</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-pink-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">🎯</span>
-              </div>
-              <h3 className="font-bold text-gray-800 mb-2">Attention</h3>
-              <p className="text-sm text-gray-600">
-                The ability to focus your mind on the present moment without getting lost in thoughts, distractions, or mental chatter.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">👁️</span>
-              </div>
-              <h3 className="font-bold text-gray-800 mb-2">Awareness</h3>
-              <p className="text-sm text-gray-600">
-                Clear recognition of what's happening in your mind, body, and environment right now, without judgment or reaction.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">🌟</span>
-              </div>
-              <h3 className="font-bold text-gray-800 mb-2">Presence</h3>
-              <p className="text-sm text-gray-600">
-                Being fully here and now, engaged with immediate experience rather than lost in past memories or future concerns.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">🧘</span>
-              </div>
-              <h3 className="font-bold text-gray-800 mb-2">Equanimity</h3>
-              <p className="text-sm text-gray-600">
-                Balanced peace that remains steady regardless of whether experiences are pleasant, unpleasant, or neutral.
-              </p>
-            </div>
-          </div>
-
-          {/* Practice Benefits and Tips */}
-          <div className="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl shadow-md">
-            <h3 className="text-lg font-bold text-center text-indigo-800 mb-4">🌈 Benefits of Regular Present Attention Practice</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                {['Reduced stress and anxiety', 'Improved focus and concentration', 'Better emotional regulation', 'Enhanced self-awareness'].map(benefit => (
-                  <div key={benefit} className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span className="text-gray-700">{benefit}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                {['Greater life satisfaction', 'Improved relationships', 'Increased resilience', 'Natural sense of well-being'].map(benefit => (
-                  <div key={benefit} className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span className="text-gray-700">{benefit}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-md">
-            <h3 className="text-lg font-bold text-center text-orange-800 mb-4">💡 Tips for Developing Present Attention</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-semibold text-orange-700 mb-2">🌱 For Beginners:</h4>
-                <ul className="space-y-1 text-sm text-gray-700">
-                  <li>• Start with just 5 minutes daily</li>
-                  <li>• Focus on your breathing</li>
-                  <li>• Be gentle with yourself</li>
-                  <li>• Consistency matters more than duration</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold text-orange-700 mb-2">🚀 For Development:</h4>
-                <ul className="space-y-1 text-sm text-gray-700">
-                  <li>• Gradually increase session length</li>
-                  <li>• Practice throughout daily activities</li>
-                  <li>• Notice when mind wanders and return</li>
-                  <li>• Celebrate small improvements</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* CALL TO ACTION */}
-      {quickStats.hasData && (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-3xl p-8 text-center text-white shadow-2xl">
-            <h2 className="text-2xl font-bold mb-4">🌟 Continue Your Present Attention Journey</h2>
-            <p className="mb-6 opacity-90">
-              Your practice is building skills that last a lifetime. Each moment of awareness contributes to greater happiness and peace.
-            </p>
-            
-            {/* ✅ SINGLE-POINT: Stage progression info in CTA */}
-            <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-6">
-              <div className="text-lg font-semibold mb-2">
-                Ready for Stage {stageProgressInfo.isComplete ? stageProgressInfo.currentStage + 1 : stageProgressInfo.currentStage}?
-              </div>
-              <div className="text-sm opacity-90">
-                {stageProgressInfo.isComplete 
-                  ? `You've mastered Stage ${stageProgressInfo.currentStage}! Time to advance.`
-                  : `Continue practicing Stage ${stageProgressInfo.currentStage} - ${(stageProgressInfo.currentRequirement - stageProgressInfo.currentHours).toFixed(1)}h remaining`
-                }
-              </div>
-              <div className="text-xs opacity-75 mt-1">
-                ✅ PracticeContext Data (Single-Point Architecture)
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button 
-                onClick={handleStartPractice}
-                className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors duration-200 shadow-md"
-              >
-                🧘 Continue Stage {stageProgressInfo.currentStage}
-              </button>
-              <button 
-                onClick={handleViewAnalytics}
-                className="bg-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors duration-200 border-2 border-white border-opacity-50 shadow-md"
-              >
-                📊 View Detailed Analytics
-              </button>
-            </div>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

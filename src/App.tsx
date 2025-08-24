@@ -7,7 +7,6 @@ import './App.css';
 
 // ✅ ESSENTIAL: All imports at the top
 import PageViewTracker from './components/PageViewTracker';
-import PAHMProgressTracker from './PAHMProgressTracker';
 import { useAuth } from './contexts/auth/AuthContext'; // ✅ REMOVED AuthProvider import
 import { AdminProvider } from './contexts/auth/AdminContext';
 import CleanAdminPanel from './components/CleanAdminPanel';
@@ -1081,7 +1080,6 @@ const AppContent: React.FC = React.memo(() => {
       </Routes>
 
       {/* 🎯 SINGLE-POINT: Progress Tracker with PracticeContext data */}
-      {location.pathname === '/home' && <PAHMProgressTracker currentStage={currentStage} />}
     </div>
   );
 });

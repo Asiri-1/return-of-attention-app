@@ -1,4 +1,4 @@
-// ✅ FIREBASE-ONLY WellnessContext - No localStorage conflicts
+// ✅ FIREBASE-ONLY WellnessContext - Root Collection Structure
 // File: src/contexts/wellness/WellnessContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
@@ -13,6 +13,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  where,
   onSnapshot,
   serverTimestamp,
   getDocs
@@ -36,6 +37,7 @@ export interface EmotionalNoteData {
   date: string;
   gratitude?: string[];  // ✅ Added for gratitude functionality
   firestoreId?: string; // Firebase ID
+  userId: string; // ✅ Required for root collection
 }
 
 export interface ReflectionData {
@@ -47,6 +49,7 @@ export interface ReflectionData {
   mood?: string;
   insights?: string[];
   firestoreId?: string; // Firebase ID
+  userId: string; // ✅ Required for root collection
 }
 
 export interface WellnessContextType {
@@ -56,14 +59,14 @@ export interface WellnessContextType {
   isLoading: boolean;
   
   // Emotional Notes Management
-  addEmotionalNote: (note: Omit<EmotionalNoteData, 'noteId' | 'timestamp' | 'date'>) => void;
+  addEmotionalNote: (note: Omit<EmotionalNoteData, 'noteId' | 'timestamp' | 'date' | 'userId'>) => void;
   updateEmotionalNote: (noteId: string, updates: Partial<EmotionalNoteData>) => void;
   deleteEmotionalNote: (noteId: string) => void;
   getEmotionalNotesByDate: (date: string) => EmotionalNoteData[];
   getEmotionalNotesByEmotion: (emotion: string) => EmotionalNoteData[];
   
   // Reflections Management
-  addReflection: (reflection: Omit<ReflectionData, 'id' | 'timestamp'>) => void;
+  addReflection: (reflection: Omit<ReflectionData, 'id' | 'timestamp' | 'userId'>) => void;
   updateReflection: (id: string, updates: Partial<ReflectionData>) => void;
   deleteReflection: (id: string) => void;
   getReflectionsByType: (type: string) => ReflectionData[];
@@ -106,7 +109,7 @@ export const useWellness = (): WellnessContextType => {
 };
 
 // ================================
-// FIREBASE-ONLY WELLNESS PROVIDER
+// FIREBASE-ONLY WELLNESS PROVIDER - ROOT COLLECTIONS
 // ================================
 
 interface WellnessProviderProps {
@@ -120,7 +123,7 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
   const [isLoading, setIsLoading] = useState(false);
 
   // ================================
-  // FIREBASE-ONLY: Data persistence
+  // FIREBASE-ONLY: Data persistence - ROOT COLLECTIONS
   // ================================
   const saveNoteToFirebase = useCallback(async (note: EmotionalNoteData) => {
     if (!currentUser?.uid) return;
@@ -132,8 +135,9 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         lastUpdated: serverTimestamp()
       };
       
-      const docRef = await addDoc(collection(db, 'userWellness', currentUser.uid, 'emotionalNotes'), noteDoc);
-      console.log(`✅ Emotional note saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      // ✅ SAVE TO ROOT COLLECTION: emotionalNotes
+      const docRef = await addDoc(collection(db, 'emotionalNotes'), noteDoc);
+      console.log(`✅ Emotional note saved to ROOT collection for user ${currentUser.uid.substring(0, 8)}...`);
       return docRef.id;
     } catch (error) {
       console.error('❌ Failed to save emotional note to Firebase:', error);
@@ -151,8 +155,9 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         lastUpdated: serverTimestamp()
       };
       
-      const docRef = await addDoc(collection(db, 'userWellness', currentUser.uid, 'reflections'), reflectionDoc);
-      console.log(`✅ Reflection saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      // ✅ SAVE TO ROOT COLLECTION: reflections
+      const docRef = await addDoc(collection(db, 'reflections'), reflectionDoc);
+      console.log(`✅ Reflection saved to ROOT collection for user ${currentUser.uid.substring(0, 8)}...`);
       return docRef.id;
     } catch (error) {
       console.error('❌ Failed to save reflection to Firebase:', error);
@@ -166,9 +171,10 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
     setIsLoading(true);
     
     try {
-      // Load emotional notes
+      // ✅ Load emotional notes from ROOT collection with userId filter
       const notesQuery = query(
-        collection(db, 'userWellness', currentUser.uid, 'emotionalNotes'),
+        collection(db, 'emotionalNotes'),
+        where('userId', '==', currentUser.uid),
         orderBy('timestamp', 'desc')
       );
       const notesSnapshot = await getDocs(notesQuery);
@@ -180,14 +186,16 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
           ...data,
           firestoreId: docSnapshot.id,
           timestamp: data.timestamp || new Date().toISOString(),
-          date: data.date || new Date().toISOString().split('T')[0]
+          date: data.date || new Date().toISOString().split('T')[0],
+          userId: data.userId || currentUser.uid
         } as EmotionalNoteData;
         firestoreNotes.push(note);
       });
 
-      // Load reflections
+      // ✅ Load reflections from ROOT collection with userId filter
       const reflectionsQuery = query(
-        collection(db, 'userWellness', currentUser.uid, 'reflections'),
+        collection(db, 'reflections'),
+        where('userId', '==', currentUser.uid),
         orderBy('timestamp', 'desc')
       );
       const reflectionsSnapshot = await getDocs(reflectionsQuery);
@@ -198,7 +206,8 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         const reflection: ReflectionData = {
           ...data,
           firestoreId: docSnapshot.id,
-          timestamp: data.timestamp || new Date().toISOString()
+          timestamp: data.timestamp || new Date().toISOString(),
+          userId: data.userId || currentUser.uid
         } as ReflectionData;
         firestoreReflections.push(reflection);
       });
@@ -206,7 +215,7 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
       setEmotionalNotes(firestoreNotes);
       setReflections(firestoreReflections);
       
-      console.log(`📦 Loaded ${firestoreNotes.length} notes and ${firestoreReflections.length} reflections from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`📦 Loaded ${firestoreNotes.length} notes and ${firestoreReflections.length} reflections from ROOT collections for user ${currentUser.uid.substring(0, 8)}...`);
     } catch (error) {
       console.error('❌ Failed to load wellness data from Firebase:', error);
     } finally {
@@ -228,17 +237,20 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
   }, [currentUser?.uid, loadFromFirebase]);
 
   // ================================
-  // EMOTIONAL NOTES MANAGEMENT (FIREBASE-ONLY)
+  // EMOTIONAL NOTES MANAGEMENT (ROOT COLLECTION)
   // ================================
-  const addEmotionalNote = useCallback(async (noteData: Omit<EmotionalNoteData, 'noteId' | 'timestamp' | 'date'>) => {
+  const addEmotionalNote = useCallback(async (noteData: Omit<EmotionalNoteData, 'noteId' | 'timestamp' | 'date' | 'userId'>) => {
+    if (!currentUser?.uid) return;
+    
     try {
-      console.log('🔄 WellnessContext: Adding new emotional note...');
+      console.log('🔄 WellnessContext: Adding new emotional note to ROOT collection...');
       
       const newNote: EmotionalNoteData = {
         ...noteData,
         noteId: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         timestamp: new Date().toISOString(),
         date: new Date().toISOString().split('T')[0],
+        userId: currentUser.uid, // ✅ Add userId for root collection
         // ✅ Handle both intensity and energyLevel for compatibility
         intensity: noteData.intensity || noteData.energyLevel || 5,
         energyLevel: noteData.energyLevel || noteData.intensity || 5,
@@ -249,7 +261,7 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
       // ✅ IMMEDIATE UI UPDATE
       setEmotionalNotes(prev => [...prev, newNote]);
       
-      // ✅ SAVE TO FIREBASE
+      // ✅ SAVE TO FIREBASE ROOT COLLECTION
       try {
         const firestoreId = await saveNoteToFirebase(newNote);
         if (firestoreId) {
@@ -264,7 +276,7 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         throw error;
       }
       
-      console.log('✅ WellnessContext: Added emotional note:', {
+      console.log('✅ WellnessContext: Added emotional note to ROOT collection:', {
         noteId: newNote.noteId,
         emotion: newNote.emotion,
         intensity: newNote.intensity,
@@ -275,11 +287,11 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
     } catch (error) {
       console.error('❌ WellnessContext: Error adding emotional note:', error);
     }
-  }, [saveNoteToFirebase]);
+  }, [saveNoteToFirebase, currentUser?.uid]);
 
   const updateEmotionalNote = useCallback(async (noteId: string, updates: Partial<EmotionalNoteData>) => {
     try {
-      console.log('🔄 WellnessContext: Updating emotional note:', noteId);
+      console.log('🔄 WellnessContext: Updating emotional note in ROOT collection:', noteId);
       
       setEmotionalNotes(prev => {
         return prev.map(note => {
@@ -294,16 +306,16 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         });
       });
       
-      // ✅ UPDATE IN FIREBASE
+      // ✅ UPDATE IN FIREBASE ROOT COLLECTION
       const note = emotionalNotes.find(n => n.noteId === noteId);
-      if (note?.firestoreId && currentUser?.uid) {
+      if (note?.firestoreId) {
         try {
-          const noteDoc = doc(db, 'userWellness', currentUser.uid, 'emotionalNotes', note.firestoreId);
+          const noteDoc = doc(db, 'emotionalNotes', note.firestoreId);
           await updateDoc(noteDoc, {
             ...updates,
             updatedAt: serverTimestamp()
           });
-          console.log(`✅ Note updated in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+          console.log(`✅ Note updated in ROOT collection for user ${currentUser?.uid?.substring(0, 8)}...`);
         } catch (error) {
           console.error('❌ Failed to update note in Firebase:', error);
         }
@@ -317,18 +329,18 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
 
   const deleteEmotionalNote = useCallback(async (noteId: string) => {
     try {
-      console.log('🔄 WellnessContext: Deleting emotional note:', noteId);
+      console.log('🔄 WellnessContext: Deleting emotional note from ROOT collection:', noteId);
       
       const note = emotionalNotes.find(n => n.noteId === noteId);
       
       setEmotionalNotes(prev => prev.filter(note => note.noteId !== noteId));
       
-      // ✅ DELETE FROM FIREBASE
-      if (note?.firestoreId && currentUser?.uid) {
+      // ✅ DELETE FROM FIREBASE ROOT COLLECTION
+      if (note?.firestoreId) {
         try {
-          const noteDoc = doc(db, 'userWellness', currentUser.uid, 'emotionalNotes', note.firestoreId);
+          const noteDoc = doc(db, 'emotionalNotes', note.firestoreId);
           await deleteDoc(noteDoc);
-          console.log(`✅ Note deleted from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+          console.log(`✅ Note deleted from ROOT collection for user ${currentUser?.uid?.substring(0, 8)}...`);
         } catch (error) {
           console.error('❌ Failed to delete note from Firebase:', error);
         }
@@ -353,22 +365,25 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
   }, [emotionalNotes]);
 
   // ================================
-  // REFLECTIONS MANAGEMENT (FIREBASE-ONLY)
+  // REFLECTIONS MANAGEMENT (ROOT COLLECTION)
   // ================================
-  const addReflection = useCallback(async (reflectionData: Omit<ReflectionData, 'id' | 'timestamp'>) => {
+  const addReflection = useCallback(async (reflectionData: Omit<ReflectionData, 'id' | 'timestamp' | 'userId'>) => {
+    if (!currentUser?.uid) return;
+    
     try {
-      console.log('🔄 WellnessContext: Adding new reflection...');
+      console.log('🔄 WellnessContext: Adding new reflection to ROOT collection...');
       
       const newReflection: ReflectionData = {
         ...reflectionData,
         id: `reflection_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        userId: currentUser.uid // ✅ Add userId for root collection
       };
       
       // ✅ IMMEDIATE UI UPDATE
       setReflections(prev => [...prev, newReflection]);
       
-      // ✅ SAVE TO FIREBASE
+      // ✅ SAVE TO FIREBASE ROOT COLLECTION
       try {
         const firestoreId = await saveReflectionToFirebase(newReflection);
         if (firestoreId) {
@@ -383,7 +398,7 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         throw error;
       }
       
-      console.log('✅ WellnessContext: Added reflection:', {
+      console.log('✅ WellnessContext: Added reflection to ROOT collection:', {
         id: newReflection.id,
         type: newReflection.type
       });
@@ -391,11 +406,11 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
     } catch (error) {
       console.error('❌ WellnessContext: Error adding reflection:', error);
     }
-  }, [saveReflectionToFirebase]);
+  }, [saveReflectionToFirebase, currentUser?.uid]);
 
   const updateReflection = useCallback(async (id: string, updates: Partial<ReflectionData>) => {
     try {
-      console.log('🔄 WellnessContext: Updating reflection:', id);
+      console.log('🔄 WellnessContext: Updating reflection in ROOT collection:', id);
       
       setReflections(prev => {
         return prev.map(reflection => 
@@ -403,16 +418,16 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         );
       });
       
-      // ✅ UPDATE IN FIREBASE
+      // ✅ UPDATE IN FIREBASE ROOT COLLECTION
       const reflection = reflections.find(r => r.id === id);
-      if (reflection?.firestoreId && currentUser?.uid) {
+      if (reflection?.firestoreId) {
         try {
-          const reflectionDoc = doc(db, 'userWellness', currentUser.uid, 'reflections', reflection.firestoreId);
+          const reflectionDoc = doc(db, 'reflections', reflection.firestoreId);
           await updateDoc(reflectionDoc, {
             ...updates,
             updatedAt: serverTimestamp()
           });
-          console.log(`✅ Reflection updated in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+          console.log(`✅ Reflection updated in ROOT collection for user ${currentUser?.uid?.substring(0, 8)}...`);
         } catch (error) {
           console.error('❌ Failed to update reflection in Firebase:', error);
         }
@@ -426,18 +441,18 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
 
   const deleteReflection = useCallback(async (id: string) => {
     try {
-      console.log('🔄 WellnessContext: Deleting reflection:', id);
+      console.log('🔄 WellnessContext: Deleting reflection from ROOT collection:', id);
       
       const reflection = reflections.find(r => r.id === id);
       
       setReflections(prev => prev.filter(reflection => reflection.id !== id));
       
-      // ✅ DELETE FROM FIREBASE
-      if (reflection?.firestoreId && currentUser?.uid) {
+      // ✅ DELETE FROM FIREBASE ROOT COLLECTION
+      if (reflection?.firestoreId) {
         try {
-          const reflectionDoc = doc(db, 'userWellness', currentUser.uid, 'reflections', reflection.firestoreId);
+          const reflectionDoc = doc(db, 'reflections', reflection.firestoreId);
           await deleteDoc(reflectionDoc);
-          console.log(`✅ Reflection deleted from Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+          console.log(`✅ Reflection deleted from ROOT collection for user ${currentUser?.uid?.substring(0, 8)}...`);
         } catch (error) {
           console.error('❌ Failed to delete reflection from Firebase:', error);
         }
@@ -472,12 +487,12 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
   // DATA RETRIEVAL (UNCHANGED)
   // ================================
   const getDailyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
-    console.log(`📊 WellnessContext: Returning ${emotionalNotes.length} daily emotional notes`);
+    console.log(`📊 WellnessContext: Returning ${emotionalNotes.length} daily emotional notes from ROOT collection`);
     return emotionalNotes;
   }, [emotionalNotes]);
 
   const getReflections = useCallback((): ReflectionData[] => {
-    console.log(`📊 WellnessContext: Returning ${reflections.length} reflections`);
+    console.log(`📊 WellnessContext: Returning ${reflections.length} reflections from ROOT collection`);
     return reflections;
   }, [reflections]);
 
@@ -774,37 +789,43 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
   }, [calculateWellnessScore, getEmotionInsights, getEnergyPatterns, getGratitudePractice, emotionalNotes.length]);
 
   // ================================
-  // UTILITY METHODS (FIREBASE-ONLY)
+  // UTILITY METHODS (ROOT COLLECTIONS)
   // ================================
   const clearWellnessData = useCallback(async () => {
     try {
-      console.log('🗑️ WellnessContext: Clearing all wellness data...');
+      console.log('🗑️ WellnessContext: Clearing all wellness data from ROOT collections...');
       
       setEmotionalNotes([]);
       setReflections([]);
       
-      // Clear Firebase data
+      // Clear Firebase data from ROOT collections
       if (currentUser?.uid) {
         try {
-          // Clear emotional notes
-          const notesQuery = query(collection(db, 'userWellness', currentUser.uid, 'emotionalNotes'));
+          // ✅ Clear emotional notes from ROOT collection
+          const notesQuery = query(
+            collection(db, 'emotionalNotes'),
+            where('userId', '==', currentUser.uid)
+          );
           const notesSnapshot = await getDocs(notesQuery);
           const deleteNotesPromises = notesSnapshot.docs.map(doc => deleteDoc(doc.ref));
           await Promise.all(deleteNotesPromises);
           
-          // Clear reflections
-          const reflectionsQuery = query(collection(db, 'userWellness', currentUser.uid, 'reflections'));
+          // ✅ Clear reflections from ROOT collection
+          const reflectionsQuery = query(
+            collection(db, 'reflections'),
+            where('userId', '==', currentUser.uid)
+          );
           const reflectionsSnapshot = await getDocs(reflectionsQuery);
           const deleteReflectionsPromises = reflectionsSnapshot.docs.map(doc => deleteDoc(doc.ref));
           await Promise.all(deleteReflectionsPromises);
           
-          console.log(`🧹 Wellness data cleared in Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+          console.log(`🧹 Wellness data cleared in ROOT collections for user ${currentUser.uid.substring(0, 8)}...`);
         } catch (error) {
           console.error('❌ Error clearing wellness data in Firebase:', error);
         }
       }
       
-      console.log('✅ WellnessContext: All wellness data cleared');
+      console.log('✅ WellnessContext: All wellness data cleared from ROOT collections');
       
     } catch (error) {
       console.error('❌ WellnessContext: Error clearing wellness data:', error);
@@ -813,7 +834,7 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
 
   const exportWellnessData = useCallback(() => {
     try {
-      console.log('📤 WellnessContext: Exporting wellness data...');
+      console.log('📤 WellnessContext: Exporting wellness data from ROOT collections...');
       
       const exportData = {
         emotionalNotes: emotionalNotes,
@@ -825,11 +846,11 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         wellnessScore: calculateWellnessScore(),
         recommendations: getWellnessRecommendations(),
         exportedAt: new Date().toISOString(),
-        version: '2.0',
-        source: 'firebase_only'
+        version: '3.0',
+        source: 'firebase_root_collections'
       };
       
-      console.log('✅ WellnessContext: Wellness data exported successfully');
+      console.log('✅ WellnessContext: Wellness data exported successfully from ROOT collections');
       return exportData;
       
     } catch (error) {
@@ -847,19 +868,20 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
   // LEGACY COMPATIBILITY (UNCHANGED)
   // ================================
   const getLegacyEmotionalNotes = useCallback((): EmotionalNoteData[] => {
-    console.log('🔄 WellnessContext: Providing legacy emotional notes compatibility');
+    console.log('🔄 WellnessContext: Providing legacy emotional notes compatibility from ROOT collection');
     return getDailyEmotionalNotes();
   }, [getDailyEmotionalNotes]);
 
   // ================================
-  // REAL-TIME FIREBASE LISTENERS
+  // REAL-TIME FIREBASE LISTENERS (ROOT COLLECTIONS)
   // ================================
   useEffect(() => {
     if (!currentUser?.uid) return;
 
-    // Real-time listener for emotional notes
+    // ✅ Real-time listener for emotional notes from ROOT collection
     const notesQuery = query(
-      collection(db, 'userWellness', currentUser.uid, 'emotionalNotes'),
+      collection(db, 'emotionalNotes'),
+      where('userId', '==', currentUser.uid),
       orderBy('timestamp', 'desc')
     );
     
@@ -871,20 +893,22 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
           ...data,
           firestoreId: docSnapshot.id,
           timestamp: data.timestamp || new Date().toISOString(),
-          date: data.date || new Date().toISOString().split('T')[0]
+          date: data.date || new Date().toISOString().split('T')[0],
+          userId: data.userId || currentUser.uid
         } as EmotionalNoteData;
         firestoreNotes.push(note);
       });
 
       setEmotionalNotes(firestoreNotes);
-      console.log(`🔄 Real-time notes update: ${firestoreNotes.length} notes for user ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`🔄 Real-time notes update from ROOT collection: ${firestoreNotes.length} notes for user ${currentUser.uid.substring(0, 8)}...`);
     }, (error) => {
       console.error('❌ Firebase notes listener error:', error);
     });
 
-    // Real-time listener for reflections
+    // ✅ Real-time listener for reflections from ROOT collection
     const reflectionsQuery = query(
-      collection(db, 'userWellness', currentUser.uid, 'reflections'),
+      collection(db, 'reflections'),
+      where('userId', '==', currentUser.uid),
       orderBy('timestamp', 'desc')
     );
     
@@ -895,13 +919,14 @@ export const WellnessProvider: React.FC<WellnessProviderProps> = ({ children }) 
         const reflection: ReflectionData = {
           ...data,
           firestoreId: docSnapshot.id,
-          timestamp: data.timestamp || new Date().toISOString()
+          timestamp: data.timestamp || new Date().toISOString(),
+          userId: data.userId || currentUser.uid
         } as ReflectionData;
         firestoreReflections.push(reflection);
       });
 
       setReflections(firestoreReflections);
-      console.log(`🔄 Real-time reflections update: ${firestoreReflections.length} reflections for user ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`🔄 Real-time reflections update from ROOT collection: ${firestoreReflections.length} reflections for user ${currentUser.uid.substring(0, 8)}...`);
     }, (error) => {
       console.error('❌ Firebase reflections listener error:', error);
     });

@@ -1,7 +1,5 @@
-// ✅ COMPLETE FIREBASE-ONLY OnboardingContext with REAL-TIME LISTENERS
+// ✅ FIXED OnboardingContext - Root Collections Implementation with Single Document Progress
 // File: src/contexts/onboarding/OnboardingContext.tsx
-// Simply copy and paste this entire file to replace your existing OnboardingContext.tsx
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { 
@@ -11,7 +9,12 @@ import {
   getDoc, 
   updateDoc, 
   onSnapshot, 
-  serverTimestamp
+  serverTimestamp,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 
@@ -19,6 +22,7 @@ import { db } from '../../firebase';
 // ONBOARDING DATA INTERFACES
 // ================================
 interface QuestionnaireData {
+  userId: string; // ✅ Added for root collection
   completed: boolean;
   completedAt?: string;
   firestoreId?: string;
@@ -68,6 +72,7 @@ interface QuestionnaireData {
 }
 
 interface SelfAssessmentData {
+  userId: string; // ✅ Added for root collection
   completed: boolean;
   completedAt?: string;
   firestoreId?: string;
@@ -166,6 +171,10 @@ interface OnboardingContextType {
   exportOnboardingData: () => any;
   resetProgress: () => Promise<void>;
   
+  // ✅ NEW: Progress utilities
+  getProgressStatus: () => Promise<any>;
+  cleanupOldProgressDocuments: () => Promise<void>;
+  
   // Legacy Compatibility
   getOnboardingStatusFromAuth: () => { questionnaire: boolean; assessment: boolean };
 }
@@ -176,7 +185,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 // ================================
-// FIREBASE-ONLY ONBOARDING PROVIDER WITH REAL-TIME LISTENERS
+// ROOT COLLECTIONS ONBOARDING PROVIDER WITH REAL-TIME LISTENERS
 // ================================
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
@@ -185,7 +194,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isLoading, setIsLoading] = useState(false);
 
   // ================================
-  // FIREBASE SAVE OPERATIONS
+  // ✅ ROOT COLLECTIONS SAVE OPERATIONS
   // ================================
   const saveQuestionnaireToFirebase = useCallback(async (questionnaireData: QuestionnaireData) => {
     if (!currentUser?.uid) {
@@ -200,8 +209,9 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updatedAt: serverTimestamp()
       };
       
-      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), questionnaireDoc);
-      console.log(`✅ Questionnaire saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      // ✅ Save to ROOT collection instead of subcollection
+      await addDoc(collection(db, 'questionnaires'), questionnaireDoc);
+      console.log(`✅ Questionnaire saved to ROOT collection for user ${currentUser.uid.substring(0, 8)}...`);
       
     } catch (error) {
       console.error('❌ Failed to save questionnaire to Firebase:', error);
@@ -222,8 +232,9 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updatedAt: serverTimestamp()
       };
       
-      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), assessmentDoc);
-      console.log(`✅ Self-assessment saved to Firebase for user ${currentUser.uid.substring(0, 8)}...`);
+      // ✅ Save to ROOT collection instead of subcollection
+      await addDoc(collection(db, 'selfAssessments'), assessmentDoc);
+      console.log(`✅ Self-assessment saved to ROOT collection for user ${currentUser.uid.substring(0, 8)}...`);
       
     } catch (error) {
       console.error('❌ Failed to save self-assessment to Firebase:', error);
@@ -232,7 +243,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [currentUser?.uid]);
 
   // ================================
-  // ✅ NEW: REAL-TIME LISTENERS (Like WellnessContext)
+  // ✅ ROOT COLLECTIONS REAL-TIME LISTENERS
   // ================================
   useEffect(() => {
     if (!currentUser?.uid) {
@@ -242,48 +253,60 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return;
     }
 
-    console.log(`🔄 Setting up real-time onboarding listeners for user: ${currentUser.uid.substring(0, 8)}...`);
+    console.log(`🔄 Setting up real-time ROOT collection listeners for user: ${currentUser.uid.substring(0, 8)}...`);
     setIsLoading(true);
 
-    // ✅ Real-time listener for questionnaire
-    const questionnaireDocRef = doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current');
-    const unsubscribeQuestionnaire = onSnapshot(questionnaireDocRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
+    // ✅ Real-time listener for questionnaire from ROOT collection
+    const questionnaireQuery = query(
+      collection(db, 'questionnaires'),
+      where('userId', '==', currentUser.uid)
+    );
+    
+    const unsubscribeQuestionnaire = onSnapshot(questionnaireQuery, (querySnapshot) => {
+      if (!querySnapshot.empty) {
+        const docSnapshot = querySnapshot.docs[0]; // Get first (should be only one)
         const data = docSnapshot.data();
         const questionnaireData = {
           ...data,
+          firestoreId: docSnapshot.id,
           createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
           updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
           completedAt: data.completedAt?.toDate?.()?.toISOString() || data.completedAt
         } as QuestionnaireData;
         setQuestionnaire(questionnaireData);
-        console.log(`🔄 Real-time questionnaire update for user ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`🔄 Real-time questionnaire update from ROOT collection for user ${currentUser.uid.substring(0, 8)}...`);
       } else {
         setQuestionnaire(null);
       }
     }, (error) => {
-      console.error('❌ Questionnaire listener error:', error);
+      console.error('❌ Questionnaire ROOT collection listener error:', error);
     });
 
-    // ✅ Real-time listener for self-assessment
-    const assessmentDocRef = doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current');
-    const unsubscribeAssessment = onSnapshot(assessmentDocRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
+    // ✅ Real-time listener for self-assessment from ROOT collection
+    const assessmentQuery = query(
+      collection(db, 'selfAssessments'),
+      where('userId', '==', currentUser.uid)
+    );
+    
+    const unsubscribeAssessment = onSnapshot(assessmentQuery, (querySnapshot) => {
+      if (!querySnapshot.empty) {
+        const docSnapshot = querySnapshot.docs[0]; // Get first (should be only one)
         const data = docSnapshot.data();
         const assessmentData = {
           ...data,
+          firestoreId: docSnapshot.id,
           createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
           updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
           completedAt: data.completedAt?.toDate?.()?.toISOString() || data.completedAt
         } as SelfAssessmentData;
         setSelfAssessment(assessmentData);
-        console.log(`🔄 Real-time self-assessment update for user ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`🔄 Real-time self-assessment update from ROOT collection for user ${currentUser.uid.substring(0, 8)}...`);
       } else {
         setSelfAssessment(null);
       }
       setIsLoading(false);
     }, (error) => {
-      console.error('❌ Self-assessment listener error:', error);
+      console.error('❌ Self-assessment ROOT collection listener error:', error);
       setIsLoading(false);
     });
 
@@ -326,6 +349,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const updateQuestionnaire = useCallback(async (questionnaireData: Omit<QuestionnaireData, 'completed' | 'completedAt'>) => {
     const updatedQuestionnaire: QuestionnaireData = {
       ...questionnaireData,
+      userId: currentUser?.uid || '',
       completed: true,
       completedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -340,7 +364,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('❌ Failed to update questionnaire:', error);
       throw error;
     }
-  }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
+  }, [currentUser?.uid, saveQuestionnaireToFirebase, emitOnboardingEvent]);
 
   const markQuestionnaireComplete = useCallback(async (responses: any) => {
     // Handle both raw responses and already-structured data
@@ -352,6 +376,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     
     const questionnaireData: QuestionnaireData = {
+      userId: currentUser?.uid || '',
       completed: true,
       completedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
@@ -399,25 +424,44 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('❌ Failed to complete questionnaire:', error);
       throw error;
     }
-  }, [saveQuestionnaireToFirebase, emitOnboardingEvent]);
+  }, [currentUser?.uid, saveQuestionnaireToFirebase, emitOnboardingEvent]);
 
+  // ✅ FIXED: Questionnaire Progress - Single Document Update
   const saveQuestionnaireProgress = useCallback(async (responses: any, currentQuestion?: number) => {
     if (!currentUser?.uid) return;
 
     try {
+      // Calculate completion percentage
+      const totalQuestions = 27;
+      const completionPercentage = currentQuestion ? Math.round((currentQuestion / totalQuestions) * 100) : 0;
+      const answeredQuestions = responses ? Object.keys(responses).length : 0;
+
       const progressData = {
         type: 'questionnaire_progress',
-        responses,
-        currentQuestion,
         userId: currentUser.uid,
-        updatedAt: serverTimestamp()
+        responses: responses || {},
+        currentQuestion: currentQuestion || answeredQuestions,
+        totalQuestions,
+        completionPercentage,
+        answeredQuestions,
+        isComplete: completionPercentage >= 100,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(), // Will only set on first creation
+        version: '2.0', // ✅ Version to distinguish from old multi-document approach
+        source: 'onboarding_context_v2'
       };
 
-      // Save progress to Firebase
-      const progressDocRef = doc(db, 'userOnboarding', currentUser.uid, 'progress', 'questionnaire');
-      await setDoc(progressDocRef, progressData, { merge: true });
+      // ✅ FIXED: Use setDoc with merge to update same document
+      const docRef = doc(db, 'onboardingProgress', `${currentUser.uid}_questionnaire`);
+      await setDoc(docRef, progressData, { merge: true });
       
-      console.log('💾 Saved questionnaire progress to Firebase');
+      console.log('💾 Updated questionnaire progress in ROOT collection:', {
+        userId: currentUser.uid.substring(0, 8) + '...',
+        currentQuestion: progressData.currentQuestion,
+        completionPercentage: progressData.completionPercentage,
+        answeredQuestions: progressData.answeredQuestions,
+        documentId: `${currentUser.uid}_questionnaire`
+      });
     } catch (error) {
       console.error('❌ Error saving questionnaire progress:', error);
     }
@@ -437,6 +481,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const updateSelfAssessment = useCallback(async (selfAssessmentData: Omit<SelfAssessmentData, 'completed' | 'completedAt'>) => {
     const updatedAssessment: SelfAssessmentData = {
       ...selfAssessmentData,
+      userId: currentUser?.uid || '',
       completed: true,
       completedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -451,7 +496,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('❌ Failed to update self-assessment:', error);
       throw error;
     }
-  }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
+  }, [currentUser?.uid, saveSelfAssessmentToFirebase, emitOnboardingEvent]);
 
   const markSelfAssessmentComplete = useCallback(async (responses: any) => {
     console.log('🎯 Marking self-assessment complete with responses:', responses);
@@ -462,6 +507,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (responses.categories && responses.responses) {
       // Already structured format
       selfAssessmentData = {
+        userId: currentUser?.uid || '',
         completed: true,
         completedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -492,6 +538,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const nonAttachmentCount = Object.values(categories).filter((cat: any) => cat.level === 'none').length;
       
       selfAssessmentData = {
+        userId: currentUser?.uid || '',
         completed: true,
         completedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -534,26 +581,46 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('❌ Failed to save self-assessment:', error);
       throw error;
     }
-  }, [saveSelfAssessmentToFirebase, emitOnboardingEvent]);
+  }, [currentUser?.uid, saveSelfAssessmentToFirebase, emitOnboardingEvent]);
 
+  // ✅ FIXED: Self-Assessment Progress - Single Document Update
   const saveSelfAssessmentProgress = useCallback(async (responses: any) => {
     if (!currentUser?.uid) {
       throw new Error('User not authenticated');
     }
 
     try {
+      // Calculate completion based on responses
+      const categories = ['taste', 'smell', 'sound', 'sight', 'touch', 'mind'];
+      const answeredCategories = responses ? Object.keys(responses).filter(key => 
+        categories.includes(key) && responses[key]
+      ) : [];
+      const completionPercentage = Math.round((answeredCategories.length / categories.length) * 100);
+
       const progressData = {
         type: 'selfAssessment_progress',
-        responses,
         userId: currentUser.uid,
-        updatedAt: serverTimestamp()
+        responses: responses || {},
+        answeredCategories,
+        totalCategories: categories.length,
+        completionPercentage,
+        isComplete: completionPercentage >= 100,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(), // Will only set on first creation
+        version: '2.0', // ✅ Version to distinguish from old multi-document approach
+        source: 'onboarding_context_v2'
       };
 
-      // Save progress to Firebase
-      const progressDocRef = doc(db, 'userOnboarding', currentUser.uid, 'progress', 'selfAssessment');
-      await setDoc(progressDocRef, progressData, { merge: true });
+      // ✅ FIXED: Use setDoc with merge to update same document
+      const docRef = doc(db, 'onboardingProgress', `${currentUser.uid}_selfAssessment`);
+      await setDoc(docRef, progressData, { merge: true });
       
-      console.log('💾 Saved self-assessment progress to Firebase');
+      console.log('💾 Updated self-assessment progress in ROOT collection:', {
+        userId: currentUser.uid.substring(0, 8) + '...',
+        answeredCategories: progressData.answeredCategories.length,
+        completionPercentage: progressData.completionPercentage,
+        documentId: `${currentUser.uid}_selfAssessment`
+      });
     } catch (error) {
       console.error('❌ Error saving self-assessment progress:', error);
       throw error;
@@ -656,20 +723,42 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [questionnaire, selfAssessment, getOnboardingInsights, getOnboardingProgress, getCompletionStatus]);
 
   // ================================
-  // UTILITY FUNCTIONS
+  // ✅ UTILITY FUNCTIONS - ROOT COLLECTIONS
   // ================================
   const clearOnboardingData = useCallback(async () => {
     if (!currentUser?.uid) return;
 
     try {
-      // Clear from Firebase
-      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'questionnaire', 'current'), {});
-      await setDoc(doc(db, 'userOnboarding', currentUser.uid, 'selfAssessment', 'current'), {});
+      // ✅ Clear questionnaires from ROOT collection
+      const questionnaireQuery = query(
+        collection(db, 'questionnaires'),
+        where('userId', '==', currentUser.uid)
+      );
+      const questionnaireSnapshot = await getDocs(questionnaireQuery);
+      const questionnaireDeletePromises = questionnaireSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      
+      // ✅ Clear self assessments from ROOT collection
+      const assessmentQuery = query(
+        collection(db, 'selfAssessments'),
+        where('userId', '==', currentUser.uid)
+      );
+      const assessmentSnapshot = await getDocs(assessmentQuery);
+      const assessmentDeletePromises = assessmentSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      
+      // ✅ Clear progress documents from ROOT collection
+      const progressQuery = query(
+        collection(db, 'onboardingProgress'),
+        where('userId', '==', currentUser.uid)
+      );
+      const progressSnapshot = await getDocs(progressQuery);
+      const progressDeletePromises = progressSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      
+      await Promise.all([...questionnaireDeletePromises, ...assessmentDeletePromises, ...progressDeletePromises]);
       
       // Real-time listeners will clear local state automatically
-      console.log('🗑️ Cleared all onboarding data - real-time listeners will update UI');
+      console.log('🗑️ Cleared all onboarding data from ROOT collections - real-time listeners will update UI');
     } catch (error) {
-      console.error('❌ Error clearing onboarding data:', error);
+      console.error('❌ Error clearing onboarding data from ROOT collections:', error);
     }
   }, [currentUser?.uid]);
 
@@ -687,6 +776,81 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     await clearOnboardingData();
   }, [clearOnboardingData]);
 
+  // ✅ NEW: Get current progress status
+  const getProgressStatus = useCallback(async () => {
+    if (!currentUser?.uid) return null;
+
+    try {
+      const [questionnaireDoc, selfAssessmentDoc] = await Promise.all([
+        getDoc(doc(db, 'onboardingProgress', `${currentUser.uid}_questionnaire`)),
+        getDoc(doc(db, 'onboardingProgress', `${currentUser.uid}_selfAssessment`))
+      ]);
+
+      const questionnaireData = questionnaireDoc.exists() ? questionnaireDoc.data() : null;
+      const selfAssessmentData = selfAssessmentDoc.exists() ? selfAssessmentDoc.data() : null;
+
+      return {
+        questionnaire: {
+          exists: questionnaireDoc.exists(),
+          completionPercentage: questionnaireData?.completionPercentage || 0,
+          currentQuestion: questionnaireData?.currentQuestion || 0,
+          answeredQuestions: questionnaireData?.answeredQuestions || 0,
+          isComplete: questionnaireData?.isComplete || false
+        },
+        selfAssessment: {
+          exists: selfAssessmentDoc.exists(),
+          completionPercentage: selfAssessmentData?.completionPercentage || 0,
+          answeredCategories: selfAssessmentData?.answeredCategories?.length || 0,
+          isComplete: selfAssessmentData?.isComplete || false
+        }
+      };
+    } catch (error) {
+      console.error('Error getting progress status:', error);
+      return null;
+    }
+  }, [currentUser?.uid]);
+
+  // ✅ NEW: Cleanup old progress documents (optional)
+  const cleanupOldProgressDocuments = useCallback(async () => {
+    if (!currentUser?.uid) return;
+
+    try {
+      console.log('🧹 Cleaning up old progress documents...');
+      
+      // Find old multi-document progress entries
+      const oldProgressQuery = query(
+        collection(db, 'onboardingProgress'),
+        where('userId', '==', currentUser.uid)
+      );
+      
+      const oldProgressSnapshot = await getDocs(oldProgressQuery);
+      const deletePromises: Promise<void>[] = [];
+      let oldDocsCount = 0;
+      
+      oldProgressSnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        
+        // Only delete old version documents (without version field or version < 2.0)
+        const isOldVersion = !data.version || parseFloat(data.version) < 2.0;
+        const isNotUserSpecificDoc = !docSnap.id.includes(currentUser.uid);
+        
+        if (isOldVersion && isNotUserSpecificDoc) {
+          deletePromises.push(deleteDoc(docSnap.ref));
+          oldDocsCount++;
+        }
+      });
+      
+      if (deletePromises.length > 0) {
+        await Promise.all(deletePromises);
+        console.log(`✅ Cleaned up ${oldDocsCount} old progress documents`);
+      } else {
+        console.log('✅ No old progress documents to clean up');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error cleaning up old progress documents (non-critical):', error);
+    }
+  }, [currentUser?.uid]);
+
   // ================================
   // LEGACY COMPATIBILITY
   // ================================
@@ -696,6 +860,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       assessment: selfAssessment?.completed || false
     };
   }, [questionnaire?.completed, selfAssessment?.completed]);
+
+  // ✅ ONE-TIME CLEANUP: Run cleanup on component mount
+  useEffect(() => {
+    if (currentUser?.uid) {
+      // Run cleanup 5 seconds after component mounts (one time only)
+      const timer = setTimeout(() => {
+        cleanupOldProgressDocuments();
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser?.uid, cleanupOldProgressDocuments]);
 
   // ================================
   // CONTEXT VALUE
@@ -735,6 +911,10 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     exportOnboardingData,
     resetProgress,
     
+    // ✅ NEW: Progress utilities
+    getProgressStatus,
+    cleanupOldProgressDocuments,
+    
     // Legacy Compatibility
     getOnboardingStatusFromAuth
   }), [
@@ -760,6 +940,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     clearOnboardingData,
     exportOnboardingData,
     resetProgress,
+    getProgressStatus,
+    cleanupOldProgressDocuments,
     getOnboardingStatusFromAuth
   ]);
 

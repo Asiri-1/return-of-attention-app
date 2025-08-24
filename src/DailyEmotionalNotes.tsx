@@ -649,7 +649,7 @@ const DailyEmotionalNotes = () => {
                     )}
                   </div>
                 );
-              })}
+              })}Q
           </div>
         )}
       </div>

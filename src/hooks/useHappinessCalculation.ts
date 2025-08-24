@@ -1,11 +1,11 @@
-// ✅ FIXED useHappinessCalculation.ts - TRUE SINGLE-POINT Architecture
+// ✅ UPDATED useHappinessCalculation.ts - Requires BOTH Questionnaire + Self-Assessment
 // File: src/hooks/useHappinessCalculation.ts
-// 🎯 SINGLE-POINT: Uses same session counting logic as all other components
+// 🎯 SINGLE-POINT: Now requires both assessments to encourage completion
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/auth/AuthContext';
 import { useOnboarding } from '../contexts/onboarding/OnboardingContext';
-import { usePractice } from '../contexts/practice/PracticeContext'; // ✅ SINGLE-POINT: For ALL session data
+import { usePractice } from '../contexts/practice/PracticeContext';
 import { useWellness } from '../contexts/wellness/WellnessContext';
 
 // ✅ PRESERVED: All existing interfaces unchanged
@@ -86,38 +86,13 @@ export interface UseHappinessCalculationReturn {
   testComponents: () => void;
 }
 
-// ✅ SINGLE-POINT: Enhanced data detection with session analysis
+// ✅ UPDATED: Now requires BOTH assessments to encourage user completion
 const hasMinimumDataForCalculation = (
   questionnaire: any,
   selfAssessment: any,
   sessions: any[]
 ): boolean => {
-  console.log('🔍 Single-Point Data Check (Happiness Hook):');
-  console.log('📋 Questionnaire:', {
-    exists: !!questionnaire,
-    completed: questionnaire?.completed,
-    hasResponses: !!questionnaire?.responses,
-    responseCount: questionnaire?.responses ? Object.keys(questionnaire.responses).length : 0
-  });
-  
-  console.log('🎯 Self-Assessment:', {
-    exists: !!selfAssessment,
-    completed: selfAssessment?.completed,
-    attachmentScore: selfAssessment?.attachmentScore,
-    nonAttachmentCount: selfAssessment?.nonAttachmentCount,
-    hasCategories: !!selfAssessment?.categories
-  });
-  
-  // ✅ SINGLE-POINT: Use consistent session analysis
-  const meditationSessions = sessions ? sessions.filter((s: any) => 
-    s.sessionType === 'meditation' && s.completed !== false
-  ) : [];
-  
-  console.log('🧘 Sessions (Single-Point Analysis):', { 
-    totalSessions: sessions?.length || 0,
-    meditationSessions: meditationSessions.length,
-    architecture: 'single-point-v3'
-  });
+  console.log('🔍 STRICT Requirements Check - Both Assessments Required:');
   
   const hasQuestionnaire = !!(
     questionnaire?.completed || 
@@ -135,29 +110,37 @@ const hasMinimumDataForCalculation = (
     (selfAssessment && typeof selfAssessment === 'object' && Object.keys(selfAssessment).length > 3)
   );
   
-  const hasMinimumSessions = meditationSessions.length >= 3;
-  const hasAnySessions = meditationSessions.length >= 1;
+  // ✅ NEW REQUIREMENT: Must have BOTH assessments
+  const bothAssessmentsComplete = hasQuestionnaire && hasSelfAssessment;
   
-  const sufficient = (
-    hasSelfAssessment || 
-    hasQuestionnaire || 
-    hasMinimumSessions || 
-    (hasQuestionnaire && hasAnySessions)
-  );
-  
-  console.log('✅ Single-Point Requirements Check:', {
+  console.log('📋 Assessment Status:', {
     hasQuestionnaire,
     hasSelfAssessment,
-    hasMinimumSessions,
-    hasAnySessions,
-    sufficient,
-    architecture: 'single-point-v3'
+    bothAssessmentsComplete,
+    requirementMet: bothAssessmentsComplete
   });
   
-  return sufficient;
+  console.log('🧘 Session Info (for reference only):', { 
+    totalSessions: sessions?.length || 0,
+    meditationSessions: sessions ? sessions.filter((s: any) => 
+      s.sessionType === 'meditation' && s.completed !== false
+    ).length : 0,
+    note: 'Sessions not required, but enhance calculations'
+  });
+  
+  // ✅ STRICT: Only allow calculation if BOTH assessments are complete
+  console.log('✅ New Requirement Result:', {
+    sufficient: bothAssessmentsComplete,
+    message: bothAssessmentsComplete 
+      ? 'Both assessments complete - calculation enabled' 
+      : 'Missing assessments - please complete both questionnaire and self-assessment',
+    architecture: 'single-point-v3-strict'
+  });
+  
+  return bothAssessmentsComplete;
 };
 
-// ✅ PRESERVED: Current state calculation (unchanged logic)
+// ✅ PRESERVED: All calculation functions remain unchanged
 const calculateCurrentStateFromAssessment = (questionnaire: any, notes: any[], hasMinimumData: boolean): ComponentResult => {
   if (!hasMinimumData || !questionnaire?.responses) {
     return { currentMoodScore: 0 };
@@ -219,20 +202,20 @@ const calculateCurrentStateFromAssessment = (questionnaire: any, notes: any[], h
   return { currentMoodScore: Math.max(0, Math.round(currentStateScore)) };
 };
 
-// ✅ PRESERVED: Attachment-based happiness calculation (unchanged logic but cleaner logging)
 const calculateAttachmentBasedHappiness = (selfAssessment: any, hasMinimumData: boolean): ComponentResult => {
-  console.log('🎯 Single-Point Attachment Calculation:', {
+  console.log('🎯 Attachment Calculation (Now Required):', {
     selfAssessment: !!selfAssessment,
     hasMinimumData,
     attachmentScore: selfAssessment?.attachmentScore,
     nonAttachmentCount: selfAssessment?.nonAttachmentCount,
-    architecture: 'single-point-v3'
+    architecture: 'single-point-v3-strict'
   });
   
   if (!hasMinimumData) {
     return { flexibilityScore: 0 };
   }
   
+  // ✅ Since we now require self-assessment, this should always have data
   const hasSelfAssessmentData = !!(
     selfAssessment?.completed || 
     selfAssessment?.responses || 
@@ -244,6 +227,7 @@ const calculateAttachmentBasedHappiness = (selfAssessment: any, hasMinimumData: 
   );
   
   if (!hasSelfAssessmentData) {
+    console.warn('⚠️ Self-assessment required but missing data - this should not happen with strict requirements');
     return { flexibilityScore: 0 };
   }
   
@@ -294,19 +278,18 @@ const calculateAttachmentBasedHappiness = (selfAssessment: any, hasMinimumData: 
   const nonAttachmentBonus = nonAttachmentCount * 12;
   finalScore += nonAttachmentBonus;
   
-  console.log('✅ Single-Point Attachment Scoring Breakdown:', {
+  console.log('✅ Attachment Scoring Breakdown (Guaranteed Data):', {
     attachmentScore: `${attachmentScore} points (${Math.abs(attachmentScore)} penalty)`,
     nonAttachmentCount: `${nonAttachmentCount} categories`,
     nonAttachmentBonus: `+${nonAttachmentBonus} happiness points`,
     finalScore: `${Math.round(finalScore)} total points`,
     calculation: `${attachmentScore} (suffering) + ${nonAttachmentBonus} (wisdom bonus) = ${Math.round(finalScore)}`,
-    architecture: 'single-point-v3'
+    architecture: 'single-point-v3-strict'
   });
   
   return { flexibilityScore: Math.round(finalScore) };
 };
 
-// ✅ PRESERVED: Social connection calculation (unchanged logic)
 const calculateSocialConnection = (questionnaire: any, hasMinimumData: boolean): ComponentResult => {
   if (!hasMinimumData || !questionnaire?.responses) {
     return { connectionScore: 0 };
@@ -345,7 +328,6 @@ const calculateSocialConnection = (questionnaire: any, hasMinimumData: boolean):
   return { connectionScore: Math.max(0, Math.round(connectionScore)) };
 };
 
-// ✅ SINGLE-POINT: Enhanced emotional stability with consistent session filtering
 const calculateEmotionalStabilityProgress = (
   sessions: any[], 
   questionnaire: any, 
@@ -357,6 +339,7 @@ const calculateEmotionalStabilityProgress = (
   
   let stabilityScore = 0;
   
+  // ✅ Now guaranteed to have questionnaire data
   if (questionnaire?.responses) {
     const emotionalAwareness = questionnaire.responses.emotional_awareness || 1;
     stabilityScore += emotionalAwareness * 7;
@@ -384,7 +367,7 @@ const calculateEmotionalStabilityProgress = (
     }
   }
   
-  // ✅ SINGLE-POINT: Use consistent session filtering
+  // ✅ Practice sessions enhance the score but aren't required
   if (sessions && sessions.length > 0) {
     const meditationSessions = sessions.filter((s: any) => 
       s.sessionType === 'meditation' && s.completed !== false
@@ -399,24 +382,23 @@ const calculateEmotionalStabilityProgress = (
       stabilityScore += (avgQuality - 3) * 5;
     }
     
-    console.log('🧘 Emotional Stability (Single-Point):', {
+    console.log('🧘 Emotional Stability Enhancement (Sessions Optional):', {
       totalSessions: sessions.length,
       meditationSessions: meditationSessions.length,
       practiceBonus,
-      architecture: 'single-point-v3'
+      architecture: 'single-point-v3-strict'
     });
   }
   
   return { stabilityScore: Math.max(0, Math.round(stabilityScore)) };
 };
 
-// ✅ SINGLE-POINT: Enhanced mind recovery with consistent session filtering
+// ✅ All other calculation functions remain unchanged but now work with guaranteed assessment data
 const calculateMindRecoveryEffectiveness = (sessions: any[], hasMinimumData: boolean): ComponentResult => {
   if (!hasMinimumData || !sessions || sessions.length === 0) {
     return { recoveryScore: 0 };
   }
   
-  // ✅ SINGLE-POINT: Use consistent session filtering
   const meditationSessions = sessions.filter((s: any) => 
     s.sessionType === 'meditation' && s.completed !== false
   );
@@ -459,7 +441,7 @@ const calculateMindRecoveryEffectiveness = (sessions: any[], hasMinimumData: boo
   else if (avgQuality >= 3.5) recoveryScore += 10;
   else if (avgQuality >= 3.0) recoveryScore += 5;
   
-  console.log('🧘 Mind Recovery (Single-Point):', {
+  console.log('🧘 Mind Recovery (Enhanced by Sessions):', {
     totalSessions: sessions.length,
     meditationSessions: meditationSessions.length,
     totalHours: totalHours.toFixed(1),
@@ -467,13 +449,12 @@ const calculateMindRecoveryEffectiveness = (sessions: any[], hasMinimumData: boo
     avgQuality: avgQuality.toFixed(1),
     recentSessions: recentSessions.length,
     recoveryScore,
-    architecture: 'single-point-v3'
+    architecture: 'single-point-v3-strict'
   });
   
   return { recoveryScore: Math.max(0, Math.round(recoveryScore)) };
 };
 
-// ✅ SINGLE-POINT: Enhanced emotional regulation with consistent session filtering
 const calculateEmotionalRegulation = (
   sessions: any[], 
   questionnaire: any, 
@@ -485,6 +466,7 @@ const calculateEmotionalRegulation = (
   
   let regulationScore = 0;
   
+  // ✅ Now guaranteed to have questionnaire data
   if (questionnaire?.responses) {
     const emotionalAwareness = questionnaire.responses.emotional_awareness || 1;
     regulationScore += emotionalAwareness * 6.5;
@@ -512,7 +494,7 @@ const calculateEmotionalRegulation = (
     }
   }
   
-  // ✅ SINGLE-POINT: Use consistent session filtering
+  // ✅ Practice sessions enhance but aren't required
   if (sessions && sessions.length > 0) {
     const meditationSessions = sessions.filter((s: any) => 
       s.sessionType === 'meditation' && s.completed !== false
@@ -527,26 +509,24 @@ const calculateEmotionalRegulation = (
       regulationScore += (qualitySessions.length / meditationSessions.length) * 12;
     }
     
-    console.log('🧘 Emotional Regulation (Single-Point):', {
+    console.log('🧘 Emotional Regulation Enhancement:', {
       totalSessions: sessions.length,
       meditationSessions: meditationSessions.length,
       practiceWeeks,
       practiceBonus,
       qualitySessions: qualitySessions.length,
-      architecture: 'single-point-v3'
+      architecture: 'single-point-v3-strict'
     });
   }
   
   return { regulationScore: Math.max(0, Math.round(regulationScore)) };
 };
 
-// ✅ SINGLE-POINT: Enhanced practice consistency with consistent session filtering and streak calculation
 const calculatePracticeConsistency = (sessions: any[], hasMinimumData: boolean): ComponentResult => {
   if (!hasMinimumData || !sessions || sessions.length === 0) {
     return { consistencyScore: 0 };
   }
   
-  // ✅ SINGLE-POINT: Use consistent session filtering
   const meditationSessions = sessions.filter((s: any) => 
     s.sessionType === 'meditation' && s.completed !== false
   );
@@ -570,7 +550,6 @@ const calculatePracticeConsistency = (sessions: any[], hasMinimumData: boolean):
   else if (recentSessions.length >= 5) consistencyScore += 18;
   else if (recentSessions.length >= 1) consistencyScore += 8;
   
-  // ✅ SINGLE-POINT: Use consistent streak calculation
   const currentStreak = calculateSessionStreak(meditationSessions);
   if (currentStreak >= 30) consistencyScore += 35;
   else if (currentStreak >= 21) consistencyScore += 30;
@@ -586,19 +565,18 @@ const calculatePracticeConsistency = (sessions: any[], hasMinimumData: boolean):
   else if (totalSessions >= 10) consistencyScore += 10;
   else if (totalSessions >= 5) consistencyScore += 5;
   
-  console.log('📈 Practice Consistency (Single-Point):', {
+  console.log('📈 Practice Consistency (Sessions Enhance Score):', {
     totalSessions: sessions.length,
     meditationSessions: totalSessions,
     recentSessions: recentSessions.length,
     currentStreak,
     consistencyScore,
-    architecture: 'single-point-v3'
+    architecture: 'single-point-v3-strict'
   });
   
   return { consistencyScore: Math.max(0, Math.round(consistencyScore)) };
 };
 
-// ✅ SINGLE-POINT: Enhanced PAHM development with consistent session filtering
 const calculatePAHMCentralDevelopment = (
   sessions: any[], 
   questionnaire: any, 
@@ -610,10 +588,10 @@ const calculatePAHMCentralDevelopment = (
       presentMomentRatio: 0,
       presentNeutralRatio: 0,
       developmentStage: 'Seeker',
-      stageDescription: 'Begin your awareness journey with assessment',
-      progressionPath: 'Complete questionnaire and self-assessment',
-      insights: ['Start with honest self-assessment'],
-      recommendations: ['Complete the questionnaire', 'Begin practice sessions'],
+      stageDescription: 'Complete both assessments to begin calculation',
+      progressionPath: 'Finish questionnaire and self-assessment',
+      insights: ['Both assessments required for PAHM analysis'],
+      recommendations: ['Complete the questionnaire', 'Complete the self-assessment'],
       breakdown: { presentNeutralMastery: 0, presentMomentDevelopment: 0, therapeuticProgress: 0, sessionQuality: 0 }
     };
   }
@@ -621,6 +599,7 @@ const calculatePAHMCentralDevelopment = (
   let assessmentFoundation = 0;
   let practiceRealization = 0;
   
+  // ✅ Now guaranteed to have questionnaire data
   if (questionnaire?.responses) {
     const experienceLevel = questionnaire.responses.experience_level || 1;
     const mindfulnessExperience = questionnaire.responses.mindfulness_experience || 1;
@@ -631,9 +610,16 @@ const calculatePAHMCentralDevelopment = (
     if (experienceLevel >= 8) {
       assessmentFoundation += 5;
     }
+    
+    console.log('📊 PAHM Assessment Foundation (Guaranteed):', {
+      experienceLevel,
+      mindfulnessExperience,
+      assessmentFoundation,
+      architecture: 'single-point-v3-strict'
+    });
   }
   
-  // ✅ SINGLE-POINT: Use consistent session filtering for PAHM calculation
+  // ✅ Practice sessions enhance PAHM score
   if (sessions && sessions.length > 0) {
     const meditationSessions = sessions.filter((s: any) => 
       s.sessionType === 'meditation' && s.completed !== false
@@ -647,6 +633,7 @@ const calculatePAHMCentralDevelopment = (
       : 0;
     const avgDuration = totalSessions > 0 ? totalMinutes / totalSessions : 0;
     
+    // Session count bonuses
     if (totalSessions >= 100) practiceRealization += 35;
     else if (totalSessions >= 50) practiceRealization += 30;
     else if (totalSessions >= 25) practiceRealization += 25;
@@ -655,6 +642,7 @@ const calculatePAHMCentralDevelopment = (
     else if (totalSessions >= 5) practiceRealization += 10;
     else if (totalSessions >= 1) practiceRealization += 5;
     
+    // Hour bonuses
     if (totalHours >= 100) practiceRealization += 40;
     else if (totalHours >= 50) practiceRealization += 35;
     else if (totalHours >= 25) practiceRealization += 30;
@@ -663,12 +651,14 @@ const calculatePAHMCentralDevelopment = (
     else if (totalHours >= 2) practiceRealization += 15;
     else if (totalHours >= 0.5) practiceRealization += 10;
     
+    // Quality bonuses
     if (avgQuality >= 4.5) practiceRealization += 25;
     else if (avgQuality >= 4.0) practiceRealization += 20;
     else if (avgQuality >= 3.5) practiceRealization += 15;
     else if (avgQuality >= 3.0) practiceRealization += 10;
     else if (avgQuality >= 2.5) practiceRealization += 5;
     
+    // Duration bonuses
     if (avgDuration >= 45) practiceRealization += 20;
     else if (avgDuration >= 30) practiceRealization += 15;
     else if (avgDuration >= 20) practiceRealization += 12;
@@ -676,6 +666,7 @@ const calculatePAHMCentralDevelopment = (
     else if (avgDuration >= 10) practiceRealization += 8;
     else if (avgDuration >= 5) practiceRealization += 5;
     
+    // Recent activity bonus
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentSessions = meditationSessions.filter(s => new Date(s.timestamp) > thirtyDaysAgo);
     
@@ -685,24 +676,23 @@ const calculatePAHMCentralDevelopment = (
     else if (recentSessions.length >= 5) practiceRealization += 8;
     else if (recentSessions.length >= 1) practiceRealization += 5;
     
-    console.log('🎯 PAHM Development (Single-Point):', {
+    console.log('🎯 PAHM Practice Enhancement:', {
       totalAllSessions: sessions.length,
       meditationSessions: totalSessions,
       totalHours: totalHours.toFixed(1),
       avgQuality: avgQuality.toFixed(1),
       avgDuration: avgDuration.toFixed(1),
       recentSessions: recentSessions.length,
-      assessmentFoundation,
       practiceRealization,
-      architecture: 'single-point-v3'
+      architecture: 'single-point-v3-strict'
     });
   }
   
   const overallPAHMScore = Math.round(assessmentFoundation + practiceRealization);
   
-  let developmentStage = 'Seeker';
-  let stageDescription = 'Beginning awareness journey';
-  let progressionPath = 'Build consistent practice routine';
+  let developmentStage = 'Active Seeker';
+  let stageDescription = 'Both assessments completed - foundation established';
+  let progressionPath = 'Begin consistent practice to enhance PAHM development';
   
   if (overallPAHMScore >= 120) {
     developmentStage = 'Enlightened Seeker';
@@ -722,45 +712,47 @@ const calculatePAHMCentralDevelopment = (
     progressionPath = 'Build consistency and deepen quality of sessions';
   } else if (overallPAHMScore >= 40) {
     developmentStage = 'Awakening Seeker';
-    stageDescription = 'Starting to recognize patterns of mental activity and attachment';
-    progressionPath = 'Develop sustained attention and mindful observation skills';
+    stageDescription = 'Assessment foundation with emerging practice skills';
+    progressionPath = 'Develop sustained attention through regular practice';
   } else if (overallPAHMScore >= 20) {
     developmentStage = 'Active Seeker';
-    stageDescription = 'Building foundation through consistent practice attempts';
-    progressionPath = 'Focus on daily practice habit and basic mindfulness';
+    stageDescription = 'Solid assessment foundation established';
+    progressionPath = 'Begin daily practice to activate theoretical knowledge';
   }
   
   const insights = [];
   const recommendations = [];
   
+  // ✅ Enhanced insights with guaranteed assessment data
+  insights.push('Complete assessment foundation established');
+  
   const assessmentVsPractice = practiceRealization / Math.max(assessmentFoundation, 1);
   
   if (assessmentVsPractice >= 2) {
-    insights.push('Your actual practice exceeds your stated experience - you\'re developing real skills');
+    insights.push('Your practice significantly exceeds your stated experience - excellent development');
   } else if (assessmentVsPractice >= 1) {
-    insights.push('Your practice is building on your stated experience effectively');
-  } else if (assessmentFoundation > 20 && practiceRealization < 10) {
-    insights.push('Consider more practice to match your stated experience level');
+    insights.push('Your practice is building effectively on your assessment foundation');
   } else if (practiceRealization === 0) {
-    insights.push('Assessment-based foundation established - ready for practice development');
+    insights.push('Strong assessment foundation - ready to activate through practice');
+  } else if (assessmentFoundation > 20 && practiceRealization < 10) {
+    insights.push('Consider more practice to fully activate your theoretical knowledge');
   }
   
-  // ✅ SINGLE-POINT: Use consistent session filtering for recommendations
   const meditationSessions = sessions ? sessions.filter((s: any) => 
     s.sessionType === 'meditation' && s.completed !== false
   ) : [];
   
   if (meditationSessions.length === 0) {
-    recommendations.push('Begin daily 5-10 minute practice sessions');
+    recommendations.push('Begin daily 5-10 minute practice sessions to activate your assessment foundation');
     recommendations.push('Focus on building the habit before extending duration');
   } else if (meditationSessions.length < 10) {
-    recommendations.push('Continue building practice consistency');
+    recommendations.push('Excellent start - continue building practice consistency');
     recommendations.push('Aim for daily sessions to establish the habit');
   } else if (meditationSessions.length < 50) {
-    recommendations.push('Excellent foundation - now focus on session quality');
+    recommendations.push('Strong practice foundation - now focus on session quality');
     recommendations.push('Gradually increase average session duration');
   } else {
-    recommendations.push('Strong practice foundation - explore advanced techniques');
+    recommendations.push('Excellent practice foundation - explore advanced techniques');
     recommendations.push('Consider longer sessions and retreat experiences');
   }
   
@@ -776,7 +768,7 @@ const calculatePAHMCentralDevelopment = (
     sessionQuality: sessionQuality
   };
   
-  console.log('🎯 PAHM Development Final (Single-Point):', {
+  console.log('🎯 PAHM Development Final (Assessment-Based):', {
     assessmentFoundation,
     practiceRealization,
     overallPAHMScore,
@@ -786,7 +778,7 @@ const calculatePAHMCentralDevelopment = (
       : '0',
     avgQuality: avgQuality.toFixed(1),
     developmentStage,
-    architecture: 'single-point-v3'
+    architecture: 'single-point-v3-strict'
   });
   
   return {
@@ -802,11 +794,9 @@ const calculatePAHMCentralDevelopment = (
   };
 };
 
-// ✅ SINGLE-POINT: Enhanced session streak calculation using consistent filtering
 const calculateSessionStreak = (sessions: any[]): number => {
   if (!sessions || sessions.length === 0) return 0;
   
-  // ✅ SINGLE-POINT: Use consistent session filtering
   const meditationSessions = sessions.filter((s: any) => 
     s.sessionType === 'meditation' && s.completed !== false
   );
@@ -835,26 +825,25 @@ const calculateSessionStreak = (sessions: any[]): number => {
     }
   }
   
-  console.log('🔥 Session Streak (Single-Point):', {
+  console.log('🔥 Session Streak:', {
     totalSessions: sessions.length,
     meditationSessions: meditationSessions.length,
     streak,
-    architecture: 'single-point-v3'
+    architecture: 'single-point-v3-strict'
   });
   
   return streak;
 };
 
-// ✅ MAIN HOOK - Enhanced with single-point architecture compliance
+// ✅ MAIN HOOK - Updated with strict requirements
 export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
-  // ✅ SINGLE-POINT: Get data from contexts with consistent architecture
   const { currentUser } = useAuth();
   const { 
     questionnaire, 
     selfAssessment,
     isLoading: onboardingLoading 
   } = useOnboarding();
-  const { sessions } = usePractice(); // ✅ SINGLE-POINT: Only source for session data
+  const { sessions } = usePractice();
   const { emotionalNotes } = useWellness();
 
   const [userProgress, setUserProgress] = useState<UserProgress>({
@@ -879,24 +868,22 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [recalculationTrigger, setRecalculationTrigger] = useState(0);
 
-  // ✅ SINGLE-POINT: Practice sessions with consistent filtering
   const practiceSessions = useMemo(() => {
     if (!currentUser?.uid) {
       console.warn('🚨 No current user - returning empty practice sessions');
       return [];
     }
     
-    console.log(`✅ Retrieved ${sessions?.length || 0} practice sessions from PracticeContext (Single-Point) for user ${currentUser.uid.substring(0, 8)}...`);
+    console.log(`✅ Retrieved ${sessions?.length || 0} practice sessions from PracticeContext (Strict Mode) for user ${currentUser.uid.substring(0, 8)}...`);
     
-    // ✅ Apply consistent filtering that matches other components
     const allSessions = sessions || [];
     const meditationSessions = allSessions.filter((s: any) => 
       s.sessionType === 'meditation' && s.completed !== false
     );
     
-    console.log(`✅ Filtered to ${meditationSessions.length} meditation sessions (Single-Point Architecture)`);
+    console.log(`✅ Filtered to ${meditationSessions.length} meditation sessions (Sessions enhance but don't enable calculation)`);
     
-    return allSessions; // Return all for analysis, but components use filtered versions
+    return allSessions;
   }, [currentUser?.uid, sessions]);
 
   const userEmotionalNotes = useMemo(() => {
@@ -908,11 +895,10 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     return emotionalNotes || [];
   }, [currentUser?.uid, emotionalNotes]);
 
-  // ✅ SINGLE-POINT: Debug current user context with architecture info
   useEffect(() => {
     if (currentUser) {
-      console.log(`👤 Single-Point happiness calculation for user: ${currentUser.uid.substring(0, 8)}... (${currentUser.email})`);
-      console.log('📊 Single-Point data summary:', {
+      console.log(`👤 STRICT MODE happiness calculation for user: ${currentUser.uid.substring(0, 8)}... (${currentUser.email})`);
+      console.log('📊 Strict requirements data summary:', {
         practiceSessions: practiceSessions.length,
         meditationSessions: practiceSessions.filter((s: any) => 
           s.sessionType === 'meditation' && s.completed !== false
@@ -921,14 +907,14 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         hasQuestionnaire: !!questionnaire,
         hasSelfAssessment: !!selfAssessment,
         onboardingLoading,
-        architecture: 'single-point-v3'
+        REQUIREMENT: 'Both questionnaire AND self-assessment required',
+        architecture: 'single-point-v3-strict'
       });
     } else {
       console.warn('👤 No current user - happiness calculation disabled');
     }
   }, [currentUser, practiceSessions.length, userEmotionalNotes.length, questionnaire, selfAssessment, onboardingLoading]);
 
-  // ✅ PRESERVED: Extract numeric scores utility
   const extractNumericScore = useCallback((result: ComponentResult): number => {
     if (typeof result === 'number') {
       return result;
@@ -953,9 +939,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     return 0;
   }, []);
 
-  // ✅ SINGLE-POINT: Complete calculation with enhanced architecture compliance
   const calculateHappinessScore = useCallback(() => {
-    // ✅ SECURITY: Must have current user
     if (!currentUser?.uid) {
       console.warn('🚨 No current user - cannot calculate happiness score');
       setUserProgress({
@@ -980,8 +964,8 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     setIsCalculating(true);
     
     try {
-      console.log(`🔄 Single-Point Calculation Starting for ${currentUser.uid.substring(0, 8)}...`);
-      console.log('📊 Single-Point input data:', {
+      console.log(`🔄 STRICT MODE Calculation Starting for ${currentUser.uid.substring(0, 8)}...`);
+      console.log('📊 Strict input requirements check:', {
         userId: currentUser.uid.substring(0, 8) + '...',
         email: currentUser.email,
         questionnaire: !!questionnaire,
@@ -991,13 +975,13 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
           s.sessionType === 'meditation' && s.completed !== false
         ).length,
         notesCount: userEmotionalNotes.length,
-        architecture: 'single-point-v3'
+        STRICT_REQUIREMENT: 'Both assessments must be complete',
+        architecture: 'single-point-v3-strict'
       });
       
-      // ✅ SINGLE-POINT: Check minimum data with enhanced session analysis
+      // ✅ STRICT: Check minimum data - both assessments required
       const hasMinimumData = hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions);
       
-      // Calculate data completeness
       const dataCompleteness = {
         questionnaire: !!(questionnaire?.completed || questionnaire?.responses),
         selfAssessment: !!(selfAssessment?.completed || 
@@ -1012,13 +996,53 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         sufficientForCalculation: hasMinimumData
       };
       
-      console.log(`✅ Single-Point data completeness for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`✅ STRICT data completeness for ${currentUser.uid.substring(0, 8)}...:`, {
         ...dataCompleteness,
-        architecture: 'single-point-v3'
+        STRICT_RESULT: hasMinimumData ? 'PASSED - Both assessments complete' : 'FAILED - Missing assessments',
+        architecture: 'single-point-v3-strict'
       });
       
-      // ✅ SINGLE-POINT: Calculate ALL components with enhanced session filtering
-      console.log('🧮 Calculating Single-Point components...');
+      // ✅ If strict requirements not met, return minimal state with clear message
+      if (!hasMinimumData) {
+        const result: UserProgress = {
+          happiness_points: 0,
+          user_level: 'Seeker',
+          focus_ability: 0,
+          habit_change_score: 0,
+          practice_streak: 0,
+          breakdown: null,
+          pahmAnalysis: {
+            presentMomentRatio: 0,
+            presentNeutralRatio: 0,
+            neutralRatio: 0,
+            overallPAHMScore: 0,
+            developmentStage: 'Seeker',
+            stageDescription: 'Complete both questionnaire and self-assessment to begin happiness calculation',
+            progressionPath: 'Finish both assessments to unlock full happiness tracking',
+            insights: ['Both assessments required for accurate happiness calculation'],
+            recommendations: [
+              'Complete the questionnaire to establish your baseline',
+              'Complete the self-assessment to measure attachment patterns',
+              'Practice sessions will enhance your score once assessments are done'
+            ],
+            breakdown: { 
+              presentNeutralMastery: 0, 
+              presentMomentDevelopment: 0, 
+              therapeuticProgress: 0, 
+              sessionQuality: 0 
+            }
+          },
+          hasMinimumData: false,
+          dataCompleteness
+        };
+        
+        setUserProgress(result);
+        console.log(`⚠️ STRICT requirements not met for ${currentUser.uid.substring(0, 8)}... - calculation blocked`);
+        return;
+      }
+      
+      // ✅ STRICT: Calculate with guaranteed assessment data
+      console.log('🧮 Calculating components with STRICT requirements met...');
       
       const currentStateResult = calculateCurrentStateFromAssessment(questionnaire, userEmotionalNotes, hasMinimumData);
       const currentStateScore = extractNumericScore(currentStateResult);
@@ -1044,7 +1068,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       const pahmResult = calculatePAHMCentralDevelopment(practiceSessions, questionnaire, hasMinimumData);
       const pahmScore = extractNumericScore(pahmResult);
 
-      console.log(`🎯 Single-Point component scores for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`🎯 STRICT component scores for ${currentUser.uid.substring(0, 8)}...:`, {
         currentStateScore,
         attachmentScore,
         socialScore,
@@ -1053,10 +1077,10 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         emotionalRegulationScore,
         practiceConsistencyScore,
         pahmScore,
-        architecture: 'single-point-v3'
+        note: 'All scores based on guaranteed assessment data',
+        architecture: 'single-point-v3-strict'
       });
 
-      // ✅ PRESERVED: Component breakdown structure
       const breakdown: ComponentBreakdown = {
         currentMoodState: currentStateScore,
         attachmentFlexibility: attachmentScore,
@@ -1070,7 +1094,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
       setComponentBreakdown(breakdown);
 
-      // ✅ PRESERVED: Weighted calculation (unchanged)
+      // ✅ PRESERVED: Weighted calculation
       const weightedScore = Math.round(
         (pahmScore * 0.25) +
         (attachmentScore * 0.20) +
@@ -1084,7 +1108,7 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
       const finalHappinessScore = Math.round(weightedScore);
 
-      console.log(`🎯 Single-Point final calculation for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`🎯 STRICT final calculation for ${currentUser.uid.substring(0, 8)}...:`, {
         weightedScore,
         finalHappinessScore,
         breakdown: {
@@ -1093,10 +1117,10 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
           stabilityContribution: emotionalStabilityScore * 0.18,
           currentStateContribution: currentStateScore * 0.12
         },
-        architecture: 'single-point-v3'
+        note: 'Calculation enabled by both assessments being complete',
+        architecture: 'single-point-v3-strict'
       });
 
-      // ✅ PRESERVED: User level determination
       let userLevel = 'Seeker';
       if (finalHappinessScore >= 80) userLevel = 'Enlightened Seeker';
       else if (finalHappinessScore >= 65) userLevel = 'Advanced Seeker';
@@ -1104,7 +1128,6 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       else if (finalHappinessScore >= 35) userLevel = 'Awakening Seeker';
       else if (finalHappinessScore >= 20) userLevel = 'Active Seeker';
 
-      // ✅ PRESERVED: PAHM analysis creation
       let pahmAnalysis: PAHMAnalysis | null = null;
       if (typeof pahmResult === 'object' && pahmResult !== null) {
         pahmAnalysis = {
@@ -1112,11 +1135,11 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
           presentNeutralRatio: pahmResult.presentNeutralRatio || 0,
           neutralRatio: pahmResult.neutralRatio || pahmResult.presentNeutralRatio || 0,
           overallPAHMScore: pahmScore,
-          developmentStage: pahmResult.developmentStage || 'Seeker',
-          stageDescription: pahmResult.stageDescription || 'Beginning your seeker journey',
-          progressionPath: pahmResult.progressionPath || 'Continue practicing',
-          insights: pahmResult.insights || [],
-          recommendations: pahmResult.recommendations || [],
+          developmentStage: pahmResult.developmentStage || 'Active Seeker',
+          stageDescription: pahmResult.stageDescription || 'Assessment foundation established',
+          progressionPath: pahmResult.progressionPath || 'Begin consistent practice',
+          insights: pahmResult.insights || ['Assessment foundation complete'],
+          recommendations: pahmResult.recommendations || ['Begin daily practice'],
           breakdown: pahmResult.breakdown || {
             presentNeutralMastery: 0,
             presentMomentDevelopment: 0,
@@ -1126,12 +1149,10 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
         };
       }
 
-      // ✅ SINGLE-POINT: Enhanced metrics calculation with consistent session filtering
       const focusAbility = Math.min(Math.round(pahmScore + (emotionalRegulationScore * 0.5)), 100);
       const habitChangeScore = Math.min(Math.round(pahmScore + (practiceConsistencyScore * 0.8)), 100);
       const practiceStreak = practiceSessions.length > 0 ? calculateSessionStreak(practiceSessions) : 0;
 
-      // ✅ PRESERVED: Create result structure
       const result: UserProgress = {
         happiness_points: finalHappinessScore,
         user_level: userLevel,
@@ -1146,7 +1167,6 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
       setUserProgress(result);
 
-      // ✅ SINGLE-POINT: Enhanced event with architecture info
       const event = new CustomEvent('happinessUpdated', {
         detail: {
           userId: currentUser.uid,
@@ -1157,23 +1177,23 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
           hasMinimumData: hasMinimumData,
           dataCompleteness: dataCompleteness,
           calculatedAt: new Date().toISOString(),
-          trigger: 'single_point_calculation',
-          architecture: 'single-point-v3'
+          trigger: 'strict_assessment_calculation',
+          architecture: 'single-point-v3-strict'
         }
       });
       window.dispatchEvent(event);
 
-      console.log(`✅ Single-Point calculation completed for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`✅ STRICT calculation completed for ${currentUser.uid.substring(0, 8)}...:`, {
         happiness_points: finalHappinessScore,
         user_level: userLevel,
         hasMinimumData: hasMinimumData,
         attachmentContribution: attachmentScore * 0.20,
-        architecture: 'single-point-v3'
+        enabledBy: 'Both assessments complete',
+        architecture: 'single-point-v3-strict'
       });
 
     } catch (error) {
-      console.error(`❌ Error in Single-Point calculation for ${currentUser.uid.substring(0, 8)}...:`, error);
-      // ✅ PRESERVED: Fallback state
+      console.error(`❌ Error in STRICT calculation for ${currentUser.uid.substring(0, 8)}...:`, error);
       setUserProgress({
         happiness_points: 0,
         user_level: 'Seeker',
@@ -1203,10 +1223,9 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     recalculationTrigger
   ]);
 
-  // ✅ SINGLE-POINT: Enhanced force recalculation function
   const forceRecalculation = useCallback(() => {
     if (currentUser?.uid) {
-      console.log(`🔄 Single-Point force recalculation triggered for ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`🔄 STRICT force recalculation triggered for ${currentUser.uid.substring(0, 8)}...`);
       setRecalculationTrigger(prev => prev + 1);
       setTimeout(() => {
         calculateHappinessScore();
@@ -1214,7 +1233,6 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     }
   }, [calculateHappinessScore, currentUser?.uid]);
 
-  // ✅ SINGLE-POINT: Enhanced debug functions with architecture info
   const debugCalculation = useCallback(() => {
     const debugInfo = {
       currentUser: currentUser?.uid ? {
@@ -1234,19 +1252,20 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
       onboardingLoading,
       questionnaire_data: questionnaire,
       selfAssessment_data: selfAssessment,
-      calculationType: 'Single-Point Architecture v3 (PracticeContext + OnboardingContext + WellnessContext)',
-      architecture: 'single-point-v3'
+      calculationType: 'STRICT Mode - Both Assessments Required (PracticeContext + OnboardingContext + WellnessContext)',
+      STRICT_REQUIREMENT: 'Both questionnaire AND self-assessment must be complete',
+      architecture: 'single-point-v3-strict'
     };
     
     setCalculationDebugInfo(debugInfo);
-    console.log('🔍 Single-Point Calculation Debug:', debugInfo);
+    console.log('🔍 STRICT Calculation Debug:', debugInfo);
   }, [currentUser, questionnaire, selfAssessment, practiceSessions, userEmotionalNotes, userProgress, recalculationTrigger, onboardingLoading]);
 
   const logProgress = useCallback(() => {
     if (currentUser?.uid) {
-      console.log(`📊 Single-Point Progress for ${currentUser.uid.substring(0, 8)}...:`, {
+      console.log(`📊 STRICT Progress for ${currentUser.uid.substring(0, 8)}...:`, {
         ...userProgress,
-        architecture: 'single-point-v3'
+        architecture: 'single-point-v3-strict'
       });
       console.log('📊 Component Breakdown:', componentBreakdown);
     }
@@ -1254,19 +1273,19 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
 
   const testComponents = useCallback(() => {
     if (currentUser?.uid) {
-      console.log(`🧪 Testing Single-Point Components for ${currentUser.uid.substring(0, 8)}...`);
+      console.log(`🧪 Testing STRICT Components for ${currentUser.uid.substring(0, 8)}...`);
       const hasMinimumData = hasMinimumDataForCalculation(questionnaire, selfAssessment, practiceSessions || []);
-      console.log('Has minimum data:', hasMinimumData);
-      console.log('Architecture:', 'single-point-v3');
+      console.log('Has minimum data (STRICT):', hasMinimumData);
+      console.log('Architecture:', 'single-point-v3-strict');
+      console.log('STRICT Requirement:', 'Both questionnaire AND self-assessment required');
       debugCalculation();
     }
   }, [currentUser, questionnaire, selfAssessment, practiceSessions, debugCalculation]);
 
-  // ✅ SINGLE-POINT: Auto-calculate when data changes (enhanced logging)
   useEffect(() => {
     if (currentUser?.uid && !onboardingLoading) {
       const timeoutId = setTimeout(() => {
-        console.log(`🚀 Single-Point auto-calculation triggered for ${currentUser.uid.substring(0, 8)}...`);
+        console.log(`🚀 STRICT auto-calculation triggered for ${currentUser.uid.substring(0, 8)}...`);
         calculateHappinessScore();
       }, 250);
       
@@ -1274,20 +1293,19 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     }
   }, [calculateHappinessScore, currentUser?.uid, onboardingLoading]);
 
-  // ✅ SINGLE-POINT: Enhanced event listeners with architecture compliance
   useEffect(() => {
     if (!currentUser?.uid) return;
 
     const handleOnboardingEvent = (event: any) => {
-      console.log(`🎯 Received Single-Point onboarding event for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
+      console.log(`🎯 Received STRICT onboarding event for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
       if (event.detail.type === 'selfAssessment' || event.detail.type === 'questionnaire') {
-        console.log('🔄 Onboarding event triggered Single-Point recalculation');
+        console.log('🔄 Onboarding event triggered STRICT recalculation');
         forceRecalculation();
       }
     };
 
     const handleHappinessRecalculation = (event: any) => {
-      console.log(`🚀 Direct Single-Point happiness recalculation trigger for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
+      console.log(`🚀 Direct STRICT happiness recalculation trigger for ${currentUser.uid.substring(0, 8)}...:`, event.detail);
       forceRecalculation();
     };
 
@@ -1304,7 +1322,6 @@ export const useHappinessCalculation = (): UseHappinessCalculationReturn => {
     };
   }, [forceRecalculation, currentUser?.uid]);
 
-  // ✅ PRESERVED: Return structure unchanged
   return useMemo(() => ({
     userProgress,
     componentBreakdown,

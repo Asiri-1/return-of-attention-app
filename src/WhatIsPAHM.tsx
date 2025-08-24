@@ -38,7 +38,7 @@ const WhatIsPAHM: React.FC<WhatIsPAHMProps> = ({ onBack, onStartPractice }) => {
         
         <section className="introduction">
           <p>
-            <strong>PAHM (Present Attention and Happiness Matrix) is the ultimate tool for achieving happiness that stays</strong>. 
+            <strong>PAHM (Present Attention and Happiness Matrix, founted by A.C. Amarasighe) is the ultimate tool for achieving happiness that stays</strong>. 
             As described in "The Return of Attention" book, this powerful framework helps you understand and track your attention patterns, 
             revealing where your mind habitually goes and how these patterns affect your overall wellbeing.
           </p>
