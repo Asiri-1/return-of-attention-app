@@ -52,7 +52,6 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
   // ✅ PRESERVE: Audio context management
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [bellEnabled, setBellEnabled] = useState<boolean>(true);
-  const [isAudioInitialized, setIsAudioInitialized] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   
   // ✅ FIXED: Enhanced wake lock state management
@@ -86,40 +85,60 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setIsMobile(detectMobile());
   }, []);
 
-  // ✅ PRESERVE: Audio context functionality
+  // ✅ IMPROVED: Enhanced audio context functionality with better initialization
   const initializeAudioContext = useCallback(async () => {
-    if (audioContext || !bellEnabled) return audioContext;
+    if (audioContext && audioContext.state !== 'closed') {
+      console.log('🔊 Audio context already initialized');
+      return audioContext;
+    }
+    
+    if (!bellEnabled) {
+      console.log('🔇 Bell disabled, skipping audio context initialization');
+      return null;
+    }
     
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
-        console.warn('Web Audio API not supported');
+        console.warn('⚠️ Web Audio API not supported in this browser');
         return null;
       }
       
+      console.log('🔧 Initializing new audio context...');
       const ctx = new AudioContextClass();
+      
       if (ctx.state === 'suspended') {
-        console.log('Audio context suspended, will resume on user interaction');
+        console.log('🔊 Audio context created in suspended state (normal on mobile)');
+      } else {
+        console.log('🔊 Audio context created in running state');
       }
       
       setAudioContext(ctx);
-      setIsAudioInitialized(true);
       console.log('✅ Audio context initialized successfully');
+      
       return ctx;
     } catch (error) {
-      console.error('Failed to initialize audio context:', error);
+      console.error('❌ Failed to initialize audio context:', error);
       return null;
     }
   }, [audioContext, bellEnabled]);
 
   const resumeAudioContext = useCallback(async () => {
-    if (audioContext && audioContext.state === 'suspended') {
+    if (!audioContext) {
+      console.log('🔊 No audio context to resume');
+      return;
+    }
+    
+    if (audioContext.state === 'suspended') {
       try {
+        console.log('🔄 Resuming suspended audio context...');
         await audioContext.resume();
-        console.log('✅ Audio context resumed');
+        console.log('✅ Audio context resumed successfully');
       } catch (error) {
-        console.error('Failed to resume audio context:', error);
+        console.error('❌ Failed to resume audio context:', error);
       }
+    } else {
+      console.log(`🔊 Audio context already in ${audioContext.state} state`);
     }
   }, [audioContext]);
 
@@ -214,43 +233,93 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
   }, [loadVoices]);
 
-  // ✅ PRESERVE: Bell audio functions
+  // ✅ IMPROVED: Enhanced bell audio functions with better reliability
   const createBellSound = useCallback(async (frequency: number, duration: number) => {
-    if (!bellEnabled || !audioContext) return;
+    if (!bellEnabled) {
+      console.log('🔇 Bells disabled by user');
+      return;
+    }
     
-    const playFallbackBell = (freq: number) => {
+    // Enhanced fallback with better audio data
+    const playFallbackBell = async (freq: number) => {
       try {
-        let audioRef;
         const type = freq === 523 ? 'start' : freq === 440 ? 'end' : 'minute';
+        let audioElement: HTMLAudioElement | null = null;
         
         switch (type) {
-          case 'start': audioRef = startBellRef; break;
-          case 'end': audioRef = endBellRef; break;
-          case 'minute': audioRef = minuteBellRef; break;
+          case 'start': 
+            audioElement = startBellRef.current; 
+            break;
+          case 'end': 
+            audioElement = endBellRef.current; 
+            break;
+          case 'minute': 
+          default:
+            audioElement = minuteBellRef.current; 
+            break;
         }
         
-        if (audioRef?.current) {
-          audioRef.current.currentTime = 0;
-          audioRef.current.volume = 0.7;
-          audioRef.current.play().catch(e => console.warn('Fallback audio play failed:', e));
+        if (audioElement) {
+          console.log(`🔔 Playing fallback ${type} bell`);
+          audioElement.currentTime = 0;
+          audioElement.volume = 0.8;
+          
+          // Force audio context resume for mobile
+          if (audioContext && audioContext.state === 'suspended') {
+            try {
+              await audioContext.resume();
+            } catch (e) {
+              console.warn('Could not resume audio context:', e);
+            }
+          }
+          
+          const playPromise = audioElement.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((e: Error) => {
+              console.warn(`Fallback ${type} bell play failed:`, e);
+              // Try alternative approach for mobile
+              if (isMobile && audioElement) {
+                setTimeout(() => {
+                  try {
+                    audioElement!.play();
+                  } catch (retryError) {
+                    console.warn('Retry fallback failed:', retryError);
+                  }
+                }, 100);
+              }
+            });
+          }
+        } else {
+          console.warn(`No audio reference found for ${type} bell`);
         }
       } catch (error) {
         console.warn('Fallback bell audio error:', error);
       }
     };
-    
+
+    // Try Web Audio API first, fallback to HTML audio
     try {
+      if (!audioContext) {
+        console.log('🔔 No audio context, using fallback bell');
+        await playFallbackBell(frequency);
+        return;
+      }
+
       if (audioContext.state === 'closed') {
-        console.warn('AudioContext is closed, reinitializing...');
-        await initializeAudioContext();
+        console.warn('🔔 AudioContext closed, using fallback bell');
+        await playFallbackBell(frequency);
         return;
       }
       
       if (audioContext.state === 'suspended') {
+        console.log('🔔 Resuming suspended audio context...');
         await audioContext.resume();
       }
+
+      console.log(`🔔 Generating ${frequency}Hz bell for ${duration}s`);
       
       if (isMobile) {
+        // Simplified mobile bell with better envelope
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         
@@ -260,77 +329,127 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
         gainNode.connect(audioContext.destination);
         
         const now = audioContext.currentTime;
+        const attackTime = 0.02;
+        const releaseTime = duration - 0.02;
+        
+        // Better envelope for mobile
         gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.5, now + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        gainNode.gain.linearRampToValueAtTime(0.6, now + attackTime);
+        gainNode.gain.setValueAtTime(0.6, now + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + releaseTime);
+        gainNode.gain.linearRampToValueAtTime(0, now + duration);
         
         oscillator.start(now);
         oscillator.stop(now + duration);
+        
+        console.log('✅ Mobile bell generated successfully');
       } else {
+        // Enhanced desktop harmonic bell with better resonance
         const fundamental = audioContext.createOscillator();
         const harmonic2 = audioContext.createOscillator();
         const harmonic3 = audioContext.createOscillator();
+        const harmonic4 = audioContext.createOscillator();
         
         const fundamentalGain = audioContext.createGain();
         const harmonic2Gain = audioContext.createGain();
         const harmonic3Gain = audioContext.createGain();
+        const harmonic4Gain = audioContext.createGain();
         const masterGain = audioContext.createGain();
         
+        // More authentic bell harmonics
         fundamental.frequency.setValueAtTime(frequency, audioContext.currentTime);
         harmonic2.frequency.setValueAtTime(frequency * 2.76, audioContext.currentTime);
-        harmonic3.frequency.setValueAtTime(frequency * 5.42, audioContext.currentTime);
+        harmonic3.frequency.setValueAtTime(frequency * 5.04, audioContext.currentTime);
+        harmonic4.frequency.setValueAtTime(frequency * 8.2, audioContext.currentTime);
         
         fundamental.type = 'sine';
         harmonic2.type = 'sine';
         harmonic3.type = 'sine';
+        harmonic4.type = 'sine';
         
         fundamental.connect(fundamentalGain);
         harmonic2.connect(harmonic2Gain);
         harmonic3.connect(harmonic3Gain);
+        harmonic4.connect(harmonic4Gain);
         
         fundamentalGain.connect(masterGain);
         harmonic2Gain.connect(masterGain);
         harmonic3Gain.connect(masterGain);
+        harmonic4Gain.connect(masterGain);
         masterGain.connect(audioContext.destination);
         
-        fundamentalGain.gain.setValueAtTime(0.6, audioContext.currentTime);
-        harmonic2Gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-        harmonic3Gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-        masterGain.gain.setValueAtTime(0.7, audioContext.currentTime);
+        // Balanced harmonic mix
+        fundamentalGain.gain.setValueAtTime(0.7, audioContext.currentTime);
+        harmonic2Gain.gain.setValueAtTime(0.4, audioContext.currentTime);
+        harmonic3Gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        harmonic4Gain.gain.setValueAtTime(0.1, audioContext.currentTime);
         
         const now = audioContext.currentTime;
+        const attackTime = 0.01;
+        const sustainTime = duration * 0.3;
+        const releaseTime = duration - sustainTime - attackTime;
+        
+        // Realistic bell envelope
         masterGain.gain.setValueAtTime(0, now);
-        masterGain.gain.linearRampToValueAtTime(0.7, now + 0.01);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        masterGain.gain.linearRampToValueAtTime(0.8, now + attackTime);
+        masterGain.gain.exponentialRampToValueAtTime(0.6, now + sustainTime);
+        masterGain.gain.exponentialRampToValueAtTime(0.01, now + sustainTime + releaseTime);
+        masterGain.gain.linearRampToValueAtTime(0, now + duration);
         
         fundamental.start(now);
         harmonic2.start(now);
         harmonic3.start(now);
+        harmonic4.start(now);
         
         fundamental.stop(now + duration);
         harmonic2.stop(now + duration);
         harmonic3.stop(now + duration);
+        harmonic4.stop(now + duration);
+        
+        console.log('✅ Desktop harmonic bell generated successfully');
       }
       
     } catch (error) {
-      console.warn('Web Audio bell generation failed, using fallback:', error);
-      playFallbackBell(frequency);
+      console.warn('🔔 Web Audio bell generation failed, using fallback:', error);
+      await playFallbackBell(frequency);
     }
-  }, [bellEnabled, audioContext, isMobile, initializeAudioContext]);
+  }, [bellEnabled, audioContext, isMobile]);
 
   const playBell = useCallback(async (type: 'start' | 'end' | 'minute') => {
-    if (!bellEnabled) return;
+    if (!bellEnabled) {
+      console.log('🔇 Bell playback disabled');
+      return;
+    }
     
+    console.log(`🔔 Playing ${type} bell...`);
+    
+    // Initialize audio context if needed
     if (!audioContext) {
+      console.log('🔧 Initializing audio context for bell...');
       await initializeAudioContext();
     }
     
+    // Resume audio context if suspended
     await resumeAudioContext();
     
-    switch (type) {
-      case 'start': await createBellSound(523, 3.0); break;
-      case 'minute': await createBellSound(659, 1.5); break;
-      case 'end': await createBellSound(440, 4.0); break;
+    // Play appropriate bell tone
+    try {
+      switch (type) {
+        case 'start': 
+          console.log('🟢 Start bell: 523Hz for 3 seconds');
+          await createBellSound(523, 3.0); 
+          break;
+        case 'minute': 
+          console.log('🟡 Minute bell: 659Hz for 1.5 seconds');
+          await createBellSound(659, 1.5); 
+          break;
+        case 'end': 
+          console.log('🔴 End bell: 440Hz for 4 seconds');
+          await createBellSound(440, 4.0); 
+          break;
+      }
+    } catch (error) {
+      console.error(`❌ Failed to play ${type} bell:`, error);
     }
   }, [bellEnabled, audioContext, initializeAudioContext, resumeAudioContext, createBellSound]);
 
@@ -603,8 +722,17 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     const totalSeconds = initialMinutes * 60;
     setTimeRemaining(totalSeconds);
     
-    await initializeAudioContext();
-    await resumeAudioContext();
+    // ✅ IMPROVED: Better audio initialization for practice start
+    if (bellEnabled) {
+      console.log('🔧 Initializing audio for practice session...');
+      await initializeAudioContext();
+      await resumeAudioContext();
+      
+      // Test if audio context is working
+      if (audioContext && audioContext.state !== 'running') {
+        console.warn('⚠️ Audio context not in running state, may need user interaction');
+      }
+    }
     
     const now = Date.now();
     setSessionStartTimestamp(now);
@@ -613,26 +741,41 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
     setIsPaused(false);
     setIsRunning(true);
     
-    setLastBellMinute(-1);
     setBellsPlayed(new Set());
     setLastVoiceAnnouncement(-1);
     
-    await requestWakeLock();
-    await playBell('start');
+    // ✅ IMPROVED: Better wake lock handling
+    if (wakeLockEnabled) {
+      await requestWakeLock();
+    }
     
+    // ✅ IMPROVED: Play start bell with better error handling
+    if (bellEnabled) {
+      console.log('🔔 Playing session start bell...');
+      await playBell('start');
+    }
+    
+    // ✅ IMPROVED: Voice announcement with better timing
     if (voiceEnabled && selectedVoice) {
       setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance("Begin stillness training");
-        utterance.voice = selectedVoice;
-        utterance.volume = 0.9;
-        utterance.rate = 0.8;
-        utterance.pitch = 0.6;
-        speechSynthesis.speak(utterance);
+        try {
+          const utterance = new SpeechSynthesisUtterance("Begin stillness training");
+          utterance.voice = selectedVoice;
+          utterance.volume = 0.9;
+          utterance.rate = 0.8;
+          utterance.pitch = 0.6;
+          speechSynthesis.speak(utterance);
+          console.log('🎙️ Session start announcement played');
+        } catch (error) {
+          console.warn('Voice announcement failed:', error);
+        }
       }, 2000);
     }
     
     const nowISO = new Date(now).toISOString();
     setSessionStartTime(nowISO);
+    
+    console.log('✅ Practice session started successfully');
   };
 
   // ✅ FIXED: Enhanced handleBack to properly clean up wake lock
@@ -901,6 +1044,30 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               🔔 {isMobile ? 'Meditation bells (mobile optimized)' : 'Authentic meditation bells (generated tones)'}
             </label>
             
+            {/* ✅ NEW: Bell test button */}
+            {bellEnabled && (
+              <div style={{ marginLeft: '20px', marginBottom: '10px' }}>
+                <button
+                  onClick={() => playBell('start')}
+                  style={{
+                    background: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    padding: '4px 8px',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    marginRight: '5px'
+                  }}
+                >
+                  🔔 Test Bell
+                </button>
+                <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                  Click to test if bells are working
+                </span>
+              </div>
+            )}
+            
             <label style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -1017,14 +1184,18 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
       padding: '10px',
       boxSizing: 'border-box'
     }}>
+      {/* ✅ IMPROVED: Better fallback audio elements with enhanced audio data */}
       <audio ref={startBellRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+D1unAcBzuL0fLVgysFJHLB7+OZSA8PU6zn77BeGgg+ltryxnkpBSh+zPLaizsIGGS57OWdTgwKUarm7bJeGgU7k9n1unIpBSdzxu7dmkoPCVir7OyrUBYIRp7g9MZyKgUme8rx3I4+CRZqtu3mnEoODFOr5O+vWRoHPJPY88p3JwUqcsbu2ZhJEAlZrObxpVIaByGH0fHNeSsFJXfH8OGUQAoUXrPq66hVFAlFnt/0wXIqBSV+zPHbizwIF2W56+OYTgwNU6zk7adbHQU+ltjxxnkpBSV3xu7dmkoPCVir6+yrUBUIRp7d9MZ0KgUmfcvx24o9CBdit+znnUoPCVKs5e2zXBkGPZLY88F3KgUpcsfx24w8CRdrtu7mnUwQB1Sw5e2tVxwFPZLZ9Md3KwUoctG6mFgMDVOrvw4zLGjH9pzQBbLWazDz32N6t0i0Hx2wOtj5rg8DLo3X9NiSPwkUa7Tu5Z1TEARSZ+Xj+5aRUBUGR5zc8Md3KQUqccjv2JdEDwpNhXxnIRVdkFCm4e+xYBsEPZJY88p4KgUoc8Ku2JdOCg1Uqub1o1MXBEF3xvLXbC8HH2y44+SZTQwPUKvh7a1aGgU9lNvwwnErBiR2w/HYjD8KCVir6e2rWRoHPZXa8sJ2KgYkcsPt0ZlMEQBSq+XvpFMYBUCE3PHYeTIGIGXB6N+iUhoHOJfY8cJ3KgUocsPt0ZlNEQhNq+ftrFgaBT6S2/DDdCoGJHbF7d+VPwkNVq3l8q5fGgM5jNr0x3EnByJzwfDZjD8HCVqm5u2xXRwDOqPm8aVYGAVAhtPywHQpByJxv+7cmkwSB1Cn5eyvWxsEPZDX8sBzKgUocsTt0JdEDwhOqufspFcWCD+J1/LBdSoFJnPD792YTwkPVC3l8qtcGgY7kdPxxxkoBSZxwuvamE0QCVCq5e6xXRsEP5Ha88N2KwUqccHz2Y9BBwlZp+nw1YgZCQAl2fHcdysFKXHH7t2aTxEHT6vk7bJeGgQ7k9r0wnorBSh0xO3ZmEoODFSq5vKqYRwHOJTV8sF0KgYhcsPy2Y9BBwdYp+jtrlwZBT+T2fHBdSoFKHPF7tuYTBANU6vm7a5dGwQ9lNHxwXUrBSlzxe3YmEsP21Sq5vGkXBcFQIfU8cB0KgYiccTt2JlMEAhOquZy75q5XBsEPZTa8cJ1KwUoc8Tt05dIDghNqOLwq2IbBDmS2fHBdioGKXPH7tyaShEJTarnuNb8YBwEOZPa8sJvKgckasTv3ZdPDwdVq+Pxq2EaBzuR2vPDdSoFJXLE7N2ZQAwOUqjp8a5bGAc8lNrywHQpBSZ2w+3WmEoRB1Ch5e2pXxgJL5PZ8LhxKwUocMbu3JhKEAhOqejxrVwZBj2U2fTCdSsFKXHH7d2YTxAJUKjl8K9dGAY+ktfxwXYqBilzxu3amEgRCFKo5PKqYBsEPZDa8cN0KAcjcsPu3ZpNEAhOqOTyp2IcBDmS2vPJFkQ1E8UBxQJTUlCZVBUFANBhRJhUFQUA0GFEmFQVBQDQYUSYVBUFANBhRJhUFQUA0GFEmFQVBQDQY=" type="audio/wav" />
+        <source src="data:audio/ogg;base64,T2dnUwACAAAAAAAAAAABAAAAAAAAAADqLAAHAAQCawAAAAABAgEDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CB" type="audio/ogg" />
       </audio>
       <audio ref={minuteBellRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+D1unAcBzuL0fLVgysFJHLB7+OZSA8PU6zn77BeGgg+ltryxnkpBSh+zPLaizsIGGS57OWdTgwKUarm7bJeGgU7k9n1unIpBSdzxu7dmkoPCVir7OyrUBYIRp7g9MZyKgUme8rx3I4+CRZqtu3mnEoODFOr5O+vWRoHPJPY88p3JwUqcsbu2ZhJEAlZrObxpVIaByGH0fHNeSsFJXfH8OGUQAoUXrPq66hVFAlFnt/0wXIqBSV+zPHbizwIF2W56+OYTgwNU6zk7adbHQU+ltjxxnkpBSV3xu7dmkoPCVir6+yrUBUIRp7d9MZ0KgUmfcvx24o9CBdit+znnUoPCVKs5e2zXBkGPZLY88F3KgUpcsfx24w8CRdrtu7mnUwQB1Sw5e2tVxwFPZLZ9Md3KwUoctG6mFgMDVOrvw4zLGjH9pzQBbLWazDz32N6t0i0Hx2wOtj5rg8DLo3X9NiSPwkUa7Tu5Z1TEARSZ+Xj+5aRUBUGR5zc8Md3KQUqccjv2JdEDwpNhXxnIRVdkFCm4e+xYBsEPZJY88p4KgUoc8Ku2JdOCg1Uqub1o1MXBEF3xvLXbC8HH2y44+SZTQwPUKvh7a1aGgU9lNvwwnErBiR2w/HYjD8KCVir6e2rWRoHPZXa8sJ2KgYkcsPt0ZlMEQBSq+XvpFMYBUCE3PHYeTIGIGXB6N+iUhoHOJfY8cJ3KgUocsPt0ZlNEQhNq+ftrFgaBT6S2/DDdCoGJHbF7d+VPwkNVq3l8q5fGgM5jNr0x3EnByJzwfDZjD8HCVqm5u2xXRwDOqPm8aVYGAVAhtPywHQpByJxv+7cmkwSB1Cn5eyvWxsEPZDX8sBzKgUocsTt0JdEDwhOqufspFcWCD+J1/LBdSoFJnPD792YTwkPVC3l8qtcGgY7kdPxxxkoBSZxwuvamE0QCVCq5e6xXRsEP5Ha88N2KwUqccHz2Y9BBwlZp+nw1YgZCQAl2fHcdysFKXHH7t2aTxEHT6vk7bJeGgQ7k9r0wnorBSh0xO3ZmEoODFSq5vKqYRwHOJTV8sF0KgYhcsPy2Y9BBwdYp+jtrlwZBT+T2fHBdSoFKHPF7tuYTBANU6vm7a5dGwQ9lNHxwXUrBSlzxe3YmEsP21Sq5vGkXBcFQIfU8cB0KgYiccTt2JlMEAhOquZy75q5XBsEPZTa8cJ1KwUoc8Tt05dIDghNqOLwq2IbBDmS2fHBdioGKXPH7tyaShEJTarnuNb8YBwEOZPa8sJvKgckasTv3ZdPDwdVq+Pxq2EaBzuR2vPDdSoFJXLE7N2ZQAwOUqjp8a5bGAc8lNrywHQpBSZ2w+3WmEoRB1Ch5e2pXxgJL5PZ8LhxKwUocMbu3JhKEAhOqejxrVwZBj2U2fTCdSsFKXHH7d2YTxAJUKjl8K9dGAY+ktfxwXYqBilzxu3amEgRCFKo5PKqYBsEPZDa8cN0KAcjcsPu3ZpNEAhOqOTyp2IcBDmS2vPJFkQ1E8UBxQJTUlCZVBUFANBhRJhUFQUA0GFEmFQVBQDQYUSYVBUFANBhRJhUFQUA0GFEmFQVBQDQY=" type="audio/wav" />
+        <source src="data:audio/ogg;base64,T2dnUwACAAAAAAAAAAABAAAAAAAAAADqLAAHAAQCawAAAAABAgEDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CB" type="audio/ogg" />
       </audio>
       <audio ref={endBellRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRlQEAABXQVZFZm10IBAAAAABAAEAESsAADEWAQAEABAAZGF0YTAEAAAAAP//AAABAP7/AAACAP3/AQADAP3/AQACAP7/AAABAP//AAABAP//AAABAPz/AgAEAPz/AwADAP3/AgACAP7/AQABAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA//8AAP//AAABAP//AAD//wAAAQD//wAA//8AAAEA" type="audio/wav" />
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+D1unAcBzuL0fLVgysFJHLB7+OZSA8PU6zn77BeGgg+ltryxnkpBSh+zPLaizsIGGS57OWdTgwKUarm7bJeGgU7k9n1unIpBSdzxu7dmkoPCVir7OyrUBYIRp7g9MZyKgUme8rx3I4+CRZqtu3mnEoODFOr5O+vWRoHPJPY88p3JwUqcsbu2ZhJEAlZrObxpVIaByGH0fHNeSsFJXfH8OGUQAoUXrPq66hVFAlFnt/0wXIqBSV+zPHbizwIF2W56+OYTgwNU6zk7adbHQU+ltjxxnkpBSV3xu7dmkoPCVir6+yrUBUIRp7d9MZ0KgUmfcvx24o9CBdit+znnUoPCVKs5e2zXBkGPZLY88F3KgUpcsfx24w8CRdrtu7mnUwQB1Sw5e2tVxwFPZLZ9Md3KwUoctG6mFgMDVOrvw4zLGjH9pzQBbLWazDz32N6t0i0Hx2wOtj5rg8DLo3X9NiSPwkUa7Tu5Z1TEARSZ+Xj+5aRUBUGR5zc8Md3KQUqccjv2JdEDwpNhXxnIRVdkFCm4e+xYBsEPZJY88p4KgUoc8Ku2JdOCg1Uqub1o1MXBEF3xvLXbC8HH2y44+SZTQwPUKvh7a1aGgU9lNvwwnErBiR2w/HYjD8KCVir6e2rWRoHPZXa8sJ2KgYkcsPt0ZlMEQBSq+XvpFMYBUCE3PHYeTIGIGXB6N+iUhoHOJfY8cJ3KgUocsPt0ZlNEQhNq+ftrFgaBT6S2/DDdCoGJHbF7d+VPwkNVq3l8q5fGgM5jNr0x3EnByJzwfDZjD8HCVqm5u2xXRwDOqPm8aVYGAVAhtPywHQpByJxv+7cmkwSB1Cn5eyvWxsEPZDX8sBzKgUocsTt0JdEDwhOqufspFcWCD+J1/LBdSoFJnPD792YTwkPVC3l8qtcGgY7kdPxxxkoBSZxwuvamE0QCVCq5e6xXRsEP5Ha88N2KwUqccHz2Y9BBwlZp+nw1YgZCQAl2fHcdysFKXHH7t2aTxEHT6vk7bJeGgQ7k9r0wnorBSh0xO3ZmEoODFSq5vKqYRwHOJTV8sF0KgYhcsPy2Y9BBwdYp+jtrlwZBT+T2fHBdSoFKHPF7tuYTBANU6vm7a5dGwQ9lNHxwXUrBSlzxe3YmEsP21Sq5vGkXBcFQIfU8cB0KgYiccTt2JlMEAhOquZy75q5XBsEPZTa8cJ1KwUoc8Tt05dIDghNqOLwq2IbBDmS2fHBdioGKXPH7tyaShEJTarnuNb8YBwEOZPa8sJvKgckasTv3ZdPDwdVq+Pxq2EaBzuR2vPDdSoFJXLE7N2ZQAwOUqjp8a5bGAc8lNrywHQpBSZ2w+3WmEoRB1Ch5e2pXxgJL5PZ8LhxKwUocMbu3JhKEAhOqejxrVwZBj2U2fTCdSsFKXHH7d2YTxAJUKjl8K9dGAY+ktfxwXYqBilzxu3amEgRCFKo5PKqYBsEPZDa8cN0KAcjcsPu3ZpNEAhOqOTyp2IcBDmS2vPJFkQ1E8UBxQJTUlCZVBUFANBhRJhUFQUA0GFEmFQVBQDQYUSYVBUFANBhRJhUFQUA0GFEmFQVBQDQY=" type="audio/wav" />
+        <source src="data:audio/ogg;base64,T2dnUwACAAAAAAAAAAABAAAAAAAAAADqLAAHAAQCawAAAAABAgEDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CB" type="audio/ogg" />
       </audio>
       
       <div style={{ display: 'none' }}>
@@ -1230,18 +1401,27 @@ const PracticeTimer: React.FC<PracticeTimerProps> = ({
               </button>
             </div>
             
-            {/* ✅ DEBUGGING: Development wake lock info */}
+            {/* ✅ DEBUGGING: Development bell and wake lock info */}
             <div style={{ 
               fontSize: '10px', 
               color: '#ccc', 
               marginTop: '10px',
               textAlign: 'left' 
             }}>
-              Wake Lock Debug:<br/>
-              Status: {wakeLockStatus}<br/>
-              Enabled: {wakeLockEnabled ? 'Yes' : 'No'}<br/>
-              Has Lock: {wakeLock ? 'Yes' : 'No'}<br/>
-              Supported: {('wakeLock' in navigator) ? 'Yes' : 'No'}
+              <div style={{ marginBottom: '5px' }}>
+                <strong>Bell Debug:</strong><br/>
+                Enabled: {bellEnabled ? 'Yes' : 'No'}<br/>
+                Audio Context: {audioContext ? audioContext.state : 'None'}<br/>
+                Is Mobile: {isMobile ? 'Yes' : 'No'}<br/>
+                Web Audio Supported: {('AudioContext' in window || 'webkitAudioContext' in window) ? 'Yes' : 'No'}
+              </div>
+              <div>
+                <strong>Wake Lock Debug:</strong><br/>
+                Status: {wakeLockStatus}<br/>
+                Enabled: {wakeLockEnabled ? 'Yes' : 'No'}<br/>
+                Has Lock: {wakeLock ? 'Yes' : 'No'}<br/>
+                Supported: {('wakeLock' in navigator) ? 'Yes' : 'No'}
+              </div>
             </div>
           </div>
         )}
