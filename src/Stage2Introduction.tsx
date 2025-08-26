@@ -22,67 +22,134 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
   const stageNumber = 2;
   const navigate = useNavigate();
   
-  // ✅ Phase 3 Context Integration
-  const { getCurrentStage, getStageProgress, canAdvanceToStage, sessions, isLoading: practiceLoading } = usePractice();
+  // ✅ CORRECTED Context Integration
+  const { 
+    getCurrentStage, 
+    getStageProgress, 
+    canAdvanceToStage, 
+    sessions, 
+    isLoading: practiceLoading,
+    getTotalPracticeHours,
+    isStage1CompleteByTSessions
+  } = usePractice();
   const { userProfile, updateProfile } = useUser();
   const { currentUser } = useAuth();
 
-  // ✅ Stage 1 Progress Calculation
-  const getStage1Progress = useCallback(() => {
-    if (!sessions) return { hours: 0, isComplete: false };
+  // ✅ FIXED: Use PracticeContext methods directly
+  const stage1Progress = useCallback(() => {
+    if (!sessions) return { isComplete: false };
     
-    const stage1Sessions = sessions.filter((session: any) => 
-      session.stageLevel === 1 || session.stage === 1
-    );
-    
-    const totalMinutes = stage1Sessions.reduce((total: number, session: any) => {
-      return total + (session.duration || 0);
-    }, 0);
-    
-    const totalHours = totalMinutes / 60;
-    
-    return {
-      hours: totalHours,
-      isComplete: totalHours >= 3 // Stage 1 requires 3 hours
-    };
-  }, [sessions]);
+    try {
+      const isComplete = isStage1CompleteByTSessions();
+      
+      console.log('🎯 Stage2Introduction - Stage 1 Check:', {
+        isCompleteByTSessions: isComplete
+      });
+      
+      return { isComplete };
+    } catch (error) {
+      console.error('❌ Error checking Stage 1 completion:', error);
+      return { isComplete: false };
+    }
+  }, [sessions, isStage1CompleteByTSessions]);
 
-  // ✅ Access Control
+  // ✅ CORRECTED: Access Control using hybrid logic
   const canAccess = useMemo(() => {
     const currentStage = getCurrentStage();
     const canAdvance = canAdvanceToStage(2);
-    const stage1Progress = getStage1Progress();
+    const stage1Complete = stage1Progress().isComplete;
     
-    return currentStage >= 2 || canAdvance || stage1Progress.isComplete;
-  }, [getCurrentStage, canAdvanceToStage, getStage1Progress]);
+    const hasAccess = currentStage >= 2 || canAdvance || stage1Complete;
+    
+    console.log('🔓 Stage2Introduction - Access Check:', {
+      currentStage,
+      canAdvance,
+      stage1Complete,
+      hasAccess
+    });
+    
+    return hasAccess;
+  }, [getCurrentStage, canAdvanceToStage, stage1Progress]);
 
-  // ✅ Progress Info for Header
+  // ✅ CORRECTED: Stage 2 Specific Progress (FIXED: Should show 0% before starting Stage 2 sessions)
+  const stage2SpecificProgress = useMemo(() => {
+    if (!sessions) return { hours: 0, sessions: 0, percentage: 0 };
+    
+    try {
+      // Count ONLY Stage 2 sessions (not T-level sessions from Stage 1)
+      const stage2Sessions = sessions.filter((session: any) => 
+        session.stageLevel === 2 || 
+        session.stage === 2 ||
+        (session.metadata && session.metadata.stage === 2) ||
+        session.stageLabel?.includes('Stage 2')
+      );
+      
+      const totalMinutes = stage2Sessions.reduce((total: number, session: any) => {
+        return total + (session.duration || 0);
+      }, 0);
+      
+      const stage2Hours = totalMinutes / 60;
+      const percentage = Math.round((stage2Hours / 5) * 100); // Stage 2 requires 5 hours of Stage 2 sessions
+      
+      console.log('📊 Stage2Introduction - CORRECTED Progress:', {
+        stage2Sessions: stage2Sessions.length,
+        stage2Hours: stage2Hours.toFixed(2),
+        percentage: percentage,
+        note: 'Shows only Stage 2 session progress (should be 0% before starting)'
+      });
+      
+      return {
+        hours: stage2Hours,
+        sessions: stage2Sessions.length,
+        percentage: percentage
+      };
+    } catch (error) {
+      console.error('❌ Error calculating Stage 2 specific progress:', error);
+      return { hours: 0, sessions: 0, percentage: 0 };
+    }
+  }, [sessions]);
+
+  // ✅ CORRECTED: Progress Info using Stage 2 specific progress (not total practice hours)
   const progressInfo = useMemo(() => {
     if (!canAccess) return null;
     
-    const currentStage = getCurrentStage();
-    const progress = getStageProgress(2);
-    
-    return {
-      currentStage,
-      percentage: Math.round(progress.percentage || 0),
-      isComplete: (progress as any).isComplete || false
-    };
-  }, [canAccess, getCurrentStage, getStageProgress]);
+    try {
+      const currentStage = getCurrentStage();
+      const { hours, percentage } = stage2SpecificProgress;
+      const isComplete = hours >= 5;
+      
+      console.log('📊 Stage2Introduction - Progress Info (CORRECTED):', {
+        currentStage,
+        stage2Hours: hours.toFixed(2),
+        percentage,
+        isComplete,
+        note: 'Using Stage 2 specific hours, not total practice hours'
+      });
+      
+      return {
+        currentStage,
+        percentage: Math.min(percentage, 100),
+        isComplete
+      };
+    } catch (error) {
+      console.error('❌ Error calculating progress info:', error);
+      return null;
+    }
+  }, [canAccess, getCurrentStage, stage2SpecificProgress]);
 
-  // ✅ Access Control Check
+  // ✅ CORRECTED: Access Control Check
   useEffect(() => {
     if (!practiceLoading && !canAccess) {
-      const stage1Progress = getStage1Progress();
-      if (!stage1Progress.isComplete) {
+      const stage1Complete = stage1Progress().isComplete;
+      if (!stage1Complete) {
         setError(
-          `Stage 2 requires completion of Stage 1 first. ` +
-          `Stage 1 progress: ${stage1Progress.hours.toFixed(1)}/3 hours (${Math.round((stage1Progress.hours / 3) * 100)}% complete).`
+          `Stage 2 requires completion of all Stage 1 T-levels (T1-T5) first. ` +
+          `Please complete all T-level sessions before proceeding to Stage 2.`
         );
         setAccessDenied(true);
       }
     }
-  }, [practiceLoading, canAccess, getStage1Progress]);
+  }, [practiceLoading, canAccess, stage1Progress]);
 
   // ✅ iOS Safari viewport fix
   useEffect(() => {
@@ -149,7 +216,7 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     onComplete();
   }, [markIntroCompleted, onComplete]);
   
-  // ✅ Enhanced Stage Title with Progress
+  // ✅ CORRECTED: Stage Title
   const stageTitle = useMemo(() => "Stage 2: PAHM Trainee", []);
   
   // ✅ Dynamic Slides with User Context
@@ -219,9 +286,9 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
     await nextSlide();
   }, [currentSlide, slides.length, markIntroCompleted, navigate, nextSlide]);
 
-  // ✅ Access Denied UI
+  // ✅ CORRECTED: Access Denied UI
   if (accessDenied) {
-    const stage1Progress = getStage1Progress();
+    const stage1Complete = stage1Progress().isComplete;
     
     return (
       <div className="stage-level-introduction">
@@ -257,19 +324,19 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
           
           <div style={{ marginBottom: '20px' }}>
             <div style={{ color: '#374151', marginBottom: '8px' }}>
-              Stage 1 Requirements: 3 hours of practice
+              Stage 1 Requirements: Complete all T-levels (T1-T5)
             </div>
             <div style={{ color: '#374151', marginBottom: '8px' }}>
-              Current Progress: {stage1Progress.hours.toFixed(1)}/3.0 hours
+              Current Status: {stage1Complete ? 'Complete ✅' : 'Incomplete ❌'}
             </div>
             <div style={{ color: '#374151', marginBottom: '20px' }}>
-              Hours Remaining: {Math.max(0, 3 - stage1Progress.hours).toFixed(1)}
+              {!stage1Complete && 'Complete all T-level sessions (3 each) to unlock Stage 2'}
             </div>
           </div>
           
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
-              onClick={() => navigate('/stage/1')}
+              onClick={() => navigate('/stage1')}
               style={{
                 padding: '12px 24px',
                 background: '#3b82f6',
@@ -326,41 +393,10 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
   
   return (
     <div className="stage-level-introduction">
-      <div className="stage-instructions-header">
-        <button 
-          className="back-button" 
-          onClick={onBack}
-          onTouchStart={handleTouchStart}
-          onKeyDown={(e) => handleKeyDown(e, onBack)}
-          aria-label="Go back to previous page"
-        >
-          Back
-        </button>
-        
-        <div style={{ textAlign: 'center', flex: 1 }}>
-          <h1>{stageTitle}</h1>
-          {progressInfo && (
-            <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
-              Current Stage: {progressInfo.currentStage} • Progress: {progressInfo.percentage}%
-              {progressInfo.isComplete && ' ✅'}
-            </div>
-          )}
-        </div>
-        
-        <button 
-          className="skip-button" 
-          onClick={handleSkip}
-          onTouchStart={handleTouchStart}
-          onKeyDown={(e) => handleKeyDown(e, handleSkip)}
-          aria-label="Skip Stage 2 introduction"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Saving...' : 'Skip'}
-        </button>
-      </div>
+      {/* ✅ REMOVED: Header section - Stage2Wrapper handles the header now */}
       
       <div className="introduction-content">
-        {/* ✅ Achievement Badge */}
+        {/* ✅ CORRECTED: Achievement Badge with Stage 2 specific progress */}
         <div className="achievement-badge" style={{
           background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
           color: 'white',
@@ -370,9 +406,22 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
           textAlign: 'center'
         }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>🎯 Stage 2: PAHM Matrix Training</h3>
-          <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+          <p style={{ margin: '0 0 12px 0', fontSize: '14px', opacity: 0.9 }}>
             You're ready to learn the cornerstone technique of mindfulness!
           </p>
+          
+          {/* ✅ CORRECTED: Show Stage 2 specific progress (should be 0% before starting) */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '16px',
+            fontSize: '12px',
+            opacity: 0.9
+          }}>
+            <span>Sessions: {stage2SpecificProgress.sessions}</span>
+            <span>Hours: {stage2SpecificProgress.hours.toFixed(1)}/5</span>
+            <span>Progress: {stage2SpecificProgress.percentage}%</span>
+          </div>
         </div>
         
         <div className="slide-container" role="region" aria-live="polite">
@@ -424,6 +473,32 @@ const Stage2Introduction: React.FC<Stage2IntroductionProps> = ({
           </button>
         </div>
       </div>
+
+      {/* ✅ Debug Info for Development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{
+          marginTop: '32px',
+          padding: '16px',
+          background: '#f0fdf4',
+          border: '2px solid #10b981',
+          borderRadius: '8px',
+          fontSize: '12px'
+        }}>
+          <h4 style={{ color: '#059669', margin: '0 0 12px 0' }}>
+            ✅ Stage 2 Introduction Debug (FIXED - All Features Preserved):
+          </h4>
+          <div style={{ color: '#065f46' }}>
+            <div>Stage 2 Sessions: {stage2SpecificProgress.sessions} (Should be 0)</div>
+            <div>Stage 2 Hours: {stage2SpecificProgress.hours.toFixed(2)}/5 (Should be 0.00)</div>
+            <div>Stage 2 Progress: {stage2SpecificProgress.percentage}% (Should be 0%)</div>
+            <div>Total Practice Hours: {getTotalPracticeHours().toFixed(2)} (All sessions including T-levels)</div>
+            <div>Current Slide: {currentSlide + 1}/{slides.length}</div>
+            <div>Stage 1 Complete: {stage1Progress().isComplete ? 'Yes' : 'No'}</div>
+            <div>Can Access Stage 2: {canAccess ? 'Yes' : 'No'}</div>
+            <div><strong>✅ FIXED: Removed header (handled by wrapper), showing correct 0% Stage 2 progress</strong></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

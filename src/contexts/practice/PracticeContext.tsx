@@ -1,9 +1,10 @@
 // ============================================================================
-// 🔧 FIXED PracticeContext.tsx - orderBy REMOVED to fix Firebase index errors
+// 🔧 FIXED PracticeContext.tsx - HYBRID STAGE LOGIC (Sessions + Hours)
 // ============================================================================
 // FILE: src/contexts/practice/PracticeContext.tsx
-// ✅ FIXED: Removed orderBy from both Firebase queries
-// 🔍 ENHANCED: Added comprehensive debug logging for Firebase operations
+// ✅ FIXED: Stage 1 uses SESSION-based progression (T1-T5 need 3 sessions each)
+// ✅ FIXED: Stages 2-6 use HOURS-based progression (15 hours each)
+// 🔍 ENHANCED: Comprehensive debug logging for stage calculations
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -196,7 +197,14 @@ interface PracticeContextType {
   getSessionsByDateRange: (startDate: Date, endDate: Date) => PracticeSessionData[];
   getRecentSessions: (count: number) => PracticeSessionData[];
   
-  // Stage progression (hours-based, 6 stages)
+  // ✅ NEW: T-Level session counting for Stage 1
+  getTStageSessionCount: (tLevel: string) => number;
+  isStage1CompleteByTSessions: () => boolean;
+  
+  // ✅ NEW: Stage-specific hours calculation
+  getStageSpecificHours: (stage: number) => number;
+  
+  // Stage progression (hybrid: sessions for Stage 1, hours for Stages 2-6)
   getCurrentStage: () => number;
   getStageProgress: (stage: number) => { completed: number; total: number; percentage: number };
   canAdvanceToStage: (stage: number) => boolean;
@@ -225,7 +233,7 @@ interface PracticeContextType {
 const PracticeContext = createContext<PracticeContextType | undefined>(undefined);
 
 // ================================
-// PRACTICE PROVIDER WITH ENHANCED COMPATIBILITY
+// PRACTICE PROVIDER WITH HYBRID STAGE LOGIC
 // ================================
 export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
@@ -241,7 +249,119 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // ================================
-  // STAGE PROGRESSION FUNCTIONS (6 STAGES: 3,5,10,20,25,30 HOURS)
+  // ✅ NEW: T-LEVEL SESSION COUNTING (STAGE 1 LOGIC)
+  // ================================
+  
+  const getTStageSessionCount = useCallback((tLevel: string): number => {
+    try {
+      const normalizedTLevel = tLevel.toUpperCase(); // Ensure consistent format (T1, T2, etc.)
+      const lowerTLevel = tLevel.toLowerCase(); // Also check lowercase (t1, t2, etc.)
+      
+      const tStageSessions = sessions.filter((s: any) => {
+        // Check multiple possible field combinations for T-level identification
+        const matchesTLevel = s.tLevel === normalizedTLevel || s.tLevel === lowerTLevel;
+        const matchesLevel = s.level === lowerTLevel || s.level === normalizedTLevel;
+        const matchesStageLabel = s.stageLabel && (
+          s.stageLabel.includes(normalizedTLevel) || 
+          s.stageLabel.includes(lowerTLevel)
+        );
+        
+        // Must be a meditation session and completed
+        const isMeditation = s.sessionType === 'meditation' || !s.sessionType;
+        const isCompleted = s.completed !== false && s.duration > 0;
+        
+        const isMatch = (matchesTLevel || matchesLevel || matchesStageLabel) && isMeditation && isCompleted;
+        
+        if (isMatch) {
+          console.log(`🎯 Found ${normalizedTLevel} session:`, {
+            sessionId: s.sessionId?.substring(0, 8) + '...',
+            tLevel: s.tLevel,
+            level: s.level, 
+            stageLabel: s.stageLabel,
+            duration: s.duration,
+            completed: s.completed,
+            sessionType: s.sessionType
+          });
+        }
+        
+        return isMatch;
+      });
+      
+      const count = tStageSessions.length;
+      console.log(`🔍 ${normalizedTLevel} session count: ${count}/3`);
+      
+      return count;
+    } catch (error) {
+      console.error(`Error counting ${tLevel} sessions:`, error);
+      return 0;
+    }
+  }, [sessions]);
+
+  const isStage1CompleteByTSessions = useCallback((): boolean => {
+    try {
+      const t1Sessions = getTStageSessionCount('T1');
+      const t2Sessions = getTStageSessionCount('T2'); 
+      const t3Sessions = getTStageSessionCount('T3');
+      const t4Sessions = getTStageSessionCount('T4');
+      const t5Sessions = getTStageSessionCount('T5');
+      
+      const allTStagesComplete = t1Sessions >= 3 && t2Sessions >= 3 && 
+                               t3Sessions >= 3 && t4Sessions >= 3 && t5Sessions >= 3;
+      
+      console.log('🔍 STAGE 1 T-SESSION COMPLETION CHECK:', {
+        t1: `${t1Sessions}/3 ${t1Sessions >= 3 ? '✅' : '❌'}`,
+        t2: `${t2Sessions}/3 ${t2Sessions >= 3 ? '✅' : '❌'}`,
+        t3: `${t3Sessions}/3 ${t3Sessions >= 3 ? '✅' : '❌'}`,
+        t4: `${t4Sessions}/3 ${t4Sessions >= 3 ? '✅' : '❌'}`,
+        t5: `${t5Sessions}/3 ${t5Sessions >= 3 ? '✅' : '❌'}`,
+        totalTSessions: t1Sessions + t2Sessions + t3Sessions + t4Sessions + t5Sessions,
+        allComplete: allTStagesComplete,
+        result: allTStagesComplete ? 'STAGE 1 COMPLETE - UNLOCK STAGE 2' : 'STAGE 1 INCOMPLETE'
+      });
+      
+      return allTStagesComplete;
+    } catch (error) {
+      console.error('Error checking Stage 1 T-session completion:', error);
+      return false;
+    }
+  }, [getTStageSessionCount]);
+
+  // ================================
+  // ✅ NEW: STAGE-SPECIFIC HOURS CALCULATION
+  // ================================
+  const getStageSpecificHours = useCallback((stage: number): number => {
+    try {
+      // ✅ SPECIAL CASE: Stage 1 doesn't use hours (uses T-sessions)
+      if (stage === 1) {
+        return 0; // Stage 1 is session-based, not hours-based
+      }
+      
+      // Count ONLY sessions for the specific stage
+      const stageSessions = sessions.filter((session: any) => {
+        // Check if session belongs to this specific stage
+        const matchesStageLevel = session.stageLevel === stage;
+        const matchesStage = session.stage === stage;
+        const matchesStageLabel = session.stageLabel && session.stageLabel.includes(`Stage ${stage}`);
+        const isCompleted = session.completed !== false && session.duration > 0;
+        const isMeditation = session.sessionType === 'meditation' || !session.sessionType;
+        
+        return (matchesStageLevel || matchesStage || matchesStageLabel) && isCompleted && isMeditation;
+      });
+      
+      const totalMinutes = stageSessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+      const stageHours = totalMinutes / 60;
+      
+      console.log(`🔍 Stage ${stage} specific hours: ${stageHours.toFixed(1)} hours from ${stageSessions.length} sessions`);
+      
+      return stageHours;
+    } catch (error) {
+      console.error(`Error calculating Stage ${stage} specific hours:`, error);
+      return 0;
+    }
+  }, [sessions]);
+
+  // ================================
+  // ✅ FIXED: HYBRID STAGE PROGRESSION (Sessions for Stage 1, Hours for Stages 2-6)
   // ================================
   
   const getTotalPracticeHours = useCallback((): number => {
@@ -266,43 +386,77 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const getCurrentStage = useCallback((): number => {
     try {
-      const totalHours = getTotalPracticeHours();
+      // ✅ HYBRID LOGIC: Check Stage 1 completion by T-sessions first
+      const stage1Complete = isStage1CompleteByTSessions();
+      if (!stage1Complete) {
+        console.log('🔍 STAGE CALCULATION: Still on Stage 1 (T-sessions incomplete)');
+        return 1; // Still on Stage 1 until all T-sessions are complete
+      }
       
-      console.log(`🔍 Stage calculation - Total Hours: ${totalHours.toFixed(1)}`);
+      // ✅ FIXED: STAGES 2-6 - Each stage requires 15 hours to advance to NEXT stage
+      const stage2Hours = getStageSpecificHours(2);
+      const stage3Hours = getStageSpecificHours(3);
+      const stage4Hours = getStageSpecificHours(4);
+      const stage5Hours = getStageSpecificHours(5);
+      const stage6Hours = getStageSpecificHours(6);
       
-      // ✅ CORRECTED: 6-stage progression system with proper hour requirements
-      if (totalHours >= 30) return 6;  // 30+ hours for Stage 6
-      if (totalHours >= 25) return 5;  // 25+ hours for Stage 5
-      if (totalHours >= 20) return 4;  // 20+ hours for Stage 4  
-      if (totalHours >= 10) return 3;  // 10+ hours for Stage 3
-      if (totalHours >= 5) return 2;   // 5+ hours for Stage 2
-      if (totalHours >= 3) return 2;   // 3+ hours advances to Stage 2
-      return 1;                        // Less than 3 hours = Stage 1
+      console.log(`🔍 STAGE CALCULATION: Stage 1 Complete ✅`);
+      console.log(`   Stage 2 Hours: ${stage2Hours.toFixed(1)}/15`);
+      console.log(`   Stage 3 Hours: ${stage3Hours.toFixed(1)}/15`);
+      console.log(`   Stage 4 Hours: ${stage4Hours.toFixed(1)}/15`);
+      console.log(`   Stage 5 Hours: ${stage5Hours.toFixed(1)}/15`);
+      console.log(`   Stage 6 Hours: ${stage6Hours.toFixed(1)}/15`);
+      
+      let currentStage = 2; // Default to Stage 2 once Stage 1 is complete
+      
+      // Check stage progression: each stage needs 15 hours to advance
+      if (stage6Hours >= 15) currentStage = 6;        // Stage 6 complete
+      else if (stage5Hours >= 15) currentStage = 6;   // On Stage 6, working toward completion
+      else if (stage4Hours >= 15) currentStage = 5;   // On Stage 5, working toward completion  
+      else if (stage3Hours >= 15) currentStage = 4;   // On Stage 4, working toward completion
+      else if (stage2Hours >= 15) currentStage = 3;   // On Stage 3, working toward completion
+      // else currentStage stays 2 (on Stage 2, working toward completion)
+      
+      console.log(`🎯 CURRENT STAGE: ${currentStage} (Logic: Stage-specific hours per stage)`);
+      
+      return currentStage;
     } catch (error) {
       console.error('Error calculating current stage:', error);
       return 1;
     }
-  }, [getTotalPracticeHours]);
+  }, [isStage1CompleteByTSessions, getStageSpecificHours]);
 
   const getStageProgress = useCallback((stage: number): { completed: number; total: number; percentage: number } => {
     try {
-      const totalHours = getTotalPracticeHours();
+      // ✅ SPECIAL CASE: Stage 1 uses T-session counts
+      if (stage === 1) {
+        const t1Sessions = getTStageSessionCount('T1');
+        const t2Sessions = getTStageSessionCount('T2'); 
+        const t3Sessions = getTStageSessionCount('T3');
+        const t4Sessions = getTStageSessionCount('T4');
+        const t5Sessions = getTStageSessionCount('T5');
+        
+        const totalTSessions = t1Sessions + t2Sessions + t3Sessions + t4Sessions + t5Sessions;
+        const requiredTSessions = 15; // 3 sessions × 5 T-levels
+        const completed = Math.min(totalTSessions, requiredTSessions);
+        const percentage = Math.min(Math.round((completed / requiredTSessions) * 100), 100);
+        
+        console.log(`🔍 Stage 1 progress: ${completed}/${requiredTSessions} T-sessions (${percentage}%)`);
+        
+        return { 
+          completed,
+          total: requiredTSessions, 
+          percentage 
+        };
+      }
       
-      // ✅ CORRECTED: Hour requirements for 6 stages
-      const stageRequirements: { [key: number]: number } = {
-        1: 3,    // 3 hours to complete Stage 1
-        2: 5,    // 5 hours to complete Stage 2
-        3: 10,   // 10 hours to complete Stage 3
-        4: 20,   // 20 hours to complete Stage 4
-        5: 25,   // 25 hours to complete Stage 5
-        6: 30    // 30 hours to complete Stage 6
-      };
-      
-      const required = stageRequirements[stage] || 3;
-      const completed = Math.min(totalHours, required);
+      // ✅ FIXED: STAGES 2-6 - Each requires 15 hours AND uses stage-specific hours
+      const stageSpecificHours = getStageSpecificHours(stage);
+      const required = 15; // ✅ FIXED: Each stage requires 15 hours
+      const completed = Math.min(stageSpecificHours, required);
       const percentage = Math.min(Math.round((completed / required) * 100), 100);
       
-      console.log(`🔍 Stage ${stage} progress: ${completed.toFixed(1)}/${required} hours (${percentage}%)`);
+      console.log(`🔍 Stage ${stage} progress: ${completed.toFixed(1)}/${required} hours (${percentage}%) - STAGE SPECIFIC`);
       
       return { 
         completed: Math.round(completed * 10) / 10,
@@ -311,35 +465,35 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
     } catch (error) {
       console.error(`Error getting stage ${stage} progress:`, error);
-      return { completed: 0, total: 1, percentage: 0 };
+      return { completed: 0, total: 15, percentage: 0 }; // ✅ FIXED: Default to 15 hours
     }
-  }, [getTotalPracticeHours]);
+  }, [getTStageSessionCount, getStageSpecificHours]);
 
   const canAdvanceToStage = useCallback((targetStage: number): boolean => {
     try {
-      const totalHours = getTotalPracticeHours();
+      console.log(`🔍 CHECKING ACCESS TO STAGE ${targetStage}:`);
       
-      // ✅ CORRECTED: Hour requirements to UNLOCK each stage
-      const unlockRequirements: { [key: number]: number } = {
-        1: 0,    // Stage 1 always unlocked
-        2: 3,    // Need 3 hours to unlock Stage 2
-        3: 5,    // Need 5 hours to unlock Stage 3
-        4: 10,   // Need 10 hours to unlock Stage 4
-        5: 20,   // Need 20 hours to unlock Stage 5
-        6: 25    // Need 25 hours to unlock Stage 6
-      };
+      // ✅ SPECIAL CASE: Stage 2 unlock based on Stage 1 T-session completion
+      if (targetStage === 2) {
+        const stage1Complete = isStage1CompleteByTSessions();
+        console.log(`   Stage 2 Access: T-Sessions complete = ${stage1Complete}`);
+        return stage1Complete;
+      }
       
-      const requiredHours = unlockRequirements[targetStage] || 0;
-      const canAdvance = totalHours >= requiredHours;
+      // ✅ FIXED: STAGES 3-6 - Previous stage needs 15 hours to unlock next stage
+      const previousStage = targetStage - 1;
+      const previousStageHours = getStageSpecificHours(previousStage);
+      const requiredHours = 15; // ✅ FIXED: Each stage needs 15 hours to unlock next
+      const canAdvance = previousStageHours >= requiredHours;
       
-      console.log(`🔍 Can advance to Stage ${targetStage}? ${totalHours.toFixed(1)}/${requiredHours} hours = ${canAdvance}`);
+      console.log(`   Stage ${targetStage} Access: Stage ${previousStage} has ${previousStageHours.toFixed(1)}/${requiredHours} hours = ${canAdvance}`);
       
       return canAdvance;
     } catch (error) {
       console.error(`Error checking advancement to stage ${targetStage}:`, error);
       return targetStage === 1;
     }
-  }, [getTotalPracticeHours]);
+  }, [isStage1CompleteByTSessions, getStageSpecificHours]);
 
   const saveStageProgression = useCallback(async (stage: number, hoursCompleted: number): Promise<void> => {
     // ✅ CRITICAL: Authentication guard
@@ -359,7 +513,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         existingData = docSnap.data();
       }
       
-      // ✅ CORRECTED: 6-stage progression data
+      // ✅ HYBRID: Stage progression data with both session and hour tracking
       const progressData: StageProgressionData = {
         currentStage: stage,
         totalHours: hoursCompleted,
@@ -368,7 +522,7 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...existingData.stageHistory,
           [`stage${stage}`]: {
             completedAt: serverTimestamp() as Timestamp,
-            hoursRequired: [3, 5, 10, 20, 25, 30][stage - 1] || 3,
+            hoursRequired: stage === 1 ? 0 : 15, // ✅ FIXED: 15 hours per stage
             hoursCompleted: hoursCompleted
           }
         }
@@ -588,32 +742,6 @@ export const PracticeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // ✅ FIXED: REAL-TIME LISTENERS WITH orderBy REMOVED
   // ================================
   useEffect(() => {
-    // Add this right at the start of your PracticeContext useEffect
-console.log('🔍 AUTH DEBUG COMPARISON:', {
-  currentUserFromAuthContext: currentUser?.uid,
-  currentUserEmail: currentUser?.email,
-  adminPanelWorks: true, // Admin panel can read data
-  mainAppFails: true     // Main app can't read data
-});
-
-// Test if we can read ANY sessions (like admin panel does)
-const testDirectRead = async () => {
-  try {
-    const allSessions = await getDocs(collection(db, 'practiceSessions'));
-    console.log('🔥 DIRECT READ TEST:', {
-      totalSessions: allSessions.docs.length,
-      canReadDirectly: true,
-      firstSessionUserId: allSessions.docs[0]?.data()?.userId,
-      currentUserMatches: allSessions.docs[0]?.data()?.userId === currentUser?.uid
-    });
-  } catch (error) {
-    console.error('❌ Direct read failed:', error);
-  }
-};
-
-if (currentUser?.uid) {
-  testDirectRead();
-}
     console.log('🔍 USEEFFECT TRIGGERED');
     console.log('   Current User:', currentUser);
     console.log('   User UID:', currentUser?.uid);
@@ -1176,24 +1304,41 @@ if (currentUser?.uid) {
       stageProgression: {
         currentStage: getCurrentStage(),
         totalHours: getTotalPracticeHours(),
+        stage1CompleteByTSessions: isStage1CompleteByTSessions(),
         canAdvanceToStage2: canAdvanceToStage(2),
         canAdvanceToStage3: canAdvanceToStage(3),
         canAdvanceToStage4: canAdvanceToStage(4),
         canAdvanceToStage5: canAdvanceToStage(5),
-        canAdvanceToStage6: canAdvanceToStage(6)
+        canAdvanceToStage6: canAdvanceToStage(6),
+        tSessionCounts: {
+          t1: getTStageSessionCount('T1'),
+          t2: getTStageSessionCount('T2'),
+          t3: getTStageSessionCount('T3'),
+          t4: getTStageSessionCount('T4'),
+          t5: getTStageSessionCount('T5')
+        },
+        stageSpecificHours: {
+          stage2: getStageSpecificHours(2),
+          stage3: getStageSpecificHours(3),
+          stage4: getStageSpecificHours(4),
+          stage5: getStageSpecificHours(5),
+          stage6: getStageSpecificHours(6)
+        }
       },
       exportedAt: new Date().toISOString(),
-      source: 'firebase_realtime_enhanced_mind_recovery_compatible',
+      source: 'firebase_hybrid_stage_logic_v3_corrected',
       summary: {
         totalSessions: sessions.length,
         mindRecoverySessions: sessions.filter(s => s.sessionType === 'mind_recovery').length,
         meditationSessions: sessions.filter(s => s.sessionType === 'meditation').length,
         tLevelSessions: sessions.filter(s => s.tLevel).length,
         totalHours: getTotalPracticeHours(),
-        maxStage: 6
+        maxStage: 6,
+        stage1Logic: 'T-Session Based (3 sessions per T1-T5)',
+        stages2to6Logic: 'Hours Based (15 hours each stage - CORRECTED)'
       }
     };
-  }, [sessions, calculateStats, getCurrentStage, getTotalPracticeHours, canAdvanceToStage]);
+  }, [sessions, calculateStats, getCurrentStage, getTotalPracticeHours, canAdvanceToStage, isStage1CompleteByTSessions, getTStageSessionCount, getStageSpecificHours]);
 
   // ================================
   // LEGACY COMPATIBILITY
@@ -1234,7 +1379,14 @@ if (currentUser?.uid) {
     getSessionsByDateRange,
     getRecentSessions,
     
-    // Stage progression (hours-based, 6 stages)
+    // ✅ NEW: T-Level session counting for Stage 1
+    getTStageSessionCount,
+    isStage1CompleteByTSessions,
+    
+    // ✅ NEW: Stage-specific hours calculation
+    getStageSpecificHours,
+    
+    // Stage progression (hybrid: sessions for Stage 1, hours for Stages 2-6)
     getCurrentStage,
     getStageProgress,
     canAdvanceToStage,
@@ -1260,6 +1412,7 @@ if (currentUser?.uid) {
     addPracticeSession, addMindRecoverySession, deletePracticeSession, updateSession,
     getPracticeSessions, getMindRecoverySessions, getMeditationSessions,
     getSessionsByStage, getSessionsByDateRange, getRecentSessions,
+    getTStageSessionCount, isStage1CompleteByTSessions, getStageSpecificHours,
     getCurrentStage, getStageProgress, canAdvanceToStage,
     getTotalPracticeHours, checkAndAdvanceStage, saveStageProgression, loadStageProgression,
     calculateStats, getSessionFrequency, getProgressTrend,

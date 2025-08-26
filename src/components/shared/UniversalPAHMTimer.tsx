@@ -348,106 +348,148 @@ const getStageConfig = (stage: number) => {
   return configs[stage as keyof typeof configs] || configs[2];
 };
 
-// 🎨 MOBILE RESPONSIVE STYLES
+// 🎨 COMPACT ONE-SCREEN RESPONSIVE STYLES (matching MindRecoveryTimer)
 const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '100vh',
-    padding: 'clamp(16px, 4vw, 20px)',
+    height: '100vh',
+    width: '100vw',
+    padding: '8px',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
-    position: 'relative' as const
+    position: 'relative' as const,
+    overflow: 'hidden'
+  },
+  backButton: {
+    position: 'absolute' as const,
+    top: '10px',
+    left: '10px',
+    background: 'rgba(255, 255, 255, 0.2)',
+    color: 'white',
+    border: '2px solid white',
+    borderRadius: '20px',
+    padding: '6px 12px',
+    fontSize: '14px',
+    fontWeight: 'bold' as const,
+    cursor: 'pointer',
+    zIndex: 10
   },
   setupCard: {
     background: 'rgba(255, 255, 255, 0.1)',
-    padding: 'clamp(20px, 5vw, 30px)',
+    padding: '20px',
     borderRadius: '15px',
-    maxWidth: '400px',
+    maxWidth: '350px',
+    width: '90%',
+    textAlign: 'center' as const,
+    backdropFilter: 'blur(10px)'
+  },
+  practiceContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
     width: '100%',
-    textAlign: 'center' as const
+    maxWidth: '500px',
+    margin: '0 auto',
+    padding: '0 10px',
+    gap: '8px'
   },
   timerDisplay: {
-    fontSize: 'clamp(32px, 8vw, 48px)',
-    fontWeight: 'bold',
-    marginBottom: 'clamp(16px, 4vw, 20px)',
+    fontSize: 'clamp(32px, 8vw, 40px)',
+    fontWeight: 'bold' as const,
     background: 'rgba(255, 255, 255, 0.1)',
-    padding: 'clamp(16px, 4vw, 20px) clamp(24px, 6vw, 40px)',
-    borderRadius: '15px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+    padding: '8px 16px',
+    borderRadius: '12px',
+    textAlign: 'center' as const,
+    minWidth: '120px'
   },
   instruction: {
     background: 'rgba(255, 255, 255, 0.15)',
-    padding: 'clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 20px)',
+    padding: '6px 12px',
     borderRadius: '8px',
-    marginBottom: 'clamp(16px, 4vw, 20px)',
-    maxWidth: '500px',
-    width: '100%',
-    textAlign: 'center' as const
+    fontSize: 'clamp(11px, 2.8vw, 13px)',
+    lineHeight: '1.3',
+    textAlign: 'center' as const,
+    maxWidth: '90%'
   },
-  // 📱 MOBILE RESPONSIVE MATRIX
+  // 📱 COMPACT RESPONSIVE MATRIX
   matrix: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 'clamp(8px, 2vw, 12px)',
-    marginBottom: 'clamp(20px, 5vw, 30px)',
-    maxWidth: 'min(500px, 95vw)',
+    gap: 'clamp(6px, 1.5vw, 8px)',
     width: '100%',
-    aspectRatio: '1', // Keep matrix square
+    maxWidth: 'min(380px, 90vw)',
+    aspectRatio: '1',
+    margin: '0 auto'
   },
-  // 📱 MOBILE RESPONSIVE BUTTONS
+  // 📱 COMPACT RESPONSIVE BUTTONS
   baseButton: {
     border: 'none',
-    borderRadius: 'clamp(8px, 2vw, 12px)',
-    padding: 'clamp(8px, 2vw, 12px)',
-    fontSize: 'clamp(9px, 2.5vw, 12px)',
+    borderRadius: '8px',
+    padding: '4px',
+    fontSize: 'clamp(8px, 2.2vw, 10px)',
     fontWeight: 'bold' as const,
     cursor: 'pointer',
     textAlign: 'center' as const,
-    // 📱 FIXED: Responsive height that maintains aspect ratio
-    minHeight: 'clamp(60px, 15vw, 80px)',
-    maxHeight: 'clamp(80px, 20vw, 100px)',
     display: 'flex',
     flexDirection: 'column' as const,
     justifyContent: 'center',
     alignItems: 'center',
     transition: 'all 0.3s ease',
     color: '#2C3E50',
-    // 📱 Ensure consistent sizing
     aspectRatio: '1',
-    lineHeight: '1.2'
+    lineHeight: '1.1',
+    minHeight: '50px'
+  },
+  controlButtons: {
+    display: 'flex',
+    gap: '8px',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: '300px'
   },
   controlButton: {
-    color: 'white',
-    padding: 'clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 24px)',
+    padding: '8px 12px',
     border: 'none',
-    borderRadius: '25px',
-    fontSize: 'clamp(14px, 3.5vw, 16px)',
+    borderRadius: '20px',
+    fontSize: 'clamp(12px, 3vw, 14px)',
     fontWeight: 'bold' as const,
     cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-    whiteSpace: 'nowrap' as const
+    color: 'white',
+    flex: 1,
+    minHeight: '36px'
   },
   statusBar: {
-    position: 'fixed' as const,
+    position: 'absolute' as const,
     top: '10px',
     right: '10px',
     display: 'flex',
-    gap: '8px',
-    fontSize: 'clamp(10px, 2.5vw, 12px)',
-    zIndex: 1000,
+    gap: '4px',
+    fontSize: '10px',
+    zIndex: 10,
     flexWrap: 'wrap' as const,
-    maxWidth: '200px'
+    maxWidth: '150px'
   },
   statusBadge: {
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: 'clamp(10px, 2.5vw, 12px)',
+    padding: '2px 6px',
+    borderRadius: '10px',
+    fontSize: '10px',
     fontWeight: 'bold' as const,
     color: 'white',
     whiteSpace: 'nowrap' as const
+  },
+  sessionStats: {
+    background: 'rgba(255, 255, 255, 0.1)',
+    padding: '6px 12px',
+    borderRadius: '8px',
+    fontSize: 'clamp(10px, 2.5vw, 12px)',
+    textAlign: 'center' as const,
+    maxWidth: '250px',
+    width: '100%'
   }
 };
 
@@ -996,6 +1038,10 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
       <div style={styles.container}>
         <RecoveryPrompt />
         
+        <button onClick={onBack} style={styles.backButton}>
+          ← Back
+        </button>
+        
         <div style={{ fontSize: 'clamp(32px, 8vw, 48px)', marginBottom: '10px' }}>{config.emoji}</div>
         <h1 style={{ fontSize: 'clamp(20px, 5vw, 24px)', marginBottom: '10px', textAlign: 'center' }}>
           {config.title}
@@ -1008,7 +1054,6 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
           <h3 style={{ marginBottom: '15px', fontSize: 'clamp(16px, 4vw, 18px)' }}>
             Duration (minimum {config.minDuration} minutes)
           </h3>
-          {/* 🔧 Visible input field */}
           <input
             type="number"
             min={config.minDuration}
@@ -1033,7 +1078,6 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
             Posture: {posture} | Stage: {stageLevel}
           </div>
           
-          {/* 📱 Mobile responsive buttons */}
           <div style={{ 
             display: 'flex', 
             flexDirection: window.innerWidth < 480 ? 'column' : 'row', 
@@ -1063,27 +1107,10 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
             >
               {isLoading ? 'Loading Firebase...' : `Start Stage ${stageLevel} Practice`}
             </button>
-            <button
-              onClick={onBack}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                padding: 'clamp(12px, 3vw, 15px) clamp(20px, 5vw, 30px)',
-                border: '2px solid white',
-                borderRadius: '25px',
-                fontSize: 'clamp(14px, 3.5vw, 18px)',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                minWidth: 'clamp(100px, 25vw, 120px)',
-                whiteSpace: 'nowrap' as const
-              }}
-            >
-              Back
-            </button>
           </div>
         </div>
         
-        {/* 🔥 Firebase-Only Status */}
+        {/* Firebase-Only Status */}
         <div style={{
           marginTop: '20px',
           background: 'rgba(255, 255, 255, 0.1)',
@@ -1131,26 +1158,26 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
     );
   }
 
-  // 🎯 PRACTICE SCREEN - Complete PAHM Matrix with Firebase-Only Features
+  // 🎯 PRACTICE SCREEN - Compact one-screen layout matching MindRecoveryTimer
   return (
     <div style={styles.container}>
       <RecoveryPrompt />
       
       {/* 🔋 Status bar */}
       <div style={styles.statusBar}>
-        <div style={{
-          ...styles.statusBadge,
-          background: 'rgba(255, 87, 34, 0.8)'
-        }}>
-          🔥 Firebase-Only
-        </div>
-        
-        {isWakeLockActive && (
+        {isWakeLockActive ? (
           <div style={{
             ...styles.statusBadge,
             background: 'rgba(76, 175, 80, 0.8)'
           }}>
-            🔋 Screen Lock Off
+            🔒 Screen Locked OFF
+          </div>
+        ) : (
+          <div style={{
+            ...styles.statusBadge,
+            background: 'rgba(255, 152, 0, 0.8)'
+          }}>
+            ⚠️ May Sleep
           </div>
         )}
         
@@ -1159,19 +1186,10 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
             ...styles.statusBadge,
             background: 'rgba(33, 150, 243, 0.8)'
           }}>
-            🔊 Audio On
+            🔊 On
           </div>
         )}
         
-        {isInBackground && (
-          <div style={{
-            ...styles.statusBadge,
-            background: 'rgba(255, 152, 0, 0.8)'
-          }}>
-            📱 Background
-          </div>
-        )}
-
         {robustTimer && robustTimer.isRunning() && (
           <div style={{
             ...styles.statusBadge,
@@ -1182,208 +1200,184 @@ const UniversalPAHMTimer: React.FC<UniversalPAHMTimerProps> = ({
         )}
       </div>
 
-      {/* Timer Display */}
-      <div style={styles.timerDisplay}>
-        {formatTime(timeRemaining)}
-      </div>
+      <div style={styles.practiceContainer}>
+        {/* Timer Display */}
+        <div style={styles.timerDisplay}>
+          {formatTime(timeRemaining)}
+        </div>
 
-      {/* Stage Badge */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.2)',
-        padding: 'clamp(6px, 1.5vw, 8px) clamp(12px, 3vw, 16px)',
-        borderRadius: '20px',
-        fontSize: 'clamp(12px, 3vw, 14px)',
-        fontWeight: 'bold',
-        marginBottom: '10px'
-      }}>
-        {config.emoji} Stage {stageLevel}
-      </div>
-
-      {/* Instruction */}
-      <div style={styles.instruction}>
+        {/* Stage Badge */}
         <div style={{
-          fontSize: 'clamp(12px, 3vw, 14px)',
-          fontWeight: '500',
-          opacity: 0.95,
-          lineHeight: '1.4'
+          background: 'rgba(255, 255, 255, 0.2)',
+          padding: '4px 8px',
+          borderRadius: '15px',
+          fontSize: 'clamp(10px, 2.5vw, 12px)',
+          fontWeight: 'bold'
         }}>
-          {config.instruction}
+          {config.emoji} Stage {stageLevel}
         </div>
-      </div>
 
-      {/* 📱 Mobile responsive 3×3 PAHM Matrix */}
-      <div style={styles.matrix}>
-        {/* Row 1: ATTACHMENT */}
-        <button
-          onClick={() => handleQuadrantClick('nostalgia')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #E8B4A0 0%, #D7A86E 100%)',
-            filter: flashingButton === 'nostalgia' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'nostalgia' ? '0 0 20px rgba(232, 180, 160, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>NOSTALGIA</div>
-        </button>
-
-        <button
-          onClick={() => handleQuadrantClick('likes')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)',
-            border: '2px solid #4A90A4',
-            filter: flashingButton === 'likes' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'likes' ? '0 0 20px rgba(168, 230, 207, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>LIKES</div>
-        </button>
-
-        <button
-          onClick={() => handleQuadrantClick('anticipation')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #B4A7D6 0%, #9A8AC1 100%)',
-            filter: flashingButton === 'anticipation' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'anticipation' ? '0 0 20px rgba(180, 167, 214, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>ANTICIPATION</div>
-        </button>
-
-        {/* Row 2: NEUTRAL */}
-        <button
-          onClick={() => handleQuadrantClick('past')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #F4D03F 0%, #F1C40F 100%)',
-            filter: flashingButton === 'past' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'past' ? '0 0 20px rgba(244, 208, 63, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>PAST</div>
-        </button>
-
-        {/* ✅ RENAMED: "PRESENT" → "PRESENT/NEUTRAL" */}
-        <button
-          onClick={() => handleQuadrantClick('present')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%)',
-            border: '3px solid #4A90A4',
-            filter: flashingButton === 'present' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'present' ? '0 0 25px rgba(74, 144, 164, 0.9)' : '0 6px 12px rgba(74, 144, 164, 0.3)'
-          }}
-        >
-          <div>PRESENT/NEUTRAL</div>
-        </button>
-
-        <button
-          onClick={() => handleQuadrantClick('future')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #85C1E9 0%, #5DADE2 100%)',
-            filter: flashingButton === 'future' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'future' ? '0 0 20px rgba(133, 193, 233, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>FUTURE</div>
-        </button>
-
-        {/* Row 3: AVERSION */}
-        <button
-          onClick={() => handleQuadrantClick('regret')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #E6B8A2 0%, #D7A86E 100%)',
-            filter: flashingButton === 'regret' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'regret' ? '0 0 20px rgba(230, 184, 162, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>REGRET</div>
-        </button>
-
-        <button
-          onClick={() => handleQuadrantClick('dislikes')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #F5B7B1 0%, #E8B4A0 100%)',
-            border: '2px solid #4A90A4',
-            filter: flashingButton === 'dislikes' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'dislikes' ? '0 0 20px rgba(245, 183, 177, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>DISLIKES</div>
-        </button>
-
-        <button
-          onClick={() => handleQuadrantClick('worry')}
-          style={{
-            ...styles.baseButton,
-            background: 'linear-gradient(135deg, #D5BDDD 0%, #C8A8D8 100%)',
-            filter: flashingButton === 'worry' ? 'brightness(1.3)' : 'brightness(1)',
-            boxShadow: flashingButton === 'worry' ? '0 0 20px rgba(213, 189, 221, 0.8)' : '0 4px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <div>WORRY</div>
-        </button>
-      </div>
-
-      {/* 📱 Mobile responsive control buttons */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 'clamp(10px, 2.5vw, 15px)', 
-        marginBottom: 'clamp(16px, 4vw, 20px)',
-        flexWrap: 'wrap',
-        justifyContent: 'center'
-      }}>
-        <button
-          onClick={handlePause}
-          style={{
-            ...styles.controlButton,
-            background: isPaused 
-              ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
-              : 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-          }}
-        >
-          {isPaused ? 'Resume' : 'Pause'}
-        </button>
-
-        <button
-          onClick={handleCompleteEarly}
-          style={{
-            ...styles.controlButton,
-            background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
-            boxShadow: '0 4px 15px rgba(244, 67, 54, 0.3)'
-          }}
-        >
-          Complete Early
-        </button>
-      </div>
-
-      {/* Total Count Display with Additional Info */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        padding: 'clamp(12px, 3vw, 15px)',
-        borderRadius: '10px',
-        fontSize: 'clamp(12px, 3vw, 14px)',
-        textAlign: 'center' as const,
-        maxWidth: '300px'
-      }}>
-        <div style={{ marginBottom: '8px' }}>
-          Total Observations: {(Object.values(pahmCounts) as number[]).reduce((a, b) => a + b, 0)}
+        {/* Instruction */}
+        <div style={styles.instruction}>
+          📝 <strong>{config.title.split(':')[1] || 'PAHM Practice'}:</strong> Notice where your attention goes, tap when you recognize thoughts
         </div>
-        <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', opacity: 0.8 }}>
-          Present: {pahmCounts.present + pahmCounts.likes + pahmCounts.dislikes} | 
-          Past: {pahmCounts.past + pahmCounts.nostalgia + pahmCounts.regret} | 
-          Future: {pahmCounts.future + pahmCounts.anticipation + pahmCounts.worry}
+
+        {/* Compact 3×3 PAHM Matrix */}
+        <div style={styles.matrix}>
+          {/* Row 1: ATTACHMENT */}
+          <button
+            onClick={() => handleQuadrantClick('nostalgia')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #E8B4A0 0%, #D7A86E 100%)',
+              filter: flashingButton === 'nostalgia' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'nostalgia' ? '0 0 15px rgba(232, 180, 160, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>NOSTALGIA</div>
+          </button>
+
+          <button
+            onClick={() => handleQuadrantClick('likes')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #A8E6CF 0%, #7FCDCD 100%)',
+              border: '2px solid #4A90A4',
+              filter: flashingButton === 'likes' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'likes' ? '0 0 15px rgba(168, 230, 207, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>LIKES</div>
+          </button>
+
+          <button
+            onClick={() => handleQuadrantClick('anticipation')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #B4A7D6 0%, #9A8AC1 100%)',
+              filter: flashingButton === 'anticipation' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'anticipation' ? '0 0 15px rgba(180, 167, 214, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>ANTICIPATION</div>
+          </button>
+
+          {/* Row 2: NEUTRAL */}
+          <button
+            onClick={() => handleQuadrantClick('past')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #F4D03F 0%, #F1C40F 100%)',
+              filter: flashingButton === 'past' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'past' ? '0 0 15px rgba(244, 208, 63, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>PAST</div>
+          </button>
+
+          <button
+            onClick={() => handleQuadrantClick('present')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%)',
+              border: '3px solid #4A90A4',
+              filter: flashingButton === 'present' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'present' ? '0 0 20px rgba(74, 144, 164, 0.9)' : '0 4px 8px rgba(74, 144, 164, 0.3)'
+            }}
+          >
+            <div>PRESENT/NEUTRAL</div>
+          </button>
+
+          <button
+            onClick={() => handleQuadrantClick('future')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #85C1E9 0%, #5DADE2 100%)',
+              filter: flashingButton === 'future' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'future' ? '0 0 15px rgba(133, 193, 233, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>FUTURE</div>
+          </button>
+
+          {/* Row 3: AVERSION */}
+          <button
+            onClick={() => handleQuadrantClick('regret')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #E6B8A2 0%, #D7A86E 100%)',
+              filter: flashingButton === 'regret' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'regret' ? '0 0 15px rgba(230, 184, 162, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>REGRET</div>
+          </button>
+
+          <button
+            onClick={() => handleQuadrantClick('dislikes')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #F5B7B1 0%, #E8B4A0 100%)',
+              border: '2px solid #4A90A4',
+              filter: flashingButton === 'dislikes' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'dislikes' ? '0 0 15px rgba(245, 183, 177, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>DISLIKES</div>
+          </button>
+
+          <button
+            onClick={() => handleQuadrantClick('worry')}
+            style={{
+              ...styles.baseButton,
+              background: 'linear-gradient(135deg, #D5BDDD 0%, #C8A8D8 100%)',
+              filter: flashingButton === 'worry' ? 'brightness(1.3)' : 'brightness(1)',
+              boxShadow: flashingButton === 'worry' ? '0 0 15px rgba(213, 189, 221, 0.8)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div>WORRY</div>
+          </button>
         </div>
-        {robustTimer && (
-          <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', opacity: 0.8, marginTop: '5px' }}>
-            Elapsed: {Math.floor(robustTimer.getElapsedSeconds() / 60)}:{(robustTimer.getElapsedSeconds() % 60).toString().padStart(2, '0')}
-            <span style={{ marginLeft: '10px', color: '#ff6b35' }}>🔥 Firebase</span>
+
+        {/* Control Buttons */}
+        <div style={styles.controlButtons}>
+          <button
+            onClick={handlePause}
+            style={{
+              ...styles.controlButton,
+              background: isPaused 
+                ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
+                : 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+            }}
+          >
+            {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+          </button>
+
+          <button
+            onClick={handleCompleteEarly}
+            style={{
+              ...styles.controlButton,
+              background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
+            }}
+          >
+            Complete
+          </button>
+        </div>
+
+        {/* Session Stats */}
+        <div style={styles.sessionStats}>
+          <div style={{ marginBottom: '4px' }}>
+            Observations: {(Object.values(pahmCounts) as number[]).reduce((a, b) => a + b, 0)}
           </div>
-        )}
+          <div style={{ fontSize: '10px', opacity: 0.8, marginBottom: '2px' }}>
+            Present: {(((pahmCounts.present + pahmCounts.likes + pahmCounts.dislikes) / Math.max(1, Object.values(pahmCounts).reduce((a, b) => a + b, 0))) * 100).toFixed(0)}%
+          </div>
+          {robustTimer && (
+            <div style={{ fontSize: '10px', opacity: 0.8 }}>
+              Elapsed: {Math.floor(robustTimer.getElapsedSeconds() / 60)}:{(robustTimer.getElapsedSeconds() % 60).toString().padStart(2, '0')}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
