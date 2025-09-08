@@ -719,12 +719,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           });
         }, 1000);
         
-      }, 25 * 60 * 1000); // 25 minutes
+      }, (6 * 60 * 60 * 1000) - (5 * 60 * 1000)); // 5 hours 55 minutes
       
       // Auto logout after 30 minutes
       timeoutId = setTimeout(() => {
         logout();
-      }, 30 * 60 * 1000); // 30 minutes
+      }, 6 * 60 * 60 * 1000); // 6 hours
     }
     
     return () => {

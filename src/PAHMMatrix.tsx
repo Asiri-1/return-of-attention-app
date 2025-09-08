@@ -30,7 +30,7 @@ const PAHMMatrix: React.FC<PAHMMatrixProps> = ({
   const matrixPositions = [
     { id: 'nostalgia', color: '#FFF0B0', row: 0, col: 0 },
     { id: 'likes', color: '#E8FFF2', row: 0, col: 1 },
-    { id: 'anticipation', color: '#E0F0FF', row: 0, col: 2 },
+    { id: 'anticipation', color: '#C9E5FF', row: 0, col: 2 },
     { id: 'past', color: '#FFF5C0', row: 1, col: 0 },
     { id: 'present', color: '#FFFFFF', row: 1, col: 1, isCenter: true },
     { id: 'future', color: '#E5F0FF', row: 1, col: 2 },
